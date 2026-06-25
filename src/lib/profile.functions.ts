@@ -11,6 +11,19 @@ export const getMyProfile = createServerFn({ method: "GET" })
       .eq("id", context.userId)
       .maybeSingle();
     if (error) throw new Error(error.message);
+    if (!data) return data;
+
+    // Auto-refill credits when the reset timer has expired (non-admins).
+    if (!data.is_admin && data.credits_reset_at && new Date(data.credits_reset_at) <= new Date()) {
+      const nextReset = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+      const { data: refreshed } = await context.supabase
+        .from("profiles")
+        .update({ credits: data.max_credits, credits_reset_at: nextReset })
+        .eq("id", context.userId)
+        .select()
+        .single();
+      if (refreshed) return refreshed;
+    }
     return data;
   });
 
