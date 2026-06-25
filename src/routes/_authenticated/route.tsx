@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { getMyProfile } from "@/lib/profile.functions";
 import { useServerFn } from "@tanstack/react-start";
-import { Hammer, LayoutDashboard, Plug, Settings as SettingsIcon, LogOut, Sparkles } from "lucide-react";
+import { Crown, Hammer, LayoutDashboard, Plug, Settings as SettingsIcon, LogOut, Sparkles } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -40,6 +40,7 @@ function AuthedLayout() {
         <nav className="mt-4 flex-1 space-y-1 text-sm">
           <SideLink to="/dashboard" icon={LayoutDashboard}>Projects</SideLink>
           <SideLink to="/plugin" icon={Plug}>Studio Plugin</SideLink>
+          {profile?.is_admin && <SideLink to="/admin" icon={Crown}>Owner Admin</SideLink>}
           <SideLink to="/settings" icon={SettingsIcon}>Settings</SideLink>
         </nav>
         <div className="rounded-xl border border-border bg-card/60 p-3 text-xs">

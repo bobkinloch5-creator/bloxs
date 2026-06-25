@@ -313,6 +313,13 @@ function LeftSidebar({
       </Link>
 
       <nav className="flex flex-1 flex-col gap-1">
+        {isAdmin && (
+          <Link to="/admin" className="hover:[&>div]:bg-[var(--bs-card-2)]">
+            <div className="group flex items-center justify-between rounded-xl px-3 py-2 text-sm font-medium transition" style={{ color: "var(--bs-primary)", background: "var(--bs-primary-soft)" }}>
+              <span className="flex items-center gap-2.5"><Crown className="h-4 w-4" />Owner Admin</span>
+            </div>
+          </Link>
+        )}
         {SIDEBAR_NAV.map((n) => {
           const Icon = n.icon;
           const content = (

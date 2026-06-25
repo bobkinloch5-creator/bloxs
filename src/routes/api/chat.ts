@@ -12,7 +12,7 @@ export const Route = createFileRoute("/api/chat")({
         try {
           const auth = request.headers.get("authorization") ?? "";
           const token = auth.replace(/^Bearer\s+/i, "");
-          if (!token) return new Response("Unauthorized", { status: 401 });
+          if (!token) return new Response("Please sign in again before sending a message.", { status: 401 });
 
           const body = (await request.json()) as {
             messages?: UIMessage[];
@@ -32,7 +32,7 @@ export const Route = createFileRoute("/api/chat")({
           );
 
           const { data: userData } = await supabase.auth.getUser();
-          if (!userData.user) return new Response("Unauthorized", { status: 401 });
+          if (!userData.user) return new Response("Your session expired. Please sign in again.", { status: 401 });
           const userId = userData.user.id;
 
           // Verify project ownership (RLS would also block, but fail fast)
@@ -102,11 +102,17 @@ export const Route = createFileRoute("/api/chat")({
                 }
 
                 // Bump build counter + last model
+                const { data: currentProject } = await supabase
+                  .from("projects")
+                  .select("build_count")
+                  .eq("id", projectId)
+                  .single();
+
                 await supabase
                   .from("projects")
                   .update({
                     last_model_used: modelId,
-                    build_count: (await supabase.from("projects").select("build_count").eq("id", projectId).single()).data?.build_count ?? 0 + (actions.length > 0 ? 1 : 0),
+                    build_count: (currentProject?.build_count ?? 0) + (actions.length > 0 ? 1 : 0),
                     updated_at: new Date().toISOString(),
                   })
                   .eq("id", projectId);

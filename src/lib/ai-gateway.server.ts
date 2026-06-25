@@ -1,13 +1,34 @@
-// Server-only AI provider factory. Routes calls to Lovable, Quatarly, or NVIDIA.
+// Server-only AI provider factory. Routes all BloxSmith model modes through Lovable AI.
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { findModel, type ModelOption } from "./models";
 
+const SUPPORTED_LOVABLE_MODELS = new Set([
+  "google/gemini-3-flash-preview",
+  "google/gemini-3.1-flash-lite",
+  "google/gemini-3.5-flash",
+  "google/gemini-3.1-pro-preview",
+  "google/gemini-2.5-pro",
+  "google/gemini-2.5-flash",
+  "google/gemini-2.5-flash-lite",
+  "openai/gpt-5",
+  "openai/gpt-5-mini",
+  "openai/gpt-5-nano",
+  "openai/gpt-5.2",
+  "openai/gpt-5.4",
+  "openai/gpt-5.4-mini",
+  "openai/gpt-5.4-nano",
+  "openai/gpt-5.4-pro",
+  "openai/gpt-5.5",
+  "openai/gpt-5.5-pro",
+]);
+
 export function getProviderModel(modelId: string) {
   const m: ModelOption = findModel(modelId);
+  const upstream = SUPPORTED_LOVABLE_MODELS.has(m.upstream) ? m.upstream : "google/gemini-3-flash-preview";
 
   if (m.provider === "lovable") {
     const key = process.env.LOVABLE_API_KEY;
-    if (!key) throw new Error("LOVABLE_API_KEY missing");
+    if (!key) throw new Error("AI is not configured yet. Please try again in a moment.");
     const provider = createOpenAICompatible({
       name: "lovable",
       baseURL: "https://ai.gateway.lovable.dev/v1",
@@ -16,7 +37,7 @@ export function getProviderModel(modelId: string) {
         "X-Lovable-AIG-SDK": "vercel-ai-sdk",
       },
     });
-    return { model: provider(m.upstream), meta: m };
+    return { model: provider(upstream), meta: m };
   }
 
   if (m.provider === "quatarly") {
@@ -52,5 +73,15 @@ export function getProviderModel(modelId: string) {
     return { model: provider(m.upstream), meta: m };
   }
 
-  throw new Error(`Unknown provider for model ${modelId}`);
+  const key = process.env.LOVABLE_API_KEY;
+  if (!key) throw new Error("AI is not configured yet. Please try again in a moment.");
+  const provider = createOpenAICompatible({
+    name: "lovable",
+    baseURL: "https://ai.gateway.lovable.dev/v1",
+    headers: {
+      "Lovable-API-Key": key,
+      "X-Lovable-AIG-SDK": "vercel-ai-sdk",
+    },
+  });
+  return { model: provider(upstream), meta: m };
 }

@@ -102,7 +102,17 @@ function ProjectPage() {
 
   const [token, setToken] = useState<string | null>(null);
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setToken(data.session?.access_token ?? null));
+    let mounted = true;
+    supabase.auth.getSession().then(({ data }) => {
+      if (mounted) setToken(data.session?.access_token ?? null);
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      setToken(session?.access_token ?? null);
+    });
+    return () => {
+      mounted = false;
+      sub.subscription.unsubscribe();
+    };
   }, []);
 
   const initialMessages = useMemo(
@@ -116,8 +126,12 @@ function ProjectPage() {
 
   const transport = useMemo(() => new DefaultChatTransport({
     api: "/api/chat",
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  }), [token]);
+    headers: async () => {
+      const { data } = await supabase.auth.getSession();
+      const freshToken = data.session?.access_token;
+      return freshToken ? { Authorization: `Bearer ${freshToken}` } : {};
+    },
+  }), []);
 
   const { messages, sendMessage, status, error, stop } = useChat({
     id: projectId,
@@ -140,9 +154,13 @@ function ProjectPage() {
 
   const busy = status === "submitted" || status === "streaming";
 
-  function submit(text?: string) {
+  async function submit(text?: string) {
     const value = (text ?? input).trim();
-    if (!value || busy || !token) return;
+    if (!value || busy) return;
+    const { data } = await supabase.auth.getSession();
+    const freshToken = data.session?.access_token ?? null;
+    setToken(freshToken);
+    if (!freshToken) return;
     sendMessage(
       { text: value },
       { body: { projectId, modelId, autoExecute } },
@@ -353,6 +371,14 @@ function LeftSidebar({
       </Link>
 
       <nav className="mt-4 flex flex-col gap-0.5 text-sm">
+        {isAdmin && (
+          <Link to="/admin">
+            <div className="flex items-center gap-2.5 rounded-xl px-2.5 py-2 transition-colors hover:bg-[var(--bs-card-2)]" style={{ color: "var(--bs-primary)" }}>
+              <Crown className="h-4 w-4" />
+              <span className="flex-1 truncate">Owner Admin</span>
+            </div>
+          </Link>
+        )}
         {SIDEBAR_NAV.map((item) => {
           const Inner = (
             <div className="flex items-center gap-2.5 rounded-xl px-2.5 py-2 transition-colors hover:bg-[var(--bs-card-2)]" style={{ color: "var(--bs-fg)" }}>
