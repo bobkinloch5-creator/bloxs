@@ -484,7 +484,11 @@ function FootCol({ title, links }: { title: string; links: [string, string][] })
 function BgFx() {
   return (
     <div aria-hidden className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
-      <div className="absolute inset-0 bg-[radial-gradient(1200px_700px_at_20%_-10%,rgba(59,130,246,0.25),transparent_60%),radial-gradient(900px_500px_at_100%_10%,rgba(139,92,246,0.15),transparent_60%),#070b16]" />
+      <div
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-35"
+        style={{ backgroundImage: `url(${heroBg})` }}
+      />
+      <div className="absolute inset-0 bg-[radial-gradient(1200px_700px_at_20%_-10%,rgba(59,130,246,0.25),transparent_60%),radial-gradient(900px_500px_at_100%_10%,rgba(139,92,246,0.15),transparent_60%),linear-gradient(180deg,rgba(7,11,22,0.55),rgba(7,11,22,0.82))]" />
       {/* floating cubes */}
       {[
         ["top-24 left-8", "from-blue-500 to-indigo-600", 0],
@@ -495,7 +499,7 @@ function BgFx() {
       ].map(([pos, grad, d], i) => (
         <div
           key={i}
-          className={`bs-float absolute ${pos} h-8 w-8 rounded-lg bg-gradient-to-br ${grad} opacity-30 shadow-2xl`}
+          className={`bs-float absolute ${pos} h-8 w-8 rounded-lg bg-gradient-to-br ${grad} opacity-20 shadow-2xl`}
           style={{ animationDelay: `${d as number}s` }}
         />
       ))}
