@@ -21,7 +21,7 @@ export const Route = createFileRoute("/contact")({
       <p>Email: <a href="mailto:privacy@bloxsmith.app" className="text-blue-400 hover:underline">privacy@bloxsmith.app</a></p>
 
       <h2>Community</h2>
-      <p><a href="https://discord.gg/lovable-dev" target="_blank" rel="noreferrer" className="text-blue-400 hover:underline">Discord server</a> — ask other builders, share what you're working on.</p>
+      <p><a href="https://discord.gg/6QDYT3RUkv" target="_blank" rel="noreferrer" className="text-blue-400 hover:underline">Discord server</a> — ask other builders, share what you're working on.</p>
 
       <p className="mt-8 text-xs text-slate-500">Email addresses above are placeholders that the project owner should replace before launch.</p>
     </LegalShell>
