@@ -151,6 +151,28 @@ function ProjectPage() {
 
   return (
     <div className={`${themeClass} flex h-screen min-h-0 w-full overflow-hidden`}>
+      <OnboardingTour
+        storageKey="bs-onboarding-project"
+        steps={[
+          {
+            title: "This is your build chat 🛠️",
+            body: "Talk to BloxSmith like a teammate. Describe what you want — a tycoon dropper, a sword shop, a checkpoint system — and it'll generate the scripts.",
+          },
+          {
+            title: "Connect Roblox Studio",
+            body: "Look for the \"Plugin offline / Studio online\" chip in the top right. If it's offline, open the Studio Plugin page, install it, and paste your token. Builds get sent there automatically.",
+          },
+          {
+            title: "Quick actions",
+            body: "Use the chips above the input — Fix errors, Improve, Explain, Send to Studio — for one-tap follow-ups. The right panel shows every action being queued to Studio in real time.",
+          },
+          {
+            title: "Auto-execute & credits",
+            body: "Toggle Auto-execute to let BloxSmith plan + queue actions on its own. Each message uses a credit (top-right counter). When you're ready, just send your first prompt below.",
+            cta: "Start building",
+          },
+        ]}
+      />
       {/* Left sidebar */}
       <ChatSidebar theme={theme} setTheme={setTheme} pluginOnline={pluginOnline} />
 
