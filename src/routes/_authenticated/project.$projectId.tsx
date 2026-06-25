@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { getProject } from "@/lib/projects.functions";
+import { getProject, listProjects } from "@/lib/projects.functions";
 import { listMessages, listProjectActions, getPluginSession } from "@/lib/chat.functions";
 import { getMyProfile } from "@/lib/profile.functions";
 import { useChat } from "@ai-sdk/react";
@@ -11,9 +11,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { MODELS, DEFAULT_MODEL_ID } from "@/lib/models";
 import ReactMarkdown from "react-markdown";
 import {
-  ArrowLeft, Send, Loader2, CheckCircle2, AlertCircle, Radio, Sparkles,
-  FileCode, Paperclip, Mic, Wrench, Wand2, HelpCircle, RotateCcw, Save,
-  Upload, Sun, Moon, ChevronDown, Zap, BookOpen, Cpu, Box, X, Infinity as InfinityIcon, Timer, HandMetal,
+  Send, Loader2, CheckCircle2, AlertCircle, Radio, Sparkles, MessageSquare,
+  FileCode, Paperclip, Wrench, Wand2, HelpCircle, Save, Crown,
+  Sun, Moon, ChevronDown, Zap, Timer, Box, X, Infinity as InfinityIcon,
+  Folder, Lightbulb, LayoutDashboard, Search, Settings as SettingsIcon,
+  Plug, History, Users, Bell, Plus, ExternalLink, RefreshCw, ImageIcon,
+  Cpu, Music, BookOpen, Upload, RotateCcw,
 } from "lucide-react";
 import bloxLogo from "@/assets/bloxsmith-logo.png.asset.json";
 import { OnboardingTour } from "@/components/OnboardingTour";
@@ -23,36 +26,59 @@ export const Route = createFileRoute("/_authenticated/project/$projectId")({
   component: ProjectPage,
 });
 
-type Theme = "light" | "grey";
+type Theme = "default" | "grey" | "light";
 
-const QUICK_PROMPTS: { label: string; icon: typeof Wrench; prompt: string }[] = [
-  { label: "Fix errors",     icon: Wrench,     prompt: "Inspect the current scripts and fix any errors or warnings you find." },
-  { label: "Improve",        icon: Wand2,      prompt: "Improve the most recent changes — cleaner code, better performance, nicer UX." },
-  { label: "Explain",        icon: HelpCircle, prompt: "Explain what was just built and how the scripts work, step by step." },
-  { label: "Send to Studio", icon: Upload,     prompt: "Re-queue the latest build so the Roblox Studio plugin can apply it." },
-  { label: "Regenerate",     icon: RotateCcw,  prompt: "Regenerate the previous answer with a different approach." },
-  { label: "Save project",   icon: Save,       prompt: "Summarize the project so far and save a checkpoint of what's been built." },
+const QUICK_PROMPTS = [
+  { label: "Build a tycoon game", icon: Sparkles, prompt: "Make a tycoon with droppers, an upgrade shop, and a save system." },
+  { label: "Create an obby",      icon: Sparkles, prompt: "Build a 10-stage obby with checkpoints and a leaderboard." },
+  { label: "Make a pet simulator", icon: Sparkles, prompt: "Make a pet simulator with eggs, rebirths, and a coin shop." },
+  { label: "RPG quest system",     icon: Sparkles, prompt: "Add an NPC quest system with multiple quests, rewards, and a quest log GUI." },
+  { label: "More ideas",           icon: Lightbulb, prompt: "Give me 5 unique Roblox game ideas I haven't seen before." },
+];
+
+const COMPOSER_ACTIONS = [
+  { label: "Toolbox",      icon: Box,        prompt: "Search the Toolbox for relevant Roblox assets for this project and list the top results I should use." },
+  { label: "UI Generator", icon: LayoutDashboard, prompt: "Generate a clean Roblox GUI for the current project — include the ScreenGui, Frames, and TextLabels." },
+  { label: "Improve",      icon: Wand2,      prompt: "Improve the most recent changes — cleaner code, better performance, nicer UX." },
+  { label: "Fix Errors",   icon: Wrench,     prompt: "Inspect the current scripts and fix any errors or warnings you find." },
+  { label: "Explain",      icon: HelpCircle, prompt: "Explain what was just built and how the scripts work, step by step." },
 ];
 
 const BUILD_STEPS = [
-  { key: "reading",   label: "Reading project",      icon: BookOpen },
-  { key: "planning",  label: "Planning build",        icon: Cpu },
-  { key: "scripts",   label: "Generating scripts",    icon: FileCode },
-  { key: "actions",   label: "Creating Studio actions", icon: Box },
-  { key: "sending",   label: "Sending to Roblox Studio", icon: Upload },
-  { key: "testing",   label: "Testing & fixing errors", icon: Wrench },
+  { key: "planning",  label: "Planning game systems",     icon: Cpu },
+  { key: "assets",    label: "Searching Toolbox assets",  icon: Search },
+  { key: "scripts",   label: "Generating scripts & systems", icon: FileCode },
+  { key: "ui",        label: "Creating UI",               icon: LayoutDashboard },
+  { key: "actions",   label: "Preparing Studio actions",  icon: Box },
+  { key: "sending",   label: "Sending to Roblox Studio",  icon: Upload },
+  { key: "testing",   label: "Testing & fixing",          icon: Wrench },
 ] as const;
+
+const SIDEBAR_NAV: { label: string; icon: typeof Box; to?: string; soon?: boolean; key: string }[] = [
+  { key: "chat",   label: "AI Chat",         icon: MessageSquare },
+  { key: "proj",   label: "Projects",        icon: Folder,    to: "/dashboard" },
+  { key: "ideas",  label: "Game Ideas",      icon: Lightbulb, soon: true },
+  { key: "ui",     label: "UI Generator",    icon: LayoutDashboard, soon: true },
+  { key: "tb",     label: "Toolbox Search",  icon: Search,    soon: true },
+  { key: "mcp",    label: "MCP / Tools",     icon: Plug,      soon: true },
+  { key: "co",     label: "Collaborators",   icon: Users,     soon: true },
+  { key: "plug",   label: "Studio Plugin",   icon: Radio,     to: "/plugin" },
+  { key: "hist",   label: "History",         icon: History,   soon: true },
+  { key: "set",    label: "Settings",        icon: SettingsIcon, to: "/settings" },
+];
 
 function ProjectPage() {
   const { projectId } = Route.useParams();
   const qc = useQueryClient();
   const projectFn = useServerFn(getProject);
+  const projectsFn = useServerFn(listProjects);
   const messagesFn = useServerFn(listMessages);
   const actionsFn  = useServerFn(listProjectActions);
   const sessionFn  = useServerFn(getPluginSession);
   const profileFn  = useServerFn(getMyProfile);
 
   const { data: project } = useQuery({ queryKey: ["project", projectId], queryFn: () => projectFn({ data: { id: projectId } }) });
+  const { data: projects = [] } = useQuery({ queryKey: ["projects"], queryFn: () => projectsFn() });
   const { data: history = [] } = useQuery({ queryKey: ["messages", projectId], queryFn: () => messagesFn({ data: { projectId } }) });
   const { data: actions = [] } = useQuery({
     queryKey: ["actions", projectId],
@@ -64,13 +90,13 @@ function ProjectPage() {
     queryFn: () => sessionFn(),
     refetchInterval: 6000,
   });
-  const { data: profile } = useQuery({ queryKey: ["profile"], queryFn: () => profileFn() });
+  const { data: profile } = useQuery({ queryKey: ["profile"], queryFn: () => profileFn(), refetchInterval: 30000 });
 
   const [modelId, setModelId] = useState(DEFAULT_MODEL_ID);
   const [autoExecute, setAutoExecute] = useState(true);
   const [theme, setTheme] = useState<Theme>(() => {
-    if (typeof window === "undefined") return "grey";
-    return (localStorage.getItem("bs-chat-theme") as Theme) || "grey";
+    if (typeof window === "undefined") return "default";
+    return (localStorage.getItem("bs-chat-theme") as Theme) || "default";
   });
   useEffect(() => { localStorage.setItem("bs-chat-theme", theme); }, [theme]);
 
@@ -148,434 +174,398 @@ function ProjectPage() {
   }, [isAdmin, resetAt]);
   const [showTour, setShowTour] = useState(false);
 
-  // Compute current build "step" from pending/sent actions of the latest run.
+  // build step progression (visual only)
   const buildStepIndex = useMemo(() => {
-    if (status === "submitted") return 0; // reading
+    if (status === "submitted") return 0;
     if (status === "streaming") {
-      const pending = actions.filter((a) => a.status === "pending" || a.status === "sent").length;
       const recent = actions[0];
-      if (!recent) return 1; // planning
-      if (recent.status === "pending") return 3; // creating actions
-      if (recent.status === "sent") return 4;    // sending
-      if (recent.status === "failed") return 5;  // testing/fixing
-      if (pending > 0) return 3;
-      return 2; // generating scripts
+      if (!recent) return 1;
+      if (recent.status === "sent") return 5;
+      if (recent.status === "failed") return 6;
+      if (recent.status === "pending") return 4;
+      return 2;
     }
     return -1;
   }, [status, actions]);
+  const buildPct = buildStepIndex < 0 ? 100 : Math.round(((buildStepIndex + 1) / BUILD_STEPS.length) * 100);
+  const buildLabel = buildStepIndex < 0 ? "Idle — ready for your next prompt" : BUILD_STEPS[Math.min(buildStepIndex, BUILD_STEPS.length - 1)].label;
 
-  const themeClass = theme === "light" ? "bloxchat-light" : "bloxchat-grey";
+  // theme class on root
+  const themeClass = theme === "light" ? "bloxchat-light" : theme === "grey" ? "bloxchat-grey" : "bloxchat-dark";
 
   return (
-    <div className={`${themeClass} flex h-screen min-h-0 w-full overflow-hidden`}>
+    <div className={`${themeClass} flex h-screen min-h-0 w-full overflow-hidden`} style={{ background: "var(--bs-bg)", color: "var(--bs-fg)" }}>
       <OnboardingTour
         storageKey="bs-onboarding-project"
         force={showTour}
         onFinish={() => setShowTour(false)}
         steps={[
-          {
-            title: "This is your build chat 🛠️",
-            body: "Talk to BloxSmith like a teammate. Describe what you want — a tycoon dropper, a sword shop, a checkpoint system — and it'll generate the scripts.",
-          },
-          {
-            title: "Connect Roblox Studio",
-            body: "Look for the \"Plugin offline / Studio online\" chip in the top right. If it's offline, open the Studio Plugin page, install it, and paste your token. Builds get sent there automatically.",
-          },
-          {
-            title: "Quick actions",
-            body: "Use the chips above the input — Fix errors, Improve, Explain, Send to Studio — for one-tap follow-ups. The right panel shows every action being queued to Studio in real time.",
-          },
-          {
-            title: "Auto-execute & credits",
-            body: "Toggle Auto-execute to let BloxSmith plan + queue actions on its own. Each message uses a credit (top-right counter) — they refill on a 24-hour timer. Admins get unlimited.",
-            cta: "Start building",
-          },
+          { title: "Welcome to BloxSmith 🛠️", body: "This is your AI command center for Roblox. Describe what you want — tycoons, obbies, RPGs — and BloxSmith plans it, writes the Luau, and queues it for Studio." },
+          { title: "Roblox Studio", body: "The right panel shows whether your Studio plugin is connected. If it's offline, click 'Studio Plugin' in the left nav to install it and paste your token." },
+          { title: "Quick actions", body: "Bottom bar has Toolbox, UI Generator, Improve, Fix Errors, and Explain. They're one-tap follow-ups that send a smart prompt for you." },
+          { title: "Credits & timer", body: "Everyone gets 100 free credits that refill every 24 hours — you'll see a live countdown in the header. Owners get unlimited.", cta: "Start building" },
         ]}
       />
-      {/* Left sidebar */}
-      <ChatSidebar theme={theme} setTheme={setTheme} pluginOnline={pluginOnline} />
 
-      {/* Main column */}
+      {/* LEFT SIDEBAR */}
+      <LeftSidebar
+        theme={theme}
+        setTheme={setTheme}
+        credits={credits}
+        maxCredits={maxCredits}
+        isAdmin={isAdmin}
+        resetLabel={resetLabel}
+      />
+
+      {/* MAIN COLUMN */}
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* Header */}
-        <header
-          className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b px-3 py-3 sm:flex sm:px-6"
-          style={{ borderColor: "var(--bs-border)", background: "var(--bs-card)" }}
-        >
-          <div className="flex min-w-0 items-center gap-3">
-            <Link
-              to="/dashboard"
-              className="bs-icon-btn shrink-0"
-              aria-label="Back to dashboard"
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </Link>
-            <div className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-xl bg-[var(--bs-card-2)] ring-1 ring-[var(--bs-border)]">
-              <img src={bloxLogo.url} alt="BloxSmith" className="h-9 w-9 object-contain" />
-            </div>
-            <div className="min-w-0">
-              <h1 className="font-display truncate text-base font-semibold leading-tight">
-                {project?.name ?? "Loading…"}
-              </h1>
-              <div className="truncate text-xs" style={{ color: "var(--bs-muted-fg)" }}>
-                {project?.game_type ?? "Roblox build"}
-              </div>
-            </div>
-          </div>
+        <TopBar
+          project={project}
+          projects={projects}
+          modelId={modelId}
+          setModelId={setModelId}
+          credits={credits}
+          maxCredits={maxCredits}
+          isAdmin={isAdmin}
+          resetLabel={resetLabel}
+          profile={profile}
+          onTour={() => setShowTour(true)}
+        />
 
-          <div className="flex shrink-0 items-center gap-2 justify-self-end">
-            <button
-              onClick={() => setShowTour(true)}
-              className="bs-chip"
-              title="Replay onboarding tour"
-            >
-              <HelpCircle className="h-3 w-3" />
-              <span className="hidden sm:inline">Tour</span>
-            </button>
-            <Link
-              to="/plugin"
-              className={pluginOnline ? "bs-chip bs-chip-on" : "bs-chip"}
-              title={pluginOnline ? "Studio plugin connected" : "Open plugin setup"}
-            >
-              <Radio className="h-3 w-3" />
-              <span className="hidden sm:inline">{pluginOnline ? "Studio online" : "Plugin offline"}</span>
-            </Link>
-            {isAdmin ? (
-              <div className="bs-chip bs-chip-on" title="Unlimited credits (admin)">
-                <InfinityIcon className="h-3 w-3" />
-                <span>Unlimited</span>
-              </div>
-            ) : (
-              <>
-                <div className={lowCredits ? "bs-chip bs-chip-warn" : "bs-chip"} title="Messages remaining today">
-                  <Zap className="h-3 w-3" />
-                  <span>{credits}{maxCredits ? ` / ${maxCredits}` : ""}</span>
-                </div>
-                {resetLabel && (
-                  <div className="bs-chip" title="Time until credits refill">
-                    <Timer className="h-3 w-3" />
-                    <span className="hidden sm:inline">Resets in {resetLabel}</span>
-                    <span className="sm:hidden">{resetLabel}</span>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        </header>
-
-        {/* Chat + Action panel */}
         <div className="flex min-h-0 flex-1">
-          <div
-            ref={scrollRef}
-            className="scrollbar-thin flex-1 overflow-y-auto px-3 py-5 sm:px-6 lg:px-10"
-            style={{ background: "var(--bs-bg)" }}
-          >
-            <div className="mx-auto flex max-w-3xl flex-col gap-5">
-              {messages.length === 0 && (
-                <EmptyState
-                  name={profile?.display_name || profile?.username || "builder"}
-                  onPrompt={(p) => submit(p)}
-                />
-              )}
-
-              {messages.map((m) => {
-                const text = m.parts.map((p) => (p.type === "text" ? p.text : "")).join("");
-                const isUser = m.role === "user";
-                return (
-                  <div key={m.id} className={`bs-msg-in flex gap-2.5 ${isUser ? "justify-end" : ""}`}>
-                    {!isUser && <AssistantAvatar />}
-                    <div className={`${isUser ? "bs-bubble-user" : "bs-bubble-ai"} max-w-[85%] px-4 py-3 sm:max-w-[78%]`}>
-                      <div className="bs-prose">
-                        <ReactMarkdown>{text || "_…_"}</ReactMarkdown>
-                      </div>
-                    </div>
-                    {isUser && <UserAvatar name={profile?.display_name || profile?.username} />}
-                  </div>
-                );
-              })}
-
-              {busy && (
-                <BuildProgress
-                  status={status}
-                  stepIndex={buildStepIndex}
-                  onStop={stop}
-                />
-              )}
-
-              {error && (
-                <div
-                  className="flex items-start gap-2 rounded-2xl border px-4 py-3 text-sm"
-                  style={{
-                    borderColor: "color-mix(in oklab, var(--bs-danger) 40%, transparent)",
-                    background: "color-mix(in oklab, var(--bs-danger) 10%, transparent)",
-                    color: "var(--bs-danger)",
-                  }}
-                >
-                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                  <div className="min-w-0 flex-1">
-                    <div className="font-medium">Something went wrong</div>
-                    <div className="opacity-80">{error.message || "Please try again."}</div>
-                  </div>
-                  <button
-                    onClick={() => {
-                      const lastUser = [...messages].reverse().find((mm) => mm.role === "user");
-                      const t = lastUser?.parts.map((p) => (p.type === "text" ? p.text : "")).join("") ?? "";
-                      submit(t);
-                    }}
-                    className="bs-quick shrink-0"
-                  >
-                    <RotateCcw className="h-3 w-3" /> Retry
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <ActionQueuePanel actions={actions} />
-        </div>
-
-        {/* Composer */}
-        <div
-          className="border-t px-3 pb-4 pt-3 sm:px-6"
-          style={{ borderColor: "var(--bs-border)", background: "var(--bs-card)" }}
-        >
-          <div className="mx-auto w-full max-w-3xl">
-            {/* Quick-action chips */}
-            <div className="scrollbar-thin -mx-1 mb-3 flex gap-2 overflow-x-auto px-1 pb-1">
-              {QUICK_PROMPTS.map((q) => (
-                <button
-                  key={q.label}
-                  disabled={busy}
-                  onClick={() => submit(q.prompt)}
-                  className="bs-quick shrink-0"
-                >
-                  <q.icon className="h-3.5 w-3.5" />
-                  {q.label}
-                </button>
-              ))}
-            </div>
-
-            <div className="bs-input-wrap flex flex-col px-3 py-2">
-              <textarea
-                ref={textareaRef}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); }
-                }}
-                rows={1}
-                placeholder="Describe what to build, fix, or add…"
-                className="max-h-44 min-h-[40px] w-full resize-none bg-transparent px-1 py-2 text-sm outline-none placeholder:opacity-60"
-                style={{ color: "var(--bs-fg)" }}
-              />
-
-              <div className="flex items-center gap-1.5">
-                <button className="bs-icon-btn" title="Attach image" type="button">
-                  <Paperclip className="h-4 w-4" />
-                </button>
-                <button className="bs-icon-btn" title="Voice input" type="button">
-                  <Mic className="h-4 w-4" />
-                </button>
-
-                <div className="relative">
-                  <select
-                    value={modelId}
-                    onChange={(e) => setModelId(e.target.value)}
-                    className="bs-select max-w-[160px] truncate sm:max-w-none"
-                    title={(() => {
-                      const m = MODELS.find((x) => x.id === modelId);
-                      return m ? `${m.label} — ${m.description}\nBest for: ${m.bestFor}` : "Model";
-                    })()}
-                  >
-                    {MODELS.map((m) => (
-                      <option key={m.id} value={m.id} title={`${m.description}\nBest for: ${m.bestFor}`}>
-                        {m.label} · {m.tier === "premium" ? "Pro" : m.tier === "balanced" ? "Mid" : "Fast"} — best for {m.bestFor.split(",")[0].replace(/\.$/, "")}
-                      </option>
-                    ))}
-                  </select>
+          {/* CENTER — chat */}
+          <div className="flex min-w-0 flex-1 flex-col">
+            <div
+              ref={scrollRef}
+              className="scrollbar-thin flex-1 overflow-y-auto px-4 py-6 sm:px-8"
+            >
+              <div className="mx-auto flex max-w-3xl flex-col gap-5">
+                <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: "var(--bs-primary)" }}>
+                  <Sparkles className="h-4 w-4" /> AI Chat
                 </div>
 
-                <label
-                  className="ml-1 flex cursor-pointer select-none items-center gap-2 text-xs"
-                  style={{ color: "var(--bs-muted-fg)" }}
-                  title="When on, AI plans + queues actions automatically"
-                >
-                  <span
-                    role="switch"
-                    aria-checked={autoExecute}
-                    className="bs-toggle"
-                    data-on={autoExecute ? "true" : "false"}
-                    onClick={() => setAutoExecute((v) => !v)}
+                {messages.length === 0 && (
+                  <WelcomeCard
+                    name={profile?.display_name || profile?.username || "builder"}
+                    onPrompt={(p) => submit(p)}
                   />
-                  <span className="hidden sm:inline">Auto-execute</span>
-                </label>
+                )}
 
-                <div className="flex-1" />
+                {messages.map((m) => {
+                  const text = m.parts.map((p) => (p.type === "text" ? p.text : "")).join("");
+                  const isUser = m.role === "user";
+                  return isUser ? (
+                    <UserBubble key={m.id} text={text} profile={profile} />
+                  ) : (
+                    <AssistantCard key={m.id} text={text} />
+                  );
+                })}
 
-                {busy ? (
-                  <button
-                    onClick={() => stop()}
-                    className="bs-send-btn flex h-10 items-center gap-1.5 px-4 text-sm font-medium"
-                    style={{ background: "var(--bs-danger)", boxShadow: "none" }}
+                {busy && (
+                  <BuildProgressCard
+                    stepIndex={buildStepIndex}
+                    onStop={stop}
+                    onAction={(p) => submit(p)}
+                  />
+                )}
+
+                {error && (
+                  <div
+                    className="flex items-start gap-2 rounded-2xl border px-4 py-3 text-sm"
+                    style={{
+                      borderColor: "color-mix(in oklab, var(--bs-danger) 40%, transparent)",
+                      background: "color-mix(in oklab, var(--bs-danger) 10%, transparent)",
+                      color: "var(--bs-danger)",
+                    }}
                   >
-                    <X className="h-4 w-4" /> Stop
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => submit()}
-                    disabled={!input.trim() || !token}
-                    className="bs-send-btn flex h-10 items-center gap-1.5 px-4 text-sm font-medium"
-                  >
-                    <Send className="h-4 w-4" />
-                    <span className="hidden sm:inline">Send</span>
-                  </button>
+                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium">Something went wrong</div>
+                      <div className="opacity-80">{error.message || "Please try again."}</div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        const lastUser = [...messages].reverse().find((mm) => mm.role === "user");
+                        const t = lastUser?.parts.map((p) => (p.type === "text" ? p.text : "")).join("") ?? "";
+                        submit(t);
+                      }}
+                      className="bs-quick shrink-0"
+                    >
+                      <RotateCcw className="h-3 w-3" /> Retry
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
 
-            <div className="mt-2 flex items-center justify-between px-1 text-[11px]" style={{ color: "var(--bs-muted-fg)" }}>
-              <span>Enter to send · Shift+Enter for new line</span>
-              <span className="hidden sm:inline">
-                {autoExecute ? "Auto-execute on — actions will queue automatically" : "Manual mode — review before sending"}
-              </span>
-            </div>
+            <Composer
+              input={input}
+              setInput={setInput}
+              textareaRef={textareaRef}
+              busy={busy}
+              token={token}
+              autoExecute={autoExecute}
+              setAutoExecute={setAutoExecute}
+              onSubmit={() => submit()}
+              onStop={() => stop()}
+              onAction={(p) => submit(p)}
+              modelId={modelId}
+              setModelId={setModelId}
+            />
           </div>
+
+          {/* RIGHT SIDEBAR */}
+          <RightSidebar
+            project={project}
+            pluginOnline={pluginOnline}
+            pluginSession={pluginSession}
+            actions={actions}
+            buildPct={buildPct}
+            buildLabel={buildLabel}
+            busy={busy}
+          />
         </div>
       </div>
     </div>
   );
 }
 
-/* ───────────────────────── subcomponents ───────────────────────── */
-
-function ChatSidebar({
-  theme, setTheme, pluginOnline,
-}: { theme: Theme; setTheme: (t: Theme) => void; pluginOnline: boolean }) {
+/* ────────────────── LEFT SIDEBAR ────────────────── */
+function LeftSidebar({
+  theme, setTheme, credits, maxCredits, isAdmin, resetLabel,
+}: {
+  theme: Theme; setTheme: (t: Theme) => void;
+  credits: number; maxCredits: number; isAdmin: boolean; resetLabel: string;
+}) {
   return (
     <aside
-      className="hidden w-60 shrink-0 flex-col border-r p-4 md:flex"
+      className="hidden w-64 shrink-0 flex-col border-r p-3 md:flex"
       style={{ background: "var(--bs-card)", borderColor: "var(--bs-border)" }}
     >
-      <Link to="/dashboard" className="flex items-center gap-2.5">
-        <div className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-xl bg-[var(--bs-card-2)] ring-1 ring-[var(--bs-border)]">
-          <img src={bloxLogo.url} alt="BloxSmith logo" className="bs-logo-float h-10 w-10 object-contain" />
+      <Link to="/dashboard" className="flex items-center gap-2.5 px-2 py-2">
+        <div className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-2xl ring-1 ring-[var(--bs-border)]" style={{ background: "var(--bs-card-2)" }}>
+          <img src={bloxLogo.url} alt="BloxSmith" className="bs-logo-float h-10 w-10 object-contain" />
         </div>
         <div className="leading-tight">
           <div className="font-display text-base font-bold tracking-tight">BloxSmith</div>
-          <div className="text-[10px] uppercase tracking-[0.14em]" style={{ color: "var(--bs-muted-fg)" }}>AI Roblox game builder</div>
+          <div className="text-[10px] uppercase tracking-[0.14em]" style={{ color: "var(--bs-muted-fg)" }}>AI game builder</div>
         </div>
       </Link>
 
-      <nav className="mt-6 flex flex-col gap-1 text-sm">
-        <SidebarLink to="/dashboard" icon={Box} label="Projects" />
-        <SidebarLink to="/plugin" icon={Radio} label="Studio plugin" badge={pluginOnline ? "on" : undefined} />
-        <SidebarLink to="/settings" icon={Cpu} label="Settings" />
+      <nav className="mt-4 flex flex-col gap-0.5 text-sm">
+        {SIDEBAR_NAV.map((item) => {
+          const Inner = (
+            <div className="flex items-center gap-2.5 rounded-xl px-2.5 py-2 transition-colors hover:bg-[var(--bs-card-2)]" style={{ color: "var(--bs-fg)" }}>
+              <item.icon className="h-4 w-4 opacity-75" />
+              <span className="flex-1 truncate">{item.label}</span>
+              {item.soon && (
+                <span className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide"
+                  style={{ background: "var(--bs-card-2)", color: "var(--bs-muted-fg)" }}>
+                  soon
+                </span>
+              )}
+            </div>
+          );
+          return item.to
+            ? <Link key={item.key} to={item.to}>{Inner}</Link>
+            : <div key={item.key} className="cursor-not-allowed opacity-90">{Inner}</div>;
+        })}
       </nav>
 
       <div className="flex-1" />
 
+      {/* 100% Free Forever */}
+      <div className="bs-soft relative mb-3 overflow-hidden p-4">
+        <div className="absolute inset-0 opacity-25" style={{ background: "var(--bs-grad)" }} />
+        <div className="relative">
+          <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--bs-primary)" }}>
+            <Sparkles className="h-3 w-3" /> 100% Free Forever
+          </div>
+          <p className="mt-1 text-xs leading-snug" style={{ color: "var(--bs-muted-fg)" }}>
+            No hidden limits. Build anything you imagine. Always free.
+          </p>
+        </div>
+      </div>
+
+      {/* Credits */}
+      <div className="bs-soft mb-3 p-4">
+        <div className="text-[11px] uppercase tracking-wider" style={{ color: "var(--bs-muted-fg)" }}>Your Credits</div>
+        <div className="mt-1 flex items-baseline gap-1.5">
+          {isAdmin ? (
+            <>
+              <InfinityIcon className="h-5 w-5" style={{ color: "var(--bs-primary)" }} />
+              <span className="text-2xl font-bold" style={{ color: "var(--bs-primary)" }}>Unlimited</span>
+            </>
+          ) : (
+            <>
+              <Zap className="h-4 w-4" style={{ color: "var(--bs-primary)" }} />
+              <span className="text-2xl font-bold" style={{ color: "var(--bs-primary)" }}>{credits}</span>
+              <span className="text-xs" style={{ color: "var(--bs-muted-fg)" }}>/ {maxCredits}</span>
+            </>
+          )}
+        </div>
+        {!isAdmin && (
+          <>
+            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full" style={{ background: "var(--bs-card-2)" }}>
+              <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(100, (credits / Math.max(1, maxCredits)) * 100)}%`, background: "var(--bs-grad)" }} />
+            </div>
+            <div className="mt-2 flex items-center gap-1 text-[11px]" style={{ color: "var(--bs-muted-fg)" }}>
+              <Timer className="h-3 w-3" /> Resets in {resetLabel || "…"}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Theme */}
       <div className="bs-soft p-3">
         <div className="mb-2 text-[10px] uppercase tracking-wider" style={{ color: "var(--bs-muted-fg)" }}>Theme</div>
-        <div className="flex gap-1.5">
-          <button
-            onClick={() => setTheme("light")}
-            className="bs-quick flex-1 justify-center"
-            style={theme === "light" ? { background: "var(--bs-primary-soft)", borderColor: "var(--bs-primary)", color: "var(--bs-primary)" } : {}}
-          >
-            <Sun className="h-3.5 w-3.5" /> Light
-          </button>
-          <button
-            onClick={() => setTheme("grey")}
-            className="bs-quick flex-1 justify-center"
-            style={theme === "grey" ? { background: "var(--bs-primary-soft)", borderColor: "var(--bs-primary)", color: "var(--bs-primary)" } : {}}
-          >
-            <Moon className="h-3.5 w-3.5" /> Grey
-          </button>
+        <div className="grid grid-cols-3 gap-1.5">
+          {(["default", "grey", "light"] as Theme[]).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTheme(t)}
+              className="bs-quick justify-center"
+              style={theme === t ? { background: "var(--bs-primary-soft)", borderColor: "var(--bs-primary)", color: "var(--bs-primary)" } : {}}
+            >
+              {t === "light" ? <Sun className="h-3 w-3" /> : t === "grey" ? <Moon className="h-3 w-3" /> : <Sparkles className="h-3 w-3" />}
+              <span className="capitalize">{t}</span>
+            </button>
+          ))}
         </div>
       </div>
     </aside>
   );
 }
 
-function SidebarLink({ to, icon: Icon, label, badge }: { to: string; icon: typeof Box; label: string; badge?: string }) {
+/* ────────────────── TOP BAR ────────────────── */
+function TopBar({
+  project, projects, modelId, setModelId, credits, maxCredits, isAdmin, resetLabel, profile, onTour,
+}: any) {
   return (
-    <Link
-      to={to}
-      className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors hover:bg-[var(--bs-card-2)]"
-      style={{ color: "var(--bs-fg)" }}
+    <header
+      className="flex items-center gap-2 border-b px-3 py-2.5 sm:px-5"
+      style={{ borderColor: "var(--bs-border)", background: "var(--bs-card)" }}
     >
-      <Icon className="h-4 w-4 opacity-70" />
-      <span className="flex-1">{label}</span>
-      {badge === "on" && <span className="h-2 w-2 rounded-full" style={{ background: "var(--bs-success)" }} />}
-    </Link>
-  );
-}
-
-function AssistantAvatar() {
-  return (
-    <div
-      className="mt-1 grid h-9 w-9 shrink-0 place-items-center rounded-xl text-white shadow-md"
-      style={{ background: "var(--bs-grad)" }}
-    >
-      <Sparkles className="h-4 w-4" />
-    </div>
-  );
-}
-function UserAvatar({ name }: { name?: string | null }) {
-  const letter = (name || "U").trim().slice(0, 1).toUpperCase();
-  return (
-    <div
-      className="mt-1 grid h-9 w-9 shrink-0 place-items-center rounded-xl text-sm font-semibold"
-      style={{ background: "var(--bs-card-2)", color: "var(--bs-fg)", border: "1px solid var(--bs-border)" }}
-    >
-      {letter}
-    </div>
-  );
-}
-
-function EmptyState({ name, onPrompt }: { name: string; onPrompt: (s: string) => void }) {
-  const ideas: { label: string; prompt: string; tag: string }[] = [
-    { label: "Build a tycoon game", tag: "Tycoon", prompt: "Make a tycoon with droppers, an upgrade shop, and a save system." },
-    { label: "Create an obby",      tag: "Obby",    prompt: "Build a 10-stage obby with checkpoints and a leaderboard." },
-    { label: "Make a pet simulator", tag: "Simulator", prompt: "Make a pet simulator with eggs, rebirths and a coin shop." },
-    { label: "RPG quest system",     tag: "RPG",    prompt: "Add an NPC quest system with multiple quests, rewards, and a quest log GUI." },
-  ];
-  const friendly = (name || "builder").trim();
-  const displayName = friendly.charAt(0).toUpperCase() + friendly.slice(1);
-  return (
-    <div className="bs-card bs-msg-in mx-auto w-full max-w-2xl p-6 sm:p-8">
-      <div className="flex items-start gap-4">
-        <div
-          className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-2xl ring-1 ring-[var(--bs-border)]"
-          style={{ background: "var(--bs-card-2)" }}
+      {/* Project selector */}
+      <div className="bs-soft flex min-w-0 items-center gap-2 px-2.5 py-1.5">
+        <Folder className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--bs-muted-fg)" }} />
+        <div className="hidden text-[10px] uppercase tracking-wider sm:block" style={{ color: "var(--bs-muted-fg)" }}>Project</div>
+        <select
+          value={project?.id ?? ""}
+          onChange={(e) => { if (e.target.value) window.location.assign(`/project/${e.target.value}`); }}
+          className="max-w-[180px] truncate bg-transparent text-sm font-semibold outline-none"
+          style={{ color: "var(--bs-fg)" }}
         >
-          <img src={bloxLogo.url} alt="BloxSmith" className="bs-logo-float h-14 w-14 object-contain" />
-        </div>
-        <div className="min-w-0">
-          <h2 className="font-display flex items-center gap-2 text-xl font-bold sm:text-2xl">
-            Hi {displayName}! <HandMetal className="h-5 w-5 text-[var(--bs-primary)]" />
-          </h2>
-          <p className="mt-1 text-sm" style={{ color: "var(--bs-muted-fg)" }}>
-            I'm BloxSmith, your AI Roblox game developer.
-          </p>
-          <p className="text-sm" style={{ color: "var(--bs-muted-fg)" }}>
-            Tell me your game idea and I'll build it step by step!
-          </p>
-        </div>
+          {projects.map((p: any) => (
+            <option key={p.id} value={p.id}>{p.name}</option>
+          ))}
+        </select>
+        <span className="ml-1 hidden items-center gap-1 text-[11px] sm:flex" style={{ color: "var(--bs-success)" }}>
+          <span className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--bs-success)" }} /> Saved
+        </span>
       </div>
 
-      <div className="bs-stagger mt-5 grid gap-2 sm:grid-cols-2">
-        {ideas.map((i) => (
+      {/* Model selector */}
+      <div className="bs-soft hidden min-w-0 items-center gap-2 px-2.5 py-1.5 lg:flex">
+        <Cpu className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--bs-muted-fg)" }} />
+        <div className="text-[10px] uppercase tracking-wider" style={{ color: "var(--bs-muted-fg)" }}>AI Model</div>
+        <select
+          value={modelId}
+          onChange={(e) => setModelId(e.target.value)}
+          className="max-w-[200px] truncate bg-transparent text-sm font-semibold outline-none"
+          style={{ color: "var(--bs-fg)" }}
+        >
+          {MODELS.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.label} — best for {m.bestFor.split(",")[0].replace(/\.$/, "")}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="flex-1" />
+
+      {/* Credits */}
+      {isAdmin ? (
+        <div className="bs-soft hidden items-center gap-1.5 px-2.5 py-1.5 sm:flex" title="Unlimited (owner)">
+          <InfinityIcon className="h-3.5 w-3.5" style={{ color: "var(--bs-primary)" }} />
+          <span className="text-sm font-bold" style={{ color: "var(--bs-primary)" }}>Unlimited</span>
+        </div>
+      ) : (
+        <div className="bs-soft hidden items-center gap-1.5 px-2.5 py-1.5 sm:flex">
+          <Zap className="h-3.5 w-3.5" style={{ color: "var(--bs-primary)" }} />
+          <span className="text-sm font-bold">{credits}</span>
+          <span className="text-xs" style={{ color: "var(--bs-muted-fg)" }}>/ {maxCredits}</span>
+          <button className="ml-1 grid h-5 w-5 place-items-center rounded-md hover:bg-[var(--bs-card-2)]" title="Buy more">
+            <Plus className="h-3 w-3" />
+          </button>
+        </div>
+      )}
+
+      {/* Reset timer */}
+      {!isAdmin && resetLabel && (
+        <div className="bs-soft hidden items-center gap-1.5 px-2.5 py-1.5 md:flex" title="Time until credits refill">
+          <Timer className="h-3.5 w-3.5" style={{ color: "var(--bs-muted-fg)" }} />
+          <div className="leading-tight">
+            <div className="text-[10px] uppercase tracking-wider" style={{ color: "var(--bs-muted-fg)" }}>Resets in</div>
+            <div className="text-xs font-semibold">{resetLabel}</div>
+          </div>
+        </div>
+      )}
+
+      {/* Notifications */}
+      <button className="bs-icon-btn" title="Notifications" aria-label="Notifications">
+        <Bell className="h-4 w-4" />
+      </button>
+      {/* Help / Tour */}
+      <button onClick={onTour} className="bs-icon-btn" title="Replay tour" aria-label="Help">
+        <HelpCircle className="h-4 w-4" />
+      </button>
+
+      {/* User profile */}
+      <div className="bs-soft flex items-center gap-2 px-2 py-1.5">
+        <div className="grid h-7 w-7 place-items-center rounded-full text-xs font-semibold text-white" style={{ background: "var(--bs-grad)" }}>
+          {(profile?.display_name || profile?.username || "U").slice(0, 1).toUpperCase()}
+        </div>
+        <div className="hidden leading-tight sm:block">
+          <div className="flex items-center gap-1 text-xs font-semibold">
+            {profile?.display_name || profile?.username || "You"}
+            {isAdmin && <span title="Owner" className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase" style={{ background: "color-mix(in oklab, var(--bs-warning) 18%, transparent)", color: "var(--bs-warning)" }}><Crown className="h-2.5 w-2.5" /> Owner</span>}
+          </div>
+          <div className="flex items-center gap-1 text-[10px]" style={{ color: "var(--bs-success)" }}>
+            <span className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--bs-success)" }} /> Online
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+/* ────────────────── CENTER — chat pieces ────────────────── */
+function WelcomeCard({ name, onPrompt }: { name: string; onPrompt: (s: string) => void }) {
+  const display = (name || "builder").charAt(0).toUpperCase() + (name || "builder").slice(1);
+  return (
+    <div className="bs-card bs-msg-in relative overflow-hidden rounded-2xl p-5 sm:p-6">
+      <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full opacity-30 blur-3xl" style={{ background: "var(--bs-grad)" }} />
+      <div className="relative flex items-start gap-4">
+        <div className="grid h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-2xl ring-1 ring-[var(--bs-border)]" style={{ background: "var(--bs-card-2)" }}>
+          <img src={bloxLogo.url} alt="BloxSmith" className="bs-logo-float h-16 w-16 object-contain" />
+        </div>
+        <div className="min-w-0">
+          <h2 className="font-display flex items-center gap-2 text-2xl font-bold">Hi {display}! <span className="text-2xl">👋</span></h2>
+          <p className="mt-1 text-sm" style={{ color: "var(--bs-muted-fg)" }}>I'm BloxSmith, your AI Roblox game developer.</p>
+          <p className="text-sm" style={{ color: "var(--bs-muted-fg)" }}>Tell me your game idea and I'll build it step by step!</p>
+        </div>
+      </div>
+      <div className="bs-stagger mt-5 flex flex-wrap gap-2">
+        {QUICK_PROMPTS.map((q) => (
           <button
-            key={i.label}
-            onClick={() => onPrompt(i.prompt)}
-            className="bs-soft flex items-center gap-2 px-3 py-2.5 text-left text-sm hover:bg-[var(--bs-primary-soft)]"
+            key={q.label}
+            onClick={() => onPrompt(q.prompt)}
+            className="bs-quick"
+            style={{ borderColor: "var(--bs-border)" }}
           >
-            <Sparkles className="h-3.5 w-3.5 shrink-0 text-[var(--bs-primary)]" />
-            <span className="truncate">{i.label}</span>
-            <span className="ml-auto rounded-full bg-[var(--bs-card-2)] px-2 py-0.5 text-[10px] uppercase tracking-wide" style={{ color: "var(--bs-muted-fg)" }}>
-              {i.tag}
-            </span>
+            <q.icon className="h-3.5 w-3.5" style={{ color: "var(--bs-primary)" }} /> {q.label}
           </button>
         ))}
       </div>
@@ -583,135 +573,294 @@ function EmptyState({ name, onPrompt }: { name: string; onPrompt: (s: string) =>
   );
 }
 
-function BuildProgress({ status, stepIndex, onStop }: { status: string; stepIndex: number; onStop: () => void }) {
-  const label =
-    status === "submitted" ? "Thinking" :
-    stepIndex === 0 ? "Reading project" :
-    stepIndex === 1 ? "Planning build" :
-    stepIndex === 2 ? "Generating scripts" :
-    stepIndex === 3 ? "Creating Studio actions" :
-    stepIndex === 4 ? "Sending to Roblox Studio" :
-    stepIndex === 5 ? "Testing & fixing" : "Building";
-
+function UserBubble({ text, profile }: { text: string; profile: any }) {
   return (
-    <div className="bs-msg-in flex gap-2.5">
-      <AssistantAvatar />
-      <div className="bs-bubble-ai w-full max-w-[85%] overflow-hidden px-4 py-3 sm:max-w-[78%]">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-sm font-medium">
-            <span className="bs-typing"><span /><span /><span /></span>
-            <span>{label}…</span>
-          </div>
-          <button onClick={onStop} className="bs-quick">
-            <X className="h-3 w-3" /> Stop
-          </button>
-        </div>
-
-        <div className="bs-progress-bar mt-3"><span /></div>
-
-        <ol className="mt-3 grid gap-1.5">
-          {BUILD_STEPS.map((s, i) => {
-            const state = i < stepIndex ? "done" : i === stepIndex ? "active" : "idle";
-            return (
-              <li key={s.key} className="flex items-center gap-2.5 text-xs transition-opacity"
-                  style={{ opacity: state === "idle" ? 0.55 : 1 }}>
-                <span
-                  className={`grid h-6 w-6 shrink-0 place-items-center rounded-lg ${state === "active" ? "bs-step-active" : ""} ${state === "done" ? "bs-pop" : ""}`}
-                  style={{
-                    background: state === "done" ? "color-mix(in oklab, var(--bs-success) 18%, transparent)" :
-                                state === "active" ? "var(--bs-primary-soft)" :
-                                "var(--bs-card-2)",
-                    color: state === "done" ? "var(--bs-success)" :
-                           state === "active" ? "var(--bs-primary)" :
-                           "var(--bs-muted-fg)",
-                  }}
-                >
-                  {state === "done" ? <CheckCircle2 className="h-3.5 w-3.5" /> : <s.icon className="h-3.5 w-3.5" />}
-                </span>
-                <span style={{ color: state === "idle" ? "var(--bs-muted-fg)" : "var(--bs-fg)", fontWeight: state === "active" ? 600 : 400 }}>
-                  {s.label}
-                </span>
-                {state === "active" && <Loader2 className="ml-auto h-3 w-3 animate-spin" style={{ color: "var(--bs-primary)" }} />}
-              </li>
-            );
-          })}
-        </ol>
+    <div className="bs-msg-in flex justify-end gap-2.5">
+      <div
+        className="max-w-[78%] rounded-2xl px-4 py-3 text-sm font-medium shadow-sm"
+        style={{ background: "var(--bs-primary)", color: "var(--bs-primary-fg)" }}
+      >
+        {text}
+      </div>
+      <div className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-xl text-sm font-semibold text-white" style={{ background: "var(--bs-grad)" }}>
+        {(profile?.display_name || profile?.username || "U").slice(0, 1).toUpperCase()}
       </div>
     </div>
   );
 }
 
-type ActionRow = {
-  id: string;
-  kind: string;
-  name: string;
-  parent_path: string | null;
-  status: string;
-  error: string | null;
-};
-
-function ActionQueuePanel({ actions }: { actions: ActionRow[] }) {
-  const [open, setOpen] = useState(true);
+function AssistantCard({ text }: { text: string }) {
   return (
-    <aside
-      className="hidden w-80 shrink-0 flex-col border-l xl:flex"
-      style={{ background: "var(--bs-card)", borderColor: "var(--bs-border)" }}
-    >
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="flex items-center justify-between border-b px-4 py-3 text-xs font-semibold uppercase tracking-wide"
-        style={{ borderColor: "var(--bs-border)", color: "var(--bs-muted-fg)" }}
-      >
-        <span className="flex items-center gap-2">
-          <Cpu className="h-3.5 w-3.5" /> Studio action queue
-        </span>
-        <ChevronDown className={`h-4 w-4 transition-transform ${open ? "" : "-rotate-90"}`} />
-      </button>
-      {open && (
-        <div className="scrollbar-thin flex-1 overflow-y-auto p-3">
-          {actions.length === 0 ? (
-            <p className="px-2 py-8 text-center text-xs" style={{ color: "var(--bs-muted-fg)" }}>
-              Actions generated by the AI will appear here, waiting for the Studio plugin to pick them up.
-            </p>
-          ) : (
-            <ul className="space-y-2">
-              {actions.map((a) => (
-                <li key={a.id} className="bs-soft p-3 text-xs">
-                  <div className="flex items-center gap-2">
-                    <FileCode className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--bs-muted-fg)" }} />
-                    <span className="font-mono opacity-80">{a.kind}</span>
-                    <span className="opacity-50">·</span>
-                    <span className="truncate font-medium">{a.name}</span>
-                  </div>
-                  {a.parent_path && (
-                    <div className="mt-1 truncate" style={{ color: "var(--bs-muted-fg)" }}>{a.parent_path}</div>
-                  )}
-                  <StatusPill status={a.status} />
-                  {a.error && <p className="mt-1" style={{ color: "var(--bs-danger)" }}>{a.error}</p>}
-                </li>
-              ))}
-            </ul>
-          )}
+    <div className="bs-msg-in flex gap-2.5">
+      <div className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-xl ring-1 ring-[var(--bs-border)]" style={{ background: "var(--bs-card-2)" }}>
+        <img src={bloxLogo.url} alt="BloxSmith" className="h-8 w-8 object-contain" />
+      </div>
+      <div className="bs-card max-w-[88%] flex-1 rounded-2xl p-4">
+        <div className="bs-prose text-sm leading-relaxed">
+          <ReactMarkdown>{text || "_…_"}</ReactMarkdown>
         </div>
-      )}
-    </aside>
+      </div>
+    </div>
   );
 }
 
-function StatusPill({ status }: { status: string }) {
-  const map: Record<string, { bg: string; fg: string; icon?: React.ReactNode }> = {
-    done:    { bg: "color-mix(in oklab, var(--bs-success) 18%, transparent)", fg: "var(--bs-success)", icon: <CheckCircle2 className="h-3 w-3" /> },
-    failed:  { bg: "color-mix(in oklab, var(--bs-danger) 18%, transparent)",  fg: "var(--bs-danger)",  icon: <AlertCircle className="h-3 w-3" /> },
-    sent:    { bg: "color-mix(in oklab, var(--bs-accent) 18%, transparent)",  fg: "var(--bs-accent)" },
-    pending: { bg: "var(--bs-card-2)",                                         fg: "var(--bs-muted-fg)" },
-  };
-  const s = map[status] ?? map.pending;
+function BuildProgressCard({ stepIndex, onStop, onAction }: { stepIndex: number; onStop: () => void; onAction: (p: string) => void }) {
+  return (
+    <div className="bs-msg-in flex gap-2.5">
+      <div className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-xl ring-1 ring-[var(--bs-border)]" style={{ background: "var(--bs-card-2)" }}>
+        <img src={bloxLogo.url} alt="BloxSmith" className="h-8 w-8 object-contain" />
+      </div>
+      <div className="bs-card flex-1 rounded-2xl p-4">
+        <div className="flex items-center gap-2 text-sm font-semibold">
+          <span className="bs-typing"><span /><span /><span /></span>
+          Building your game…
+        </div>
+        <ol className="mt-3 grid gap-1.5">
+          {BUILD_STEPS.map((s, i) => {
+            const state = i < stepIndex ? "done" : i === stepIndex ? "active" : "idle";
+            return (
+              <li key={s.key} className="flex items-center gap-2.5 text-xs" style={{ opacity: state === "idle" ? 0.55 : 1 }}>
+                <span
+                  className={`grid h-6 w-6 shrink-0 place-items-center rounded-lg ${state === "active" ? "bs-step-active" : ""}`}
+                  style={{
+                    background: state === "done" ? "color-mix(in oklab, var(--bs-success) 18%, transparent)"
+                              : state === "active" ? "var(--bs-primary-soft)" : "var(--bs-card-2)",
+                    color: state === "done" ? "var(--bs-success)" : state === "active" ? "var(--bs-primary)" : "var(--bs-muted-fg)",
+                  }}
+                >
+                  {state === "done" ? <CheckCircle2 className="h-3.5 w-3.5" /> : <s.icon className="h-3.5 w-3.5" />}
+                </span>
+                <span style={{ fontWeight: state === "active" ? 600 : 400 }}>{s.label}</span>
+                {state === "active" && <Loader2 className="ml-auto h-3 w-3 animate-spin" style={{ color: "var(--bs-primary)" }} />}
+              </li>
+            );
+          })}
+        </ol>
+
+        <div className="mt-4 flex flex-wrap items-center gap-1.5">
+          <button onClick={onStop} className="bs-quick" style={{ color: "var(--bs-danger)", borderColor: "color-mix(in oklab, var(--bs-danger) 40%, transparent)" }}>
+            <X className="h-3 w-3" /> Stop
+          </button>
+          <button onClick={() => onAction("Explain the plan you just produced in plain English.")} className="bs-quick">
+            <HelpCircle className="h-3 w-3" /> Explain plan
+          </button>
+          <button onClick={() => onAction("List the Toolbox assets you used or recommended.")} className="bs-quick">
+            <Box className="h-3 w-3" /> Show assets
+          </button>
+          <button onClick={() => onAction("Re-queue the latest build for the Roblox Studio plugin.")} className="bs-quick">
+            <Upload className="h-3 w-3" /> Send to Studio
+          </button>
+          <button onClick={() => onAction("Inspect the current scripts and fix any errors or warnings you find.")} className="bs-quick">
+            <Wrench className="h-3 w-3" /> Fix errors
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ────────────────── BOTTOM COMPOSER ────────────────── */
+function Composer({
+  input, setInput, textareaRef, busy, token, autoExecute, setAutoExecute,
+  onSubmit, onStop, onAction, modelId, setModelId,
+}: any) {
   return (
     <div
-      className="mt-1.5 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase"
-      style={{ background: s.bg, color: s.fg }}
+      className="border-t px-3 pb-4 pt-3 sm:px-6"
+      style={{ borderColor: "var(--bs-border)", background: "var(--bs-card)" }}
     >
-      {s.icon}{status}
+      <div className="mx-auto w-full max-w-3xl">
+        <div className="bs-input-wrap flex flex-col gap-2 px-3 py-2">
+          <textarea
+            ref={textareaRef}
+            value={input}
+            onChange={(e: any) => setInput(e.target.value)}
+            onKeyDown={(e: any) => {
+              if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSubmit(); }
+            }}
+            rows={1}
+            placeholder="Describe anything you want to build…"
+            className="max-h-44 min-h-[40px] w-full resize-none bg-transparent px-1 py-2 text-sm outline-none placeholder:opacity-60"
+            style={{ color: "var(--bs-fg)" }}
+          />
+
+          <div className="flex flex-wrap items-center gap-1.5">
+            <button className="bs-icon-btn" title="New" type="button" onClick={() => setInput("")}>
+              <Plus className="h-4 w-4" />
+            </button>
+            <button className="bs-icon-btn" title="Attach image" type="button">
+              <Paperclip className="h-4 w-4" />
+            </button>
+
+            {COMPOSER_ACTIONS.map((a) => (
+              <button
+                key={a.label}
+                disabled={busy}
+                onClick={() => onAction(a.prompt)}
+                className="bs-quick"
+                title={a.label}
+              >
+                <a.icon className="h-3.5 w-3.5" />
+                <span className="hidden md:inline">{a.label}</span>
+              </button>
+            ))}
+
+            <div className="flex-1" />
+
+            <select
+              value={modelId}
+              onChange={(e: any) => setModelId(e.target.value)}
+              className="bs-select max-w-[160px] truncate lg:hidden"
+            >
+              {MODELS.map((m) => (
+                <option key={m.id} value={m.id}>{m.label}</option>
+              ))}
+            </select>
+
+            <label
+              className="ml-1 flex cursor-pointer select-none items-center gap-2 text-xs"
+              style={{ color: "var(--bs-muted-fg)" }}
+              title="When on, AI plans + queues actions automatically"
+            >
+              <span
+                role="switch"
+                aria-checked={autoExecute}
+                className="bs-toggle"
+                data-on={autoExecute ? "true" : "false"}
+                onClick={() => setAutoExecute((v: boolean) => !v)}
+              />
+              <span className="hidden sm:inline">Auto-execute</span>
+            </label>
+
+            {busy ? (
+              <button onClick={onStop} className="bs-send-btn flex h-10 items-center gap-1.5 px-4 text-sm font-medium"
+                style={{ background: "var(--bs-danger)", boxShadow: "none" }}>
+                <X className="h-4 w-4" /> Stop
+              </button>
+            ) : (
+              <button onClick={onSubmit} disabled={!input.trim() || !token}
+                className="bs-send-btn flex h-10 items-center gap-1.5 px-4 text-sm font-medium">
+                <Send className="h-4 w-4" />
+                <span className="hidden sm:inline">Send</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-2 flex items-center justify-between px-1 text-[11px]" style={{ color: "var(--bs-muted-fg)" }}>
+          <span>Enter to send · Shift+Enter for new line</span>
+          <span className="hidden sm:inline">BloxSmith can make mistakes. Always test in Roblox Studio.</span>
+        </div>
+      </div>
     </div>
+  );
+}
+
+/* ────────────────── RIGHT SIDEBAR ────────────────── */
+function RightSidebar({
+  project, pluginOnline, pluginSession, actions, buildPct, buildLabel, busy,
+}: any) {
+  const recent = (actions ?? []).slice(0, 6);
+  return (
+    <aside
+      className="hidden w-80 shrink-0 flex-col gap-3 overflow-y-auto border-l p-3 xl:flex"
+      style={{ background: "var(--bs-card)", borderColor: "var(--bs-border)" }}
+    >
+      {/* Roblox Studio card */}
+      <div className="bs-card rounded-2xl p-4">
+        <div className="flex items-center gap-2">
+          <div className="grid h-9 w-9 place-items-center rounded-xl text-white" style={{ background: "var(--bs-grad)" }}>
+            <Radio className="h-4 w-4" />
+          </div>
+          <div className="flex-1">
+            <div className="text-sm font-semibold">Roblox Studio</div>
+            <div className="text-[11px]" style={{ color: "var(--bs-muted-fg)" }}>
+              Plugin {pluginSession?.plugin_version || "v1.0"}
+            </div>
+          </div>
+          <div className={`flex items-center gap-1 text-[11px] font-semibold ${pluginOnline ? "" : ""}`}
+               style={{ color: pluginOnline ? "var(--bs-success)" : "var(--bs-muted-fg)" }}>
+            <span className="h-1.5 w-1.5 rounded-full" style={{ background: pluginOnline ? "var(--bs-success)" : "var(--bs-muted-fg)" }} />
+            {pluginOnline ? "Connected" : "Offline"}
+          </div>
+        </div>
+        <div className="mt-2 text-xs" style={{ color: "var(--bs-muted-fg)" }}>
+          Project: <span style={{ color: "var(--bs-fg)" }}>{project?.name ?? "—"}</span>
+        </div>
+        <Link to="/plugin" className="bs-send-btn mt-3 flex w-full items-center justify-center gap-2 rounded-xl py-2 text-sm font-medium">
+          {pluginOnline ? <><ExternalLink className="h-4 w-4" /> Open in Roblox Studio</> : <><RefreshCw className="h-4 w-4" /> Connect plugin</>}
+        </Link>
+      </div>
+
+      {/* Build progress */}
+      <div className="bs-card rounded-2xl p-4">
+        <div className="flex items-center justify-between">
+          <div className="text-sm font-semibold">Build Progress</div>
+          <div className="text-sm font-bold" style={{ color: "var(--bs-primary)" }}>{busy ? `${buildPct}%` : "Idle"}</div>
+        </div>
+        <div className="mt-2 h-2 w-full overflow-hidden rounded-full" style={{ background: "var(--bs-card-2)" }}>
+          <div className="h-full rounded-full transition-all" style={{ width: busy ? `${buildPct}%` : "100%", background: busy ? "var(--bs-grad)" : "color-mix(in oklab, var(--bs-success) 60%, transparent)" }} />
+        </div>
+        <div className="mt-2 text-xs" style={{ color: "var(--bs-muted-fg)" }}>{buildLabel}</div>
+      </div>
+
+      {/* Toolbox search (visual — no fake imports) */}
+      <div className="bs-card rounded-2xl p-4">
+        <div className="flex items-center justify-between">
+          <div className="text-sm font-semibold">Toolbox Search</div>
+          <span className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase" style={{ background: "var(--bs-card-2)", color: "var(--bs-muted-fg)" }}>Soon</span>
+        </div>
+        <div className="bs-input-wrap mt-2 flex items-center gap-2 px-2 py-1.5">
+          <Search className="h-3.5 w-3.5" style={{ color: "var(--bs-muted-fg)" }} />
+          <input
+            disabled
+            placeholder="Search models, assets, scripts…"
+            className="w-full bg-transparent text-xs outline-none placeholder:opacity-60"
+          />
+        </div>
+        <div className="mt-2 flex flex-wrap gap-1.5 text-[11px]">
+          {[
+            { l: "Models",  i: Box },
+            { l: "Plugins", i: Plug },
+            { l: "Audio",   i: Music },
+            { l: "Images",  i: ImageIcon },
+          ].map((t) => (
+            <span key={t.l} className="bs-quick"><t.i className="h-3 w-3" /> {t.l}</span>
+          ))}
+        </div>
+        <p className="mt-3 text-[11px]" style={{ color: "var(--bs-muted-fg)" }}>
+          The AI uses real Toolbox lookups when generating builds. A standalone search panel is coming soon.
+        </p>
+      </div>
+
+      {/* Recent Actions */}
+      <div className="bs-card rounded-2xl p-4">
+        <div className="flex items-center justify-between">
+          <div className="text-sm font-semibold">Recent Actions</div>
+          <BookOpen className="h-3.5 w-3.5" style={{ color: "var(--bs-muted-fg)" }} />
+        </div>
+        {recent.length === 0 ? (
+          <p className="mt-2 text-[11px]" style={{ color: "var(--bs-muted-fg)" }}>
+            Actions generated by the AI will appear here, waiting for the Studio plugin to pick them up.
+          </p>
+        ) : (
+          <ul className="mt-2 space-y-1.5 text-xs">
+            {recent.map((a: any) => (
+              <li key={a.id} className="flex items-center gap-2">
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{
+                  background: a.status === "done" ? "var(--bs-success)" :
+                              a.status === "failed" ? "var(--bs-danger)" :
+                              a.status === "sent" ? "var(--bs-accent)" : "var(--bs-warning)",
+                }} />
+                <span className="flex-1 truncate">
+                  <span className="opacity-70">{a.kind}</span> <span className="font-medium">{a.name}</span>
+                </span>
+                <span className="text-[10px] capitalize" style={{ color: "var(--bs-muted-fg)" }}>{a.status}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </aside>
   );
 }
