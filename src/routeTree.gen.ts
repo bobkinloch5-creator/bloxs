@@ -20,11 +20,14 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedPluginRouteImport } from './routes/_authenticated/plugin'
+import { Route as AuthenticatedLinkRouteImport } from './routes/_authenticated/link'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedProjectProjectIdRouteImport } from './routes/_authenticated/project.$projectId'
 import { Route as ApiPublicPluginPollRouteImport } from './routes/api/public/plugin/poll'
 import { Route as ApiPublicPluginCompleteRouteImport } from './routes/api/public/plugin/complete'
+import { Route as ApiPublicPluginPairStartRouteImport } from './routes/api/public/plugin/pair.start'
+import { Route as ApiPublicPluginPairPollRouteImport } from './routes/api/public/plugin/pair.poll'
 
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
@@ -80,6 +83,11 @@ const AuthenticatedPluginRoute = AuthenticatedPluginRouteImport.update({
   path: '/plugin',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedLinkRoute = AuthenticatedLinkRouteImport.update({
+  id: '/link',
+  path: '/link',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -106,6 +114,17 @@ const ApiPublicPluginCompleteRoute = ApiPublicPluginCompleteRouteImport.update({
   path: '/api/public/plugin/complete',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicPluginPairStartRoute =
+  ApiPublicPluginPairStartRouteImport.update({
+    id: '/api/public/plugin/pair/start',
+    path: '/api/public/plugin/pair/start',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicPluginPairPollRoute = ApiPublicPluginPairPollRouteImport.update({
+  id: '/api/public/plugin/pair/poll',
+  path: '/api/public/plugin/pair/poll',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -117,12 +136,15 @@ export interface FileRoutesByFullPath {
   '/terms': typeof TermsRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/link': typeof AuthenticatedLinkRoute
   '/plugin': typeof AuthenticatedPluginRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/api/chat': typeof ApiChatRoute
   '/project/$projectId': typeof AuthenticatedProjectProjectIdRoute
   '/api/public/plugin/complete': typeof ApiPublicPluginCompleteRoute
   '/api/public/plugin/poll': typeof ApiPublicPluginPollRoute
+  '/api/public/plugin/pair/poll': typeof ApiPublicPluginPairPollRoute
+  '/api/public/plugin/pair/start': typeof ApiPublicPluginPairStartRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -134,12 +156,15 @@ export interface FileRoutesByTo {
   '/terms': typeof TermsRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/link': typeof AuthenticatedLinkRoute
   '/plugin': typeof AuthenticatedPluginRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/api/chat': typeof ApiChatRoute
   '/project/$projectId': typeof AuthenticatedProjectProjectIdRoute
   '/api/public/plugin/complete': typeof ApiPublicPluginCompleteRoute
   '/api/public/plugin/poll': typeof ApiPublicPluginPollRoute
+  '/api/public/plugin/pair/poll': typeof ApiPublicPluginPairPollRoute
+  '/api/public/plugin/pair/start': typeof ApiPublicPluginPairStartRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -153,12 +178,15 @@ export interface FileRoutesById {
   '/terms': typeof TermsRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/link': typeof AuthenticatedLinkRoute
   '/_authenticated/plugin': typeof AuthenticatedPluginRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/api/chat': typeof ApiChatRoute
   '/_authenticated/project/$projectId': typeof AuthenticatedProjectProjectIdRoute
   '/api/public/plugin/complete': typeof ApiPublicPluginCompleteRoute
   '/api/public/plugin/poll': typeof ApiPublicPluginPollRoute
+  '/api/public/plugin/pair/poll': typeof ApiPublicPluginPairPollRoute
+  '/api/public/plugin/pair/start': typeof ApiPublicPluginPairStartRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -172,12 +200,15 @@ export interface FileRouteTypes {
     | '/terms'
     | '/admin'
     | '/dashboard'
+    | '/link'
     | '/plugin'
     | '/settings'
     | '/api/chat'
     | '/project/$projectId'
     | '/api/public/plugin/complete'
     | '/api/public/plugin/poll'
+    | '/api/public/plugin/pair/poll'
+    | '/api/public/plugin/pair/start'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -189,12 +220,15 @@ export interface FileRouteTypes {
     | '/terms'
     | '/admin'
     | '/dashboard'
+    | '/link'
     | '/plugin'
     | '/settings'
     | '/api/chat'
     | '/project/$projectId'
     | '/api/public/plugin/complete'
     | '/api/public/plugin/poll'
+    | '/api/public/plugin/pair/poll'
+    | '/api/public/plugin/pair/start'
   id:
     | '__root__'
     | '/'
@@ -207,12 +241,15 @@ export interface FileRouteTypes {
     | '/terms'
     | '/_authenticated/admin'
     | '/_authenticated/dashboard'
+    | '/_authenticated/link'
     | '/_authenticated/plugin'
     | '/_authenticated/settings'
     | '/api/chat'
     | '/_authenticated/project/$projectId'
     | '/api/public/plugin/complete'
     | '/api/public/plugin/poll'
+    | '/api/public/plugin/pair/poll'
+    | '/api/public/plugin/pair/start'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -227,6 +264,8 @@ export interface RootRouteChildren {
   ApiChatRoute: typeof ApiChatRoute
   ApiPublicPluginCompleteRoute: typeof ApiPublicPluginCompleteRoute
   ApiPublicPluginPollRoute: typeof ApiPublicPluginPollRoute
+  ApiPublicPluginPairPollRoute: typeof ApiPublicPluginPairPollRoute
+  ApiPublicPluginPairStartRoute: typeof ApiPublicPluginPairStartRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -308,6 +347,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPluginRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/link': {
+      id: '/_authenticated/link'
+      path: '/link'
+      fullPath: '/link'
+      preLoaderRoute: typeof AuthenticatedLinkRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/dashboard': {
       id: '/_authenticated/dashboard'
       path: '/dashboard'
@@ -343,12 +389,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicPluginCompleteRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/plugin/pair/start': {
+      id: '/api/public/plugin/pair/start'
+      path: '/api/public/plugin/pair/start'
+      fullPath: '/api/public/plugin/pair/start'
+      preLoaderRoute: typeof ApiPublicPluginPairStartRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/plugin/pair/poll': {
+      id: '/api/public/plugin/pair/poll'
+      path: '/api/public/plugin/pair/poll'
+      fullPath: '/api/public/plugin/pair/poll'
+      preLoaderRoute: typeof ApiPublicPluginPairPollRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedLinkRoute: typeof AuthenticatedLinkRoute
   AuthenticatedPluginRoute: typeof AuthenticatedPluginRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedProjectProjectIdRoute: typeof AuthenticatedProjectProjectIdRoute
@@ -357,6 +418,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedLinkRoute: AuthenticatedLinkRoute,
   AuthenticatedPluginRoute: AuthenticatedPluginRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedProjectProjectIdRoute: AuthenticatedProjectProjectIdRoute,
@@ -377,6 +439,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiChatRoute: ApiChatRoute,
   ApiPublicPluginCompleteRoute: ApiPublicPluginCompleteRoute,
   ApiPublicPluginPollRoute: ApiPublicPluginPollRoute,
+  ApiPublicPluginPairPollRoute: ApiPublicPluginPairPollRoute,
+  ApiPublicPluginPairStartRoute: ApiPublicPluginPairStartRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
