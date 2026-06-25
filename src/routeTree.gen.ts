@@ -12,10 +12,13 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedPluginRouteImport } from './routes/_authenticated/plugin'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedProjectProjectIdRouteImport } from './routes/_authenticated/project.$projectId'
+import { Route as ApiPublicPluginPollRouteImport } from './routes/api/public/plugin/poll'
+import { Route as ApiPublicPluginCompleteRouteImport } from './routes/api/public/plugin/complete'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -29,6 +32,11 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiChatRoute = ApiChatRouteImport.update({
+  id: '/api/chat',
+  path: '/api/chat',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
@@ -52,6 +60,16 @@ const AuthenticatedProjectProjectIdRoute =
     path: '/project/$projectId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const ApiPublicPluginPollRoute = ApiPublicPluginPollRouteImport.update({
+  id: '/api/public/plugin/poll',
+  path: '/api/public/plugin/poll',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicPluginCompleteRoute = ApiPublicPluginCompleteRouteImport.update({
+  id: '/api/public/plugin/complete',
+  path: '/api/public/plugin/complete',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -59,7 +77,10 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/plugin': typeof AuthenticatedPluginRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/api/chat': typeof ApiChatRoute
   '/project/$projectId': typeof AuthenticatedProjectProjectIdRoute
+  '/api/public/plugin/complete': typeof ApiPublicPluginCompleteRoute
+  '/api/public/plugin/poll': typeof ApiPublicPluginPollRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -67,7 +88,10 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/plugin': typeof AuthenticatedPluginRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/api/chat': typeof ApiChatRoute
   '/project/$projectId': typeof AuthenticatedProjectProjectIdRoute
+  '/api/public/plugin/complete': typeof ApiPublicPluginCompleteRoute
+  '/api/public/plugin/poll': typeof ApiPublicPluginPollRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -77,7 +101,10 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/plugin': typeof AuthenticatedPluginRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+  '/api/chat': typeof ApiChatRoute
   '/_authenticated/project/$projectId': typeof AuthenticatedProjectProjectIdRoute
+  '/api/public/plugin/complete': typeof ApiPublicPluginCompleteRoute
+  '/api/public/plugin/poll': typeof ApiPublicPluginPollRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -87,7 +114,10 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/plugin'
     | '/settings'
+    | '/api/chat'
     | '/project/$projectId'
+    | '/api/public/plugin/complete'
+    | '/api/public/plugin/poll'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -95,7 +125,10 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/plugin'
     | '/settings'
+    | '/api/chat'
     | '/project/$projectId'
+    | '/api/public/plugin/complete'
+    | '/api/public/plugin/poll'
   id:
     | '__root__'
     | '/'
@@ -104,13 +137,19 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/plugin'
     | '/_authenticated/settings'
+    | '/api/chat'
     | '/_authenticated/project/$projectId'
+    | '/api/public/plugin/complete'
+    | '/api/public/plugin/poll'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  ApiChatRoute: typeof ApiChatRoute
+  ApiPublicPluginCompleteRoute: typeof ApiPublicPluginCompleteRoute
+  ApiPublicPluginPollRoute: typeof ApiPublicPluginPollRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -134,6 +173,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/chat': {
+      id: '/api/chat'
+      path: '/api/chat'
+      fullPath: '/api/chat'
+      preLoaderRoute: typeof ApiChatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/settings': {
@@ -164,6 +210,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProjectProjectIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/plugin/poll': {
+      id: '/api/public/plugin/poll'
+      path: '/api/public/plugin/poll'
+      fullPath: '/api/public/plugin/poll'
+      preLoaderRoute: typeof ApiPublicPluginPollRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/plugin/complete': {
+      id: '/api/public/plugin/complete'
+      path: '/api/public/plugin/complete'
+      fullPath: '/api/public/plugin/complete'
+      preLoaderRoute: typeof ApiPublicPluginCompleteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -188,6 +248,9 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  ApiChatRoute: ApiChatRoute,
+  ApiPublicPluginCompleteRoute: ApiPublicPluginCompleteRoute,
+  ApiPublicPluginPollRoute: ApiPublicPluginPollRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

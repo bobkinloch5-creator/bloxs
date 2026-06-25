@@ -70,7 +70,7 @@ export const Route = createFileRoute("/api/chat")({
           const result = streamText({
             model: modelChoice.model,
             system: BLOXSMITH_SYSTEM_PROMPT,
-            messages: convertToModelMessages(messages),
+            messages: await convertToModelMessages(messages),
             onFinish: async ({ text }) => {
               try {
                 const { cleanContent, actions } = parseActions(text);
