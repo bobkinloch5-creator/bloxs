@@ -13,7 +13,7 @@ import ReactMarkdown from "react-markdown";
 import {
   ArrowLeft, Send, Loader2, CheckCircle2, AlertCircle, Radio, Sparkles,
   FileCode, Paperclip, Mic, Wrench, Wand2, HelpCircle, RotateCcw, Save,
-  Upload, Sun, Moon, ChevronDown, Zap, BookOpen, Cpu, Box, X,
+  Upload, Sun, Moon, ChevronDown, Zap, BookOpen, Cpu, Box, X, Infinity as InfinityIcon, Timer, HandMetal,
 } from "lucide-react";
 import bloxLogo from "@/assets/bloxsmith-logo.png.asset.json";
 import { OnboardingTour } from "@/components/OnboardingTour";
@@ -127,9 +127,26 @@ function ProjectPage() {
   const pluginOnline = !!(pluginSession?.online && pluginSession?.last_seen &&
     (Date.now() - new Date(pluginSession.last_seen).getTime() < 30_000));
 
+  const isAdmin = !!profile?.is_admin;
   const credits = profile?.credits ?? 0;
   const maxCredits = profile?.max_credits ?? 0;
-  const lowCredits = maxCredits > 0 && credits / maxCredits < 0.2;
+  const lowCredits = !isAdmin && maxCredits > 0 && credits / maxCredits < 0.2;
+  const resetAt = profile?.credits_reset_at ? new Date(profile.credits_reset_at).getTime() : 0;
+  const [resetLabel, setResetLabel] = useState<string>("");
+  useEffect(() => {
+    if (isAdmin || !resetAt) return;
+    const tick = () => {
+      const ms = Math.max(0, resetAt - Date.now());
+      const h = Math.floor(ms / 3_600_000);
+      const m = Math.floor((ms % 3_600_000) / 60_000);
+      const s = Math.floor((ms % 60_000) / 1000);
+      setResetLabel(h > 0 ? `${h}h ${m}m` : m > 0 ? `${m}m ${s}s` : `${s}s`);
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [isAdmin, resetAt]);
+  const [showTour, setShowTour] = useState(false);
 
   // Compute current build "step" from pending/sent actions of the latest run.
   const buildStepIndex = useMemo(() => {
