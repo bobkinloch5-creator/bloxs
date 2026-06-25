@@ -22,7 +22,7 @@ export const Route = createFileRoute("/docs")({
 
       <h2>3. Install the Roblox Studio plugin</h2>
       <ol className="mt-3 list-decimal space-y-1 pl-5">
-        <li>Open the <Link to="/_authenticated/plugin" className="text-blue-400 hover:underline">Plugin page</Link> while signed in.</li>
+        <li>Open the <Link to="/plugin" className="text-blue-400 hover:underline">Plugin page</Link> while signed in.</li>
         <li>Download <code>BloxSmithPlugin.lua</code>.</li>
         <li>In Roblox Studio: <em>Plugins → Plugins Folder</em> and drop the file inside.</li>
         <li>Restart Studio. The BloxSmith panel will appear in the Plugins tab.</li>
