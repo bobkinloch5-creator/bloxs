@@ -224,6 +224,14 @@ function ProjectPage() {
           </div>
 
           <div className="flex shrink-0 items-center gap-2 justify-self-end">
+            <button
+              onClick={() => setShowTour(true)}
+              className="bs-chip"
+              title="Replay onboarding tour"
+            >
+              <HelpCircle className="h-3 w-3" />
+              <span className="hidden sm:inline">Tour</span>
+            </button>
             <Link
               to="/plugin"
               className={pluginOnline ? "bs-chip bs-chip-on" : "bs-chip"}
@@ -232,10 +240,26 @@ function ProjectPage() {
               <Radio className="h-3 w-3" />
               <span className="hidden sm:inline">{pluginOnline ? "Studio online" : "Plugin offline"}</span>
             </Link>
-            <div className={lowCredits ? "bs-chip bs-chip-warn" : "bs-chip"} title="Free messages remaining">
-              <Zap className="h-3 w-3" />
-              <span>{credits}{maxCredits ? ` / ${maxCredits}` : ""}</span>
-            </div>
+            {isAdmin ? (
+              <div className="bs-chip bs-chip-on" title="Unlimited credits (admin)">
+                <InfinityIcon className="h-3 w-3" />
+                <span>Unlimited</span>
+              </div>
+            ) : (
+              <>
+                <div className={lowCredits ? "bs-chip bs-chip-warn" : "bs-chip"} title="Messages remaining today">
+                  <Zap className="h-3 w-3" />
+                  <span>{credits}{maxCredits ? ` / ${maxCredits}` : ""}</span>
+                </div>
+                {resetLabel && (
+                  <div className="bs-chip" title="Time until credits refill">
+                    <Timer className="h-3 w-3" />
+                    <span className="hidden sm:inline">Resets in {resetLabel}</span>
+                    <span className="sm:hidden">{resetLabel}</span>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         </header>
 
