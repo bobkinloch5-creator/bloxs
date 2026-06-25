@@ -62,12 +62,12 @@ export const MODELS: ModelOption[] = [
     bestFor: "Renaming parts, color/material swaps, GUI text edits, quick patches.",
   },
 
-  // Quatarly (BYO key) — branded as BloxSmith
+  // Premium BloxSmith modes. All route through Lovable AI so every picker option works without extra keys.
   {
     id: "qua-sonnet",
     label: "Loom",
-    provider: "quatarly",
-    upstream: "claude-sonnet-4-6-thinking",
+    provider: "lovable",
+    upstream: "google/gemini-3.1-pro-preview",
     tier: "premium",
     description: "Thoughtful planner. Strong at game design docs and balanced builds.",
     bestFor: "Game design, story-driven games, dialog systems, quest chains.",
@@ -75,8 +75,8 @@ export const MODELS: ModelOption[] = [
   {
     id: "qua-opus",
     label: "Titan",
-    provider: "quatarly",
-    upstream: "claude-opus-4-6-thinking",
+    provider: "lovable",
+    upstream: "openai/gpt-5.5-pro",
     tier: "premium",
     description: "Heaviest reasoning model. Slow but extremely thorough.",
     bestFor: "Whole-game blueprints, refactoring large places, complex economies.",
@@ -84,8 +84,8 @@ export const MODELS: ModelOption[] = [
   {
     id: "qua-haiku",
     label: "Dash",
-    provider: "quatarly",
-    upstream: "claude-haiku-4-5-20251001",
+    provider: "lovable",
+    upstream: "google/gemini-3.5-flash",
     tier: "fast",
     description: "Quick replies with surprisingly good code quality.",
     bestFor: "Iterating on UI, fast prototyping, debugging Luau errors.",
@@ -93,8 +93,8 @@ export const MODELS: ModelOption[] = [
   {
     id: "qua-gem-pro",
     label: "Vision",
-    provider: "quatarly",
-    upstream: "gemini-3.1-pro",
+    provider: "lovable",
+    upstream: "google/gemini-2.5-pro",
     tier: "premium",
     description: "Multimodal pro. Great when prompts include images or references.",
     bestFor: "Map building from screenshots, UI replicas, asset-driven builds.",
@@ -102,8 +102,8 @@ export const MODELS: ModelOption[] = [
   {
     id: "qua-gpt-codex",
     label: "Forge X",
-    provider: "quatarly",
-    upstream: "gpt-5.3-codex",
+    provider: "lovable",
+    upstream: "openai/gpt-5.4",
     tier: "premium",
     description: "Code-focused. Excellent module structure and pattern reuse.",
     bestFor: "ModuleScripts, OOP class systems, framework-style codebases.",
@@ -111,19 +111,19 @@ export const MODELS: ModelOption[] = [
   {
     id: "qua-gpt-55",
     label: "Apex",
-    provider: "quatarly",
-    upstream: "gpt-5.5",
+    provider: "lovable",
+    upstream: "openai/gpt-5.5",
     tier: "premium",
     description: "Top-tier all-rounder. Smart at scripts, design, and explanations.",
     bestFor: "End-to-end game builds, polishing released games, mentor-style help.",
   },
 
-  // NVIDIA NIM (BYO key) — branded
+  // Extra branded modes backed by maintained Lovable AI models.
   {
     id: "nv-llama-405",
     label: "Anvil",
-    provider: "nvidia",
-    upstream: "meta/llama-3.1-405b-instruct",
+    provider: "lovable",
+    upstream: "google/gemini-2.5-pro",
     tier: "premium",
     description: "Massive open model. Heavy reasoning at lower cost than premiums.",
     bestFor: "Bulk script generation, big AI NPCs, lore/quest writing.",
@@ -131,8 +131,8 @@ export const MODELS: ModelOption[] = [
   {
     id: "nv-llama-70",
     label: "Iron",
-    provider: "nvidia",
-    upstream: "meta/llama-3.1-70b-instruct",
+    provider: "lovable",
+    upstream: "google/gemini-2.5-flash",
     tier: "balanced",
     description: "Solid mid-tier. Reliable Luau and consistent answers.",
     bestFor: "Combat scripts, pets/companions, basic shop and inventory systems.",
@@ -140,19 +140,19 @@ export const MODELS: ModelOption[] = [
   {
     id: "nv-mixtral",
     label: "Mosaic",
-    provider: "nvidia",
-    upstream: "mistralai/mixtral-8x22b-instruct-v0.1",
+    provider: "lovable",
+    upstream: "google/gemini-2.5-flash",
     tier: "balanced",
     description: "Mixture-of-experts. Strong on structured tasks.",
     bestFor: "Config files, datastore schemas, repetitive boilerplate.",
   },
 
-  // Groq (BYO key) — branded, blazing fast
+  // Fast modes also run through Lovable AI.
   {
     id: "groq-llama-70",
     label: "Bolt",
-    provider: "groq",
-    upstream: "llama-3.1-70b-versatile",
+    provider: "lovable",
+    upstream: "google/gemini-3.5-flash",
     tier: "balanced",
     description: "Sub-second responses. Strong code at insane speed.",
     bestFor: "Live iteration, in-Studio quick fixes, rapid prototyping.",
@@ -160,8 +160,8 @@ export const MODELS: ModelOption[] = [
   {
     id: "groq-llama-8",
     label: "Zap",
-    provider: "groq",
-    upstream: "llama-3.1-8b-instant",
+    provider: "lovable",
+    upstream: "openai/gpt-5-nano",
     tier: "fast",
     description: "Near-instant replies. Lightest brain on the list.",
     bestFor: "One-liner scripts, renames, simple GUI tweaks.",
@@ -169,8 +169,8 @@ export const MODELS: ModelOption[] = [
   {
     id: "groq-mixtral",
     label: "Surge",
-    provider: "groq",
-    upstream: "mixtral-8x7b-32768",
+    provider: "lovable",
+    upstream: "google/gemini-2.5-flash",
     tier: "balanced",
     description: "Long-context fast model. Holds big projects in mind.",
     bestFor: "Refactoring large scripts, multi-file edits, big map logic.",
@@ -178,8 +178,8 @@ export const MODELS: ModelOption[] = [
   {
     id: "groq-gemma",
     label: "Ember",
-    provider: "groq",
-    upstream: "gemma2-9b-it",
+    provider: "lovable",
+    upstream: "google/gemini-2.5-flash-lite",
     tier: "fast",
     description: "Tiny, snappy, surprisingly capable.",
     bestFor: "Beginner prompts, learning Luau, tiny gameplay scripts.",

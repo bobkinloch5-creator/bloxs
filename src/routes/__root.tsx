@@ -149,8 +149,17 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <BetaBanner />
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <Outlet />
     </QueryClientProvider>
+  );
+}
+
+function BetaBanner() {
+  return (
+    <div className="sticky top-0 z-[70] border-b border-blue-400/25 bg-blue-950 px-4 py-2 text-center text-xs font-semibold text-blue-100 shadow-lg shadow-blue-950/20">
+      BloxSmith is still in beta and we update almost every day — if something is not working, please be patient while we improve it.
+    </div>
   );
 }
