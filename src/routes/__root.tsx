@@ -113,6 +113,39 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const router = useRouter();
+
+  useEffect(() => {
+    let mounted = true;
+    // Redirect to dashboard if a session already exists on a public auth-entry route
+    const maybeRedirect = (pathname: string) => {
+      if (pathname === "/" || pathname === "/auth") {
+        router.navigate({ to: "/dashboard" });
+      }
+    };
+
+    import("@/integrations/supabase/client").then(({ supabase }) => {
+      supabase.auth.getSession().then(({ data }) => {
+        if (!mounted) return;
+        if (data.session) maybeRedirect(window.location.pathname);
+      });
+
+      const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+        if (event === "SIGNED_IN" && session) {
+          queryClient.invalidateQueries();
+          maybeRedirect(window.location.pathname);
+        } else if (event === "SIGNED_OUT") {
+          router.invalidate();
+        }
+      });
+
+      return () => sub.subscription.unsubscribe();
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, [router, queryClient]);
 
   return (
     <QueryClientProvider client={queryClient}>
