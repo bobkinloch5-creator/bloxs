@@ -1,22 +1,32 @@
 -- BloxSmithPlugin.lua
--- Roblox Studio plugin: one-click connect to your BloxSmith account.
+-- BloxSmith Roblox Studio Plugin — execution & connection bridge.
 -- Install: Plugins > Open Plugins Folder, drop this file in, restart Studio.
 
-local HttpService = game:GetService("HttpService")
-local ServerStorage = game:GetService("ServerStorage")
-local ChangeHistoryService = game:GetService("ChangeHistoryService")
-local StudioService = game:GetService("StudioService")
+local HttpService           = game:GetService("HttpService")
+local ServerStorage         = game:GetService("ServerStorage")
+local ServerScriptService   = game:GetService("ServerScriptService")
+local ReplicatedStorage     = game:GetService("ReplicatedStorage")
+local StarterGui            = game:GetService("StarterGui")
+local StarterPlayer         = game:GetService("StarterPlayer")
+local StarterPack           = game:GetService("StarterPack")
+local Lighting              = game:GetService("Lighting")
+local SoundService          = game:GetService("SoundService")
+local Teams                 = game:GetService("Teams")
+local Workspace             = game:GetService("Workspace")
+local ChangeHistoryService  = game:GetService("ChangeHistoryService")
+local InsertService         = game:GetService("InsertService")
 
-local API_BASE   = "https://bloxsmith.pro"   -- production
-local POLL_INTERVAL = 4
-local PLUGIN_VERSION = "1.1.0"
+local API_BASE       = "https://bloxsmith.pro"
+local POLL_INTERVAL  = 4
+local PLUGIN_VERSION = "1.3.0"
 
+------------------------------------------------------------------- UI shell
 local toolbar = plugin:CreateToolbar("BloxSmith")
 local toggleButton = toolbar:CreateButton("BloxSmith", "Open BloxSmith builder",
     "rbxasset://textures/StudioSharedUI/services/plugin@2x.png")
 
 local widget = plugin:CreateDockWidgetPluginGui("BloxSmithWidget",
-    DockWidgetPluginGuiInfo.new(Enum.InitialDockState.Right, true, false, 320, 460, 280, 380))
+    DockWidgetPluginGuiInfo.new(Enum.InitialDockState.Right, true, false, 340, 560, 300, 460))
 widget.Title = "BloxSmith"
 
 local main = Instance.new("Frame")
@@ -25,220 +35,211 @@ main.BackgroundColor3 = Color3.fromRGB(20, 22, 28)
 main.BorderSizePixel = 0
 main.Parent = widget
 
-local function makeLabel(text, y, size, color)
-    local lbl = Instance.new("TextLabel")
-    lbl.Position = UDim2.new(0, 12, 0, y)
-    lbl.Size = UDim2.new(1, -24, 0, size or 18)
-    lbl.BackgroundTransparency = 1
-    lbl.Font = Enum.Font.Gotham
-    lbl.TextSize = 13
-    lbl.TextColor3 = color or Color3.fromRGB(220, 220, 230)
-    lbl.TextXAlignment = Enum.TextXAlignment.Left
-    lbl.Text = text
-    lbl.Parent = main
-    return lbl
+local function label(parent, text, pos, size, font, ts, color)
+    local l = Instance.new("TextLabel")
+    l.Position = pos; l.Size = size
+    l.BackgroundTransparency = 1
+    l.Font = font or Enum.Font.Gotham
+    l.TextSize = ts or 13
+    l.TextColor3 = color or Color3.fromRGB(220,220,230)
+    l.TextXAlignment = Enum.TextXAlignment.Left
+    l.TextYAlignment = Enum.TextYAlignment.Top
+    l.TextWrapped = true
+    l.Text = text
+    l.Parent = parent
+    return l
 end
 
-local title = makeLabel("BloxSmith", 12, 22)
-title.Font = Enum.Font.GothamBold
-title.TextSize = 16
-makeLabel("Build Roblox games with AI", 34, 16, Color3.fromRGB(150,155,170))
+local title = label(main, "BloxSmith", UDim2.new(0,12,0,10), UDim2.new(1,-24,0,22), Enum.Font.GothamBold, 16)
+label(main, "Execution bridge for Roblox Studio", UDim2.new(0,12,0,32), UDim2.new(1,-24,0,16), nil, 12, Color3.fromRGB(150,155,170))
 
-local statusLabel = makeLabel("Status: not connected", 64, 18, Color3.fromRGB(200,200,210))
-local subStatus   = makeLabel("Click Connect to get a one-click link.", 84, 16, Color3.fromRGB(150,155,170))
+local statusLabel = label(main, "Status: not connected", UDim2.new(0,12,0,58), UDim2.new(1,-24,0,18), Enum.Font.GothamMedium, 13)
+local subStatus   = label(main, "Click Connect to link this Studio session.", UDim2.new(0,12,0,78), UDim2.new(1,-24,0,16), nil, 12, Color3.fromRGB(150,155,170))
 
+local infoLabel   = label(main, "Project: —    Queue: 0", UDim2.new(0,12,0,98), UDim2.new(1,-24,0,16), nil, 12, Color3.fromRGB(160,165,180))
+local lastLabel   = label(main, "Last action: —", UDim2.new(0,12,0,116), UDim2.new(1,-24,0,16), nil, 12, Color3.fromRGB(160,165,180))
+
+-- primary connect button
 local connectBtn = Instance.new("TextButton")
-connectBtn.Position = UDim2.new(0, 12, 0, 112)
-connectBtn.Size = UDim2.new(1, -24, 0, 34)
-connectBtn.BackgroundColor3 = Color3.fromRGB(70, 130, 240)
+connectBtn.Position = UDim2.new(0,12,0,142); connectBtn.Size = UDim2.new(1,-24,0,34)
+connectBtn.BackgroundColor3 = Color3.fromRGB(70,130,240)
 connectBtn.TextColor3 = Color3.fromRGB(255,255,255)
-connectBtn.Font = Enum.Font.GothamBold
-connectBtn.TextSize = 14
-connectBtn.Text = "Connect"
-connectBtn.BorderSizePixel = 0
-connectBtn.AutoButtonColor = true
+connectBtn.Font = Enum.Font.GothamBold; connectBtn.TextSize = 14
+connectBtn.Text = "Connect"; connectBtn.BorderSizePixel = 0
 connectBtn.Parent = main
 
+-- approval link box (hidden by default)
 local linkBox = Instance.new("TextBox")
-linkBox.Position = UDim2.new(0, 12, 0, 156)
-linkBox.Size = UDim2.new(1, -24, 0, 28)
-linkBox.BackgroundColor3 = Color3.fromRGB(35, 38, 48)
+linkBox.Position = UDim2.new(0,12,0,182); linkBox.Size = UDim2.new(1,-24,0,26)
+linkBox.BackgroundColor3 = Color3.fromRGB(35,38,48)
 linkBox.TextColor3 = Color3.fromRGB(220,220,230)
-linkBox.Font = Enum.Font.Code
-linkBox.TextSize = 12
-linkBox.Text = ""
-linkBox.PlaceholderText = "Approval link appears here"
-linkBox.ClearTextOnFocus = false
-linkBox.TextEditable = false
-linkBox.BorderSizePixel = 0
-linkBox.Visible = false
+linkBox.Font = Enum.Font.Code; linkBox.TextSize = 12
+linkBox.Text = ""; linkBox.PlaceholderText = "Approval link appears here"
+linkBox.ClearTextOnFocus = false; linkBox.TextEditable = false
+linkBox.BorderSizePixel = 0; linkBox.Visible = false
 linkBox.Parent = main
 
-local copyBtn = Instance.new("TextButton")
-copyBtn.Position = UDim2.new(0, 12, 0, 188)
-copyBtn.Size = UDim2.new(1, -24, 0, 24)
-copyBtn.BackgroundColor3 = Color3.fromRGB(45, 48, 58)
-copyBtn.TextColor3 = Color3.fromRGB(220,220,230)
-copyBtn.Font = Enum.Font.Gotham
-copyBtn.TextSize = 12
-copyBtn.Text = "Copy approval link"
-copyBtn.BorderSizePixel = 0
-copyBtn.Visible = false
-copyBtn.Parent = main
+-- control buttons grid (2 rows x 3 cols)
+local controls = Instance.new("Frame")
+controls.Position = UDim2.new(0,12,0,216); controls.Size = UDim2.new(1,-24,0,64)
+controls.BackgroundTransparency = 1; controls.Parent = main
+local grid = Instance.new("UIGridLayout", controls)
+grid.CellPadding = UDim2.new(0,6,0,6)
+grid.CellSize = UDim2.new(0.333, -4, 0, 28)
+grid.SortOrder = Enum.SortOrder.LayoutOrder
 
--- Log header bar (title + clear + copy)
-local logBar = Instance.new("Frame")
-logBar.Position = UDim2.new(0, 12, 0, 222)
-logBar.Size = UDim2.new(1, -24, 0, 22)
-logBar.BackgroundTransparency = 1
-logBar.Parent = main
-
-local logTitle = Instance.new("TextLabel")
-logTitle.Size = UDim2.new(1, -150, 1, 0)
-logTitle.BackgroundTransparency = 1
-logTitle.Font = Enum.Font.GothamBold
-logTitle.TextSize = 12
-logTitle.TextColor3 = Color3.fromRGB(200,205,215)
-logTitle.TextXAlignment = Enum.TextXAlignment.Left
-logTitle.Text = "Activity log"
-logTitle.Parent = logBar
-
-local function makeMiniBtn(text, xOffset)
+local function ctrlBtn(text, order)
     local b = Instance.new("TextButton")
-    b.AnchorPoint = Vector2.new(1, 0.5)
-    b.Position = UDim2.new(1, xOffset, 0.5, 0)
-    b.Size = UDim2.new(0, 60, 0, 20)
-    b.BackgroundColor3 = Color3.fromRGB(45, 48, 58)
-    b.TextColor3 = Color3.fromRGB(210,215,225)
-    b.Font = Enum.Font.Gotham
-    b.TextSize = 11
-    b.Text = text
-    b.BorderSizePixel = 0
-    b.AutoButtonColor = true
-    b.Parent = logBar
+    b.BackgroundColor3 = Color3.fromRGB(45,48,58)
+    b.TextColor3 = Color3.fromRGB(220,225,235)
+    b.Font = Enum.Font.GothamMedium; b.TextSize = 12
+    b.Text = text; b.BorderSizePixel = 0
+    b.LayoutOrder = order; b.Parent = controls
     return b
 end
 
-local copyLogBtn = makeMiniBtn("Copy", 0)
-local clearLogBtn = makeMiniBtn("Clear", -68)
+local reconnectBtn = ctrlBtn("Reconnect", 1)
+local syncBtn      = ctrlBtn("Sync", 2)
+local execBtn      = ctrlBtn("Run Queue", 3)
+local clearBtn     = ctrlBtn("Clear Queue", 4)
+local errorsBtn    = ctrlBtn("View Errors", 5)
+local openWebBtn   = ctrlBtn("Open Website", 6)
+
+------------------------------------------------------------------- log
+local logBar = Instance.new("Frame")
+logBar.Position = UDim2.new(0,12,0,288); logBar.Size = UDim2.new(1,-24,0,22)
+logBar.BackgroundTransparency = 1; logBar.Parent = main
+
+local logTitle = Instance.new("TextLabel")
+logTitle.Size = UDim2.new(1,-220,1,0); logTitle.BackgroundTransparency = 1
+logTitle.Font = Enum.Font.GothamBold; logTitle.TextSize = 12
+logTitle.TextColor3 = Color3.fromRGB(200,205,215)
+logTitle.TextXAlignment = Enum.TextXAlignment.Left
+logTitle.Text = "Activity log"; logTitle.Parent = logBar
+
+local function miniBtn(text, xOff)
+    local b = Instance.new("TextButton")
+    b.AnchorPoint = Vector2.new(1,0.5)
+    b.Position = UDim2.new(1,xOff,0.5,0); b.Size = UDim2.new(0,60,0,20)
+    b.BackgroundColor3 = Color3.fromRGB(45,48,58)
+    b.TextColor3 = Color3.fromRGB(210,215,225)
+    b.Font = Enum.Font.Gotham; b.TextSize = 11
+    b.Text = text; b.BorderSizePixel = 0
+    b.Parent = logBar; return b
+end
+local copyLogBtn  = miniBtn("Copy", 0)
+local clearLogBtn = miniBtn("Clear", -66)
+local verboseBtn  = miniBtn("Verbose", -132)
 
 local logFrame = Instance.new("ScrollingFrame")
-logFrame.Position = UDim2.new(0, 12, 0, 248)
-logFrame.Size = UDim2.new(1, -24, 1, -260)
-logFrame.BackgroundColor3 = Color3.fromRGB(14, 16, 22)
-logFrame.BorderSizePixel = 0
-logFrame.CanvasSize = UDim2.new(0,0,0,0)
-logFrame.ScrollBarThickness = 4
+logFrame.Position = UDim2.new(0,12,0,314); logFrame.Size = UDim2.new(1,-24,1,-326)
+logFrame.BackgroundColor3 = Color3.fromRGB(14,16,22); logFrame.BorderSizePixel = 0
+logFrame.CanvasSize = UDim2.new(0,0,0,0); logFrame.ScrollBarThickness = 4
 logFrame.Parent = main
+local lp = Instance.new("UIPadding", logFrame)
+lp.PaddingTop = UDim.new(0,6); lp.PaddingBottom = UDim.new(0,6)
+lp.PaddingLeft = UDim.new(0,6); lp.PaddingRight = UDim.new(0,6)
+local ll = Instance.new("UIListLayout", logFrame)
+ll.SortOrder = Enum.SortOrder.LayoutOrder; ll.Padding = UDim.new(0,2)
 
-local logPad = Instance.new("UIPadding")
-logPad.PaddingTop = UDim.new(0, 6)
-logPad.PaddingBottom = UDim.new(0, 6)
-logPad.PaddingLeft = UDim.new(0, 6)
-logPad.PaddingRight = UDim.new(0, 6)
-logPad.Parent = logFrame
-
-local logLayout = Instance.new("UIListLayout")
-logLayout.SortOrder = Enum.SortOrder.LayoutOrder
-logLayout.Padding = UDim.new(0, 2)
-logLayout.Parent = logFrame
-
--- Severity → color + tag + Studio Output mirror
 local LEVELS = {
-    info    = { color = Color3.fromRGB(160, 200, 255), tag = "INFO",  mirror = "print" },
-    debug   = { color = Color3.fromRGB(140, 145, 160), tag = "DBG ",  mirror = nil     },
-    success = { color = Color3.fromRGB(140, 220, 160), tag = " OK ",  mirror = "print" },
-    warn    = { color = Color3.fromRGB(255, 200, 120), tag = "WARN",  mirror = "warn"  },
-    error   = { color = Color3.fromRGB(255, 120, 120), tag = "ERR ",  mirror = "warn"  },
-    net     = { color = Color3.fromRGB(150, 190, 235), tag = "NET ",  mirror = nil     },
-    action  = { color = Color3.fromRGB(190, 175, 255), tag = "ACT ",  mirror = "print" },
+    info    = { c = Color3.fromRGB(160,200,255), t = "INFO", m = "print" },
+    debug   = { c = Color3.fromRGB(140,145,160), t = "DBG ", m = nil     },
+    success = { c = Color3.fromRGB(140,220,160), t = " OK ", m = "print" },
+    warn    = { c = Color3.fromRGB(255,200,120), t = "WARN", m = "warn"  },
+    error   = { c = Color3.fromRGB(255,120,120), t = "ERR ", m = "warn"  },
+    net     = { c = Color3.fromRGB(150,190,235), t = "NET ", m = nil     },
+    action  = { c = Color3.fromRGB(190,175,255), t = "ACT ", m = "print" },
 }
-
-local logIndex = 0
 local LOG_MAX = 400
-local logHistory = {}            -- {string} plain-text lines for Copy
-local logChildren = {}           -- TextLabel refs, to evict oldest
+local logIndex, logHistory, logChildren, errorHistory = 0, {}, {}, {}
 
-local function relayoutCanvas()
-    logFrame.CanvasSize = UDim2.new(0, 0, 0, logLayout.AbsoluteContentSize.Y + 12)
+local function relayout()
+    logFrame.CanvasSize = UDim2.new(0,0,0, ll.AbsoluteContentSize.Y + 12)
     logFrame.CanvasPosition = Vector2.new(0, math.max(0, logFrame.CanvasSize.Y.Offset - logFrame.AbsoluteSize.Y))
 end
 
-local function log(text, levelOrColor)
-    -- Backwards compat: callers may pass a Color3 OR a level string.
-    local meta
-    if typeof(levelOrColor) == "Color3" then
-        meta = { color = levelOrColor, tag = "    ", mirror = nil }
-    elseif type(levelOrColor) == "string" and LEVELS[levelOrColor] then
-        meta = LEVELS[levelOrColor]
-    else
-        meta = LEVELS.info
-    end
-
+local function log(text, level)
+    local meta = LEVELS[level or "info"] or LEVELS.info
     logIndex += 1
-    local stamp = os.date("%H:%M:%S")
-    local line  = string.format("[%s] %s | %s", stamp, meta.tag, tostring(text))
+    local line = string.format("[%s] %s | %s", os.date("%H:%M:%S"), meta.t, tostring(text))
     table.insert(logHistory, line)
     if #logHistory > LOG_MAX then table.remove(logHistory, 1) end
-
+    if level == "error" then
+        table.insert(errorHistory, line)
+        if #errorHistory > 50 then table.remove(errorHistory, 1) end
+    end
     local lbl = Instance.new("TextLabel")
     lbl.AutomaticSize = Enum.AutomaticSize.Y
-    lbl.Size = UDim2.new(1, -4, 0, 0)
-    lbl.BackgroundTransparency = 1
-    lbl.Font = Enum.Font.Code
-    lbl.TextSize = 11
-    lbl.TextColor3 = meta.color
-    lbl.TextXAlignment = Enum.TextXAlignment.Left
-    lbl.TextYAlignment = Enum.TextYAlignment.Top
-    lbl.TextWrapped = true
-    lbl.RichText = false
-    lbl.Text = line
-    lbl.LayoutOrder = logIndex
-    lbl.Parent = logFrame
+    lbl.Size = UDim2.new(1,-4,0,0); lbl.BackgroundTransparency = 1
+    lbl.Font = Enum.Font.Code; lbl.TextSize = 11
+    lbl.TextColor3 = meta.c; lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.TextYAlignment = Enum.TextYAlignment.Top; lbl.TextWrapped = true
+    lbl.Text = line; lbl.LayoutOrder = logIndex; lbl.Parent = logFrame
     table.insert(logChildren, lbl)
     if #logChildren > LOG_MAX then
         local oldest = table.remove(logChildren, 1)
         if oldest then oldest:Destroy() end
     end
-
-    if meta.mirror == "warn" then warn("[BloxSmith] " .. tostring(text))
-    elseif meta.mirror == "print" then print("[BloxSmith] " .. tostring(text)) end
-
-    task.defer(relayoutCanvas)
+    if meta.m == "warn" then warn("[BloxSmith] " .. tostring(text))
+    elseif meta.m == "print" then print("[BloxSmith] " .. tostring(text)) end
+    task.defer(relayout)
 end
 
-local function tryCopyText(s)
-    return pcall(function() (setclipboard or (_G and _G.setclipboard))(s) end)
-end
+local function tryCopy(s) return pcall(function() (setclipboard or (_G and _G.setclipboard))(s) end) end
 
 clearLogBtn.MouseButton1Click:Connect(function()
-    for _, c in ipairs(logChildren) do c:Destroy() end
+    for _,c in ipairs(logChildren) do c:Destroy() end
     table.clear(logChildren); table.clear(logHistory); logIndex = 0
-    relayoutCanvas()
-    log("Log cleared.", "debug")
+    relayout(); log("Log cleared.", "debug")
 end)
-
 copyLogBtn.MouseButton1Click:Connect(function()
-    local blob = table.concat(logHistory, "\n")
-    if tryCopyText(blob) then
-        log(string.format("Copied %d log lines to clipboard.", #logHistory), "info")
-    else
-        log("Clipboard not available in this context.", "warn")
-    end
+    if tryCopy(table.concat(logHistory, "\n")) then
+        log(("Copied %d lines to clipboard."):format(#logHistory), "info")
+    else log("Clipboard unavailable.", "warn") end
 end)
 
-toggleButton.Click:Connect(function()
-    widget.Enabled = not widget.Enabled
+local VERBOSE = false
+verboseBtn.MouseButton1Click:Connect(function()
+    VERBOSE = not VERBOSE
+    verboseBtn.BackgroundColor3 = VERBOSE and Color3.fromRGB(70,130,240) or Color3.fromRGB(45,48,58)
+    log("Verbose " .. (VERBOSE and "ON" or "OFF"), "debug")
 end)
 
-----------------------------------------------------------------
-local function resolveParent(path)
-    if path == nil or path == "" then return game:GetService("ServerScriptService") end
+toggleButton.Click:Connect(function() widget.Enabled = not widget.Enabled end)
+
+------------------------------------------------------------------- Roblox service routing
+-- Default parent per action kind. Anything in payload.parent_path overrides this.
+local DEFAULT_PARENT = {
+    script         = ServerScriptService,
+    localscript    = StarterPlayer:WaitForChild("StarterPlayerScripts"),
+    modulescript   = ReplicatedStorage,
+    screengui      = StarterGui,
+    frame          = StarterGui,
+    textlabel      = StarterGui,
+    textbutton     = StarterGui,
+    imagelabel     = StarterGui,
+    remoteevent    = ReplicatedStorage,
+    remotefunction = ReplicatedStorage,
+    bindableevent  = ReplicatedStorage,
+    folder         = ReplicatedStorage,
+    part           = Workspace,
+    model          = Workspace,
+    tool           = StarterPack,
+    sound          = SoundService,
+    team           = Teams,
+    leaderstats    = ServerScriptService,
+    insert_asset   = Workspace,
+}
+
+local function defaultParentFor(kind) return DEFAULT_PARENT[kind] or Workspace end
+
+local function resolveParent(path, kind)
+    if not path or path == "" then return defaultParentFor(kind) end
     local parts = string.split(path, ".")
     local first = parts[1]
     local ok, svc = pcall(function() return game:GetService(first) end)
-    local parent
-    if ok and svc then parent = svc else parent = game:FindFirstChild(first) or workspace end
+    local parent = (ok and svc) or game:FindFirstChild(first) or Workspace
     for i = 2, #parts do
         local child = parent:FindFirstChild(parts[i])
         if not child then
@@ -249,70 +250,251 @@ local function resolveParent(path)
     return parent
 end
 
+local function findByPath(path)
+    if not path or path == "" then return nil end
+    local parts = string.split(path, ".")
+    local ok, svc = pcall(function() return game:GetService(parts[1]) end)
+    local node = (ok and svc) or game:FindFirstChild(parts[1])
+    for i = 2, #parts do
+        if not node then return nil end
+        node = node:FindFirstChild(parts[i])
+    end
+    return node
+end
+
+local function applyProps(inst, props)
+    if type(props) ~= "table" then return end
+    for k, v in pairs(props) do
+        local ok, err = pcall(function() inst[k] = v end)
+        if not ok then log(("set %s.%s failed: %s"):format(inst.Name, k, tostring(err)), "warn") end
+    end
+end
+
+local function vec3(t, def)
+    t = t or def or {0,0,0}
+    return Vector3.new(t[1] or 0, t[2] or 0, t[3] or 0)
+end
+local function color(t)
+    if not t then return nil end
+    return Color3.new(math.clamp(t[1] or 1,0,1), math.clamp(t[2] or 1,0,1), math.clamp(t[3] or 1,0,1))
+end
+local function ud2(t, defScale, defOffset)
+    t = t or {}
+    return UDim2.new(t.xs or t[1] or defScale or 0, t.xo or t[2] or defOffset or 0,
+                     t.ys or t[3] or defScale or 0, t.yo or t[4] or defOffset or 0)
+end
+
+local function ensureUnique(parent, name)
+    -- avoid duplicate child names by suffixing _2, _3…
+    if not parent:FindFirstChild(name) then return name end
+    local i = 2
+    while parent:FindFirstChild(name .. "_" .. i) do i += 1 end
+    return name .. "_" .. i
+end
+
+------------------------------------------------------------------- action executors
+local Exec = {}
+
+local function makeScript(className, action, parent)
+    local payload = action.payload or {}
+    local existing = parent:FindFirstChild(action.name)
+    if existing and existing:IsA(className) then existing:Destroy() end
+    local s = Instance.new(className)
+    s.Name = action.name
+    s.Source = payload.source or "-- empty"
+    s.Parent = parent; return s
+end
+
+Exec.folder = function(a, p)
+    local f = p:FindFirstChild(a.name) or Instance.new("Folder")
+    f.Name = a.name; f.Parent = p; return f
+end
+Exec.script         = function(a,p) return makeScript("Script", a, p) end
+Exec.localscript    = function(a,p) return makeScript("LocalScript", a, p) end
+Exec.modulescript   = function(a,p) return makeScript("ModuleScript", a, p) end
+
+Exec.screengui = function(a, p)
+    local existing = p:FindFirstChild(a.name)
+    if existing then existing:Destroy() end
+    local g = Instance.new("ScreenGui"); g.Name = a.name
+    g.ResetOnSpawn = (a.payload and a.payload.reset_on_spawn) ~= false
+    g.Parent = p; applyProps(g, a.payload and a.payload.properties); return g
+end
+local function makeGuiObject(className, a, p)
+    local payload = a.payload or {}
+    local obj = Instance.new(className); obj.Name = a.name
+    if obj:IsA("GuiObject") then
+        obj.Size = ud2(payload.size, 0, 100)
+        obj.Position = ud2(payload.position, 0, 0)
+        if payload.bg then obj.BackgroundColor3 = color(payload.bg) or obj.BackgroundColor3 end
+        if payload.bg_transparency then obj.BackgroundTransparency = payload.bg_transparency end
+    end
+    if obj:IsA("TextLabel") or obj:IsA("TextButton") then
+        obj.Text = payload.text or a.name
+        if payload.text_color then obj.TextColor3 = color(payload.text_color) or obj.TextColor3 end
+        if payload.text_size then obj.TextSize = payload.text_size end
+        obj.Font = Enum.Font.Gotham
+    end
+    if obj:IsA("ImageLabel") and payload.image then obj.Image = payload.image end
+    obj.Parent = p; applyProps(obj, payload.properties); return obj
+end
+Exec.frame      = function(a,p) return makeGuiObject("Frame", a, p) end
+Exec.textlabel  = function(a,p) return makeGuiObject("TextLabel", a, p) end
+Exec.textbutton = function(a,p) return makeGuiObject("TextButton", a, p) end
+Exec.imagelabel = function(a,p) return makeGuiObject("ImageLabel", a, p) end
+
+local function ensureRemote(className, a, p)
+    local existing = p:FindFirstChild(a.name)
+    if existing and existing:IsA(className) then return existing end
+    if existing then existing:Destroy() end
+    local r = Instance.new(className); r.Name = a.name; r.Parent = p; return r
+end
+Exec.remoteevent    = function(a,p) return ensureRemote("RemoteEvent", a, p) end
+Exec.remotefunction = function(a,p) return ensureRemote("RemoteFunction", a, p) end
+Exec.bindableevent  = function(a,p) return ensureRemote("BindableEvent", a, p) end
+
+Exec.part = function(a, p)
+    local payload = a.payload or {}
+    local part = Instance.new("Part"); part.Name = a.name
+    part.Size = vec3(payload.size, {4,1,4})
+    part.Position = vec3(payload.position, {0,5,0})
+    part.Anchored = payload.anchored ~= false
+    if payload.color then part.Color = color(payload.color) end
+    if payload.material then
+        local ok, m = pcall(function() return Enum.Material[payload.material] end)
+        if ok and m then part.Material = m end
+    end
+    part.Parent = p; applyProps(part, payload.properties); return part
+end
+
+Exec.model = function(a, p)
+    local m = Instance.new("Model"); m.Name = a.name; m.Parent = p; return m
+end
+
+Exec.tool = function(a, p)
+    local payload = a.payload or {}
+    local t = Instance.new("Tool"); t.Name = a.name
+    t.RequiresHandle = payload.requires_handle ~= false
+    if payload.requires_handle ~= false then
+        local h = Instance.new("Part"); h.Name = "Handle"
+        h.Size = vec3(payload.handle_size, {1,1,2}); h.Parent = t
+    end
+    t.Parent = p; applyProps(t, payload.properties); return t
+end
+
+Exec.sound = function(a, p)
+    local payload = a.payload or {}
+    local s = Instance.new("Sound"); s.Name = a.name
+    if payload.sound_id then s.SoundId = payload.sound_id end
+    if payload.volume then s.Volume = payload.volume end
+    s.Looped = payload.looped == true
+    s.Parent = p; return s
+end
+
+Exec.team = function(a, p)
+    local payload = a.payload or {}
+    local t = Instance.new("Team"); t.Name = a.name
+    if payload.color then t.TeamColor = BrickColor.new(color(payload.color) or Color3.new(1,1,1)) end
+    t.AutoAssignable = payload.auto_assignable ~= false
+    t.Parent = Teams; return t
+end
+
+Exec.leaderstats = function(a, _)
+    -- Standard leaderstats injector script in SSS.
+    local payload = a.payload or {}
+    local stats = payload.stats or { { name = "Cash", value = 0, kind = "IntValue" } }
+    local lines = {
+        "-- BloxSmith leaderstats",
+        "game.Players.PlayerAdded:Connect(function(plr)",
+        "    local ls = Instance.new('Folder'); ls.Name='leaderstats'; ls.Parent = plr",
+    }
+    for _, st in ipairs(stats) do
+        local kind = st.kind or "IntValue"
+        table.insert(lines, ("    local v = Instance.new('%s'); v.Name='%s'; v.Value=%s; v.Parent=ls")
+            :format(kind, tostring(st.name or "Stat"), tostring(st.value or 0)))
+    end
+    table.insert(lines, "end)")
+    local s = ServerScriptService:FindFirstChild("BloxSmith_Leaderstats")
+    if s then s:Destroy() end
+    s = Instance.new("Script"); s.Name = "BloxSmith_Leaderstats"
+    s.Source = table.concat(lines, "\n"); s.Parent = ServerScriptService; return s
+end
+
+Exec.insert_asset = function(a, p)
+    local payload = a.payload or {}
+    local id = tonumber(payload.asset_id)
+    if not id then error("insert_asset missing asset_id") end
+    local ok, model = pcall(function() return InsertService:LoadAsset(id) end)
+    if not ok or not model then error("LoadAsset failed for " .. tostring(id)) end
+    model.Name = a.name or ("Asset_" .. id)
+    -- Unwrap single-child Model container into the target parent
+    local children = model:GetChildren()
+    if #children == 1 then
+        children[1].Name = model.Name
+        children[1].Parent = p
+        model:Destroy()
+        return children[1]
+    end
+    model.Parent = p; return model
+end
+
+Exec.set_properties = function(a, _)
+    local inst = findByPath(a.payload and a.payload.target_path)
+    if not inst then error("target not found: " .. tostring(a.payload and a.payload.target_path)) end
+    applyProps(inst, a.payload.properties); return inst
+end
+
+Exec.rename = function(a, _)
+    local inst = findByPath(a.payload and a.payload.target_path)
+    if not inst then error("target not found") end
+    inst.Name = a.payload.new_name or inst.Name; return inst
+end
+
+Exec.move = function(a, _)
+    local inst = findByPath(a.payload and a.payload.target_path)
+    if not inst then error("target not found") end
+    local dest = resolveParent(a.payload.new_parent_path, "folder")
+    inst.Parent = dest; return inst
+end
+
+Exec.delete = function(a, _)
+    local inst = findByPath(a.payload and a.payload.target_path)
+    if not inst then error("target not found") end
+    -- safety: never delete a top-level service
+    if inst.Parent == game then error("refuse to delete service " .. inst.Name) end
+    local name = inst:GetFullName()
+    inst:Destroy()
+    return { deleted = name }
+end
+
 local function describeAction(a)
     local payload = a.payload or {}
     local extra = ""
     if a.kind == "script" or a.kind == "localscript" or a.kind == "modulescript" then
-        local src = payload.source or ""
-        extra = string.format(" (%d chars)", #src)
+        extra = (" (%d chars)"):format(#(payload.source or ""))
     elseif a.kind == "part" then
         local sz = payload.size or {}
-        extra = string.format(" (size %sx%sx%s)", tostring(sz[1] or "?"), tostring(sz[2] or "?"), tostring(sz[3] or "?"))
+        extra = (" %sx%sx%s"):format(tostring(sz[1] or "?"), tostring(sz[2] or "?"), tostring(sz[3] or "?"))
+    elseif a.kind == "insert_asset" then
+        extra = (" id=%s"):format(tostring(payload.asset_id))
     end
-    return string.format("%s '%s' → %s%s", a.kind, tostring(a.name), tostring(a.parent_path or "ServerScriptService"), extra)
+    return ("%s '%s' → %s%s"):format(a.kind, tostring(a.name), tostring(a.parent_path or "auto"), extra)
 end
 
 local function executeAction(action)
     local kind = action.kind
-    local parent = resolveParent(action.parent_path)
-    local payload = action.payload or {}
-    log("→ executing " .. describeAction(action), "debug")
-    if kind == "folder" then
-        local f = parent:FindFirstChild(action.name) or Instance.new("Folder")
-        f.Name = action.name; f.Parent = parent; return f
-    elseif kind == "script" or kind == "localscript" or kind == "modulescript" then
-        local className = kind == "script" and "Script" or kind == "localscript" and "LocalScript" or "ModuleScript"
-        local existing = parent:FindFirstChild(action.name)
-        if existing and existing:IsA(className) then
-            log("replacing existing " .. className .. " " .. existing:GetFullName(), "debug")
-            existing:Destroy()
-        end
-        local s = Instance.new(className)
-        s.Name = action.name; s.Source = payload.source or "-- empty"; s.Parent = parent; return s
-    elseif kind == "gui" then
-        local s = Instance.new("LocalScript")
-        s.Name = action.name .. "_Builder"; s.Source = payload.source or "-- empty"; s.Parent = parent; return s
-    elseif kind == "part" then
-        local p = Instance.new("Part")
-        p.Name = action.name
-        local sz = payload.size or {4,1,4}
-        p.Size = Vector3.new(sz[1] or 4, sz[2] or 1, sz[3] or 4)
-        local pos = payload.position or {0,5,0}
-        p.Position = Vector3.new(pos[1] or 0, pos[2] or 5, pos[3] or 0)
-        if payload.color then local c = payload.color; p.Color = Color3.new(c[1] or 1, c[2] or 1, c[3] or 1) end
-        p.Anchored = payload.anchored ~= false
-        if payload.material then
-            local ok, m = pcall(function() return Enum.Material[payload.material] end)
-            if ok and m then p.Material = m end
-        end
-        p.Parent = parent; return p
-    elseif kind == "model" or kind == "terrain" then
-        local s = Instance.new("Script")
-        s.Name = action.name .. "_Builder"; s.Source = payload.source or "-- empty"; s.Parent = ServerStorage; return s
-    end
-    error("Unknown action kind: " .. tostring(kind))
+    local handler = Exec[kind]
+    if not handler then error("Unknown action kind: " .. tostring(kind)) end
+    local parent = resolveParent(action.parent_path, kind)
+    log("→ " .. describeAction(action), "debug")
+    return handler(action, parent)
 end
 
-----------------------------------------------------------------
+------------------------------------------------------------------- HTTP
 local function studioVersion()
     local ok, v = pcall(function() return version() end)
-    if ok then return tostring(v) end
-    return "unknown"
+    return ok and tostring(v) or "unknown"
 end
-
--- Verbose logging toggle. Verbose logs every poll request/response. Off by default
--- to avoid spamming the log every 4 seconds, but every error/action is still logged.
-local VERBOSE = false
 
 local function post(path, body, opts)
     opts = opts or {}
@@ -321,211 +503,199 @@ local function post(path, body, opts)
     if verbose then log("→ POST " .. path, "net") end
     local ok, res = pcall(function()
         return HttpService:RequestAsync({
-            Url = API_BASE .. path,
-            Method = "POST",
+            Url = API_BASE .. path, Method = "POST",
             Headers = { ["Content-Type"] = "application/json" },
             Body = HttpService:JSONEncode(body or {}),
         })
     end)
     local dt = math.floor((os.clock() - t0) * 1000)
     if not ok then
-        log(string.format("✗ POST %s failed after %dms — %s", path, dt, tostring(res)), "error")
+        log(("✗ POST %s failed after %dms — %s"):format(path, dt, tostring(res)), "error")
         return nil, tostring(res)
     end
     if not res.Success then
         local short = tostring(res.Body or "")
-        if #short > 240 then short = short:sub(1, 240) .. "…" end
-        log(string.format("✗ POST %s → HTTP %s in %dms — %s", path, tostring(res.StatusCode), dt, short), "error")
+        if #short > 240 then short = short:sub(1,240) .. "…" end
+        log(("✗ POST %s → HTTP %s in %dms — %s"):format(path, tostring(res.StatusCode), dt, short), "error")
         return nil, "HTTP " .. tostring(res.StatusCode) .. ": " .. tostring(res.Body)
     end
     local decoded; pcall(function() decoded = HttpService:JSONDecode(res.Body) end)
-    if verbose then
-        log(string.format("← POST %s → %s in %dms", path, tostring(res.StatusCode), dt), "net")
-    end
+    if verbose then log(("← POST %s → %s in %dms"):format(path, tostring(res.StatusCode), dt), "net") end
     return decoded or {}, nil
 end
 
-local function reportComplete(actionId, status, errMsg)
+local function reportComplete(actionId, status, errMsg, result)
     local token = plugin:GetSetting("token")
     if not token then return end
     post("/api/public/plugin/complete", {
-        token = token, action_id = actionId, status = status, error = errMsg,
+        token = token, action_id = actionId, status = status, error = errMsg, result = result,
     }, { verbose = false })
 end
 
-local connected = false
-local pairingCode = nil
-local lastPollLog = 0     -- throttle "polled" debug line
-local lastPollOk  = nil   -- last successful poll timestamp
+------------------------------------------------------------------- state
+local connected, pairingCode = false, nil
+local lastHeartbeat, queueLen, lastAction = 0, 0, "—"
 
 local function setStatus(text, color, sub)
     statusLabel.Text = "Status: " .. text
     statusLabel.TextColor3 = color or Color3.fromRGB(200,200,210)
     if sub then subStatus.Text = sub end
 end
+local function refreshInfo()
+    infoLabel.Text = ("Place: %s    Queue: %d    v%s"):format(tostring(game.PlaceId or 0), queueLen, PLUGIN_VERSION)
+    lastLabel.Text = "Last: " .. lastAction
+end
 
-local function pollOnce()
+local function pollOnce(force)
     local token = plugin:GetSetting("token")
     if not token then return end
-    local placeId = tostring(game.PlaceId or 0)
     local data, err = post("/api/public/plugin/poll", {
-        token = token, place_id = placeId, studio_version = studioVersion(),
-    }, { verbose = VERBOSE })
+        token = token, place_id = tostring(game.PlaceId or 0), studio_version = studioVersion(),
+    }, { verbose = VERBOSE, force = force })
     if err then
         setStatus("error", Color3.fromRGB(255,120,120), err)
-        log("Poll failed — will retry. " .. err, "error")
-        return
+        log("Poll failed — will retry.", "error"); return
     end
-    lastPollOk = os.time()
-    setStatus("Connected", Color3.fromRGB(120, 220, 160), "Linked to your BloxSmith account.")
+    setStatus("Connected", Color3.fromRGB(120,220,160), "Linked to your BloxSmith account.")
     local actions = data.actions or {}
-    -- Heartbeat line every ~60s so the log shows the plugin is alive
-    if os.clock() - lastPollLog > 60 then
-        log(string.format("Heartbeat — connected, place %s, %d pending", placeId, #actions), "debug")
-        lastPollLog = os.clock()
+    queueLen = #actions; refreshInfo()
+    if os.clock() - lastHeartbeat > 60 then
+        log(("Heartbeat — %d pending"):format(#actions), "debug")
+        lastHeartbeat = os.clock()
     end
     if #actions == 0 then return end
-    log(string.format("Received %d action(s) from server.", #actions), "success")
+    log(("Received %d action(s)."):format(#actions), "success")
     ChangeHistoryService:SetWaypoint("BloxSmith batch start")
-    local okCount, failCount = 0, 0
+    local okN, failN = 0, 0
     for _, a in ipairs(actions) do
         local ok, errOrInst = pcall(executeAction, a)
         if ok then
-            okCount += 1
-            log("✓ " .. describeAction(a), "action")
-            reportComplete(a.id, "done", nil)
+            okN += 1; lastAction = describeAction(a)
+            log("✓ " .. lastAction, "action")
+            reportComplete(a.id, "done", nil, nil)
         else
-            failCount += 1
+            failN += 1
             log("✗ " .. a.kind .. " '" .. tostring(a.name) .. "': " .. tostring(errOrInst), "error")
-            reportComplete(a.id, "failed", tostring(errOrInst))
+            reportComplete(a.id, "failed", tostring(errOrInst), nil)
         end
+        refreshInfo()
     end
     ChangeHistoryService:SetWaypoint("BloxSmith batch done")
-    log(string.format("Batch complete — %d ok, %d failed.", okCount, failCount), failCount > 0 and "warn" or "success")
-end
-
-local function tryCopy(url)
-    -- setclipboard exists in Studio plugin contexts
-    local ok = pcall(function() (setclipboard or (_G and _G.setclipboard))(url) end)
-    return ok
+    log(("Batch complete — %d ok, %d failed."):format(okN, failN), failN > 0 and "warn" or "success")
 end
 
 local function startPairing()
     setStatus("connecting", Color3.fromRGB(160,200,255), "Creating one-time approval link…")
-    connectBtn.Text = "Cancel"
-    connectBtn.BackgroundColor3 = Color3.fromRGB(220, 90, 90)
-    log("Requesting pair code from " .. API_BASE .. " …", "info")
-
+    connectBtn.Text = "Cancel"; connectBtn.BackgroundColor3 = Color3.fromRGB(220,90,90)
+    log("Requesting pair code…", "info")
     local data, err = post("/api/public/plugin/pair/start", { plugin_version = PLUGIN_VERSION }, { verbose = true })
     if err or not data or not data.code then
-        log("Could not start pairing: " .. tostring(err or "no data"), "error")
-        setStatus("error", Color3.fromRGB(255,120,120), "Try again in a moment.")
-        connectBtn.Text = "Connect"; connectBtn.BackgroundColor3 = Color3.fromRGB(70, 130, 240)
-        return
+        log("Pair start failed: " .. tostring(err or "no data"), "error")
+        setStatus("error", Color3.fromRGB(255,120,120), "Try again.")
+        connectBtn.Text = "Connect"; connectBtn.BackgroundColor3 = Color3.fromRGB(70,130,240); return
     end
     pairingCode = data.code
-    local link = data.link_url
-    linkBox.Text = link; linkBox.Visible = true
-    copyBtn.Visible = true
-    log("Pair code received: " .. tostring(data.code), "success")
-    if tryCopy(link) then
-        log("Approval link copied to clipboard.", "info")
-    end
-    log("Open " .. link .. " in your browser to approve.", "info")
-    setStatus("waiting for approval", Color3.fromRGB(255,200,120),
-        "Open the link in your browser and click Approve.")
-
-    -- Poll the pair endpoint until approved or expired
+    linkBox.Text = data.link_url; linkBox.Visible = true
+    log("Pair code: " .. tostring(data.code), "success")
+    if tryCopy(data.link_url) then log("Approval link copied to clipboard.", "info") end
+    log("Open " .. data.link_url .. " in your browser.", "info")
+    setStatus("waiting for approval", Color3.fromRGB(255,200,120), "Approve in your browser.")
     local elapsed = 0
-    local lastTick = 0
     while pairingCode == data.code and elapsed < 600 do
         task.wait(2); elapsed += 2
-        if elapsed - lastTick >= 30 then
-            log(string.format("Still waiting for approval (%ds elapsed)…", elapsed), "debug")
-            lastTick = elapsed
-        end
         local poll, perr = post("/api/public/plugin/pair/poll", { code = data.code }, { verbose = false })
-        if perr then
-            if string.find(perr, "410") then
-                log("Approval link expired. Click Connect again.", "warn")
-                setStatus("expired", Color3.fromRGB(255,180,80), "Click Connect to get a new link.")
-                connectBtn.Text = "Connect"; connectBtn.BackgroundColor3 = Color3.fromRGB(70, 130, 240)
-                pairingCode = nil; linkBox.Visible = false; copyBtn.Visible = false
-                return
-            end
+        if perr and string.find(perr, "410") then
+            log("Approval link expired.", "warn")
+            setStatus("expired", Color3.fromRGB(255,180,80), "Click Connect to retry.")
+            connectBtn.Text = "Connect"; connectBtn.BackgroundColor3 = Color3.fromRGB(70,130,240)
+            pairingCode = nil; linkBox.Visible = false; return
         elseif poll and poll.status == "approved" and poll.plugin_token then
             plugin:SetSetting("token", poll.plugin_token)
-            pairingCode = nil
-            linkBox.Visible = false; copyBtn.Visible = false
-            log("Approved by website ✓ — token saved locally.", "success")
+            pairingCode = nil; linkBox.Visible = false
+            log("Approved ✓ — token saved.", "success")
             connected = true
-            connectBtn.Text = "Disconnect"
-            connectBtn.BackgroundColor3 = Color3.fromRGB(220, 90, 90)
-            pollOnce()
-            return
+            connectBtn.Text = "Disconnect"; connectBtn.BackgroundColor3 = Color3.fromRGB(220,90,90)
+            pollOnce(true); return
         end
     end
     if pairingCode == data.code then
-        log("Approval timed out after 10 minutes. Click Connect to try again.", "warn")
-        setStatus("timed out", Color3.fromRGB(255,180,80), "Click Connect to try again.")
-        connectBtn.Text = "Connect"; connectBtn.BackgroundColor3 = Color3.fromRGB(70, 130, 240)
-        pairingCode = nil; linkBox.Visible = false; copyBtn.Visible = false
+        log("Approval timed out.", "warn")
+        setStatus("timed out", Color3.fromRGB(255,180,80), "Click Connect to retry.")
+        connectBtn.Text = "Connect"; connectBtn.BackgroundColor3 = Color3.fromRGB(70,130,240)
+        pairingCode = nil; linkBox.Visible = false
     end
 end
 
 local function disconnect()
     plugin:SetSetting("token", nil)
-    connected = false
-    pairingCode = nil
-    connectBtn.Text = "Connect"
-    connectBtn.BackgroundColor3 = Color3.fromRGB(70, 130, 240)
-    linkBox.Visible = false; copyBtn.Visible = false
-    setStatus("not connected", Color3.fromRGB(200,200,210), "Click Connect to link this Studio session.")
-    log("Disconnected. Token removed from this Studio install.", "warn")
+    connected = false; pairingCode = nil
+    connectBtn.Text = "Connect"; connectBtn.BackgroundColor3 = Color3.fromRGB(70,130,240)
+    linkBox.Visible = false
+    setStatus("not connected", Color3.fromRGB(200,200,210), "Click Connect to link.")
+    log("Disconnected — token removed.", "warn")
 end
 
-copyBtn.MouseButton1Click:Connect(function()
-    if linkBox.Text ~= "" then
-        if tryCopy(linkBox.Text) then log("Link copied to clipboard.", "info") end
-    end
-end)
-
+------------------------------------------------------------------- buttons
 connectBtn.MouseButton1Click:Connect(function()
-    if connected then
-        disconnect(); return
-    end
+    if connected then disconnect(); return end
     if pairingCode then
-        pairingCode = nil
-        linkBox.Visible = false; copyBtn.Visible = false
-        connectBtn.Text = "Connect"
-        connectBtn.BackgroundColor3 = Color3.fromRGB(70, 130, 240)
-        setStatus("cancelled", Color3.fromRGB(200,200,210), "Click Connect to try again.")
-        log("Pairing cancelled by user.", "warn")
-        return
+        pairingCode = nil; linkBox.Visible = false
+        connectBtn.Text = "Connect"; connectBtn.BackgroundColor3 = Color3.fromRGB(70,130,240)
+        log("Pairing cancelled.", "warn"); return
     end
     task.spawn(startPairing)
 end)
 
--- Verbose toggle in the log bar
-local verboseBtn = makeMiniBtn("Verbose", -136)
-verboseBtn.MouseButton1Click:Connect(function()
-    VERBOSE = not VERBOSE
-    verboseBtn.BackgroundColor3 = VERBOSE and Color3.fromRGB(70, 130, 240) or Color3.fromRGB(45, 48, 58)
-    log("Verbose logging " .. (VERBOSE and "ON — every HTTP call is shown." or "OFF — only events and errors."), "debug")
+reconnectBtn.MouseButton1Click:Connect(function()
+    if not plugin:GetSetting("token") then
+        log("No saved token — use Connect first.", "warn"); return
+    end
+    log("Reconnecting…", "info"); connected = true; pollOnce(true)
 end)
 
--- Auto-resume if we already have a token from a previous session.
-task.spawn(function()
-    local saved = plugin:GetSetting("token")
-    if saved then
-        connected = true
-        connectBtn.Text = "Disconnect"
-        connectBtn.BackgroundColor3 = Color3.fromRGB(220, 90, 90)
-        log("Restoring previous session…", "info")
-        pollOnce()
+syncBtn.MouseButton1Click:Connect(function()
+    if not connected then log("Not connected.", "warn"); return end
+    log("Manual sync triggered.", "info"); pollOnce(true)
+end)
+
+execBtn.MouseButton1Click:Connect(function()
+    if not connected then log("Not connected.", "warn"); return end
+    log("Running queue…", "info"); pollOnce(true)
+end)
+
+clearBtn.MouseButton1Click:Connect(function()
+    local token = plugin:GetSetting("token")
+    if not token then log("Not connected.", "warn"); return end
+    log("Clearing stuck queue…", "info")
+    local data, err = post("/api/public/plugin/clear", { token = token }, { verbose = true })
+    if err then log("Clear failed: " .. err, "error")
+    else log(("Cleared %d action(s)."):format((data and data.cleared) or 0), "success"); queueLen = 0; refreshInfo() end
+end)
+
+errorsBtn.MouseButton1Click:Connect(function()
+    if #errorHistory == 0 then log("No recent errors.", "success"); return end
+    log(("--- Last %d errors ---"):format(#errorHistory), "info")
+    for _, line in ipairs(errorHistory) do log(line, "error") end
+end)
+
+openWebBtn.MouseButton1Click:Connect(function()
+    if tryCopy(API_BASE .. "/plugin") then
+        log("Copied " .. API_BASE .. "/plugin to clipboard — paste into your browser.", "info")
     else
-        setStatus("not connected", Color3.fromRGB(200,200,210), "Click Connect to link this Studio session.")
+        log("Open " .. API_BASE .. "/plugin in your browser.", "info")
     end
+end)
+
+------------------------------------------------------------------- boot
+task.spawn(function()
+    if plugin:GetSetting("token") then
+        connected = true
+        connectBtn.Text = "Disconnect"; connectBtn.BackgroundColor3 = Color3.fromRGB(220,90,90)
+        log("Restoring previous session…", "info"); pollOnce(true)
+    else
+        setStatus("not connected", Color3.fromRGB(200,200,210), "Click Connect to link.")
+    end
+    refreshInfo()
 end)
 
 task.spawn(function()
@@ -541,4 +711,4 @@ end)
 log("BloxSmith v" .. PLUGIN_VERSION .. " loaded.", "success")
 log("API: " .. API_BASE, "debug")
 log("Studio " .. studioVersion() .. " — place " .. tostring(game.PlaceId or 0), "debug")
-log("Tip: tap Verbose to see every HTTP request, or Copy to share logs in Discord.", "debug")
+log("Use Connect → approve in browser → builds execute here automatically.", "info")
