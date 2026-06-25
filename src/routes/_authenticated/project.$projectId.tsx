@@ -466,12 +466,11 @@ function EmptyState({ onPrompt }: { onPrompt: (s: string) => void }) {
   ];
   return (
     <div className="bs-card mx-auto w-full max-w-2xl p-6 text-center sm:p-10">
-      <div
-        className="mx-auto grid h-14 w-14 place-items-center rounded-2xl text-white shadow-lg"
-        style={{ background: "var(--bs-grad)" }}
-      >
-        <Blocks className="h-7 w-7" />
-      </div>
+      <img
+        src={bloxLogo.url}
+        alt="BloxSmith"
+        className="mx-auto h-20 w-20 object-contain drop-shadow-[0_8px_30px_rgba(59,130,246,0.35)]"
+      />
       <h2 className="font-display mt-4 text-xl font-bold sm:text-2xl">Let's build your Roblox game.</h2>
       <p className="mt-1 text-sm" style={{ color: "var(--bs-muted-fg)" }}>
         Describe what you want and I'll plan it, write the Luau, and queue it for your Studio plugin.
