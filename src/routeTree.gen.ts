@@ -9,38 +9,165 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiChatRouteImport } from './routes/api/chat'
+import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
+import { Route as AuthenticatedPluginRouteImport } from './routes/_authenticated/plugin'
+import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedProjectProjectIdRouteImport } from './routes/_authenticated/project.$projectId'
+import { Route as ApiPublicPluginPollRouteImport } from './routes/api/public/plugin/poll'
+import { Route as ApiPublicPluginCompleteRouteImport } from './routes/api/public/plugin/complete'
 
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiChatRoute = ApiChatRouteImport.update({
+  id: '/api/chat',
+  path: '/api/chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedPluginRoute = AuthenticatedPluginRouteImport.update({
+  id: '/plugin',
+  path: '/plugin',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedProjectProjectIdRoute =
+  AuthenticatedProjectProjectIdRouteImport.update({
+    id: '/project/$projectId',
+    path: '/project/$projectId',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const ApiPublicPluginPollRoute = ApiPublicPluginPollRouteImport.update({
+  id: '/api/public/plugin/poll',
+  path: '/api/public/plugin/poll',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicPluginCompleteRoute = ApiPublicPluginCompleteRouteImport.update({
+  id: '/api/public/plugin/complete',
+  path: '/api/public/plugin/complete',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/dashboard': typeof AuthenticatedDashboardRoute
+  '/plugin': typeof AuthenticatedPluginRoute
+  '/settings': typeof AuthenticatedSettingsRoute
+  '/api/chat': typeof ApiChatRoute
+  '/project/$projectId': typeof AuthenticatedProjectProjectIdRoute
+  '/api/public/plugin/complete': typeof ApiPublicPluginCompleteRoute
+  '/api/public/plugin/poll': typeof ApiPublicPluginPollRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/dashboard': typeof AuthenticatedDashboardRoute
+  '/plugin': typeof AuthenticatedPluginRoute
+  '/settings': typeof AuthenticatedSettingsRoute
+  '/api/chat': typeof ApiChatRoute
+  '/project/$projectId': typeof AuthenticatedProjectProjectIdRoute
+  '/api/public/plugin/complete': typeof ApiPublicPluginCompleteRoute
+  '/api/public/plugin/poll': typeof ApiPublicPluginPollRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/auth': typeof AuthRoute
+  '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/plugin': typeof AuthenticatedPluginRoute
+  '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+  '/api/chat': typeof ApiChatRoute
+  '/_authenticated/project/$projectId': typeof AuthenticatedProjectProjectIdRoute
+  '/api/public/plugin/complete': typeof ApiPublicPluginCompleteRoute
+  '/api/public/plugin/poll': typeof ApiPublicPluginPollRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/dashboard'
+    | '/plugin'
+    | '/settings'
+    | '/api/chat'
+    | '/project/$projectId'
+    | '/api/public/plugin/complete'
+    | '/api/public/plugin/poll'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/auth'
+    | '/dashboard'
+    | '/plugin'
+    | '/settings'
+    | '/api/chat'
+    | '/project/$projectId'
+    | '/api/public/plugin/complete'
+    | '/api/public/plugin/poll'
+  id:
+    | '__root__'
+    | '/'
+    | '/_authenticated'
+    | '/auth'
+    | '/_authenticated/dashboard'
+    | '/_authenticated/plugin'
+    | '/_authenticated/settings'
+    | '/api/chat'
+    | '/_authenticated/project/$projectId'
+    | '/api/public/plugin/complete'
+    | '/api/public/plugin/poll'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AuthRoute: typeof AuthRoute
+  ApiChatRoute: typeof ApiChatRoute
+  ApiPublicPluginCompleteRoute: typeof ApiPublicPluginCompleteRoute
+  ApiPublicPluginPollRoute: typeof ApiPublicPluginPollRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,22 +175,83 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/chat': {
+      id: '/api/chat'
+      path: '/api/chat'
+      fullPath: '/api/chat'
+      preLoaderRoute: typeof ApiChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/settings': {
+      id: '/_authenticated/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AuthenticatedSettingsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/plugin': {
+      id: '/_authenticated/plugin'
+      path: '/plugin'
+      fullPath: '/plugin'
+      preLoaderRoute: typeof AuthenticatedPluginRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/dashboard': {
+      id: '/_authenticated/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AuthenticatedDashboardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/project/$projectId': {
+      id: '/_authenticated/project/$projectId'
+      path: '/project/$projectId'
+      fullPath: '/project/$projectId'
+      preLoaderRoute: typeof AuthenticatedProjectProjectIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/api/public/plugin/poll': {
+      id: '/api/public/plugin/poll'
+      path: '/api/public/plugin/poll'
+      fullPath: '/api/public/plugin/poll'
+      preLoaderRoute: typeof ApiPublicPluginPollRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/plugin/complete': {
+      id: '/api/public/plugin/complete'
+      path: '/api/public/plugin/complete'
+      fullPath: '/api/public/plugin/complete'
+      preLoaderRoute: typeof ApiPublicPluginCompleteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedPluginRoute: typeof AuthenticatedPluginRoute
+  AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedProjectProjectIdRoute: typeof AuthenticatedProjectProjectIdRoute
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedPluginRoute: AuthenticatedPluginRoute,
+  AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedProjectProjectIdRoute: AuthenticatedProjectProjectIdRoute,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AuthRoute: AuthRoute,
+  ApiChatRoute: ApiChatRoute,
+  ApiPublicPluginCompleteRoute: ApiPublicPluginCompleteRoute,
+  ApiPublicPluginPollRoute: ApiPublicPluginPollRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
