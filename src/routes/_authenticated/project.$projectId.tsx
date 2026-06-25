@@ -465,17 +465,17 @@ function EmptyState({ onPrompt }: { onPrompt: (s: string) => void }) {
     "Create a daily rewards GUI that gives coins on join.",
   ];
   return (
-    <div className="bs-card mx-auto w-full max-w-2xl p-6 text-center sm:p-10">
+    <div className="bs-card bs-msg-in mx-auto w-full max-w-2xl p-6 text-center sm:p-10">
       <img
         src={bloxLogo.url}
         alt="BloxSmith"
-        className="mx-auto h-20 w-20 object-contain drop-shadow-[0_8px_30px_rgba(59,130,246,0.35)]"
+        className="bs-logo-float mx-auto h-24 w-24 object-contain"
       />
       <h2 className="font-display mt-4 text-xl font-bold sm:text-2xl">Let's build your Roblox game.</h2>
       <p className="mt-1 text-sm" style={{ color: "var(--bs-muted-fg)" }}>
         Describe what you want and I'll plan it, write the Luau, and queue it for your Studio plugin.
       </p>
-      <div className="mt-5 grid gap-2 sm:grid-cols-2">
+      <div className="bs-stagger mt-5 grid gap-2 sm:grid-cols-2">
         {ideas.map((i) => (
           <button key={i} onClick={() => onPrompt(i)} className="bs-soft px-3 py-2.5 text-left text-sm hover:bg-[var(--bs-primary-soft)]">
             {i}
