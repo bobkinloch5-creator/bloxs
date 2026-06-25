@@ -332,12 +332,12 @@ function ChatPreview() {
 }
 
 const TEMPLATES = [
-  { name: "Tycoon Empire", grad: "from-amber-500/40 to-orange-600/40" },
-  { name: "Obby Challenge", grad: "from-fuchsia-500/40 to-violet-600/40" },
-  { name: "Survival Island", grad: "from-emerald-500/40 to-teal-600/40" },
-  { name: "Dungeon Quest", grad: "from-rose-600/40 to-red-700/40" },
-  { name: "Racing Circuit", grad: "from-red-500/40 to-amber-500/40" },
-  { name: "Fighting Arena", grad: "from-sky-500/40 to-indigo-600/40" },
+  { name: "Tycoon Empire", img: templateTycoon },
+  { name: "Obby Challenge", img: templateObby },
+  { name: "Survival Island", img: templateSurvival },
+  { name: "Dungeon Quest", img: templateDungeon },
+  { name: "Racing Circuit", img: templateRacing },
+  { name: "Fighting Arena", img: templateFighting },
 ];
 
 function TemplatesCard() {
@@ -349,10 +349,18 @@ function TemplatesCard() {
       </div>
       <div className="mt-3 grid grid-cols-3 gap-2.5">
         {TEMPLATES.map(t => (
-          <div key={t.name} className={`group relative aspect-square overflow-hidden rounded-xl border border-white/10 bg-gradient-to-br ${t.grad}`}>
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_40%_30%,rgba(255,255,255,0.2),transparent_60%)]" />
-            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-2">
-              <div className="text-[11px] font-bold text-white">{t.name}</div>
+          <div key={t.name} className="group relative aspect-square overflow-hidden rounded-xl border border-white/10 bg-slate-900/40">
+            <img
+              src={t.img}
+              alt={t.name}
+              loading="lazy"
+              width={816}
+              height={816}
+              className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+            <div className="absolute inset-x-0 bottom-0 p-2">
+              <div className="text-[11px] font-bold text-white drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">{t.name}</div>
             </div>
           </div>
         ))}
