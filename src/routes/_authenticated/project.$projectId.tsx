@@ -271,7 +271,12 @@ function ProjectPage() {
             style={{ background: "var(--bs-bg)" }}
           >
             <div className="mx-auto flex max-w-3xl flex-col gap-5">
-              {messages.length === 0 && <EmptyState onPrompt={(p) => submit(p)} />}
+              {messages.length === 0 && (
+                <EmptyState
+                  name={profile?.display_name || profile?.username || "builder"}
+                  onPrompt={(p) => submit(p)}
+                />
+              )}
 
               {messages.map((m) => {
                 const text = m.parts.map((p) => (p.type === "text" ? p.text : "")).join("");
