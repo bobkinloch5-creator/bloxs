@@ -43,19 +43,56 @@ function Dashboard() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["projects"] }),
   });
 
+  const [forceTour, setForceTour] = useState(false);
+
   return (
     <div className="mx-auto max-w-5xl px-6 py-10">
+      <OnboardingTour
+        storageKey="bs-onboarding-dashboard"
+        force={forceTour}
+        onFinish={() => { setForceTour(false); setOpen(true); }}
+        steps={[
+          {
+            title: "Welcome to BloxSmith 👋",
+            body: "BloxSmith is your AI co-builder for Roblox. Describe a game in plain English and we'll generate scripts, models, and Studio actions for you.",
+            cta: "Show me how",
+          },
+          {
+            title: "1. Create a project",
+            body: "Each project is one Roblox game (tycoon, obby, simulator, etc.). You can have as many as you want — pick a name and a game type to get started.",
+          },
+          {
+            title: "2. Install the Studio plugin",
+            body: "Open Roblox Studio, install the BloxSmith plugin from the Studio Plugin page, and connect it. Every build you generate will be sent straight into your place.",
+          },
+          {
+            title: "3. Chat → Build → Test",
+            body: "Inside a project, just chat: \"Add a shop with three items\", \"Make the lobby bigger\", \"Fix the leaderboard.\" BloxSmith plans the work, generates code, and pushes it to Studio.",
+            cta: "Create my first project",
+          },
+        ]}
+      />
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-display text-3xl font-bold">Your Projects</h1>
           <p className="text-sm text-muted-foreground">Each project is a Roblox game BloxSmith helps you build.</p>
         </div>
-        <button
-          onClick={() => setOpen(true)}
-          className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
-        >
-          <Plus className="h-4 w-4" /> New project
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setForceTour(true)}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-muted-foreground hover:bg-secondary"
+            title="Replay onboarding"
+          >
+            <Sparkles className="h-3.5 w-3.5" /> Tour
+          </button>
+          <button
+            onClick={() => setOpen(true)}
+            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+          >
+            <Plus className="h-4 w-4" /> New project
+          </button>
+        </div>
       </div>
 
       <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
