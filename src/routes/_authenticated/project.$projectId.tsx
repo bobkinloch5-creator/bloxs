@@ -246,7 +246,11 @@ function ProjectPage() {
                     <div className="opacity-80">{error.message || "Please try again."}</div>
                   </div>
                   <button
-                    onClick={() => submit(messages.findLast((m) => m.role === "user")?.parts.map((p) => p.type === "text" ? p.text : "").join("") || "")}
+                    onClick={() => {
+                      const lastUser = [...messages].reverse().find((mm) => mm.role === "user");
+                      const t = lastUser?.parts.map((p) => (p.type === "text" ? p.text : "")).join("") ?? "";
+                      submit(t);
+                    }}
                     className="bs-quick shrink-0"
                   >
                     <RotateCcw className="h-3 w-3" /> Retry
