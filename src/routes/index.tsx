@@ -186,12 +186,10 @@ function FeatureStrip() {
             </div>
           ))}
         </div>
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-4 border-t border-white/10 pt-6 text-sm">
-          <div className="text-xs uppercase tracking-wider text-slate-400">Trusted by 500,000+ creators</div>
-          <div className="flex items-center gap-1 text-amber-400">
-            {[...Array(5)].map((_, i) => <Star key={i} className="h-4 w-4 fill-current" />)}
-            <span className="ml-1 font-semibold text-white">4.9/5</span>
-          </div>
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 border-t border-white/10 pt-6 text-xs text-slate-400">
+          <span className="uppercase tracking-wider">Built for Roblox creators</span>
+          <span className="hidden h-1 w-1 rounded-full bg-slate-600 md:inline-block" />
+          <span>100% free to use · No credit card</span>
         </div>
       </div>
     </section>
@@ -402,7 +400,7 @@ function FinalCTA() {
             READY TO BUILD YOUR <span className="bs-text-grad">DREAM ROBLOX GAME?</span>
           </h2>
           <p className="mt-3 text-sm text-slate-300 md:text-base">
-            Join <span className="font-semibold text-white">500,000+</span> creators building amazing games with AI.
+            Free forever. No credit card. Built for Roblox creators who want to ship.
           </p>
           <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
             <Link to="/auth" className="bs-btn-grad inline-flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold text-white">
@@ -427,7 +425,7 @@ function FinalCTA() {
 /* ---------------- Footer ---------------- */
 function Footer() {
   return (
-    <footer id="docs" className="border-t border-white/10 bg-slate-950/40">
+    <footer className="border-t border-white/10 bg-slate-950/40">
       <div className="mx-auto max-w-7xl px-6 py-10">
         <div className="grid gap-8 md:grid-cols-5">
           <div className="md:col-span-2">
@@ -436,15 +434,15 @@ function Footer() {
               <span className="font-bold">BloxSmith</span>
             </div>
             <p className="mt-3 max-w-xs text-xs text-slate-400">
-              The free AI Roblox game builder. Build. Create. Publish. Repeat.
+              The free AI Roblox game builder. Built for Roblox creators.
             </p>
           </div>
-          <FootCol title="Product" links={["Features", "Templates", "Plugin", "How It Works"]} />
-          <FootCol title="Resources" links={["Docs", "Guides", "Changelog", "Roadmap"]} />
-          <FootCol title="Community" links={["Discord", "YouTube", "Twitter", "Creators"]} />
+          <FootCol title="Product" links={[["Features", "/#features"], ["How It Works", "/#how"], ["Plugin", "/#plugin"]]} />
+          <FootCol title="Resources" links={[["Docs", "/docs"], ["Support", "/support"], ["Contact", "/contact"]]} />
+          <FootCol title="Legal" links={[["Terms of Service", "/terms"], ["Privacy Policy", "/privacy"], ["Discord", "https://discord.gg/lovable-dev"]]} />
         </div>
         <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-6 text-xs text-slate-500">
-          <div>Made for creators, by creators.</div>
+          <div>Made for Roblox creators. 100% free.</div>
           <div>© {new Date().getFullYear()} BloxSmith. All rights reserved.</div>
         </div>
       </div>
@@ -452,12 +450,20 @@ function Footer() {
   );
 }
 
-function FootCol({ title, links }: { title: string; links: string[] }) {
+function FootCol({ title, links }: { title: string; links: [string, string][] }) {
   return (
     <div>
       <div className="text-xs font-bold uppercase tracking-wider text-slate-300">{title}</div>
       <ul className="mt-3 space-y-2 text-xs text-slate-400">
-        {links.map(l => <li key={l}><a href="#" className="hover:text-white transition">{l}</a></li>)}
+        {links.map(([label, href]) => (
+          <li key={label}>
+            {href.startsWith("http") || href.startsWith("/#") ? (
+              <a href={href} className="hover:text-white transition" target={href.startsWith("http") ? "_blank" : undefined} rel={href.startsWith("http") ? "noreferrer" : undefined}>{label}</a>
+            ) : (
+              <Link to={href} className="hover:text-white transition">{label}</Link>
+            )}
+          </li>
+        ))}
       </ul>
     </div>
   );
