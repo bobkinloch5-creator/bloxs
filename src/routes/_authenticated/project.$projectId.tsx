@@ -168,9 +168,8 @@ function ProjectPage() {
             >
               <ArrowLeft className="h-4 w-4" />
             </Link>
-            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-white shadow-md"
-                 style={{ background: "var(--bs-grad)" }}>
-              <Blocks className="h-5 w-5" />
+            <div className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-xl bg-[var(--bs-card-2)] ring-1 ring-[var(--bs-border)]">
+              <img src={bloxLogo.url} alt="BloxSmith" className="h-9 w-9 object-contain" />
             </div>
             <div className="min-w-0">
               <h1 className="font-display truncate text-base font-semibold leading-tight">
