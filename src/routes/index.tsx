@@ -5,6 +5,7 @@ import {
   Plug, FileCode, Wand2, Shield,
 } from "lucide-react";
 import bloxLogo from "@/assets/bloxsmith-logo.png.asset.json";
+import heroBg from "@/assets/hero-roblox-background.jpg";
 
 export const Route = createFileRoute("/")({
   head: () => ({
