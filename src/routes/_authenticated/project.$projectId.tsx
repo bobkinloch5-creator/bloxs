@@ -456,7 +456,7 @@ function TopBar({
           className="max-w-[180px] truncate bg-transparent text-sm font-semibold outline-none"
           style={{ color: "var(--bs-fg)" }}
         >
-          {projects.map((p: any) => (
+          {projects.map((p: { id: string; name: string }) => (
             <option key={p.id} value={p.id}>{p.name}</option>
           ))}
         </select>
