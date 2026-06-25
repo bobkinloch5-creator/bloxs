@@ -414,10 +414,11 @@ local function startPairing()
     setStatus("connecting", Color3.fromRGB(160,200,255), "Creating one-time approval link…")
     connectBtn.Text = "Cancel"
     connectBtn.BackgroundColor3 = Color3.fromRGB(220, 90, 90)
+    log("Requesting pair code from " .. API_BASE .. " …", "info")
 
-    local data, err = post("/api/public/plugin/pair/start", { plugin_version = PLUGIN_VERSION })
+    local data, err = post("/api/public/plugin/pair/start", { plugin_version = PLUGIN_VERSION }, { verbose = true })
     if err or not data or not data.code then
-        log("Could not start pairing: " .. tostring(err or "no data"), Color3.fromRGB(255,120,120))
+        log("Could not start pairing: " .. tostring(err or "no data"), "error")
         setStatus("error", Color3.fromRGB(255,120,120), "Try again in a moment.")
         connectBtn.Text = "Connect"; connectBtn.BackgroundColor3 = Color3.fromRGB(70, 130, 240)
         return
@@ -426,22 +427,27 @@ local function startPairing()
     local link = data.link_url
     linkBox.Text = link; linkBox.Visible = true
     copyBtn.Visible = true
+    log("Pair code received: " .. tostring(data.code), "success")
     if tryCopy(link) then
-        log("Approval link copied to clipboard.", Color3.fromRGB(160,200,255))
+        log("Approval link copied to clipboard.", "info")
     end
-    log("Open " .. link .. " in your browser to approve.", Color3.fromRGB(160,200,255))
+    log("Open " .. link .. " in your browser to approve.", "info")
     setStatus("waiting for approval", Color3.fromRGB(255,200,120),
         "Open the link in your browser and click Approve.")
 
     -- Poll the pair endpoint until approved or expired
     local elapsed = 0
+    local lastTick = 0
     while pairingCode == data.code and elapsed < 600 do
         task.wait(2); elapsed += 2
-        local poll, perr = post("/api/public/plugin/pair/poll", { code = data.code })
+        if elapsed - lastTick >= 30 then
+            log(string.format("Still waiting for approval (%ds elapsed)…", elapsed), "debug")
+            lastTick = elapsed
+        end
+        local poll, perr = post("/api/public/plugin/pair/poll", { code = data.code }, { verbose = false })
         if perr then
-            -- 404 / 410 surface as HTTP error strings; just keep waiting unless expired
             if string.find(perr, "410") then
-                log("Approval link expired. Click Connect again.", Color3.fromRGB(255,180,80))
+                log("Approval link expired. Click Connect again.", "warn")
                 setStatus("expired", Color3.fromRGB(255,180,80), "Click Connect to get a new link.")
                 connectBtn.Text = "Connect"; connectBtn.BackgroundColor3 = Color3.fromRGB(70, 130, 240)
                 pairingCode = nil; linkBox.Visible = false; copyBtn.Visible = false
@@ -451,7 +457,7 @@ local function startPairing()
             plugin:SetSetting("token", poll.plugin_token)
             pairingCode = nil
             linkBox.Visible = false; copyBtn.Visible = false
-            log("Approved by website ✓", Color3.fromRGB(140,220,160))
+            log("Approved by website ✓ — token saved locally.", "success")
             connected = true
             connectBtn.Text = "Disconnect"
             connectBtn.BackgroundColor3 = Color3.fromRGB(220, 90, 90)
@@ -460,7 +466,7 @@ local function startPairing()
         end
     end
     if pairingCode == data.code then
-        log("Approval timed out. Click Connect to try again.", Color3.fromRGB(255,180,80))
+        log("Approval timed out after 10 minutes. Click Connect to try again.", "warn")
         setStatus("timed out", Color3.fromRGB(255,180,80), "Click Connect to try again.")
         connectBtn.Text = "Connect"; connectBtn.BackgroundColor3 = Color3.fromRGB(70, 130, 240)
         pairingCode = nil; linkBox.Visible = false; copyBtn.Visible = false
@@ -475,11 +481,12 @@ local function disconnect()
     connectBtn.BackgroundColor3 = Color3.fromRGB(70, 130, 240)
     linkBox.Visible = false; copyBtn.Visible = false
     setStatus("not connected", Color3.fromRGB(200,200,210), "Click Connect to link this Studio session.")
+    log("Disconnected. Token removed from this Studio install.", "warn")
 end
 
 copyBtn.MouseButton1Click:Connect(function()
     if linkBox.Text ~= "" then
-        if tryCopy(linkBox.Text) then log("Link copied.", Color3.fromRGB(160,200,255)) end
+        if tryCopy(linkBox.Text) then log("Link copied to clipboard.", "info") end
     end
 end)
 
@@ -488,15 +495,23 @@ connectBtn.MouseButton1Click:Connect(function()
         disconnect(); return
     end
     if pairingCode then
-        -- Cancel waiting
         pairingCode = nil
         linkBox.Visible = false; copyBtn.Visible = false
         connectBtn.Text = "Connect"
         connectBtn.BackgroundColor3 = Color3.fromRGB(70, 130, 240)
         setStatus("cancelled", Color3.fromRGB(200,200,210), "Click Connect to try again.")
+        log("Pairing cancelled by user.", "warn")
         return
     end
     task.spawn(startPairing)
+end)
+
+-- Verbose toggle in the log bar
+local verboseBtn = makeMiniBtn("Verbose", -136)
+verboseBtn.MouseButton1Click:Connect(function()
+    VERBOSE = not VERBOSE
+    verboseBtn.BackgroundColor3 = VERBOSE and Color3.fromRGB(70, 130, 240) or Color3.fromRGB(45, 48, 58)
+    log("Verbose logging " .. (VERBOSE and "ON — every HTTP call is shown." or "OFF — only events and errors."), "debug")
 end)
 
 -- Auto-resume if we already have a token from a previous session.
@@ -506,7 +521,7 @@ task.spawn(function()
         connected = true
         connectBtn.Text = "Disconnect"
         connectBtn.BackgroundColor3 = Color3.fromRGB(220, 90, 90)
-        log("Restoring previous session…", Color3.fromRGB(160,200,255))
+        log("Restoring previous session…", "info")
         pollOnce()
     else
         setStatus("not connected", Color3.fromRGB(200,200,210), "Click Connect to link this Studio session.")
@@ -516,9 +531,14 @@ end)
 task.spawn(function()
     while true do
         task.wait(POLL_INTERVAL)
-        if connected then pcall(pollOnce) end
+        if connected then
+            local ok, err = pcall(pollOnce)
+            if not ok then log("Poll loop crashed: " .. tostring(err), "error") end
+        end
     end
 end)
 
-log("BloxSmith v" .. PLUGIN_VERSION .. " loaded.", Color3.fromRGB(140,200,255))
-log("API: " .. API_BASE, Color3.fromRGB(120,130,150))
+log("BloxSmith v" .. PLUGIN_VERSION .. " loaded.", "success")
+log("API: " .. API_BASE, "debug")
+log("Studio " .. studioVersion() .. " — place " .. tostring(game.PlaceId or 0), "debug")
+log("Tip: tap Verbose to see every HTTP request, or Copy to share logs in Discord.", "debug")
