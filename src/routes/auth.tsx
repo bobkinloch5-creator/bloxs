@@ -25,14 +25,14 @@ function AuthPage() {
     });
   }, [navigate]);
 
-  async function handleGoogle() {
+  async function handleOAuth(provider: "google" | "apple") {
     setError(null);
     setBusy(true);
-    const result = await lovable.auth.signInWithOAuth("google", {
+    const result = await lovable.auth.signInWithOAuth(provider, {
       redirect_uri: window.location.origin,
     });
     if (result.error) {
-      setError(result.error.message ?? "Google sign-in failed.");
+      setError(result.error.message ?? `${provider} sign-in failed.`);
       setBusy(false);
       return;
     }

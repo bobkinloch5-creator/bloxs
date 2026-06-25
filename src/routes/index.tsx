@@ -1,8 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   Sparkles, Zap, ChevronRight, Code2, Map, Cpu, Layers, Box, ArrowRight,
-  Puzzle, Save, Rocket, Star, MessageSquare, Upload, Settings2, Check,
-  Plug, FileCode, Wand2, Shield, ChevronDown,
+  Puzzle, Save, Rocket, MessageSquare, Upload, Settings2, Check,
+  Plug, FileCode, Wand2, Shield,
 } from "lucide-react";
 import bloxLogo from "@/assets/bloxsmith-logo.png.asset.json";
 
@@ -46,16 +46,11 @@ function Header() {
         <span className="text-xl font-bold tracking-tight">BloxSmith</span>
       </Link>
       <nav className="hidden items-center gap-7 text-sm text-slate-300 md:flex">
-        {[
-          ["Features", "#features"],
-          ["Templates", "#templates"],
-          ["How It Works", "#how"],
-          ["Plugin", "#plugin"],
-          ["Community", "#community"],
-          ["Docs", "#docs"],
-        ].map(([l, h]) => (
-          <a key={l} href={h} className="hover:text-white transition">{l}</a>
-        ))}
+        <a href="#features" className="hover:text-white transition">Features</a>
+        <a href="#how" className="hover:text-white transition">How It Works</a>
+        <a href="#plugin" className="hover:text-white transition">Plugin</a>
+        <Link to="/docs" className="hover:text-white transition">Docs</Link>
+        <Link to="/support" className="hover:text-white transition">Support</Link>
       </nav>
       <div className="flex items-center gap-2">
         <Link to="/auth" className="rounded-lg border border-white/15 bg-white/5 px-3.5 py-2 text-sm text-white/90 hover:bg-white/10 transition">Log in</Link>
