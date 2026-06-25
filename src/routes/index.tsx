@@ -63,15 +63,22 @@ function Header() {
 }
 
 /* ---------------- Hero ---------------- */
+import tileBedBattle from "@/assets/tile-bed-battle.jpg";
+import tileThemePark from "@/assets/tile-theme-park.jpg";
+import tileObbyTower from "@/assets/tile-obby-tower.jpg";
+import tileRacingWorld from "@/assets/tile-racing-world.jpg";
+import tilePetAdventure from "@/assets/tile-pet-adventure.jpg";
+import tileBattleArena from "@/assets/tile-battle-arena.jpg";
+
 const HERO_TILES_L = [
-  { title: "BED BATTLE", sub: "Build me a bedwars game...", grad: "from-rose-500/30 to-orange-500/30" },
-  { title: "THEME PARK", sub: "Build me a theme park...", grad: "from-fuchsia-500/30 to-purple-600/30" },
-  { title: "OBBY TOWER", sub: "Build me an obby game...", grad: "from-indigo-500/30 to-violet-600/30" },
+  { title: "BED BATTLE", sub: "Build me a bedwars game...", img: tileBedBattle },
+  { title: "THEME PARK", sub: "Build me a theme park...", img: tileThemePark },
+  { title: "OBBY TOWER", sub: "Build me an obby game...", img: tileObbyTower },
 ];
 const HERO_TILES_R = [
-  { title: "RACING WORLD", sub: "Build me a racing game...", grad: "from-red-500/30 to-amber-500/30" },
-  { title: "PET ADVENTURE", sub: "Build me a pet system...", grad: "from-emerald-400/30 to-teal-500/30" },
-  { title: "BATTLE ARENA", sub: "Build me a battle arena...", grad: "from-orange-500/30 to-rose-500/30" },
+  { title: "RACING WORLD", sub: "Build me a racing game...", img: tileRacingWorld },
+  { title: "PET ADVENTURE", sub: "Build me a pet system...", img: tilePetAdventure },
+  { title: "BATTLE ARENA", sub: "Build me a battle arena...", img: tileBattleArena },
 ];
 const PILLS = [
   { icon: Code2, label: "Scripts" }, { icon: Map, label: "Maps" },
@@ -136,16 +143,24 @@ function Hero() {
   );
 }
 
-function GameTile({ title, sub, grad, delay = 0 }: { title: string; sub: string; grad: string; delay?: number }) {
+function GameTile({ title, sub, img, delay = 0 }: { title: string; sub: string; img: string; delay?: number }) {
   return (
     <div
       className="bs-float bs-tile rounded-2xl border border-white/10 bg-slate-900/50 p-3 shadow-xl backdrop-blur"
       style={{ animationDelay: `${delay}s` }}
     >
-      <div className={`relative h-28 overflow-hidden rounded-xl bg-gradient-to-br ${grad}`}>
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.18),transparent_55%)]" />
-        <div className="absolute inset-0 grid place-items-center">
-          <div className="bs-tile-title text-center text-2xl font-extrabold tracking-tight text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]">
+      <div className="relative h-32 overflow-hidden rounded-xl">
+        <img
+          src={img}
+          alt={title}
+          loading="lazy"
+          width={768}
+          height={512}
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/20 to-transparent" />
+        <div className="absolute inset-x-0 bottom-0 p-2.5">
+          <div className="bs-tile-title text-lg font-extrabold tracking-tight text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
             {title}
           </div>
         </div>
