@@ -86,36 +86,146 @@ copyBtn.BorderSizePixel = 0
 copyBtn.Visible = false
 copyBtn.Parent = main
 
+-- Log header bar (title + clear + copy)
+local logBar = Instance.new("Frame")
+logBar.Position = UDim2.new(0, 12, 0, 222)
+logBar.Size = UDim2.new(1, -24, 0, 22)
+logBar.BackgroundTransparency = 1
+logBar.Parent = main
+
+local logTitle = Instance.new("TextLabel")
+logTitle.Size = UDim2.new(1, -150, 1, 0)
+logTitle.BackgroundTransparency = 1
+logTitle.Font = Enum.Font.GothamBold
+logTitle.TextSize = 12
+logTitle.TextColor3 = Color3.fromRGB(200,205,215)
+logTitle.TextXAlignment = Enum.TextXAlignment.Left
+logTitle.Text = "Activity log"
+logTitle.Parent = logBar
+
+local function makeMiniBtn(text, xOffset)
+    local b = Instance.new("TextButton")
+    b.AnchorPoint = Vector2.new(1, 0.5)
+    b.Position = UDim2.new(1, xOffset, 0.5, 0)
+    b.Size = UDim2.new(0, 60, 0, 20)
+    b.BackgroundColor3 = Color3.fromRGB(45, 48, 58)
+    b.TextColor3 = Color3.fromRGB(210,215,225)
+    b.Font = Enum.Font.Gotham
+    b.TextSize = 11
+    b.Text = text
+    b.BorderSizePixel = 0
+    b.AutoButtonColor = true
+    b.Parent = logBar
+    return b
+end
+
+local copyLogBtn = makeMiniBtn("Copy", 0)
+local clearLogBtn = makeMiniBtn("Clear", -68)
+
 local logFrame = Instance.new("ScrollingFrame")
-logFrame.Position = UDim2.new(0, 12, 0, 222)
-logFrame.Size = UDim2.new(1, -24, 1, -234)
+logFrame.Position = UDim2.new(0, 12, 0, 248)
+logFrame.Size = UDim2.new(1, -24, 1, -260)
 logFrame.BackgroundColor3 = Color3.fromRGB(14, 16, 22)
 logFrame.BorderSizePixel = 0
 logFrame.CanvasSize = UDim2.new(0,0,0,0)
 logFrame.ScrollBarThickness = 4
 logFrame.Parent = main
 
+local logPad = Instance.new("UIPadding")
+logPad.PaddingTop = UDim.new(0, 6)
+logPad.PaddingBottom = UDim.new(0, 6)
+logPad.PaddingLeft = UDim.new(0, 6)
+logPad.PaddingRight = UDim.new(0, 6)
+logPad.Parent = logFrame
+
 local logLayout = Instance.new("UIListLayout")
 logLayout.SortOrder = Enum.SortOrder.LayoutOrder
-logLayout.Padding = UDim.new(0, 4)
+logLayout.Padding = UDim.new(0, 2)
 logLayout.Parent = logFrame
 
+-- Severity → color + tag + Studio Output mirror
+local LEVELS = {
+    info    = { color = Color3.fromRGB(160, 200, 255), tag = "INFO",  mirror = "print" },
+    debug   = { color = Color3.fromRGB(140, 145, 160), tag = "DBG ",  mirror = nil     },
+    success = { color = Color3.fromRGB(140, 220, 160), tag = " OK ",  mirror = "print" },
+    warn    = { color = Color3.fromRGB(255, 200, 120), tag = "WARN",  mirror = "warn"  },
+    error   = { color = Color3.fromRGB(255, 120, 120), tag = "ERR ",  mirror = "warn"  },
+    net     = { color = Color3.fromRGB(150, 190, 235), tag = "NET ",  mirror = nil     },
+    action  = { color = Color3.fromRGB(190, 175, 255), tag = "ACT ",  mirror = "print" },
+}
+
 local logIndex = 0
-local function log(text, color)
+local LOG_MAX = 400
+local logHistory = {}            -- {string} plain-text lines for Copy
+local logChildren = {}           -- TextLabel refs, to evict oldest
+
+local function relayoutCanvas()
+    logFrame.CanvasSize = UDim2.new(0, 0, 0, logLayout.AbsoluteContentSize.Y + 12)
+    logFrame.CanvasPosition = Vector2.new(0, math.max(0, logFrame.CanvasSize.Y.Offset - logFrame.AbsoluteSize.Y))
+end
+
+local function log(text, levelOrColor)
+    -- Backwards compat: callers may pass a Color3 OR a level string.
+    local meta
+    if typeof(levelOrColor) == "Color3" then
+        meta = { color = levelOrColor, tag = "    ", mirror = nil }
+    elseif type(levelOrColor) == "string" and LEVELS[levelOrColor] then
+        meta = LEVELS[levelOrColor]
+    else
+        meta = LEVELS.info
+    end
+
     logIndex += 1
+    local stamp = os.date("%H:%M:%S")
+    local line  = string.format("[%s] %s | %s", stamp, meta.tag, tostring(text))
+    table.insert(logHistory, line)
+    if #logHistory > LOG_MAX then table.remove(logHistory, 1) end
+
     local lbl = Instance.new("TextLabel")
-    lbl.Size = UDim2.new(1, -8, 0, 16)
+    lbl.AutomaticSize = Enum.AutomaticSize.Y
+    lbl.Size = UDim2.new(1, -4, 0, 0)
     lbl.BackgroundTransparency = 1
     lbl.Font = Enum.Font.Code
     lbl.TextSize = 11
-    lbl.TextColor3 = color or Color3.fromRGB(180, 185, 200)
+    lbl.TextColor3 = meta.color
     lbl.TextXAlignment = Enum.TextXAlignment.Left
-    lbl.Text = "[" .. os.date("%H:%M:%S") .. "] " .. text
+    lbl.TextYAlignment = Enum.TextYAlignment.Top
+    lbl.TextWrapped = true
+    lbl.RichText = false
+    lbl.Text = line
     lbl.LayoutOrder = logIndex
     lbl.Parent = logFrame
-    logFrame.CanvasSize = UDim2.new(0,0,0, logLayout.AbsoluteContentSize.Y + 12)
-    logFrame.CanvasPosition = Vector2.new(0, logFrame.CanvasSize.Y.Offset)
+    table.insert(logChildren, lbl)
+    if #logChildren > LOG_MAX then
+        local oldest = table.remove(logChildren, 1)
+        if oldest then oldest:Destroy() end
+    end
+
+    if meta.mirror == "warn" then warn("[BloxSmith] " .. tostring(text))
+    elseif meta.mirror == "print" then print("[BloxSmith] " .. tostring(text)) end
+
+    task.defer(relayoutCanvas)
 end
+
+local function tryCopyText(s)
+    return pcall(function() (setclipboard or (_G and _G.setclipboard))(s) end)
+end
+
+clearLogBtn.MouseButton1Click:Connect(function()
+    for _, c in ipairs(logChildren) do c:Destroy() end
+    table.clear(logChildren); table.clear(logHistory); logIndex = 0
+    relayoutCanvas()
+    log("Log cleared.", "debug")
+end)
+
+copyLogBtn.MouseButton1Click:Connect(function()
+    local blob = table.concat(logHistory, "\n")
+    if tryCopyText(blob) then
+        log(string.format("Copied %d log lines to clipboard.", #logHistory), "info")
+    else
+        log("Clipboard not available in this context.", "warn")
+    end
+end)
 
 toggleButton.Click:Connect(function()
     widget.Enabled = not widget.Enabled
