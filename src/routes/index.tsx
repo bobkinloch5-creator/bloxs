@@ -332,12 +332,12 @@ function ChatPreview() {
 }
 
 const TEMPLATES = [
-  { name: "Tycoon Empire", img: templateTycoon },
-  { name: "Obby Challenge", img: templateObby },
-  { name: "Survival Island", img: templateSurvival },
-  { name: "Dungeon Quest", img: templateDungeon },
-  { name: "Racing Circuit", img: templateRacing },
-  { name: "Fighting Arena", img: templateFighting },
+  { name: "Tycoon Empire", img: templateTycoon.url },
+  { name: "Obby Challenge", img: templateObby.url },
+  { name: "Survival Island", img: templateSurvival.url },
+  { name: "Dungeon Quest", img: templateDungeon.url },
+  { name: "Racing Circuit", img: templateRacing.url },
+  { name: "Fighting Arena", img: templateFighting.url },
 ];
 
 function TemplatesCard() {
