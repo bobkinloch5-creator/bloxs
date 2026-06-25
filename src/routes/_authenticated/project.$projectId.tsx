@@ -13,8 +13,9 @@ import ReactMarkdown from "react-markdown";
 import {
   ArrowLeft, Send, Loader2, CheckCircle2, AlertCircle, Radio, Sparkles,
   FileCode, Paperclip, Mic, Wrench, Wand2, HelpCircle, RotateCcw, Save,
-  Upload, Sun, Moon, Blocks, ChevronDown, Zap, BookOpen, Cpu, Box, X,
+  Upload, Sun, Moon, ChevronDown, Zap, BookOpen, Cpu, Box, X,
 } from "lucide-react";
+import bloxLogo from "@/assets/bloxsmith-logo.png.asset.json";
 
 export const Route = createFileRoute("/_authenticated/project/$projectId")({
   head: () => ({ meta: [{ title: "Build — BloxSmith" }] }),
@@ -67,8 +68,8 @@ function ProjectPage() {
   const [modelId, setModelId] = useState(DEFAULT_MODEL_ID);
   const [autoExecute, setAutoExecute] = useState(true);
   const [theme, setTheme] = useState<Theme>(() => {
-    if (typeof window === "undefined") return "light";
-    return (localStorage.getItem("bs-chat-theme") as Theme) || "light";
+    if (typeof window === "undefined") return "grey";
+    return (localStorage.getItem("bs-chat-theme") as Theme) || "grey";
   });
   useEffect(() => { localStorage.setItem("bs-chat-theme", theme); }, [theme]);
 
@@ -167,9 +168,8 @@ function ProjectPage() {
             >
               <ArrowLeft className="h-4 w-4" />
             </Link>
-            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-white shadow-md"
-                 style={{ background: "var(--bs-grad)" }}>
-              <Blocks className="h-5 w-5" />
+            <div className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-xl bg-[var(--bs-card-2)] ring-1 ring-[var(--bs-border)]">
+              <img src={bloxLogo.url} alt="BloxSmith" className="h-9 w-9 object-contain" />
             </div>
             <div className="min-w-0">
               <h1 className="font-display truncate text-base font-semibold leading-tight">
@@ -381,12 +381,12 @@ function ChatSidebar({
       style={{ background: "var(--bs-card)", borderColor: "var(--bs-border)" }}
     >
       <Link to="/dashboard" className="flex items-center gap-2.5">
-        <div className="grid h-9 w-9 place-items-center rounded-xl text-white shadow-md" style={{ background: "var(--bs-grad)" }}>
-          <Blocks className="h-5 w-5" />
+        <div className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-xl bg-[var(--bs-card-2)] ring-1 ring-[var(--bs-border)]">
+          <img src={bloxLogo.url} alt="BloxSmith logo" className="h-10 w-10 object-contain" />
         </div>
         <div className="leading-tight">
-          <div className="font-display text-base font-bold">BloxSmith</div>
-          <div className="text-[10px] uppercase tracking-wider" style={{ color: "var(--bs-muted-fg)" }}>AI game builder</div>
+          <div className="font-display text-base font-bold tracking-tight">BloxSmith</div>
+          <div className="text-[10px] uppercase tracking-[0.14em]" style={{ color: "var(--bs-muted-fg)" }}>AI Roblox game builder</div>
         </div>
       </Link>
 
@@ -466,12 +466,11 @@ function EmptyState({ onPrompt }: { onPrompt: (s: string) => void }) {
   ];
   return (
     <div className="bs-card mx-auto w-full max-w-2xl p-6 text-center sm:p-10">
-      <div
-        className="mx-auto grid h-14 w-14 place-items-center rounded-2xl text-white shadow-lg"
-        style={{ background: "var(--bs-grad)" }}
-      >
-        <Blocks className="h-7 w-7" />
-      </div>
+      <img
+        src={bloxLogo.url}
+        alt="BloxSmith"
+        className="mx-auto h-20 w-20 object-contain drop-shadow-[0_8px_30px_rgba(59,130,246,0.35)]"
+      />
       <h2 className="font-display mt-4 text-xl font-bold sm:text-2xl">Let's build your Roblox game.</h2>
       <p className="mt-1 text-sm" style={{ color: "var(--bs-muted-fg)" }}>
         Describe what you want and I'll plan it, write the Luau, and queue it for your Studio plugin.
