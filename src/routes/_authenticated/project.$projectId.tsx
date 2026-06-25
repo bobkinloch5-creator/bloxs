@@ -68,8 +68,8 @@ function ProjectPage() {
   const [modelId, setModelId] = useState(DEFAULT_MODEL_ID);
   const [autoExecute, setAutoExecute] = useState(true);
   const [theme, setTheme] = useState<Theme>(() => {
-    if (typeof window === "undefined") return "light";
-    return (localStorage.getItem("bs-chat-theme") as Theme) || "light";
+    if (typeof window === "undefined") return "grey";
+    return (localStorage.getItem("bs-chat-theme") as Theme) || "grey";
   });
   useEffect(() => { localStorage.setItem("bs-chat-theme", theme); }, [theme]);
 
