@@ -170,6 +170,8 @@ function ProjectPage() {
     <div className={`${themeClass} flex h-screen min-h-0 w-full overflow-hidden`}>
       <OnboardingTour
         storageKey="bs-onboarding-project"
+        force={showTour}
+        onFinish={() => setShowTour(false)}
         steps={[
           {
             title: "This is your build chat 🛠️",
@@ -185,7 +187,7 @@ function ProjectPage() {
           },
           {
             title: "Auto-execute & credits",
-            body: "Toggle Auto-execute to let BloxSmith plan + queue actions on its own. Each message uses a credit (top-right counter). When you're ready, just send your first prompt below.",
+            body: "Toggle Auto-execute to let BloxSmith plan + queue actions on its own. Each message uses a credit (top-right counter) — they refill on a 24-hour timer. Admins get unlimited.",
             cta: "Start building",
           },
         ]}
