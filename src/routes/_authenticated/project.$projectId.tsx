@@ -533,28 +533,49 @@ function UserAvatar({ name }: { name?: string | null }) {
   );
 }
 
-function EmptyState({ onPrompt }: { onPrompt: (s: string) => void }) {
-  const ideas = [
-    "Make a tycoon with droppers, an upgrade shop, and a save system.",
-    "Add a sprint + stamina system to the default character.",
-    "Build a round-based round timer with a leaderboard.",
-    "Create a daily rewards GUI that gives coins on join.",
+function EmptyState({ name, onPrompt }: { name: string; onPrompt: (s: string) => void }) {
+  const ideas: { label: string; prompt: string; tag: string }[] = [
+    { label: "Build a tycoon game", tag: "Tycoon", prompt: "Make a tycoon with droppers, an upgrade shop, and a save system." },
+    { label: "Create an obby",      tag: "Obby",    prompt: "Build a 10-stage obby with checkpoints and a leaderboard." },
+    { label: "Make a pet simulator", tag: "Simulator", prompt: "Make a pet simulator with eggs, rebirths and a coin shop." },
+    { label: "RPG quest system",     tag: "RPG",    prompt: "Add an NPC quest system with multiple quests, rewards, and a quest log GUI." },
   ];
+  const friendly = (name || "builder").trim();
+  const displayName = friendly.charAt(0).toUpperCase() + friendly.slice(1);
   return (
-    <div className="bs-card bs-msg-in mx-auto w-full max-w-2xl p-6 text-center sm:p-10">
-      <img
-        src={bloxLogo.url}
-        alt="BloxSmith"
-        className="bs-logo-float mx-auto h-24 w-24 object-contain"
-      />
-      <h2 className="font-display mt-4 text-xl font-bold sm:text-2xl">Let's build your Roblox game.</h2>
-      <p className="mt-1 text-sm" style={{ color: "var(--bs-muted-fg)" }}>
-        Describe what you want and I'll plan it, write the Luau, and queue it for your Studio plugin.
-      </p>
+    <div className="bs-card bs-msg-in mx-auto w-full max-w-2xl p-6 sm:p-8">
+      <div className="flex items-start gap-4">
+        <div
+          className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-2xl ring-1 ring-[var(--bs-border)]"
+          style={{ background: "var(--bs-card-2)" }}
+        >
+          <img src={bloxLogo.url} alt="BloxSmith" className="bs-logo-float h-14 w-14 object-contain" />
+        </div>
+        <div className="min-w-0">
+          <h2 className="font-display flex items-center gap-2 text-xl font-bold sm:text-2xl">
+            Hi {displayName}! <HandMetal className="h-5 w-5 text-[var(--bs-primary)]" />
+          </h2>
+          <p className="mt-1 text-sm" style={{ color: "var(--bs-muted-fg)" }}>
+            I'm BloxSmith, your AI Roblox game developer.
+          </p>
+          <p className="text-sm" style={{ color: "var(--bs-muted-fg)" }}>
+            Tell me your game idea and I'll build it step by step!
+          </p>
+        </div>
+      </div>
+
       <div className="bs-stagger mt-5 grid gap-2 sm:grid-cols-2">
         {ideas.map((i) => (
-          <button key={i} onClick={() => onPrompt(i)} className="bs-soft px-3 py-2.5 text-left text-sm hover:bg-[var(--bs-primary-soft)]">
-            {i}
+          <button
+            key={i.label}
+            onClick={() => onPrompt(i.prompt)}
+            className="bs-soft flex items-center gap-2 px-3 py-2.5 text-left text-sm hover:bg-[var(--bs-primary-soft)]"
+          >
+            <Sparkles className="h-3.5 w-3.5 shrink-0 text-[var(--bs-primary)]" />
+            <span className="truncate">{i.label}</span>
+            <span className="ml-auto rounded-full bg-[var(--bs-card-2)] px-2 py-0.5 text-[10px] uppercase tracking-wide" style={{ color: "var(--bs-muted-fg)" }}>
+              {i.tag}
+            </span>
           </button>
         ))}
       </div>
