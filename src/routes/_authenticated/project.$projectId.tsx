@@ -497,7 +497,7 @@ function BuildProgress({ status, stepIndex, onStop }: { status: string; stepInde
     stepIndex === 5 ? "Testing & fixing" : "Building";
 
   return (
-    <div className="flex gap-2.5">
+    <div className="bs-msg-in flex gap-2.5">
       <AssistantAvatar />
       <div className="bs-bubble-ai w-full max-w-[85%] overflow-hidden px-4 py-3 sm:max-w-[78%]">
         <div className="flex items-center justify-between gap-3">
@@ -510,13 +510,16 @@ function BuildProgress({ status, stepIndex, onStop }: { status: string; stepInde
           </button>
         </div>
 
+        <div className="bs-progress-bar mt-3"><span /></div>
+
         <ol className="mt-3 grid gap-1.5">
           {BUILD_STEPS.map((s, i) => {
             const state = i < stepIndex ? "done" : i === stepIndex ? "active" : "idle";
             return (
-              <li key={s.key} className="flex items-center gap-2.5 text-xs">
+              <li key={s.key} className="flex items-center gap-2.5 text-xs transition-opacity"
+                  style={{ opacity: state === "idle" ? 0.55 : 1 }}>
                 <span
-                  className={`grid h-6 w-6 shrink-0 place-items-center rounded-lg ${state === "active" ? "bs-step-active" : ""}`}
+                  className={`grid h-6 w-6 shrink-0 place-items-center rounded-lg ${state === "active" ? "bs-step-active" : ""} ${state === "done" ? "bs-pop" : ""}`}
                   style={{
                     background: state === "done" ? "color-mix(in oklab, var(--bs-success) 18%, transparent)" :
                                 state === "active" ? "var(--bs-primary-soft)" :
@@ -528,7 +531,7 @@ function BuildProgress({ status, stepIndex, onStop }: { status: string; stepInde
                 >
                   {state === "done" ? <CheckCircle2 className="h-3.5 w-3.5" /> : <s.icon className="h-3.5 w-3.5" />}
                 </span>
-                <span style={{ color: state === "idle" ? "var(--bs-muted-fg)" : "var(--bs-fg)" }}>
+                <span style={{ color: state === "idle" ? "var(--bs-muted-fg)" : "var(--bs-fg)", fontWeight: state === "active" ? 600 : 400 }}>
                   {s.label}
                 </span>
                 {state === "active" && <Loader2 className="ml-auto h-3 w-3 animate-spin" style={{ color: "var(--bs-primary)" }} />}
