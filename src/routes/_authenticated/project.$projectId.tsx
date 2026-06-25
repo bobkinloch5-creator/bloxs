@@ -16,6 +16,7 @@ import {
   Upload, Sun, Moon, ChevronDown, Zap, BookOpen, Cpu, Box, X,
 } from "lucide-react";
 import bloxLogo from "@/assets/bloxsmith-logo.png.asset.json";
+import { OnboardingTour } from "@/components/OnboardingTour";
 
 export const Route = createFileRoute("/_authenticated/project/$projectId")({
   head: () => ({ meta: [{ title: "Build — BloxSmith" }] }),
