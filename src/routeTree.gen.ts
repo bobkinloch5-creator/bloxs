@@ -26,6 +26,7 @@ import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedProjectProjectIdRouteImport } from './routes/_authenticated/project.$projectId'
 import { Route as ApiPublicPluginPollRouteImport } from './routes/api/public/plugin/poll'
 import { Route as ApiPublicPluginCompleteRouteImport } from './routes/api/public/plugin/complete'
+import { Route as ApiPublicPluginClearRouteImport } from './routes/api/public/plugin/clear'
 import { Route as ApiPublicPluginPairStartRouteImport } from './routes/api/public/plugin/pair.start'
 import { Route as ApiPublicPluginPairPollRouteImport } from './routes/api/public/plugin/pair.poll'
 
@@ -114,6 +115,11 @@ const ApiPublicPluginCompleteRoute = ApiPublicPluginCompleteRouteImport.update({
   path: '/api/public/plugin/complete',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicPluginClearRoute = ApiPublicPluginClearRouteImport.update({
+  id: '/api/public/plugin/clear',
+  path: '/api/public/plugin/clear',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicPluginPairStartRoute =
   ApiPublicPluginPairStartRouteImport.update({
     id: '/api/public/plugin/pair/start',
@@ -141,6 +147,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AuthenticatedSettingsRoute
   '/api/chat': typeof ApiChatRoute
   '/project/$projectId': typeof AuthenticatedProjectProjectIdRoute
+  '/api/public/plugin/clear': typeof ApiPublicPluginClearRoute
   '/api/public/plugin/complete': typeof ApiPublicPluginCompleteRoute
   '/api/public/plugin/poll': typeof ApiPublicPluginPollRoute
   '/api/public/plugin/pair/poll': typeof ApiPublicPluginPairPollRoute
@@ -161,6 +168,7 @@ export interface FileRoutesByTo {
   '/settings': typeof AuthenticatedSettingsRoute
   '/api/chat': typeof ApiChatRoute
   '/project/$projectId': typeof AuthenticatedProjectProjectIdRoute
+  '/api/public/plugin/clear': typeof ApiPublicPluginClearRoute
   '/api/public/plugin/complete': typeof ApiPublicPluginCompleteRoute
   '/api/public/plugin/poll': typeof ApiPublicPluginPollRoute
   '/api/public/plugin/pair/poll': typeof ApiPublicPluginPairPollRoute
@@ -183,6 +191,7 @@ export interface FileRoutesById {
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/api/chat': typeof ApiChatRoute
   '/_authenticated/project/$projectId': typeof AuthenticatedProjectProjectIdRoute
+  '/api/public/plugin/clear': typeof ApiPublicPluginClearRoute
   '/api/public/plugin/complete': typeof ApiPublicPluginCompleteRoute
   '/api/public/plugin/poll': typeof ApiPublicPluginPollRoute
   '/api/public/plugin/pair/poll': typeof ApiPublicPluginPairPollRoute
@@ -205,6 +214,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/api/chat'
     | '/project/$projectId'
+    | '/api/public/plugin/clear'
     | '/api/public/plugin/complete'
     | '/api/public/plugin/poll'
     | '/api/public/plugin/pair/poll'
@@ -225,6 +235,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/api/chat'
     | '/project/$projectId'
+    | '/api/public/plugin/clear'
     | '/api/public/plugin/complete'
     | '/api/public/plugin/poll'
     | '/api/public/plugin/pair/poll'
@@ -246,6 +257,7 @@ export interface FileRouteTypes {
     | '/_authenticated/settings'
     | '/api/chat'
     | '/_authenticated/project/$projectId'
+    | '/api/public/plugin/clear'
     | '/api/public/plugin/complete'
     | '/api/public/plugin/poll'
     | '/api/public/plugin/pair/poll'
@@ -262,6 +274,7 @@ export interface RootRouteChildren {
   SupportRoute: typeof SupportRoute
   TermsRoute: typeof TermsRoute
   ApiChatRoute: typeof ApiChatRoute
+  ApiPublicPluginClearRoute: typeof ApiPublicPluginClearRoute
   ApiPublicPluginCompleteRoute: typeof ApiPublicPluginCompleteRoute
   ApiPublicPluginPollRoute: typeof ApiPublicPluginPollRoute
   ApiPublicPluginPairPollRoute: typeof ApiPublicPluginPairPollRoute
@@ -389,6 +402,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicPluginCompleteRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/plugin/clear': {
+      id: '/api/public/plugin/clear'
+      path: '/api/public/plugin/clear'
+      fullPath: '/api/public/plugin/clear'
+      preLoaderRoute: typeof ApiPublicPluginClearRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/plugin/pair/start': {
       id: '/api/public/plugin/pair/start'
       path: '/api/public/plugin/pair/start'
@@ -437,6 +457,7 @@ const rootRouteChildren: RootRouteChildren = {
   SupportRoute: SupportRoute,
   TermsRoute: TermsRoute,
   ApiChatRoute: ApiChatRoute,
+  ApiPublicPluginClearRoute: ApiPublicPluginClearRoute,
   ApiPublicPluginCompleteRoute: ApiPublicPluginCompleteRoute,
   ApiPublicPluginPollRoute: ApiPublicPluginPollRoute,
   ApiPublicPluginPairPollRoute: ApiPublicPluginPairPollRoute,

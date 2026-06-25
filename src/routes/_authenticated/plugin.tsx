@@ -124,6 +124,37 @@ function PluginPage() {
         <p className="mt-3 text-xs text-muted-foreground">No tokens to copy. The plugin and the website agree automatically while you're signed in.</p>
       </div>
 
+      {/* What it does */}
+      <div className="glass mt-4 rounded-2xl p-6">
+        <h2 className="font-display text-lg font-semibold">What the plugin does</h2>
+        <p className="mt-1 text-sm text-muted-foreground">It's the execution bridge — the AI plans, the plugin builds.</p>
+        <ul className="mt-3 grid gap-2 sm:grid-cols-2 text-sm text-muted-foreground list-disc pl-5">
+          <li>Folders, Scripts, LocalScripts, ModuleScripts</li>
+          <li>ScreenGuis, Frames, Buttons, Labels, Images</li>
+          <li>RemoteEvents, RemoteFunctions, BindableEvents</li>
+          <li>Parts, Models, Tools, Sounds, Teams</li>
+          <li>leaderstats injector (Cash, XP, etc.)</li>
+          <li>Toolbox asset import via real asset IDs</li>
+          <li>Rename, move, set properties, safe delete</li>
+          <li>Routes everything into the correct Roblox service</li>
+        </ul>
+      </div>
+
+      {/* Plugin controls reference */}
+      <div className="glass mt-4 rounded-2xl p-6">
+        <h2 className="font-display text-lg font-semibold">Plugin controls</h2>
+        <ul className="mt-3 grid gap-2 sm:grid-cols-2 text-sm text-muted-foreground list-disc pl-5">
+          <li><b className="text-foreground">Connect</b> — opens one-click approval link</li>
+          <li><b className="text-foreground">Reconnect</b> — re-uses saved token</li>
+          <li><b className="text-foreground">Sync / Run Queue</b> — pulls pending actions now</li>
+          <li><b className="text-foreground">Clear Queue</b> — drops stuck actions safely</li>
+          <li><b className="text-foreground">View Errors</b> — recent failures inline</li>
+          <li><b className="text-foreground">Open Website</b> — copies BloxSmith URL</li>
+          <li><b className="text-foreground">Verbose</b> — log every HTTP request</li>
+          <li><b className="text-foreground">Copy / Clear log</b> — share logs in Discord</li>
+        </ul>
+      </div>
+
       {/* Troubleshooting */}
       <div className="glass mt-4 rounded-2xl p-6">
         <h2 className="font-display text-lg font-semibold">Troubleshooting</h2>
@@ -131,7 +162,9 @@ function PluginPage() {
           <li><b className="text-foreground">Button missing in Studio?</b> File must end in <span className="font-mono">.lua</span> and sit directly in the Plugins folder. Then Reload Plugins.</li>
           <li><b className="text-foreground">"Allow HTTP Requests" prompt?</b> Approve it — the plugin only talks to BloxSmith.</li>
           <li><b className="text-foreground">Approval link asks me to sign in?</b> Sign in to BloxSmith first, then click Connect again in the plugin.</li>
-          <li><b className="text-foreground">Stuck?</b> Ask in the <a className="text-primary underline" href="https://discord.gg/bloxsmith" target="_blank" rel="noreferrer">Discord</a>.</li>
+          <li><b className="text-foreground">Queue stuck?</b> Click <span className="font-mono">Clear Queue</span> in the plugin and ask the AI to retry.</li>
+          <li><b className="text-foreground">Toolbox asset failed?</b> The asset may be private or removed. Pick another and try again.</li>
+          <li><b className="text-foreground">Still stuck?</b> Tap <span className="font-mono">Verbose</span>, then <span className="font-mono">Copy log</span>, and share in the <a className="text-primary underline" href="https://discord.gg/bloxsmith" target="_blank" rel="noreferrer">Discord</a>.</li>
         </ul>
       </div>
     </div>
