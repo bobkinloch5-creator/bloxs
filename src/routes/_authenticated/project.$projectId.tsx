@@ -334,10 +334,15 @@ function ProjectPage() {
                     value={modelId}
                     onChange={(e) => setModelId(e.target.value)}
                     className="bs-select max-w-[160px] truncate sm:max-w-none"
-                    title="Model"
+                    title={(() => {
+                      const m = MODELS.find((x) => x.id === modelId);
+                      return m ? `${m.label} — ${m.description}\nBest for: ${m.bestFor}` : "Model";
+                    })()}
                   >
                     {MODELS.map((m) => (
-                      <option key={m.id} value={m.id}>{m.label}</option>
+                      <option key={m.id} value={m.id} title={`${m.description}\nBest for: ${m.bestFor}`}>
+                        {m.label} · {m.tier === "premium" ? "Pro" : m.tier === "balanced" ? "Mid" : "Fast"} — best for {m.bestFor.split(",")[0].replace(/\.$/, "")}
+                      </option>
                     ))}
                   </select>
                 </div>
