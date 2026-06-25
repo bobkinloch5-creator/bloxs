@@ -13,8 +13,9 @@ import ReactMarkdown from "react-markdown";
 import {
   ArrowLeft, Send, Loader2, CheckCircle2, AlertCircle, Radio, Sparkles,
   FileCode, Paperclip, Mic, Wrench, Wand2, HelpCircle, RotateCcw, Save,
-  Upload, Sun, Moon, Blocks, ChevronDown, Zap, BookOpen, Cpu, Box, X,
+  Upload, Sun, Moon, ChevronDown, Zap, BookOpen, Cpu, Box, X,
 } from "lucide-react";
+import bloxLogo from "@/assets/bloxsmith-logo.png.asset.json";
 
 export const Route = createFileRoute("/_authenticated/project/$projectId")({
   head: () => ({ meta: [{ title: "Build — BloxSmith" }] }),
