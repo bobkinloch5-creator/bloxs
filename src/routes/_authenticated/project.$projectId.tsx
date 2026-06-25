@@ -211,7 +211,7 @@ function ProjectPage() {
                 const text = m.parts.map((p) => (p.type === "text" ? p.text : "")).join("");
                 const isUser = m.role === "user";
                 return (
-                  <div key={m.id} className={`flex gap-2.5 ${isUser ? "justify-end" : ""}`}>
+                  <div key={m.id} className={`bs-msg-in flex gap-2.5 ${isUser ? "justify-end" : ""}`}>
                     {!isUser && <AssistantAvatar />}
                     <div className={`${isUser ? "bs-bubble-user" : "bs-bubble-ai"} max-w-[85%] px-4 py-3 sm:max-w-[78%]`}>
                       <div className="bs-prose">
