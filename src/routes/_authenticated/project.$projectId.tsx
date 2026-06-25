@@ -694,15 +694,9 @@ function Composer({
 
             <div className="flex-1" />
 
-            <select
-              value={modelId}
-              onChange={(e: any) => setModelId(e.target.value)}
-              className="bs-select max-w-[160px] truncate lg:hidden"
-            >
-              {MODELS.map((m) => (
-                <option key={m.id} value={m.id}>{m.label}</option>
-              ))}
-            </select>
+            <div className="lg:hidden">
+              <ModelPicker modelId={modelId} setModelId={setModelId} variant="compact" />
+            </div>
 
             <label
               className="ml-1 flex cursor-pointer select-none items-center gap-2 text-xs"
