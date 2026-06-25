@@ -211,7 +211,7 @@ function ProjectPage() {
                 const text = m.parts.map((p) => (p.type === "text" ? p.text : "")).join("");
                 const isUser = m.role === "user";
                 return (
-                  <div key={m.id} className={`flex gap-2.5 ${isUser ? "justify-end" : ""}`}>
+                  <div key={m.id} className={`bs-msg-in flex gap-2.5 ${isUser ? "justify-end" : ""}`}>
                     {!isUser && <AssistantAvatar />}
                     <div className={`${isUser ? "bs-bubble-user" : "bs-bubble-ai"} max-w-[85%] px-4 py-3 sm:max-w-[78%]`}>
                       <div className="bs-prose">
@@ -382,7 +382,7 @@ function ChatSidebar({
     >
       <Link to="/dashboard" className="flex items-center gap-2.5">
         <div className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-xl bg-[var(--bs-card-2)] ring-1 ring-[var(--bs-border)]">
-          <img src={bloxLogo.url} alt="BloxSmith logo" className="h-10 w-10 object-contain" />
+          <img src={bloxLogo.url} alt="BloxSmith logo" className="bs-logo-float h-10 w-10 object-contain" />
         </div>
         <div className="leading-tight">
           <div className="font-display text-base font-bold tracking-tight">BloxSmith</div>
@@ -465,17 +465,17 @@ function EmptyState({ onPrompt }: { onPrompt: (s: string) => void }) {
     "Create a daily rewards GUI that gives coins on join.",
   ];
   return (
-    <div className="bs-card mx-auto w-full max-w-2xl p-6 text-center sm:p-10">
+    <div className="bs-card bs-msg-in mx-auto w-full max-w-2xl p-6 text-center sm:p-10">
       <img
         src={bloxLogo.url}
         alt="BloxSmith"
-        className="mx-auto h-20 w-20 object-contain drop-shadow-[0_8px_30px_rgba(59,130,246,0.35)]"
+        className="bs-logo-float mx-auto h-24 w-24 object-contain"
       />
       <h2 className="font-display mt-4 text-xl font-bold sm:text-2xl">Let's build your Roblox game.</h2>
       <p className="mt-1 text-sm" style={{ color: "var(--bs-muted-fg)" }}>
         Describe what you want and I'll plan it, write the Luau, and queue it for your Studio plugin.
       </p>
-      <div className="mt-5 grid gap-2 sm:grid-cols-2">
+      <div className="bs-stagger mt-5 grid gap-2 sm:grid-cols-2">
         {ideas.map((i) => (
           <button key={i} onClick={() => onPrompt(i)} className="bs-soft px-3 py-2.5 text-left text-sm hover:bg-[var(--bs-primary-soft)]">
             {i}
@@ -497,7 +497,7 @@ function BuildProgress({ status, stepIndex, onStop }: { status: string; stepInde
     stepIndex === 5 ? "Testing & fixing" : "Building";
 
   return (
-    <div className="flex gap-2.5">
+    <div className="bs-msg-in flex gap-2.5">
       <AssistantAvatar />
       <div className="bs-bubble-ai w-full max-w-[85%] overflow-hidden px-4 py-3 sm:max-w-[78%]">
         <div className="flex items-center justify-between gap-3">
@@ -510,13 +510,16 @@ function BuildProgress({ status, stepIndex, onStop }: { status: string; stepInde
           </button>
         </div>
 
+        <div className="bs-progress-bar mt-3"><span /></div>
+
         <ol className="mt-3 grid gap-1.5">
           {BUILD_STEPS.map((s, i) => {
             const state = i < stepIndex ? "done" : i === stepIndex ? "active" : "idle";
             return (
-              <li key={s.key} className="flex items-center gap-2.5 text-xs">
+              <li key={s.key} className="flex items-center gap-2.5 text-xs transition-opacity"
+                  style={{ opacity: state === "idle" ? 0.55 : 1 }}>
                 <span
-                  className={`grid h-6 w-6 shrink-0 place-items-center rounded-lg ${state === "active" ? "bs-step-active" : ""}`}
+                  className={`grid h-6 w-6 shrink-0 place-items-center rounded-lg ${state === "active" ? "bs-step-active" : ""} ${state === "done" ? "bs-pop" : ""}`}
                   style={{
                     background: state === "done" ? "color-mix(in oklab, var(--bs-success) 18%, transparent)" :
                                 state === "active" ? "var(--bs-primary-soft)" :
@@ -528,7 +531,7 @@ function BuildProgress({ status, stepIndex, onStop }: { status: string; stepInde
                 >
                   {state === "done" ? <CheckCircle2 className="h-3.5 w-3.5" /> : <s.icon className="h-3.5 w-3.5" />}
                 </span>
-                <span style={{ color: state === "idle" ? "var(--bs-muted-fg)" : "var(--bs-fg)" }}>
+                <span style={{ color: state === "idle" ? "var(--bs-muted-fg)" : "var(--bs-fg)", fontWeight: state === "active" ? 600 : 400 }}>
                   {s.label}
                 </span>
                 {state === "active" && <Loader2 className="ml-auto h-3 w-3 animate-spin" style={{ color: "var(--bs-primary)" }} />}
