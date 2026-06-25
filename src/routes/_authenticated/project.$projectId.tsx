@@ -466,21 +466,8 @@ function TopBar({
       </div>
 
       {/* Model selector */}
-      <div className="bs-soft hidden min-w-0 items-center gap-2 px-2.5 py-1.5 lg:flex">
-        <Cpu className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--bs-muted-fg)" }} />
-        <div className="text-[10px] uppercase tracking-wider" style={{ color: "var(--bs-muted-fg)" }}>AI Model</div>
-        <select
-          value={modelId}
-          onChange={(e) => setModelId(e.target.value)}
-          className="max-w-[200px] truncate bg-transparent text-sm font-semibold outline-none"
-          style={{ color: "var(--bs-fg)" }}
-        >
-          {MODELS.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.label} — best for {m.bestFor.split(",")[0].replace(/\.$/, "")}
-            </option>
-          ))}
-        </select>
+      <div className="hidden lg:block">
+        <ModelPicker modelId={modelId} setModelId={setModelId} variant="bar" />
       </div>
 
       <div className="flex-1" />
