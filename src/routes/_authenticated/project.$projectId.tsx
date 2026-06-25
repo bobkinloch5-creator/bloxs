@@ -381,12 +381,12 @@ function ChatSidebar({
       style={{ background: "var(--bs-card)", borderColor: "var(--bs-border)" }}
     >
       <Link to="/dashboard" className="flex items-center gap-2.5">
-        <div className="grid h-9 w-9 place-items-center rounded-xl text-white shadow-md" style={{ background: "var(--bs-grad)" }}>
-          <Blocks className="h-5 w-5" />
+        <div className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-xl bg-[var(--bs-card-2)] ring-1 ring-[var(--bs-border)]">
+          <img src={bloxLogo.url} alt="BloxSmith logo" className="h-10 w-10 object-contain" />
         </div>
         <div className="leading-tight">
-          <div className="font-display text-base font-bold">BloxSmith</div>
-          <div className="text-[10px] uppercase tracking-wider" style={{ color: "var(--bs-muted-fg)" }}>AI game builder</div>
+          <div className="font-display text-base font-bold tracking-tight">BloxSmith</div>
+          <div className="text-[10px] uppercase tracking-[0.14em]" style={{ color: "var(--bs-muted-fg)" }}>AI Roblox game builder</div>
         </div>
       </Link>
 
