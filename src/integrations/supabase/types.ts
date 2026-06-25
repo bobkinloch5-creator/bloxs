@@ -266,8 +266,10 @@ export type Database = {
           bio: string
           created_at: string
           credits: number
+          credits_reset_at: string
           display_name: string | null
           id: string
+          is_admin: boolean
           is_private: boolean
           language: string
           max_credits: number
@@ -283,8 +285,10 @@ export type Database = {
           bio?: string
           created_at?: string
           credits?: number
+          credits_reset_at?: string
           display_name?: string | null
           id: string
+          is_admin?: boolean
           is_private?: boolean
           language?: string
           max_credits?: number
@@ -300,8 +304,10 @@ export type Database = {
           bio?: string
           created_at?: string
           credits?: number
+          credits_reset_at?: string
           display_name?: string | null
           id?: string
+          is_admin?: boolean
           is_private?: boolean
           language?: string
           max_credits?: number

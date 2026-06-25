@@ -13,7 +13,7 @@ import ReactMarkdown from "react-markdown";
 import {
   ArrowLeft, Send, Loader2, CheckCircle2, AlertCircle, Radio, Sparkles,
   FileCode, Paperclip, Mic, Wrench, Wand2, HelpCircle, RotateCcw, Save,
-  Upload, Sun, Moon, ChevronDown, Zap, BookOpen, Cpu, Box, X,
+  Upload, Sun, Moon, ChevronDown, Zap, BookOpen, Cpu, Box, X, Infinity as InfinityIcon, Timer, HandMetal,
 } from "lucide-react";
 import bloxLogo from "@/assets/bloxsmith-logo.png.asset.json";
 import { OnboardingTour } from "@/components/OnboardingTour";
@@ -127,9 +127,26 @@ function ProjectPage() {
   const pluginOnline = !!(pluginSession?.online && pluginSession?.last_seen &&
     (Date.now() - new Date(pluginSession.last_seen).getTime() < 30_000));
 
+  const isAdmin = !!profile?.is_admin;
   const credits = profile?.credits ?? 0;
   const maxCredits = profile?.max_credits ?? 0;
-  const lowCredits = maxCredits > 0 && credits / maxCredits < 0.2;
+  const lowCredits = !isAdmin && maxCredits > 0 && credits / maxCredits < 0.2;
+  const resetAt = profile?.credits_reset_at ? new Date(profile.credits_reset_at).getTime() : 0;
+  const [resetLabel, setResetLabel] = useState<string>("");
+  useEffect(() => {
+    if (isAdmin || !resetAt) return;
+    const tick = () => {
+      const ms = Math.max(0, resetAt - Date.now());
+      const h = Math.floor(ms / 3_600_000);
+      const m = Math.floor((ms % 3_600_000) / 60_000);
+      const s = Math.floor((ms % 60_000) / 1000);
+      setResetLabel(h > 0 ? `${h}h ${m}m` : m > 0 ? `${m}m ${s}s` : `${s}s`);
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [isAdmin, resetAt]);
+  const [showTour, setShowTour] = useState(false);
 
   // Compute current build "step" from pending/sent actions of the latest run.
   const buildStepIndex = useMemo(() => {
@@ -153,6 +170,8 @@ function ProjectPage() {
     <div className={`${themeClass} flex h-screen min-h-0 w-full overflow-hidden`}>
       <OnboardingTour
         storageKey="bs-onboarding-project"
+        force={showTour}
+        onFinish={() => setShowTour(false)}
         steps={[
           {
             title: "This is your build chat 🛠️",
@@ -168,7 +187,7 @@ function ProjectPage() {
           },
           {
             title: "Auto-execute & credits",
-            body: "Toggle Auto-execute to let BloxSmith plan + queue actions on its own. Each message uses a credit (top-right counter). When you're ready, just send your first prompt below.",
+            body: "Toggle Auto-execute to let BloxSmith plan + queue actions on its own. Each message uses a credit (top-right counter) — they refill on a 24-hour timer. Admins get unlimited.",
             cta: "Start building",
           },
         ]}
@@ -205,6 +224,14 @@ function ProjectPage() {
           </div>
 
           <div className="flex shrink-0 items-center gap-2 justify-self-end">
+            <button
+              onClick={() => setShowTour(true)}
+              className="bs-chip"
+              title="Replay onboarding tour"
+            >
+              <HelpCircle className="h-3 w-3" />
+              <span className="hidden sm:inline">Tour</span>
+            </button>
             <Link
               to="/plugin"
               className={pluginOnline ? "bs-chip bs-chip-on" : "bs-chip"}
@@ -213,10 +240,26 @@ function ProjectPage() {
               <Radio className="h-3 w-3" />
               <span className="hidden sm:inline">{pluginOnline ? "Studio online" : "Plugin offline"}</span>
             </Link>
-            <div className={lowCredits ? "bs-chip bs-chip-warn" : "bs-chip"} title="Free messages remaining">
-              <Zap className="h-3 w-3" />
-              <span>{credits}{maxCredits ? ` / ${maxCredits}` : ""}</span>
-            </div>
+            {isAdmin ? (
+              <div className="bs-chip bs-chip-on" title="Unlimited credits (admin)">
+                <InfinityIcon className="h-3 w-3" />
+                <span>Unlimited</span>
+              </div>
+            ) : (
+              <>
+                <div className={lowCredits ? "bs-chip bs-chip-warn" : "bs-chip"} title="Messages remaining today">
+                  <Zap className="h-3 w-3" />
+                  <span>{credits}{maxCredits ? ` / ${maxCredits}` : ""}</span>
+                </div>
+                {resetLabel && (
+                  <div className="bs-chip" title="Time until credits refill">
+                    <Timer className="h-3 w-3" />
+                    <span className="hidden sm:inline">Resets in {resetLabel}</span>
+                    <span className="sm:hidden">{resetLabel}</span>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         </header>
 
@@ -228,7 +271,12 @@ function ProjectPage() {
             style={{ background: "var(--bs-bg)" }}
           >
             <div className="mx-auto flex max-w-3xl flex-col gap-5">
-              {messages.length === 0 && <EmptyState onPrompt={(p) => submit(p)} />}
+              {messages.length === 0 && (
+                <EmptyState
+                  name={profile?.display_name || profile?.username || "builder"}
+                  onPrompt={(p) => submit(p)}
+                />
+              )}
 
               {messages.map((m) => {
                 const text = m.parts.map((p) => (p.type === "text" ? p.text : "")).join("");
@@ -485,28 +533,49 @@ function UserAvatar({ name }: { name?: string | null }) {
   );
 }
 
-function EmptyState({ onPrompt }: { onPrompt: (s: string) => void }) {
-  const ideas = [
-    "Make a tycoon with droppers, an upgrade shop, and a save system.",
-    "Add a sprint + stamina system to the default character.",
-    "Build a round-based round timer with a leaderboard.",
-    "Create a daily rewards GUI that gives coins on join.",
+function EmptyState({ name, onPrompt }: { name: string; onPrompt: (s: string) => void }) {
+  const ideas: { label: string; prompt: string; tag: string }[] = [
+    { label: "Build a tycoon game", tag: "Tycoon", prompt: "Make a tycoon with droppers, an upgrade shop, and a save system." },
+    { label: "Create an obby",      tag: "Obby",    prompt: "Build a 10-stage obby with checkpoints and a leaderboard." },
+    { label: "Make a pet simulator", tag: "Simulator", prompt: "Make a pet simulator with eggs, rebirths and a coin shop." },
+    { label: "RPG quest system",     tag: "RPG",    prompt: "Add an NPC quest system with multiple quests, rewards, and a quest log GUI." },
   ];
+  const friendly = (name || "builder").trim();
+  const displayName = friendly.charAt(0).toUpperCase() + friendly.slice(1);
   return (
-    <div className="bs-card bs-msg-in mx-auto w-full max-w-2xl p-6 text-center sm:p-10">
-      <img
-        src={bloxLogo.url}
-        alt="BloxSmith"
-        className="bs-logo-float mx-auto h-24 w-24 object-contain"
-      />
-      <h2 className="font-display mt-4 text-xl font-bold sm:text-2xl">Let's build your Roblox game.</h2>
-      <p className="mt-1 text-sm" style={{ color: "var(--bs-muted-fg)" }}>
-        Describe what you want and I'll plan it, write the Luau, and queue it for your Studio plugin.
-      </p>
+    <div className="bs-card bs-msg-in mx-auto w-full max-w-2xl p-6 sm:p-8">
+      <div className="flex items-start gap-4">
+        <div
+          className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-2xl ring-1 ring-[var(--bs-border)]"
+          style={{ background: "var(--bs-card-2)" }}
+        >
+          <img src={bloxLogo.url} alt="BloxSmith" className="bs-logo-float h-14 w-14 object-contain" />
+        </div>
+        <div className="min-w-0">
+          <h2 className="font-display flex items-center gap-2 text-xl font-bold sm:text-2xl">
+            Hi {displayName}! <HandMetal className="h-5 w-5 text-[var(--bs-primary)]" />
+          </h2>
+          <p className="mt-1 text-sm" style={{ color: "var(--bs-muted-fg)" }}>
+            I'm BloxSmith, your AI Roblox game developer.
+          </p>
+          <p className="text-sm" style={{ color: "var(--bs-muted-fg)" }}>
+            Tell me your game idea and I'll build it step by step!
+          </p>
+        </div>
+      </div>
+
       <div className="bs-stagger mt-5 grid gap-2 sm:grid-cols-2">
         {ideas.map((i) => (
-          <button key={i} onClick={() => onPrompt(i)} className="bs-soft px-3 py-2.5 text-left text-sm hover:bg-[var(--bs-primary-soft)]">
-            {i}
+          <button
+            key={i.label}
+            onClick={() => onPrompt(i.prompt)}
+            className="bs-soft flex items-center gap-2 px-3 py-2.5 text-left text-sm hover:bg-[var(--bs-primary-soft)]"
+          >
+            <Sparkles className="h-3.5 w-3.5 shrink-0 text-[var(--bs-primary)]" />
+            <span className="truncate">{i.label}</span>
+            <span className="ml-auto rounded-full bg-[var(--bs-card-2)] px-2 py-0.5 text-[10px] uppercase tracking-wide" style={{ color: "var(--bs-muted-fg)" }}>
+              {i.tag}
+            </span>
           </button>
         ))}
       </div>
