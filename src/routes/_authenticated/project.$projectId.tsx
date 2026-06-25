@@ -308,7 +308,7 @@ function ProjectPage() {
               setAutoExecute={setAutoExecute}
               onSubmit={() => submit()}
               onStop={() => stop()}
-              onAction={(p) => submit(p)}
+              onAction={(p: string) => submit(p)}
               modelId={modelId}
               setModelId={setModelId}
             />
