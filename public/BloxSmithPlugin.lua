@@ -249,17 +249,34 @@ local function resolveParent(path)
     return parent
 end
 
+local function describeAction(a)
+    local payload = a.payload or {}
+    local extra = ""
+    if a.kind == "script" or a.kind == "localscript" or a.kind == "modulescript" then
+        local src = payload.source or ""
+        extra = string.format(" (%d chars)", #src)
+    elseif a.kind == "part" then
+        local sz = payload.size or {}
+        extra = string.format(" (size %sx%sx%s)", tostring(sz[1] or "?"), tostring(sz[2] or "?"), tostring(sz[3] or "?"))
+    end
+    return string.format("%s '%s' → %s%s", a.kind, tostring(a.name), tostring(a.parent_path or "ServerScriptService"), extra)
+end
+
 local function executeAction(action)
     local kind = action.kind
     local parent = resolveParent(action.parent_path)
     local payload = action.payload or {}
+    log("→ executing " .. describeAction(action), "debug")
     if kind == "folder" then
         local f = parent:FindFirstChild(action.name) or Instance.new("Folder")
         f.Name = action.name; f.Parent = parent; return f
     elseif kind == "script" or kind == "localscript" or kind == "modulescript" then
         local className = kind == "script" and "Script" or kind == "localscript" and "LocalScript" or "ModuleScript"
         local existing = parent:FindFirstChild(action.name)
-        if existing and existing:IsA(className) then existing:Destroy() end
+        if existing and existing:IsA(className) then
+            log("replacing existing " .. className .. " " .. existing:GetFullName(), "debug")
+            existing:Destroy()
+        end
         local s = Instance.new(className)
         s.Name = action.name; s.Source = payload.source or "-- empty"; s.Parent = parent; return s
     elseif kind == "gui" then
@@ -293,7 +310,15 @@ local function studioVersion()
     return "unknown"
 end
 
-local function post(path, body)
+-- Verbose logging toggle. Verbose logs every poll request/response. Off by default
+-- to avoid spamming the log every 4 seconds, but every error/action is still logged.
+local VERBOSE = false
+
+local function post(path, body, opts)
+    opts = opts or {}
+    local verbose = opts.verbose ~= false and (VERBOSE or opts.force)
+    local t0 = os.clock()
+    if verbose then log("→ POST " .. path, "net") end
     local ok, res = pcall(function()
         return HttpService:RequestAsync({
             Url = API_BASE .. path,
@@ -302,9 +327,21 @@ local function post(path, body)
             Body = HttpService:JSONEncode(body or {}),
         })
     end)
-    if not ok then return nil, tostring(res) end
-    if not res.Success then return nil, "HTTP " .. tostring(res.StatusCode) .. ": " .. tostring(res.Body) end
+    local dt = math.floor((os.clock() - t0) * 1000)
+    if not ok then
+        log(string.format("✗ POST %s failed after %dms — %s", path, dt, tostring(res)), "error")
+        return nil, tostring(res)
+    end
+    if not res.Success then
+        local short = tostring(res.Body or "")
+        if #short > 240 then short = short:sub(1, 240) .. "…" end
+        log(string.format("✗ POST %s → HTTP %s in %dms — %s", path, tostring(res.StatusCode), dt, short), "error")
+        return nil, "HTTP " .. tostring(res.StatusCode) .. ": " .. tostring(res.Body)
+    end
     local decoded; pcall(function() decoded = HttpService:JSONDecode(res.Body) end)
+    if verbose then
+        log(string.format("← POST %s → %s in %dms", path, tostring(res.StatusCode), dt), "net")
+    end
     return decoded or {}, nil
 end
 
@@ -313,11 +350,13 @@ local function reportComplete(actionId, status, errMsg)
     if not token then return end
     post("/api/public/plugin/complete", {
         token = token, action_id = actionId, status = status, error = errMsg,
-    })
+    }, { verbose = false })
 end
 
 local connected = false
 local pairingCode = nil
+local lastPollLog = 0     -- throttle "polled" debug line
+local lastPollOk  = nil   -- last successful poll timestamp
 
 local function setStatus(text, color, sub)
     statusLabel.Text = "Status: " .. text
@@ -331,27 +370,38 @@ local function pollOnce()
     local placeId = tostring(game.PlaceId or 0)
     local data, err = post("/api/public/plugin/poll", {
         token = token, place_id = placeId, studio_version = studioVersion(),
-    })
+    }, { verbose = VERBOSE })
     if err then
         setStatus("error", Color3.fromRGB(255,120,120), err)
+        log("Poll failed — will retry. " .. err, "error")
         return
     end
+    lastPollOk = os.time()
     setStatus("Connected", Color3.fromRGB(120, 220, 160), "Linked to your BloxSmith account.")
     local actions = data.actions or {}
+    -- Heartbeat line every ~60s so the log shows the plugin is alive
+    if os.clock() - lastPollLog > 60 then
+        log(string.format("Heartbeat — connected, place %s, %d pending", placeId, #actions), "debug")
+        lastPollLog = os.clock()
+    end
     if #actions == 0 then return end
-    log("Received " .. #actions .. " action(s)", Color3.fromRGB(120,220,160))
+    log(string.format("Received %d action(s) from server.", #actions), "success")
     ChangeHistoryService:SetWaypoint("BloxSmith batch start")
+    local okCount, failCount = 0, 0
     for _, a in ipairs(actions) do
         local ok, errOrInst = pcall(executeAction, a)
         if ok then
-            log("✓ " .. a.kind .. " " .. a.name, Color3.fromRGB(140,220,160))
+            okCount += 1
+            log("✓ " .. describeAction(a), "action")
             reportComplete(a.id, "done", nil)
         else
-            log("✗ " .. a.kind .. " " .. a.name .. ": " .. tostring(errOrInst), Color3.fromRGB(255,120,120))
+            failCount += 1
+            log("✗ " .. a.kind .. " '" .. tostring(a.name) .. "': " .. tostring(errOrInst), "error")
             reportComplete(a.id, "failed", tostring(errOrInst))
         end
     end
     ChangeHistoryService:SetWaypoint("BloxSmith batch done")
+    log(string.format("Batch complete — %d ok, %d failed.", okCount, failCount), failCount > 0 and "warn" or "success")
 end
 
 local function tryCopy(url)
