@@ -219,6 +219,39 @@ export type Database = {
           },
         ]
       }
+      plugin_pair_codes: {
+        Row: {
+          claimed_at: string | null
+          code: string
+          created_at: string
+          expires_at: string
+          picked_up_at: string | null
+          plugin_token: string | null
+          project_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          claimed_at?: string | null
+          code: string
+          created_at?: string
+          expires_at?: string
+          picked_up_at?: string | null
+          plugin_token?: string | null
+          project_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          claimed_at?: string | null
+          code?: string
+          created_at?: string
+          expires_at?: string
+          picked_up_at?: string | null
+          plugin_token?: string | null
+          project_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       plugin_sessions: {
         Row: {
           created_at: string
