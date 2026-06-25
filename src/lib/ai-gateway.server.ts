@@ -41,5 +41,16 @@ export function getProviderModel(modelId: string) {
     return { model: provider(m.upstream), meta: m };
   }
 
+  if (m.provider === "groq") {
+    const key = process.env.GROQ_API_KEY;
+    if (!key) throw new Error("GROQ_API_KEY missing");
+    const provider = createOpenAICompatible({
+      name: "groq",
+      baseURL: "https://api.groq.com/openai/v1",
+      headers: { Authorization: `Bearer ${key}` },
+    });
+    return { model: provider(m.upstream), meta: m };
+  }
+
   throw new Error(`Unknown provider for model ${modelId}`);
 }
