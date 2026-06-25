@@ -485,7 +485,7 @@ function BgFx() {
   return (
     <div aria-hidden className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
       <div
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-35"
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-45"
         style={{ backgroundImage: `url(${heroBg})` }}
       />
       <div className="absolute inset-0 bg-[radial-gradient(1200px_700px_at_20%_-10%,rgba(59,130,246,0.25),transparent_60%),radial-gradient(900px_500px_at_100%_10%,rgba(139,92,246,0.15),transparent_60%),linear-gradient(180deg,rgba(7,11,22,0.55),rgba(7,11,22,0.82))]" />
