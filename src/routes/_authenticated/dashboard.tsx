@@ -3,7 +3,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { listProjects, createProject, deleteProject } from "@/lib/projects.functions";
 import { useState } from "react";
-import { Plus, Trash2, ArrowRight, Loader2, Boxes } from "lucide-react";
+import { Plus, Trash2, ArrowRight, Loader2, Boxes, Sparkles } from "lucide-react";
+import { OnboardingTour } from "@/components/OnboardingTour";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({ meta: [{ title: "Projects — BloxSmith" }] }),
