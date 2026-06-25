@@ -13,6 +13,7 @@ export interface ModelOption {
 
 export const MODELS: ModelOption[] = [
   // Lovable AI Gateway (free, default)
+  { id: "lovable-ai",   label: "Lovable AI",        provider: "lovable",  upstream: "google/gemini-2.5-flash-lite",  tier: "fast",     description: "Cheapest Gemini via Lovable AI. Great default for everyday builds." },
   { id: "blox-flash",   label: "BloxSmith Flash",   provider: "lovable",  upstream: "google/gemini-3-flash-preview", tier: "fast",     description: "Default builder. Fast, free, great for most prompts." },
   { id: "blox-pro",     label: "BloxSmith Pro",     provider: "lovable",  upstream: "google/gemini-2.5-pro",         tier: "premium",  description: "Strong reasoning for full game systems." },
   { id: "blox-coder",   label: "BloxSmith Coder",   provider: "lovable",  upstream: "openai/gpt-5.5",                tier: "premium",  description: "Best for complex Luau and tycoon-scale builds." },
