@@ -265,7 +265,7 @@ function ProjectPage() {
                   <BuildProgressCard
                     stepIndex={buildStepIndex}
                     onStop={stop}
-                    onAction={(p) => submit(p)}
+                    onAction={(p: string) => submit(p)}
                   />
                 )}
 
