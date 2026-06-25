@@ -382,7 +382,7 @@ function ChatSidebar({
     >
       <Link to="/dashboard" className="flex items-center gap-2.5">
         <div className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-xl bg-[var(--bs-card-2)] ring-1 ring-[var(--bs-border)]">
-          <img src={bloxLogo.url} alt="BloxSmith logo" className="h-10 w-10 object-contain" />
+          <img src={bloxLogo.url} alt="BloxSmith logo" className="bs-logo-float h-10 w-10 object-contain" />
         </div>
         <div className="leading-tight">
           <div className="font-display text-base font-bold tracking-tight">BloxSmith</div>
