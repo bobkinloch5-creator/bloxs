@@ -70,6 +70,12 @@ import tileObbyTower from "@/assets/tile-obby-tower.jpg";
 import tileRacingWorld from "@/assets/tile-racing-world.jpg";
 import tilePetAdventure from "@/assets/tile-pet-adventure.jpg";
 import tileBattleArena from "@/assets/tile-battle-arena.jpg";
+import templateTycoon from "@/assets/template-tycoon-empire.jpg";
+import templateObby from "@/assets/template-obby-challenge.jpg";
+import templateSurvival from "@/assets/template-survival-island.jpg";
+import templateDungeon from "@/assets/template-dungeon-quest.jpg";
+import templateRacing from "@/assets/template-racing-circuit.jpg";
+import templateFighting from "@/assets/template-fighting-arena.jpg";
 
 const HERO_TILES_L = [
   { title: "BED BATTLE", sub: "Build me a bedwars game...", img: tileBedBattle },
