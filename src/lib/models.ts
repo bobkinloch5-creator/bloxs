@@ -1,6 +1,6 @@
 // Client-safe model catalog. Server picks the provider implementation.
 
-export type Provider = "lovable" | "quatarly" | "nvidia";
+export type Provider = "lovable" | "quatarly" | "nvidia" | "groq";
 
 export interface ModelOption {
   id: string;          // unique key used by client + server
