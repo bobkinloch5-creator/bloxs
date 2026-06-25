@@ -472,34 +472,6 @@ export type Database = {
         }
         Returns: boolean
       }
-      refresh_my_credits: {
-        Args: never
-        Returns: {
-          avatar_url: string | null
-          bio: string
-          created_at: string
-          credits: number
-          credits_reset_at: string
-          display_name: string | null
-          id: string
-          is_admin: boolean
-          is_private: boolean
-          language: string
-          max_credits: number
-          plan: string
-          plugin_token: string
-          roblox_username: string
-          settings: Json
-          updated_at: string
-          username: string
-        }
-        SetofOptions: {
-          from: "*"
-          to: "profiles"
-          isOneToOne: true
-          isSetofReturn: false
-        }
-      }
     }
     Enums: {
       app_role: "admin" | "owner" | "user"
