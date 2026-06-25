@@ -845,3 +845,75 @@ function RightSidebar({
     </aside>
   );
 }
+
+/* ────────────────── MODEL PICKER (themed) ────────────────── */
+function ModelPicker({
+  modelId, setModelId, variant = "bar",
+}: { modelId: string; setModelId: (id: string) => void; variant?: "bar" | "compact" }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const close = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
+    if (open) document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [open]);
+
+  const current = MODELS.find((m) => m.id === modelId) ?? MODELS[0];
+  const bestFor = current?.bestFor?.split(",")[0].replace(/\.$/, "") ?? "";
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className={
+          variant === "bar"
+            ? "bs-soft flex min-w-0 items-center gap-2 px-2.5 py-1.5 text-left"
+            : "bs-soft flex min-w-0 items-center gap-2 px-2.5 py-1.5 text-left max-w-[200px]"
+        }
+      >
+        <Cpu className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--bs-muted-fg)" }} />
+        {variant === "bar" && (
+          <span className="text-[10px] uppercase tracking-wider" style={{ color: "var(--bs-muted-fg)" }}>AI Model</span>
+        )}
+        <span className="truncate text-sm font-semibold" style={{ color: "var(--bs-fg)" }}>
+          {current?.label}{variant === "bar" ? ` — best for ${bestFor}` : ""}
+        </span>
+        <ChevronDown className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--bs-muted-fg)" }} />
+      </button>
+
+      {open && (
+        <div
+          className="scrollbar-thin absolute right-0 z-50 mt-1.5 max-h-[60vh] w-[280px] overflow-y-auto rounded-xl border p-1 shadow-2xl"
+          style={{ background: "var(--bs-card)", borderColor: "var(--bs-border)", color: "var(--bs-fg)" }}
+        >
+          {MODELS.map((m) => {
+            const active = m.id === modelId;
+            const tag = m.bestFor?.split(",")[0].replace(/\.$/, "") ?? "";
+            return (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => { setModelId(m.id); setOpen(false); }}
+                className="flex w-full items-start gap-2 rounded-lg px-2.5 py-2 text-left text-sm transition"
+                style={active
+                  ? { background: "var(--bs-primary)", color: "var(--bs-primary-fg)" }
+                  : { color: "var(--bs-fg)" }}
+                onMouseEnter={(e) => { if (!active) (e.currentTarget as HTMLElement).style.background = "var(--bs-card-2)"; }}
+                onMouseLeave={(e) => { if (!active) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="truncate font-semibold">{m.label}</div>
+                  <div className="truncate text-[11px]" style={active ? { color: "var(--bs-primary-fg)", opacity: 0.85 } : { color: "var(--bs-muted-fg)" }}>
+                    best for {tag}
+                  </div>
+                </div>
+                {active && <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
