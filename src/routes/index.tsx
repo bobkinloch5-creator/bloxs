@@ -450,15 +450,16 @@ function FinalCTA() {
 /* ---------------- Footer ---------------- */
 function Footer() {
   return (
-    <footer className="border-t border-white/10 bg-slate-950/40">
-      <div className="mx-auto max-w-7xl px-6 py-10">
-        <div className="grid gap-8 md:grid-cols-5">
+    <footer className="relative z-10 border-t border-white/15 bg-slate-950/95 backdrop-blur-xl">
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-500/40 to-transparent" />
+      <div className="relative mx-auto max-w-7xl px-6 py-12">
+        <div className="grid gap-10 md:grid-cols-5">
           <div className="md:col-span-2">
             <div className="flex items-center gap-2">
               <img src={bloxLogo.url} alt="BloxSmith" className="h-8 w-8 rounded-lg" />
-              <span className="font-bold">BloxSmith</span>
+              <span className="font-bold text-slate-100">BloxSmith</span>
             </div>
-            <p className="mt-3 max-w-xs text-xs text-slate-400">
+            <p className="mt-3 max-w-xs text-xs text-slate-300 leading-relaxed">
               The free AI Roblox game builder. Built for Roblox creators.
             </p>
           </div>
@@ -466,8 +467,8 @@ function Footer() {
           <FootCol title="Resources" links={[["Docs", "/docs"], ["Support", "/support"], ["Contact", "/contact"]]} />
           <FootCol title="Legal" links={[["Terms of Service", "/terms"], ["Privacy Policy", "/privacy"], ["Discord", "https://discord.gg/lovable-dev"]]} />
         </div>
-        <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-6 text-xs text-slate-500">
-          <div>Made for Roblox creators. 100% free.</div>
+        <div className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-6 text-xs text-slate-400">
+          <div className="font-medium text-slate-300">Made for Roblox creators. 100% free.</div>
           <div>© {new Date().getFullYear()} BloxSmith. All rights reserved.</div>
         </div>
       </div>
@@ -478,14 +479,14 @@ function Footer() {
 function FootCol({ title, links }: { title: string; links: [string, string][] }) {
   return (
     <div>
-      <div className="text-xs font-bold uppercase tracking-wider text-slate-300">{title}</div>
-      <ul className="mt-3 space-y-2 text-xs text-slate-400">
+      <div className="text-xs font-bold uppercase tracking-wider text-slate-200">{title}</div>
+      <ul className="mt-3 space-y-2.5 text-xs text-slate-300">
         {links.map(([label, href]) => (
           <li key={label}>
             {href.startsWith("http") || href.startsWith("/#") ? (
-              <a href={href} className="hover:text-white transition" target={href.startsWith("http") ? "_blank" : undefined} rel={href.startsWith("http") ? "noreferrer" : undefined}>{label}</a>
+              <a href={href} className="hover:text-white transition-colors" target={href.startsWith("http") ? "_blank" : undefined} rel={href.startsWith("http") ? "noreferrer" : undefined}>{label}</a>
             ) : (
-              <Link to={href} className="hover:text-white transition">{label}</Link>
+              <Link to={href} className="hover:text-white transition-colors">{label}</Link>
             )}
           </li>
         ))}
