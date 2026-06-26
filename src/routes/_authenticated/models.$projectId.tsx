@@ -364,15 +364,27 @@ function ModelCard({ m, projectId, onChange }: { m: any; projectId: string; onCh
           <>
             <div className="flex flex-wrap items-center gap-1.5">
               {EXPORT_FORMATS.filter(f => urls[f.key]).map(f => (
-                <a key={f.key} href={urls[f.key]} target="_blank" rel="noopener noreferrer" download className="inline-flex items-center gap-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] px-2 py-1 text-[10px] font-bold text-white">
+                <button key={f.key} onClick={() => forceDownload(urls[f.key], safeName(m, f.ext))} className="inline-flex items-center gap-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] px-2 py-1 text-[10px] font-bold text-white">
                   <Download className="h-3 w-3" /> {f.label}
-                </a>
+                </button>
               ))}
               {Object.keys(urls).length === 0 && (
-                <a href={m.model_url} target="_blank" rel="noopener noreferrer" download className="inline-flex items-center gap-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] px-2 py-1 text-[10px] font-bold text-white">
+                <button onClick={() => forceDownload(m.model_url, safeName(m, "glb"))} className="inline-flex items-center gap-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] px-2 py-1 text-[10px] font-bold text-white">
                   <Download className="h-3 w-3" /> GLB
-                </a>
+                </button>
               )}
+              <button
+                onClick={async () => {
+                  const list = Object.keys(urls).length ? EXPORT_FORMATS.filter(f => urls[f.key]) : [{ key: "glb", label: "GLB", ext: "glb" }];
+                  for (const f of list) {
+                    const u = urls[f.key] || m.model_url;
+                    if (u) await forceDownload(u, safeName(m, f.ext));
+                  }
+                }}
+                className="inline-flex items-center gap-1 rounded-md bg-emerald-500/20 hover:bg-emerald-500/30 px-2 py-1 text-[10px] font-bold text-emerald-200"
+              >
+                <Download className="h-3 w-3" /> All formats
+              </button>
               <a href={m.model_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] px-2 py-1 text-[10px] font-bold text-white">
                 <ExternalLink className="h-3 w-3" /> Open
               </a>
