@@ -1,10 +1,12 @@
 import { Link } from "@tanstack/react-router";
 import { ReactNode } from "react";
 import { RobloxBackdrop } from "./RobloxBackdrop";
+import { MobileNavTrigger } from "./MobileNav";
 import {
   Folder, MessageSquare, Lightbulb, LayoutDashboard, Users, Plug, Wand2,
   History as HistoryIcon, BookOpen, Settings as SettingsIcon, Crown, Box,
 } from "lucide-react";
+
 
 type Accent = "default" | "chat" | "ideas" | "ui" | "admin" | "mcp" | "history" | "plugin" | "settings" | "collaborators";
 
@@ -45,22 +47,25 @@ export function PageShell({
       <div className="flex">
         {sidebar ?? <VaporSidebar isAdmin={!!isAdmin} activeKey={activeKey} />}
         <div className="min-w-0 flex-1">
-          <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-indigo-500/10 bg-[#0a0a1a]/80 px-4 py-5 backdrop-blur-xl sm:px-8">
+          <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-indigo-500/10 bg-[#0a0a1a]/80 px-4 py-4 backdrop-blur-xl sm:px-8 sm:py-5">
+            <MobileNavTrigger isAdmin={isAdmin} className="lg:hidden" />
             <div className="min-w-0 flex-1">
               <h1
-                className="truncate text-3xl font-bold tracking-tighter sm:text-4xl"
+                className="truncate text-xl font-bold tracking-tighter sm:text-3xl md:text-4xl"
                 style={{ fontFamily: "Space Mono, monospace", fontStyle: "italic", textTransform: "uppercase", color: "#fff" }}
               >
                 {title}
               </h1>
-              {description && <p className="mt-1 truncate text-sm text-muted-foreground">{description}</p>}
+              {description && <p className="mt-1 truncate text-xs text-muted-foreground sm:text-sm">{description}</p>}
             </div>
             {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
           </header>
-          <main className={`mx-auto grid max-w-[1600px] gap-6 px-4 py-8 sm:px-8 ${rightPanel ? "xl:grid-cols-[minmax(0,1fr)_320px]" : ""}`}>
+
+          <main className={`mx-auto grid max-w-[1600px] gap-6 px-4 py-6 sm:px-8 sm:py-8 ${rightPanel ? "xl:grid-cols-[minmax(0,1fr)_320px]" : ""}`}>
             <div className="min-w-0 space-y-6">{children}</div>
             {rightPanel && <aside className="space-y-4">{rightPanel}</aside>}
           </main>
+
         </div>
       </div>
     </div>

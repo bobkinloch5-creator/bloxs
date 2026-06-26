@@ -42,7 +42,9 @@ const THUMBS: Record<string, string> = {
   custom: thumbCustom,
 };
 import { OnboardingTour } from "@/components/OnboardingTour";
+import { MobileNavTrigger } from "@/components/MobileNav";
 import { supabase } from "@/integrations/supabase/client";
+
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({ meta: [{ title: "Projects — BloxSmith" }] }),
@@ -425,11 +427,13 @@ function TopBar({
 }) {
   const name = profile?.display_name || profile?.username || "Builder";
   return (
-    <header className="sticky top-0 z-30 flex items-center gap-3 border-b px-4 py-3 sm:px-6" style={{ background: "color-mix(in oklab, var(--bs-card) 90%, transparent)", borderColor: "var(--bs-border)", backdropFilter: "blur(12px)" }}>
+    <header className="sticky top-0 z-30 flex items-center gap-3 border-b px-3 py-3 sm:px-6" style={{ background: "color-mix(in oklab, var(--bs-card) 90%, transparent)", borderColor: "var(--bs-border)", backdropFilter: "blur(12px)" }}>
+      <MobileNavTrigger isAdmin={isAdmin} className="lg:hidden" />
       <div className="min-w-0 flex-1">
-        <h1 className="truncate text-3xl font-bold uppercase italic tracking-tighter text-white sm:text-4xl" style={{ fontFamily: "Space Mono, monospace" }}>Projects</h1>
-        <p className="truncate text-xs" style={{ color: "var(--bs-muted-fg)" }}>Create, manage, and continue your Roblox AI builds.</p>
+        <h1 className="truncate text-xl font-bold uppercase italic tracking-tighter text-white sm:text-3xl md:text-4xl" style={{ fontFamily: "Space Mono, monospace" }}>Projects</h1>
+        <p className="hidden truncate text-xs sm:block" style={{ color: "var(--bs-muted-fg)" }}>Create, manage, and continue your Roblox AI builds.</p>
       </div>
+
 
 
       <div className="hidden items-center gap-2 md:flex">
