@@ -8,6 +8,8 @@ type Result = {
   ok: boolean;
   reply?: string;
   error?: string;
+  actions?: number;
+  issues?: string[];
   durationMs: number;
 };
 
@@ -73,7 +75,7 @@ export function ModelTestPanel() {
         </div>
       </div>
       <p className="mt-2 text-xs" style={{ color: "var(--bs-muted-fg)" }}>
-        Sends a tiny "pong" prompt to each model via its gateway (Lovable AI, Quatarly, NVIDIA) and reports latency + errors.
+        Sends a Roblox/Luau build probe to each model and validates Studio action format, remotes, server scripts, UI, animation, and cleanup.
       </p>
 
       <div className="mt-4 grid gap-2">
@@ -96,10 +98,15 @@ export function ModelTestPanel() {
                 <div className="mt-0.5 truncate text-xs" style={{ color: "var(--bs-muted-fg)" }}>
                   {typeof status === "object"
                     ? status.ok
-                      ? `OK · ${status.durationMs}ms · "${status.reply ?? ""}"`
+                      ? `Roblox-ready · ${status.actions ?? 0} actions · ${status.durationMs}ms`
                       : `Failed · ${status.error ?? "unknown"}`
                     : m.id}
                 </div>
+                {typeof status === "object" && status.ok && status.reply && (
+                  <div className="mt-0.5 truncate text-[11px]" style={{ color: "var(--bs-muted-fg)" }}>
+                    Sample: {status.reply.replace(/\s+/g, " ").slice(0, 180)}
+                  </div>
+                )}
               </div>
               <button
                 type="button"
