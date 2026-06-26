@@ -1019,3 +1019,34 @@ function ModelPicker({
     </div>
   );
 }
+
+/* ────────────────── IMPROVE PROMPT BUTTON ────────────────── */
+function ImprovePromptButton({
+  input, setInput, disabled,
+}: { input: string; setInput: (v: string) => void; disabled: boolean }) {
+  const improve = useServerFn(improvePrompt);
+  const [busy, setBusy] = useState(false);
+  async function run() {
+    const text = input.trim();
+    if (!text || busy || disabled) return;
+    setBusy(true);
+    try {
+      const res: any = await improve({ data: { text } });
+      if (res?.ok && res.text) setInput(res.text);
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <button
+      type="button"
+      className="bs-icon-btn"
+      title={input.trim() ? "Improve this prompt with AI" : "Type a prompt first, then click to improve it"}
+      onClick={run}
+      disabled={busy || disabled || !input.trim()}
+      style={busy ? { color: "var(--bs-primary)" } : undefined}
+    >
+      {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+    </button>
+  );
+}
