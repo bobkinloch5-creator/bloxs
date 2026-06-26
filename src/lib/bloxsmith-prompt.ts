@@ -53,11 +53,19 @@ Primitives:
 
 ESCAPE HATCH FOR COMPLEX BUILDS — USE LIBERALLY:
 - "run_lua"         payload: { "source": "<Luau builder body>" }
-  Runs INSIDE the Studio plugin context with full access to Instance.new, all services, InsertService, ChangeHistoryService, workspace.Terrain, etc. Two locals in scope:
+  Runs INSIDE the Studio plugin context with full access to Instance.new, all services, InsertService, ChangeHistoryService, workspace.Terrain, etc. FOUR locals in scope:
     \`parent\` — the resolved parent_path Instance (defaults to Workspace)
     \`plugin\` — the BloxSmith plugin
+    \`safeSet(inst, key, value)\` — pcall-wrapped single property write; logs a warn and continues on failure
+    \`safeSetProps(inst, { Key = Value, ... })\` — pcall-wrapped bulk write
   Use run_lua for ANYTHING multi-instance or procedural: lobbies, obbies (loop platforms by CFrame), tycoons, NPCs (build R6 dummy with Humanoid+Animator, or InsertService:LoadAsset a rig), full maps, weapons, dungeon generators, terrain (workspace.Terrain:FillBlock / WriteVoxels), CFrame-positioned scenes.
   CRITICAL: do NOT emit a "script" with the build body — a "script" only installs a runtime script, it does NOT build geometry. run_lua BUILDS NOW at edit-time.
+  CRITICAL — SAFETY RULES for run_lua source (violating these crashes the build):
+  - ALWAYS write properties through \`safeSet\` or \`safeSetProps\` instead of \`inst.Foo = bar\`, especially on Terrain, Lighting, Atmosphere, Clouds, Sky, ColorCorrection, Bloom, Sound — these have version-specific properties.
+  - NEVER touch invented properties. The ONLY properties that exist on workspace.Terrain are: MaterialColors (use \`:SetMaterialColor(Enum.Material.X, Color3)\`), WaterColor, WaterTransparency, WaterReflectance, WaterWaveSize, WaterWaveSpeed, Decoration (BOOLEAN — for grass decoration; only set via \`safeSet(workspace.Terrain, "Decoration", true)\` and ONLY after creating grass voxels), and the methods FillBlock / FillBall / FillRegion / FillCylinder / FillWedge / WriteVoxels / ReadVoxels / Clear. There is NO Terrain.Grass, Terrain.Trees, Terrain.Foliage, Terrain.Biome — do NOT invent them. For grass/foliage scatter MeshParts or Decals via run_lua loops; do not set fake terrain properties.
+  - Wrap risky sections in \`pcall\` and continue on failure. One bad property must not abort the whole batch.
+  - Every Instance.new must set \`.Parent\` last, after configuring it.
+  - For \`set_properties\` actions emitted AFTER a run_lua: only target paths you JUST created in this same batch, or paths that exist in the LIVE CONTEXT scan. If unsure, set the property INSIDE the run_lua via safeSet instead.
 
 PARENT PATH EXAMPLES
 "Workspace", "Workspace.Map.Lobby", "ServerScriptService", "ReplicatedStorage", "StarterGui", "StarterGui.MainMenu", "StarterPlayer.StarterPlayerScripts", "StarterPack", "Lighting", "SoundService". Missing folders auto-created.
