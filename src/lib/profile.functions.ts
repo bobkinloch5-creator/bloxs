@@ -22,22 +22,20 @@ export const getMyProfile = createServerFn({ method: "GET" })
       .eq("user_id", context.userId)
       .in("role", ["admin", "owner"]);
     const isPrivileged = (roles ?? []).some((r: any) => r.role === "admin" || r.role === "owner");
-    if (isPrivileged && !data.is_admin) {
-      return { ...data, is_admin: true, plan: data.plan === "Free" ? "Owner" : data.plan };
-    }
+    const profile = { ...data, is_admin: isPrivileged, plan: isPrivileged && data.plan === "Free" ? "Owner" : data.plan };
 
     // Auto-refill credits when the reset timer has expired (non-admins).
-    if (!data.is_admin && data.credits_reset_at && new Date(data.credits_reset_at) <= new Date()) {
+    if (!profile.is_admin && profile.credits_reset_at && new Date(profile.credits_reset_at) <= new Date()) {
       const nextReset = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
       const { data: refreshed } = await context.supabase
         .from("profiles")
-        .update({ credits: data.max_credits, credits_reset_at: nextReset })
+        .update({ credits: profile.max_credits, credits_reset_at: nextReset })
         .eq("id", context.userId)
         .select(PROFILE_COLS)
         .single();
       if (refreshed) return refreshed;
     }
-    return data;
+    return profile;
   });
 
 export const updateMyProfile = createServerFn({ method: "POST" })
