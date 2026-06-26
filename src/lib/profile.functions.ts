@@ -52,15 +52,15 @@ export const updateMyProfile = createServerFn({ method: "POST" })
 export const regeneratePluginToken = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const newToken =
-      "BS-" + Math.random().toString(36).slice(2, 8).toUpperCase() +
-      Math.random().toString(36).slice(2, 8).toUpperCase();
-    const { data, error } = await context.supabase
-      .from("profiles")
-      .update({ plugin_token: newToken })
-      .eq("id", context.userId)
-      .select("plugin_token")
-      .single();
+    const { data, error } = await context.supabase.rpc("regenerate_my_plugin_token");
     if (error) throw new Error(error.message);
-    return data;
+    return { plugin_token: data as unknown as string };
+  });
+
+export const getMyPluginToken = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase.rpc("get_my_plugin_token");
+    if (error) throw new Error(error.message);
+    return { plugin_token: (data as unknown as string) ?? null };
   });
