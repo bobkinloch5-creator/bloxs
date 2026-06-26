@@ -2,12 +2,14 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 
+const PROFILE_COLS = "id, username, display_name, avatar_url, bio, roblox_username, plan, credits, max_credits, language, is_private, settings, created_at, updated_at, is_admin, credits_reset_at" as const;
+
 export const getMyProfile = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase
       .from("profiles")
-      .select("*")
+      .select(PROFILE_COLS)
       .eq("id", context.userId)
       .maybeSingle();
     if (error) throw new Error(error.message);
@@ -20,7 +22,7 @@ export const getMyProfile = createServerFn({ method: "GET" })
         .from("profiles")
         .update({ credits: data.max_credits, credits_reset_at: nextReset })
         .eq("id", context.userId)
-        .select()
+        .select(PROFILE_COLS)
         .single();
       if (refreshed) return refreshed;
     }
@@ -43,7 +45,7 @@ export const updateMyProfile = createServerFn({ method: "POST" })
       .from("profiles")
       .update(data)
       .eq("id", context.userId)
-      .select()
+      .select(PROFILE_COLS)
       .single();
     if (error) throw new Error(error.message);
     return row;
