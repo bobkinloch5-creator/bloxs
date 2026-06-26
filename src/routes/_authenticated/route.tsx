@@ -1,5 +1,6 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
+import { LanguageSync } from "@/components/LanguageSync";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -12,11 +13,11 @@ export const Route = createFileRoute("/_authenticated")({
 });
 
 function AuthedLayout() {
-
-
   return (
     <div className="surface-grad min-h-screen text-foreground">
+      <LanguageSync />
       <Outlet />
     </div>
   );
 }
+

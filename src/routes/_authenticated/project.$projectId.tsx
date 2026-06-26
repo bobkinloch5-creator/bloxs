@@ -25,6 +25,7 @@ import { MobileNavTrigger } from "@/components/MobileNav";
 import { VoiceControls, useBloxSmithSpeaker } from "@/components/VoiceControls";
 import { VoiceBuildButton } from "@/components/VoiceBuildButton";
 import { improvePrompt } from "@/lib/improve.functions";
+import { useLang, LANGUAGES } from "@/lib/i18n";
 
 export const Route = createFileRoute("/_authenticated/project/$projectId")({
   head: () => ({ meta: [{ title: "Build — BloxSmith" }] }),
@@ -104,6 +105,17 @@ function ProjectPage() {
     return (localStorage.getItem("bs-chat-mode") as "chat" | "build") || "build";
   });
   useEffect(() => { localStorage.setItem("bs-chat-mode", mode); }, [mode]);
+  // Auto-execute: when true (default), Build-mode messages run in Studio immediately.
+  // When false, BloxSmith drafts a plan and waits for the user to click Push to Studio.
+  const [autoExecute, setAutoExecute] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    return localStorage.getItem("bs-auto-execute") !== "0";
+  });
+  useEffect(() => {
+    localStorage.setItem("bs-auto-execute", autoExecute ? "1" : "0");
+  }, [autoExecute]);
+  const { lang: uiLang, t: tr } = useLang();
+  const aiLanguageName = LANGUAGES.find((l) => l.code === uiLang)?.aiName ?? "English";
   const clearQueueFn = useServerFn(clearActionQueue);
   const undoFn = useServerFn(undoLastBuild);
   const [queueNotice, setQueueNotice] = useState<string | null>(null);
@@ -204,6 +216,11 @@ function ProjectPage() {
     setToken(freshToken);
     if (!freshToken) return;
 
+    // If the user is in Build mode but auto-execute is off, downgrade this
+    // turn to chat-mode planning. The Push to Studio button below executes it.
+    const effectiveMode: "chat" | "build" =
+      mode === "build" && !autoExecute ? "chat" : mode;
+
     if (att) {
       const modeHeader = att.build
         ? "[SCREENSHOT MODE: BUILD] The user attached a reference screenshot. Analyze the layout, colors, and gameplay/UI elements, then plan and queue Roblox build actions to recreate it as closely as possible."
@@ -217,17 +234,28 @@ function ProjectPage() {
             { type: "file", mediaType: att.mediaType, url: att.dataUrl } as any,
           ],
         } as any,
-        { body: { projectId, modelId, mode: att.build ? mode : "chat" } },
+        { body: { projectId, modelId, mode: att.build ? effectiveMode : "chat", language: uiLang, languageName: aiLanguageName } },
       );
     } else {
       sendMessage(
         { text: value },
-        { body: { projectId, modelId, mode } },
+        { body: { projectId, modelId, mode: effectiveMode, language: uiLang, languageName: aiLanguageName } },
       );
     }
     setInput("");
     setAttachment(null);
   }
+
+  // Push the last assistant plan to Roblox Studio (used when auto-execute is off
+  // or when the user wants to re-run the latest plan as real actions).
+  async function pushToStudio() {
+    if (busy) return;
+    sendMessage(
+      { text: "Push the plan you just described to Roblox Studio now — emit the bloxsmith-actions block and execute it." },
+      { body: { projectId, modelId, mode: "build" as const, language: uiLang, languageName: aiLanguageName } },
+    );
+  }
+
 
 
   const pluginOnline = !!(pluginSession?.online && pluginSession?.last_seen &&
@@ -466,7 +494,11 @@ function ProjectPage() {
               attachment={attachment}
               setAttachment={setAttachment}
               onAttachFile={attachImageFile}
+              autoExecute={autoExecute}
+              setAutoExecute={setAutoExecute}
+              onPushToStudio={pushToStudio}
             />
+
 
           </div>
 
@@ -903,8 +935,10 @@ function Composer({
   onSubmit, onStop, onAction, modelId, setModelId,
   ttsEnabled, setTtsEnabled, onVoiceTranscript,
   attachment, setAttachment, onAttachFile,
+  autoExecute, setAutoExecute, onPushToStudio,
 }: any) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { t } = useLang();
   const canSend = !!token && !busy && (input.trim().length > 0 || !!attachment);
   return (
     <div
@@ -935,11 +969,10 @@ function Composer({
             }}
           >
             <MessageSquare className="h-3.5 w-3.5" />
-            <span>
-              <strong style={{ color: "var(--bs-fg)" }}>Chat mode:</strong> BloxSmith will brainstorm and plan with you — it won't create anything in Studio. Switch to <strong>Build</strong> when you're ready.
-            </span>
+            <span>{t("chat.chatBanner")}</span>
           </div>
         )}
+
         {attachment && (
           <div className="mb-2 flex items-center gap-3 rounded-xl border p-2"
                style={{ borderColor: "var(--bs-border)", background: "var(--bs-card-2)" }}>
@@ -1076,7 +1109,7 @@ function Composer({
                 }}
               >
                 <MessageSquare className="mr-1 inline h-3 w-3" />
-                Chat
+                {t("chat.modeChat")}
               </button>
               <button
                 type="button"
@@ -1088,9 +1121,40 @@ function Composer({
                 }}
               >
                 <Wrench className="mr-1 inline h-3 w-3" />
-                Build
+                {t("chat.modeBuild")}
               </button>
             </div>
+
+            {/* Auto-execute toggle — when off, Build mode drafts a plan instead of running */}
+            {mode === "build" && (
+              <label
+                className="ml-1 inline-flex select-none items-center gap-1.5 rounded-lg border px-2 py-1.5 text-[11px] font-bold"
+                style={{ borderColor: "var(--bs-border)", color: "var(--bs-muted-fg)" }}
+                title={t("chat.autoExecuteHint")}
+              >
+                <input
+                  type="checkbox"
+                  checked={!!autoExecute}
+                  onChange={(e) => setAutoExecute(e.target.checked)}
+                  className="h-3 w-3 accent-indigo-500"
+                />
+                <Zap className="h-3 w-3" style={{ color: autoExecute ? "var(--bs-primary)" : "var(--bs-muted-fg)" }} />
+                <span className="hidden md:inline">{t("chat.autoExecute")}</span>
+              </label>
+            )}
+
+            {/* Push to Studio — runs the last drafted plan as real Roblox actions */}
+            <button
+              type="button"
+              onClick={onPushToStudio}
+              disabled={busy}
+              className="bs-quick"
+              title={t("chat.pushStudio")}
+              style={{ color: "var(--bs-primary)" }}
+            >
+              <Upload className="h-3.5 w-3.5" />
+              <span className="hidden md:inline">{t("chat.pushStudio")}</span>
+            </button>
 
             {/* Queue control buttons — always visible */}
             <button
@@ -1100,7 +1164,7 @@ function Composer({
               title="Stop the build and clear all queued actions for Roblox Studio"
             >
               <Square className="h-3.5 w-3.5" />
-              <span className="hidden md:inline">Stop Build</span>
+              <span className="hidden md:inline">{t("chat.stop")}</span>
             </button>
             <button
               type="button"
@@ -1109,22 +1173,23 @@ function Composer({
               title="Cancel queued actions from your last build (use Ctrl+Z in Studio to revert applied ones)"
             >
               <Undo2 className="h-3.5 w-3.5" />
-              <span className="hidden md:inline">Undo Last</span>
+              <span className="hidden md:inline">{t("chat.undo")}</span>
             </button>
 
             {busy ? (
               <button onClick={onStop} className="bs-send-btn flex h-10 items-center gap-1.5 px-4 text-sm font-medium"
                 style={{ background: "var(--bs-danger)", boxShadow: "none" }}>
-                <X className="h-4 w-4" /> Stop
+                <X className="h-4 w-4" /> {t("chat.stop")}
               </button>
             ) : (
               <button onClick={onSubmit} disabled={!canSend}
                 className="bs-send-btn flex h-10 items-center gap-1.5 px-4 text-sm font-medium"
                 style={mode === "chat" ? { background: "color-mix(in oklab, var(--bs-primary) 70%, transparent)" } : undefined}>
                 <Send className="h-4 w-4" />
-                <span className="hidden sm:inline">{mode === "chat" ? "Send (chat)" : "Build"}</span>
+                <span className="hidden sm:inline">{mode === "chat" ? t("common.send") : t("chat.modeBuild")}</span>
               </button>
             )}
+
           </div>
         </div>
 

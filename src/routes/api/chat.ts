@@ -21,13 +21,15 @@ export const Route = createFileRoute("/api/chat")({
           const token = auth.replace(/^Bearer\s+/i, "");
           if (!token) return jsonError("Please sign in again before sending a message.", 401, "no_auth");
 
-          let body: { messages?: UIMessage[]; projectId?: string; modelId?: string; autoExecute?: boolean; mode?: "chat" | "build" };
+          let body: { messages?: UIMessage[]; projectId?: string; modelId?: string; autoExecute?: boolean; mode?: "chat" | "build"; language?: string; languageName?: string };
           try {
             body = (await request.json()) as typeof body;
           } catch {
             return jsonError("Invalid JSON in request body.", 400, "bad_json");
           }
           const mode: "chat" | "build" = body.mode === "chat" ? "chat" : "build";
+          const languageName = (body.languageName || "English").toString().slice(0, 60);
+          const languageCode = (body.language || "en").toString().slice(0, 8);
           const { messages, projectId } = body;
           if (!Array.isArray(messages) || messages.length === 0) {
             return jsonError("No messages were sent — type something and try again.", 400, "missing_messages");
@@ -221,13 +223,14 @@ export const Route = createFileRoute("/api/chat")({
           const modeHeader = `\n\n[MODE: ${mode}]\n${mode === "chat"
             ? "The user is BRAINSTORMING — respond conversationally and DO NOT emit any bloxsmith-actions block. Help them think, plan, and explore ideas."
             : "The user wants you to BUILD — emit a bloxsmith-actions block at the end with ONLY what they explicitly asked for, polished to the premium quality bar."}\n`;
+          const languageHeader = `\n[LANGUAGE: ${languageCode} / ${languageName}]\nRespond ENTIRELY in ${languageName}. Translate every sentence, heading, button name, status message, error message, and explanation into natural, fluent, idiomatic ${languageName}. Keep code identifiers, Roblox API names (Instance class names, services, property names like Workspace, Part, ScreenGui, HumanoidRootPart), and the bloxsmith-actions block contents in English exactly as required by Roblox. Translate UI strings the player will see (TextLabel.Text, button text, GUI titles, error notifications shown to players) into ${languageName}. Markdown formatting stays the same.\n`;
           const tryStream = (
             model: typeof modelChoice.model,
             usedModelId: string,
             notice: string | null,
           ) => streamText({
             model,
-            system: BLOXSMITH_SYSTEM_PROMPT + modeHeader + contextBlock,
+            system: BLOXSMITH_SYSTEM_PROMPT + modeHeader + languageHeader + contextBlock,
             messages: convertedMessages,
             onFinish: persistFinish(usedModelId, notice),
             onError: ({ error }) => {

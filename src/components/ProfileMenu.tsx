@@ -6,12 +6,14 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
   DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator,
+  DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent, DropdownMenuPortal,
 } from "@/components/ui/dropdown-menu";
 import {
   ChevronDown, Crown, Infinity as InfinityIcon, User, Settings, Folder,
-  Zap, LogOut, Timer, ExternalLink,
+  Zap, LogOut, Timer, ExternalLink, Languages, Check,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useLang, LANGUAGES } from "@/lib/i18n";
 
 function useResetTimer(resetAt?: string | null) {
   const [label, setLabel] = useState("");
@@ -44,6 +46,8 @@ export function ProfileMenu({ compact = false }: { compact?: boolean }) {
   const reset = useResetTimer((profile as any)?.credits_reset_at);
   const pct = Math.min(100, Math.max(0, (credits / Math.max(1, maxCredits)) * 100));
   const initial = name.slice(0, 1).toUpperCase();
+  const { lang, setLang, t } = useLang();
+  const currentLang = LANGUAGES.find((l) => l.code === lang) ?? LANGUAGES[0];
 
   const signOut = async () => {
     await supabase.auth.signOut();
@@ -123,12 +127,41 @@ export function ProfileMenu({ compact = false }: { compact?: boolean }) {
         </div>
 
         <DropdownMenuLabel className="mt-2 px-2 text-[10px] font-bold uppercase tracking-[0.22em] text-white/40" style={{ fontFamily: "Space Mono, monospace" }}>
-          Account
+          {t("profile.account")}
         </DropdownMenuLabel>
-        <MenuLink to="/settings" icon={User} label="View Profile" />
-        <MenuLink to="/settings" icon={Settings} label="Account Settings" />
-        <MenuLink to="/dashboard" icon={Folder} label="My Projects" />
-        <MenuLink to="/settings" icon={Zap} label="Credits & Plan" />
+        <MenuLink to="/settings" icon={User} label={t("profile.viewProfile")} />
+        <MenuLink to="/settings" icon={Settings} label={t("profile.accountSettings")} />
+        <MenuLink to="/dashboard" icon={Folder} label={t("profile.myProjects")} />
+        <MenuLink to="/settings" icon={Zap} label={t("profile.creditsPlan")} />
+
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger className="cursor-pointer rounded-lg px-2 py-2 text-xs font-medium text-white/70 focus:bg-white/5 focus:text-white">
+            <Languages className="mr-2 h-3.5 w-3.5 text-indigo-300/80" />
+            <span>{t("common.language")}</span>
+            <span className="ml-auto text-[10px] uppercase tracking-[0.18em] text-white/40" style={{ fontFamily: "Space Mono, monospace" }}>
+              {currentLang.code}
+            </span>
+          </DropdownMenuSubTrigger>
+          <DropdownMenuPortal>
+            <DropdownMenuSubContent className="max-h-72 w-56 overflow-y-auto rounded-2xl border-indigo-500/20 bg-[#0a0a1a]/95 p-1.5 text-white shadow-[0_24px_80px_-20px_rgba(99,102,241,0.45)] backdrop-blur-xl">
+              {LANGUAGES.map((l) => (
+                <DropdownMenuItem
+                  key={l.code}
+                  onSelect={(e) => { e.preventDefault(); setLang(l.code); }}
+                  className="cursor-pointer rounded-lg px-2 py-2 text-xs font-medium text-white/70 focus:bg-white/5 focus:text-white"
+                >
+                  <span className="flex w-full items-center gap-2">
+                    <span className="min-w-0 flex-1 truncate">
+                      <span className="font-semibold text-white">{l.nativeLabel}</span>
+                      <span className="ml-1.5 text-white/40">· {l.label}</span>
+                    </span>
+                    {l.code === lang && <Check className="h-3.5 w-3.5 text-emerald-300" />}
+                  </span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuSubContent>
+          </DropdownMenuPortal>
+        </DropdownMenuSub>
 
         <DropdownMenuSeparator className="my-1.5 bg-white/5" />
 
@@ -143,8 +176,9 @@ export function ProfileMenu({ compact = false }: { compact?: boolean }) {
           onSelect={(e) => { e.preventDefault(); signOut(); }}
           className="cursor-pointer rounded-lg px-2 py-2 text-xs font-medium text-rose-300 focus:bg-rose-500/10 focus:text-rose-200"
         >
-          <LogOut className="h-3.5 w-3.5" /> Sign out
+          <LogOut className="h-3.5 w-3.5" /> {t("common.signOut")}
         </DropdownMenuItem>
+
       </DropdownMenuContent>
     </DropdownMenu>
   );
