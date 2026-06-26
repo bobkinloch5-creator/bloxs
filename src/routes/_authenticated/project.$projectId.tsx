@@ -1025,7 +1025,7 @@ function RightSidebar({
         </Link>
         <Link
           to="/models/$projectId"
-          params={{ projectId }}
+          params={{ projectId: project?.id ?? "" }}
           className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl py-2 text-sm font-semibold text-white"
           style={{ background: "linear-gradient(135deg, #8b5cf6, #3b82f6)" }}
         >
