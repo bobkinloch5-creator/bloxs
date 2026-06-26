@@ -667,7 +667,7 @@ local function startPairing()
 end
 
 local function disconnect()
-    plugin:SetSetting("token", nil)
+    clearToken()
     connected = false; pairingCode = nil
     connectBtn.Text = "Connect"; connectBtn.BackgroundColor3 = Color3.fromRGB(70,130,240)
     linkBox.Visible = false
@@ -687,8 +687,10 @@ connectBtn.MouseButton1Click:Connect(function()
 end)
 
 reconnectBtn.MouseButton1Click:Connect(function()
-    if not plugin:GetSetting("token") then
-        log("No saved token — use Connect first.", "warn"); return
+    if not validToken() then
+        log("No saved token — starting fresh connect.", "warn")
+        clearToken(); connected = false
+        task.spawn(startPairing); return
     end
     log("Reconnecting…", "info"); connected = true; pollOnce(true)
 end)
@@ -704,8 +706,8 @@ execBtn.MouseButton1Click:Connect(function()
 end)
 
 clearBtn.MouseButton1Click:Connect(function()
-    local token = plugin:GetSetting("token")
-    if not token then log("Not connected.", "warn"); return end
+    local token = validToken()
+    if not token then log("Not connected — click Connect first.", "warn"); return end
     log("Clearing stuck queue…", "info")
     local data, err = post("/api/public/plugin/clear", { token = token }, { verbose = true })
     if err then log("Clear failed: " .. err, "error")
@@ -728,11 +730,13 @@ end)
 
 ------------------------------------------------------------------- boot
 task.spawn(function()
-    if plugin:GetSetting("token") then
+    if validToken() then
         connected = true
         connectBtn.Text = "Disconnect"; connectBtn.BackgroundColor3 = Color3.fromRGB(220,90,90)
         log("Restoring previous session…", "info"); pollOnce(true)
     else
+        clearToken() -- scrub any stale empty/garbage value
+        connected = false
         setStatus("not connected", Color3.fromRGB(200,200,210), "Click Connect to link.")
     end
     refreshInfo()
