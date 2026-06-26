@@ -1109,7 +1109,7 @@ function Composer({
                 }}
               >
                 <MessageSquare className="mr-1 inline h-3 w-3" />
-                Chat
+                {t("chat.modeChat")}
               </button>
               <button
                 type="button"
@@ -1121,9 +1121,40 @@ function Composer({
                 }}
               >
                 <Wrench className="mr-1 inline h-3 w-3" />
-                Build
+                {t("chat.modeBuild")}
               </button>
             </div>
+
+            {/* Auto-execute toggle — when off, Build mode drafts a plan instead of running */}
+            {mode === "build" && (
+              <label
+                className="ml-1 inline-flex select-none items-center gap-1.5 rounded-lg border px-2 py-1.5 text-[11px] font-bold"
+                style={{ borderColor: "var(--bs-border)", color: "var(--bs-muted-fg)" }}
+                title={t("chat.autoExecuteHint")}
+              >
+                <input
+                  type="checkbox"
+                  checked={!!autoExecute}
+                  onChange={(e) => setAutoExecute(e.target.checked)}
+                  className="h-3 w-3 accent-indigo-500"
+                />
+                <Zap className="h-3 w-3" style={{ color: autoExecute ? "var(--bs-primary)" : "var(--bs-muted-fg)" }} />
+                <span className="hidden md:inline">{t("chat.autoExecute")}</span>
+              </label>
+            )}
+
+            {/* Push to Studio — runs the last drafted plan as real Roblox actions */}
+            <button
+              type="button"
+              onClick={onPushToStudio}
+              disabled={busy}
+              className="bs-quick"
+              title={t("chat.pushStudio")}
+              style={{ color: "var(--bs-primary)" }}
+            >
+              <Upload className="h-3.5 w-3.5" />
+              <span className="hidden md:inline">{t("chat.pushStudio")}</span>
+            </button>
 
             {/* Queue control buttons — always visible */}
             <button
@@ -1133,7 +1164,7 @@ function Composer({
               title="Stop the build and clear all queued actions for Roblox Studio"
             >
               <Square className="h-3.5 w-3.5" />
-              <span className="hidden md:inline">Stop Build</span>
+              <span className="hidden md:inline">{t("chat.stop")}</span>
             </button>
             <button
               type="button"
@@ -1142,22 +1173,23 @@ function Composer({
               title="Cancel queued actions from your last build (use Ctrl+Z in Studio to revert applied ones)"
             >
               <Undo2 className="h-3.5 w-3.5" />
-              <span className="hidden md:inline">Undo Last</span>
+              <span className="hidden md:inline">{t("chat.undo")}</span>
             </button>
 
             {busy ? (
               <button onClick={onStop} className="bs-send-btn flex h-10 items-center gap-1.5 px-4 text-sm font-medium"
                 style={{ background: "var(--bs-danger)", boxShadow: "none" }}>
-                <X className="h-4 w-4" /> Stop
+                <X className="h-4 w-4" /> {t("chat.stop")}
               </button>
             ) : (
               <button onClick={onSubmit} disabled={!canSend}
                 className="bs-send-btn flex h-10 items-center gap-1.5 px-4 text-sm font-medium"
                 style={mode === "chat" ? { background: "color-mix(in oklab, var(--bs-primary) 70%, transparent)" } : undefined}>
                 <Send className="h-4 w-4" />
-                <span className="hidden sm:inline">{mode === "chat" ? "Send (chat)" : "Build"}</span>
+                <span className="hidden sm:inline">{mode === "chat" ? t("common.send") : t("chat.modeBuild")}</span>
               </button>
             )}
+
           </div>
         </div>
 
