@@ -33,6 +33,7 @@ import { Route as AuthenticatedChatRouteImport } from './routes/_authenticated/c
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as ApiPublicMcpRouteImport } from './routes/api/public/mcp'
 import { Route as AuthenticatedProjectProjectIdRouteImport } from './routes/_authenticated/project.$projectId'
+import { Route as ApiPublicPluginScanRouteImport } from './routes/api/public/plugin/scan'
 import { Route as ApiPublicPluginPollRouteImport } from './routes/api/public/plugin/poll'
 import { Route as ApiPublicPluginCompleteRouteImport } from './routes/api/public/plugin/complete'
 import { Route as ApiPublicPluginClearRouteImport } from './routes/api/public/plugin/clear'
@@ -161,6 +162,11 @@ const AuthenticatedProjectProjectIdRoute =
     path: '/project/$projectId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const ApiPublicPluginScanRoute = ApiPublicPluginScanRouteImport.update({
+  id: '/api/public/plugin/scan',
+  path: '/api/public/plugin/scan',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicPluginPollRoute = ApiPublicPluginPollRouteImport.update({
   id: '/api/public/plugin/poll',
   path: '/api/public/plugin/poll',
@@ -215,6 +221,7 @@ export interface FileRoutesByFullPath {
   '/api/public/plugin/clear': typeof ApiPublicPluginClearRoute
   '/api/public/plugin/complete': typeof ApiPublicPluginCompleteRoute
   '/api/public/plugin/poll': typeof ApiPublicPluginPollRoute
+  '/api/public/plugin/scan': typeof ApiPublicPluginScanRoute
   '/api/public/plugin/pair/poll': typeof ApiPublicPluginPairPollRoute
   '/api/public/plugin/pair/start': typeof ApiPublicPluginPairStartRoute
 }
@@ -245,6 +252,7 @@ export interface FileRoutesByTo {
   '/api/public/plugin/clear': typeof ApiPublicPluginClearRoute
   '/api/public/plugin/complete': typeof ApiPublicPluginCompleteRoute
   '/api/public/plugin/poll': typeof ApiPublicPluginPollRoute
+  '/api/public/plugin/scan': typeof ApiPublicPluginScanRoute
   '/api/public/plugin/pair/poll': typeof ApiPublicPluginPairPollRoute
   '/api/public/plugin/pair/start': typeof ApiPublicPluginPairStartRoute
 }
@@ -277,6 +285,7 @@ export interface FileRoutesById {
   '/api/public/plugin/clear': typeof ApiPublicPluginClearRoute
   '/api/public/plugin/complete': typeof ApiPublicPluginCompleteRoute
   '/api/public/plugin/poll': typeof ApiPublicPluginPollRoute
+  '/api/public/plugin/scan': typeof ApiPublicPluginScanRoute
   '/api/public/plugin/pair/poll': typeof ApiPublicPluginPairPollRoute
   '/api/public/plugin/pair/start': typeof ApiPublicPluginPairStartRoute
 }
@@ -309,6 +318,7 @@ export interface FileRouteTypes {
     | '/api/public/plugin/clear'
     | '/api/public/plugin/complete'
     | '/api/public/plugin/poll'
+    | '/api/public/plugin/scan'
     | '/api/public/plugin/pair/poll'
     | '/api/public/plugin/pair/start'
   fileRoutesByTo: FileRoutesByTo
@@ -339,6 +349,7 @@ export interface FileRouteTypes {
     | '/api/public/plugin/clear'
     | '/api/public/plugin/complete'
     | '/api/public/plugin/poll'
+    | '/api/public/plugin/scan'
     | '/api/public/plugin/pair/poll'
     | '/api/public/plugin/pair/start'
   id:
@@ -370,6 +381,7 @@ export interface FileRouteTypes {
     | '/api/public/plugin/clear'
     | '/api/public/plugin/complete'
     | '/api/public/plugin/poll'
+    | '/api/public/plugin/scan'
     | '/api/public/plugin/pair/poll'
     | '/api/public/plugin/pair/start'
   fileRoutesById: FileRoutesById
@@ -390,6 +402,7 @@ export interface RootRouteChildren {
   ApiPublicPluginClearRoute: typeof ApiPublicPluginClearRoute
   ApiPublicPluginCompleteRoute: typeof ApiPublicPluginCompleteRoute
   ApiPublicPluginPollRoute: typeof ApiPublicPluginPollRoute
+  ApiPublicPluginScanRoute: typeof ApiPublicPluginScanRoute
   ApiPublicPluginPairPollRoute: typeof ApiPublicPluginPairPollRoute
   ApiPublicPluginPairStartRoute: typeof ApiPublicPluginPairStartRoute
 }
@@ -564,6 +577,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProjectProjectIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/plugin/scan': {
+      id: '/api/public/plugin/scan'
+      path: '/api/public/plugin/scan'
+      fullPath: '/api/public/plugin/scan'
+      preLoaderRoute: typeof ApiPublicPluginScanRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/plugin/poll': {
       id: '/api/public/plugin/poll'
       path: '/api/public/plugin/poll'
@@ -651,6 +671,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicPluginClearRoute: ApiPublicPluginClearRoute,
   ApiPublicPluginCompleteRoute: ApiPublicPluginCompleteRoute,
   ApiPublicPluginPollRoute: ApiPublicPluginPollRoute,
+  ApiPublicPluginScanRoute: ApiPublicPluginScanRoute,
   ApiPublicPluginPairPollRoute: ApiPublicPluginPairPollRoute,
   ApiPublicPluginPairStartRoute: ApiPublicPluginPairStartRoute,
 }
