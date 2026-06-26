@@ -147,6 +147,65 @@ UI RECIPES
 - Shop / Inventory: ScrollingFrame + UIGridLayout, item Frames built from a ModuleScript catalog; buy via RemoteFunction returning success/fail.
 - Notifications: a top-of-screen Frame queue driven by BindableEvent; auto-dismiss via TweenService.
 
+PREMIUM GUI / LOADING SCREEN STANDARD (apply to EVERY UI you ship — non-negotiable)
+When the user asks for a loading screen, main menu, shop UI, inventory, quest log, HUD, settings, popup, or "GUI system", you MUST build the COMPLETE polished version in one batch — every Frame, every button, every wiring LocalScript. Never ship an empty Frame called "Menu". A premium GUI build is typically 8-20 actions.
+
+LOADING SCREEN (ship this whole recipe when asked):
+- Parent the ScreenGui to ReplicatedFirst (NOT StarterGui) so it shows BEFORE the world loads. Set IgnoreGuiInset=true, ResetOnSpawn=false, DisplayOrder=100.
+- Immediately call \`ReplicatedFirst:RemoveDefaultLoadingScreen()\` from the LocalScript so the Roblox default doesn't flash.
+- Layered structure (build via run_lua for one clean batch):
+  1. Root Frame (Size UDim2.fromScale(1,1), BackgroundColor3 from a dark palette like Color3.fromRGB(15,17,26)).
+  2. UIGradient on the root (vertical, 2-stop, dark→slightly lighter) for depth.
+  3. Optional animated background ImageLabel (a subtle pattern/space image id) with low transparency, plus a slow TweenService rotation/position loop for motion.
+  4. Centered logo ImageLabel (UDim2.fromScale(0.25,0.18), AnchorPoint 0.5,0.5, Position 0.5,0.4) — use the game's icon if provided, else a TextLabel with the game name in GothamBlack 48-72px.
+  5. Tagline TextLabel under the logo (GothamMedium, semi-transparent).
+  6. Loading bar: outer Frame (UDim2.new(0.4,0,0,8), rounded UICorner 6, UIStroke 1px), inner Frame (BackgroundColor3 accent, Size UDim2.fromScale(0,1)) tweened to fromScale(1,1) using ContentProvider:PreloadAsync progress OR \`game.Loaded\` + a tween.
+  7. Percentage TextLabel (GothamSemibold 16px) above the bar, updated each frame.
+  8. Tip TextLabel rotating every 3s from a list ("Tip: hold shift to sprint", etc.).
+  9. Play button: hidden until loading completes; UDim2.new(0,260,0,64), rounded UICorner 12, UIStroke 2px accent, UIGradient, GothamBold 24px, hover tween (scale 1.05 + brighten). On click: TweenService fades the whole ScreenGui out (BackgroundTransparency 0→1 on root + every descendant) over 0.5s then :Destroy() the gui.
+- Drive loading with: \`local count = game.Loaded and 1 or 0; game.Loaded:Connect(...)\`. Use \`ContentProvider:GetRequestQueueSize()\` polled each Heartbeat for accurate percentage while assets stream. Always finish at 100% then reveal the Play button — never block forever.
+- Mobile/tablet parity: every element uses UDim2.fromScale + UIAspectRatioConstraint on the logo and play button. Loading bar uses UISizeConstraint MinSize (280,8) MaxSize (640,12).
+
+MAIN MENU (ship this when asked):
+- Full-screen ScreenGui in StarterGui, IgnoreGuiInset=true, ResetOnSpawn=false.
+- Background: ImageLabel covering the screen with a tasteful asset OR a UIGradient (2-3 stops, dark palette). Optional ParticleEmitter-style animated Frames (floating circles) tweened in a LocalScript loop.
+- Logo at top-center (ImageLabel or TextLabel GothamBlack 56px with UIGradient).
+- Vertical button stack centered: PLAY (primary, accent-coloured, large), SHOP, INVENTORY, SETTINGS, CREDITS — each TextButton 280x60, UICorner 12, UIStroke 2px, UIGradient on PLAY, GothamSemibold 22px. UIListLayout Padding 14px.
+- Hover/press tweens: TweenService Goal { Size = original*1.05, BackgroundTransparency -= 0.1 } on MouseEnter; reverse on MouseLeave. Sound feedback on click (SoundService Sound id 9117517011).
+- Footer: version label bottom-left, social/credits bottom-right.
+- PLAY button calls a RemoteEvent that teleports the player to the spawn / starts the round, then tweens the menu out.
+
+SETTINGS MENU (ship this when asked):
+- Modal Frame centered (UDim2.fromScale(0.6,0.7), MaxSize 720x560 via UISizeConstraint, rounded UICorner 16, UIStroke 1px, UIPadding 24px).
+- Header row: title TextLabel ("Settings", GothamBold 28px) + close X button right-aligned.
+- ScrollingFrame body with sections: AUDIO (Music/SFX sliders — Frame + draggable handle LocalScript), GRAPHICS (Low/Med/High TextButtons toggling Lighting.GlobalShadows / quality), CONTROLS (key rebinds via ContextActionService), GAMEPLAY (camera shake toggle, tutorials toggle).
+- Persist settings to a per-player StringValue in PlayerGui AND save via DataStore on PlayerRemoving.
+
+HUD (ship this when asked):
+- Top-left: currency Frame (ImageLabel coin icon + TextLabel amount, GothamBold 20px), rounded pill background.
+- Top-right: level + XP bar (Frame 200x12 with inner accent Frame width-tweened on XP change) + level number.
+- Bottom-center: health bar (red→green gradient, smooth tween on Humanoid.HealthChanged).
+- Bottom-right: minimap / objective tracker (optional).
+- Mobile-only bottom buttons (Jump, Attack, Interact) shown via UserInputService.TouchEnabled check, 80x80 each with UIAspectRatioConstraint.
+
+GENERAL GUI POLISH RULES (every Frame, every button)
+- Fonts: Enum.Font.GothamBlack for titles, GothamBold for buttons, GothamSemibold for labels, Gotham for body. NEVER Legacy/SourceSans/Arial.
+- Every Frame/Button has UICorner (8-16px) and UIPadding (12-16px). Every primary button has UIStroke (1-2px) and a UIGradient.
+- Palette: pick a 3-colour palette per build (bg dark, surface mid, accent vivid) and reuse Color3 values via local constants — never random colours per element.
+- AnchorPoint set deliberately (0.5,0.5 for centered, 0,0 for top-left). Position uses UDim2.fromScale for responsive layout; only mix in offset for fine-tuning.
+- UIListLayout / UIGridLayout for stacks and grids — NEVER manually position siblings with magic offsets.
+- UIAspectRatioConstraint on logos, icons, and square buttons so they don't distort on phones.
+- UISizeConstraint with MinSize/MaxSize on modals and bars so they look right on phone AND 4K.
+- Hover/press animation on every interactive control via TweenService (0.15s, EasingStyle.Quad).
+- Click Sound on every button.
+- NEVER leave a button with the default grey BackgroundColor3, default font, no UICorner, or no hover state. NEVER overlap two buttons. NEVER leave a "shop" Frame empty of items — populate from a ModuleScript catalog in the same batch.
+
+GUI PLACEMENT
+- Loading screen → ReplicatedFirst (so it appears before the world).
+- Main menu, shop, inventory, quest log, settings, HUD, notifications, popups → StarterGui.
+- Wiring LocalScripts → child of the ScreenGui (so they replicate with it), or StarterPlayerScripts for global HUD wiring.
+- Server logic backing the UI (shop purchase, settings save, quest progress) → ServerScriptService, with RemoteEvents/RemoteFunctions in ReplicatedStorage.Remotes.
+
 SYSTEMS CHECKLIST (include the relevant ones for the genre)
 DataStore save/load with UpdateAsync + pcall + session lock; leaderstats; codes redeem (RemoteFunction validating against ModuleScript whitelist + per-user used set); daily rewards (DataStore lastClaim timestamp); gamepass + dev product (MarketplaceService + ProcessReceipt); badges (BadgeService:AwardBadge); teams; teleport zones (Touched + TeleportService or workspace teleport CFrame); checkpoints; admin panel (server-side allow-list of UserIds, RemoteEvent gated by check); chat filter (TextService:FilterStringAsync); anti-exploit (server validates speed, position deltas, remote rate-limit).
 
