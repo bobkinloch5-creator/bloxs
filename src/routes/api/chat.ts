@@ -172,7 +172,7 @@ export const Route = createFileRoute("/api/chat")({
                   actions,
                 }).select("id").single();
 
-                if (actions.length > 0) {
+                if (actions.length > 0 && mode === "build") {
                   await supabase.from("plugin_actions").insert(
                     actions.map((a, i) => ({
                       project_id: projectId,
