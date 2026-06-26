@@ -316,7 +316,7 @@ export const retextureModel = createServerFn({ method: "POST" })
     const { data: row, error } = await supabase
       .from("model_generations")
       .insert({
-        user_id: userId, project_id: data.projectId, mode: "texture",
+        user_id: userId, project_id: data.projectId ?? source.project_id ?? null, mode: "texture",
         prompt: `Retexture: ${data.texturePrompt}`,
         task_id: taskId, status: "PENDING", progress: 0, parent_id: source.id,
       })
