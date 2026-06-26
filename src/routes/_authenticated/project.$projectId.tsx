@@ -338,7 +338,7 @@ function ProjectPage() {
                   return isUser ? (
                     <UserBubble key={m.id} text={text} profile={profile} />
                   ) : (
-                    <AssistantCard key={m.id} text={text} />
+                    <AssistantCard key={m.id} text={text} pluginOnline={pluginOnline} />
                   );
                 })}
 
