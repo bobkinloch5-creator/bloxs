@@ -32,7 +32,7 @@ async function meshyFetch(path: string, init?: RequestInit) {
 
 export const getModelStatus = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) => z.object({ projectId: z.string().uuid() }).parse(i))
+  .inputValidator((i: unknown) => z.object({ projectId: z.string().uuid().optional() }).parse(i ?? {}))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { data: rows } = await supabase
@@ -40,9 +40,11 @@ export const getModelStatus = createServerFn({ method: "GET" })
       .select("*")
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
-      .limit(80);
+      .limit(120);
 
-    const projectRows = (rows || []).filter((r) => r.project_id === data.projectId);
+    const projectRows = data.projectId
+      ? (rows || []).filter((r) => r.project_id === data.projectId)
+      : (rows || []);
     // 24h cooldown only counts brand-new text/image generations, not animations/retexture/refine of existing ones.
     const lastNew = (rows || []).find((r) => r.mode === "text" || r.mode === "image");
     const lastTs = lastNew ? new Date(lastNew.created_at).getTime() : 0;
@@ -57,10 +59,11 @@ export const getModelStatus = createServerFn({ method: "GET" })
     };
   });
 
+
 export const startModelGeneration = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => z.object({
-    projectId: z.string().uuid(),
+    projectId: z.string().uuid().optional(),
     mode: z.enum(["text", "image"]),
     prompt: z.string().trim().max(600).optional(),
     negativePrompt: z.string().trim().max(300).optional(),
@@ -137,7 +140,7 @@ export const startModelGeneration = createServerFn({ method: "POST" })
       .from("model_generations")
       .insert({
         user_id: userId,
-        project_id: data.projectId,
+        project_id: data.projectId ?? null,
         mode: data.mode,
         prompt: data.prompt ?? null,
         image_url: data.mode === "image" ? data.imageUrl?.slice(0, 1000) ?? null : null,
@@ -238,7 +241,7 @@ export type AnimationPreset = typeof ANIMATION_PRESETS[number];
 export const animateModel = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => z.object({
-    projectId: z.string().uuid(),
+    projectId: z.string().uuid().optional(),
     sourceId: z.string().uuid(),
     animation: z.enum(ANIMATION_PRESETS),
   }).parse(i))
@@ -266,7 +269,7 @@ export const animateModel = createServerFn({ method: "POST" })
     const { data: row, error } = await supabase
       .from("model_generations")
       .insert({
-        user_id: userId, project_id: data.projectId, mode: "animation",
+        user_id: userId, project_id: data.projectId ?? source.project_id ?? null, mode: "animation",
         prompt: promptLabel, task_id: taskId, status: "PENDING", progress: 0,
         animation_name: data.animation, parent_id: source.id,
       })
@@ -278,7 +281,7 @@ export const animateModel = createServerFn({ method: "POST" })
 export const retextureModel = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => z.object({
-    projectId: z.string().uuid(),
+    projectId: z.string().uuid().optional(),
     sourceId: z.string().uuid(),
     texturePrompt: z.string().trim().min(3).max(400),
     artStyle: z.enum(["realistic", "fake-3d-cartoon", "japanese-anime", "cartoon-line-art", "realistic-hand-drawn", "fake-3d-hand-drawn", "oriental-comic-ink"]).default("realistic"),
@@ -313,7 +316,7 @@ export const retextureModel = createServerFn({ method: "POST" })
     const { data: row, error } = await supabase
       .from("model_generations")
       .insert({
-        user_id: userId, project_id: data.projectId, mode: "texture",
+        user_id: userId, project_id: data.projectId ?? source.project_id ?? null, mode: "texture",
         prompt: `Retexture: ${data.texturePrompt}`,
         task_id: taskId, status: "PENDING", progress: 0, parent_id: source.id,
       })
