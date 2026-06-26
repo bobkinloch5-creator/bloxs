@@ -973,6 +973,7 @@ function Composer({
             />
             <VoiceBuildButton
               disabled={busy}
+              setTtsEnabled={setTtsEnabled}
               onUtterance={(t: string) => { if (t.trim()) onVoiceTranscript?.(t.trim()); }}
             />
 
