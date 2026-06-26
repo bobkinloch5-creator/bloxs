@@ -8,7 +8,7 @@ export const listMessages = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     const { data: rows, error } = await context.supabase
       .from("chat_messages")
-      .select("id, role, content, status, model, actions, error, created_at")
+      .select("id, role, content, status, model, actions, image_url, error, created_at")
       .eq("project_id", data.projectId)
       .order("created_at", { ascending: true });
     if (error) throw new Error(error.message);

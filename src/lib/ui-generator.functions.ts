@@ -4,6 +4,7 @@ import { generateText } from "ai";
 import { z } from "zod";
 import { getProviderModel } from "./ai-gateway.server";
 import { DEFAULT_MODEL_ID } from "./models";
+import { generateUiConceptImage } from "./ui-concept-image.server";
 
 const SYS = `You are a Roblox UI engineer. Produce a SINGLE, self-contained Luau script that builds a polished ScreenGui at runtime.
 Hard rules:
@@ -23,13 +24,15 @@ export const generateRobloxUi = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => z.object({
     prompt: z.string().min(3).max(2000),
     style: z.string().min(1).max(40),
+    projectId: z.string().uuid().optional(),
   }).parse(input))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
     const { model } = getProviderModel(DEFAULT_MODEL_ID);
+    const conceptImageUrl = await generateUiConceptImage({ prompt: data.prompt, style: data.style });
     const userPrompt = `Style: ${data.style}
 What to build: ${data.prompt}
 
-Requirements: Center the screen, frosted glass surface (BackgroundColor3 dark, BackgroundTransparency 0.15, UIStroke white 0.85 transparency), bold title, clean sub-elements, responsive Scale sizing, and meaningful Names. Include comments above each section so a beginner can understand it.`;
+Requirements: Center the screen, frosted glass surface (BackgroundColor3 dark, BackgroundTransparency 0.15, UIStroke white 0.85 transparency), bold title, clean sub-elements, responsive Scale sizing, and meaningful Names. Rebuild the generated UI concept as real Roblox UI objects, not a flat image. Include comments above each section so a beginner can understand it.`;
 
     const { text } = await generateText({
       model,
@@ -44,5 +47,17 @@ Requirements: Center the screen, frosted glass surface (BackgroundColor3 dark, B
       .replace(/```\s*$/i, "")
       .trim();
 
-    return { code: cleaned };
+    if (data.projectId) {
+      await context.supabase.from("chat_messages").insert({
+        project_id: data.projectId,
+        user_id: context.userId,
+        role: "assistant",
+        content: `Generated a premium ${data.style} Roblox UI concept and matching Luau UI builder for: ${data.prompt}`,
+        status: "done",
+        model: DEFAULT_MODEL_ID,
+        image_url: conceptImageUrl,
+      });
+    }
+
+    return { code: cleaned, conceptImageUrl };
   });

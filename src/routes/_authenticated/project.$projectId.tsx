@@ -47,6 +47,7 @@ const QUICK_PROMPTS = [
 const COMPOSER_ACTIONS = [
   { label: "Build in Studio", icon: Upload, mode: "build" as const, prompt: "Build the current request in Roblox Studio now using the full BloxSmith brain: plan the build order, use safe Toolbox assets for visuals, create complete scripts/UI/remotes/DataStores, organize services correctly, test with scan_project, and fix obvious issues." },
   { label: "Fix Errors", icon: Bug, mode: "build" as const, prompt: "Use the latest Studio errors, memory, and workspace scan to fix broken scripts, missing RemoteEvents, duplicated NPCs, floating assets, unwired UI buttons, DataStore problems, mobile issues, and performance problems. Explain the cause briefly, include autofix_project, then scan_project to verify." },
+  { label: "Generate UI", icon: ImageIcon, mode: "build" as const, prompt: "AI Image-to-Roblox UI Generator: generate a premium Roblox UI concept image in chat, then convert it into real functional Roblox Studio UI. Build ScreenGui, Frames, TextButtons, ImageButtons/ImageLabels where useful, TextLabels, UIStroke, UICorner, UIGradient, UIPadding, UIListLayout/UIGridLayout, UIScale, UIAspectRatioConstraint, LocalScripts, TweenService animations, wired close/open/play/shop/settings/inventory buttons, mobile-safe scaling, and scan_project/autofix_project tests. Do not leave the UI as a flat image." },
   { label: "Add UI", icon: LayoutDashboard, mode: "build" as const, prompt: "Build premium Roblox UI for this project: loading screen, main menu, Play button, settings, shop, inventory, quest UI, health/currency HUD, notifications, mobile controls, smooth TweenService animations, responsive constraints, clean fonts/colors/spacing, click sounds, and fully wired buttons/remotes. No default grey UI, no placeholders, no overlapping text." },
   { label: "Add NPCs", icon: Bot, mode: "build" as const, prompt: "Add safe free Toolbox NPC/enemy assets that match this game, then wire Humanoids, AI behavior, spawn folders, remotes/modules if needed, and clean organization." },
   { label: "Toolbox Assets", icon: Box, mode: "build" as const, prompt: "Search Roblox Toolbox/Creator Store for safe free assets that match this project, insert real models with names/ids, place them cleanly, and organize them. Do not use placeholder geometry." },
@@ -212,6 +213,7 @@ function ProjectPage() {
     })),
     [history],
   );
+  const historyImages = useMemo(() => new Map(history.map((m: any) => [m.id, m.image_url as string | null])), [history]);
 
   const transport = useMemo(() => new DefaultChatTransport({
     api: "/api/chat",
@@ -492,13 +494,15 @@ function ProjectPage() {
                   const pendingCount = (actions ?? []).filter((a: any) => a.status === "pending").length;
                   return messages.map((m) => {
                     const text = m.parts.map((p) => (p.type === "text" ? p.text : "")).join("");
+                    const imageUrl = historyImages.get(m.id) ?? null;
                     const isUser = m.role === "user";
-                    if (isUser) return <UserBubble key={m.id} text={text} profile={profile} />;
+                    if (isUser) return <UserBubble key={m.id} text={text} imageUrl={imageUrl} profile={profile} />;
                     const isLatest = m.id === lastAssistantId;
                     return (
                       <AssistantCard
                         key={m.id}
                         text={text}
+                        imageUrl={imageUrl}
                         pluginOnline={pluginOnline}
                         pendingCount={isLatest ? pendingCount : 0}
                         isLatest={isLatest}
@@ -854,7 +858,18 @@ function WelcomeCard({ name, onPrompt }: { name: string; onPrompt: (s: string) =
   );
 }
 
-function UserBubble({ text, profile }: { text: string; profile: any }) {
+function ChatImage({ src, alt }: { src: string; alt: string }) {
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className="mt-3 max-h-72 w-full max-w-xl rounded-xl border object-contain"
+      style={{ borderColor: "var(--bs-border)", background: "var(--bs-card-2)" }}
+    />
+  );
+}
+
+function UserBubble({ text, imageUrl, profile }: { text: string; imageUrl?: string | null; profile: any }) {
   return (
     <div className="bs-msg-in flex justify-end gap-2.5">
       <div
@@ -862,6 +877,7 @@ function UserBubble({ text, profile }: { text: string; profile: any }) {
         style={{ background: "var(--bs-primary)", color: "var(--bs-primary-fg)" }}
       >
         {text}
+        {imageUrl && <ChatImage src={imageUrl} alt="Uploaded reference" />}
       </div>
       <div className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-xl text-sm font-semibold text-white" style={{ background: "var(--bs-grad)" }}>
         {(profile?.display_name || profile?.username || "U").slice(0, 1).toUpperCase()}
@@ -872,11 +888,13 @@ function UserBubble({ text, profile }: { text: string; profile: any }) {
 
 function AssistantCard({
   text,
+  imageUrl,
   pluginOnline,
   pendingCount = 0,
   isLatest = false,
 }: {
   text: string;
+  imageUrl?: string | null;
   pluginOnline?: boolean;
   pendingCount?: number;
   isLatest?: boolean;
@@ -909,6 +927,7 @@ function AssistantCard({
         <div className="bs-prose text-sm leading-relaxed">
           <ReactMarkdown>{displayText || "_…_"}</ReactMarkdown>
         </div>
+        {imageUrl && <ChatImage src={imageUrl} alt="Generated Roblox UI concept" />}
         {actionCount > 0 && (
           <div className="mt-3 space-y-2">
             <div

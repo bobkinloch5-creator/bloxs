@@ -23,7 +23,7 @@ const EXAMPLES = [
   "Pause menu with Resume, Settings, How To Play, and Quit, all with hover animations",
 ];
 
-type Generated = { id: string; prompt: string; style: string; code: string; createdAt: number };
+type Generated = { id: string; prompt: string; style: string; code: string; conceptImageUrl?: string; createdAt: number };
 
 function UiGenerator() {
   const profFn = useServerFn(getMyProfile);
@@ -40,7 +40,7 @@ function UiGenerator() {
       genFn({ data: vars }),
     onSuccess: (out, vars) => {
       setGenerated((g) => [
-        { id: crypto.randomUUID(), prompt: vars.prompt, style: vars.style, code: out.code, createdAt: Date.now() },
+        { id: crypto.randomUUID(), prompt: vars.prompt, style: vars.style, code: out.code, conceptImageUrl: out.conceptImageUrl, createdAt: Date.now() },
         ...g,
       ]);
       setPrompt("");
@@ -58,7 +58,7 @@ function UiGenerator() {
   return (
     <PageShell
       title="UI Generator"
-      description="Describe a Roblox screen. Get a complete Luau ScreenGui script you can paste straight into StarterPlayerScripts."
+      description="Describe a Roblox screen. BloxSmith creates a premium concept image and a real responsive Roblox ScreenGui script."
       accent="ui"
       activeKey="ui"
       isAdmin={!!profile?.is_admin}
@@ -138,7 +138,7 @@ function ResultCard({ result }: { result: Generated }) {
         <div className="min-w-0">
           <div className="truncate text-sm font-bold text-slate-100">{result.prompt}</div>
           <div className="mt-0.5 text-[11px] text-muted-foreground">
-            {result.style} · {new Date(result.createdAt).toLocaleTimeString()}
+            {result.style} · saved concept · {new Date(result.createdAt).toLocaleTimeString()}
           </div>
         </div>
         <button
@@ -151,6 +151,13 @@ function ResultCard({ result }: { result: Generated }) {
           {copied ? "Copied" : "Copy Luau"}
         </button>
       </div>
+      {result.conceptImageUrl && (
+        <img
+          src={result.conceptImageUrl}
+          alt="Generated Roblox UI concept"
+          className="mt-3 max-h-[360px] w-full rounded-xl border border-white/10 object-contain bg-black/40"
+        />
+      )}
       <pre className="mt-3 max-h-[400px] overflow-auto rounded-xl border border-white/10 bg-black/60 p-3 text-[11px] leading-relaxed text-slate-200">
         <code>{result.code}</code>
       </pre>

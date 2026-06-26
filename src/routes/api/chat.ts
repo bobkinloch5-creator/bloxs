@@ -8,6 +8,7 @@ import { DEFAULT_MODEL_ID, findModel, isSelectable } from "@/lib/models";
 import { searchRobloxToolbox, type ToolboxCategory } from "@/lib/roblox-toolbox.server";
 import { chargeCredits, creditCostForTier, BUILD_ACTIONS_BONUS } from "@/lib/credits.server";
 import { describeImageWithNvidiaPaliGemma } from "@/lib/nvidia-vision.server";
+import { generateUiConceptImage } from "@/lib/ui-concept-image.server";
 
 function jsonError(message: string, status: number, code?: string) {
   return new Response(JSON.stringify({ error: message, code }), {
@@ -87,6 +88,12 @@ export const Route = createFileRoute("/api/chat")({
 
           const lastUser = [...messages].reverse().find((m) => m.role === "user");
           const userText = lastUser?.parts.map((p) => (p.type === "text" ? p.text : "")).join("") ?? "";
+          const imageParts = messages
+            .flatMap((m) => m.parts ?? [])
+            .filter((p): p is { type: "file"; mediaType?: string; url?: string } =>
+              p.type === "file" && typeof (p as { mediaType?: string }).mediaType === "string" && String((p as { mediaType?: string }).mediaType).startsWith("image/"),
+            );
+          const userImageUrl = imageParts.at(-1)?.url?.slice(0, 2_000_000) ?? null;
           if (userText) {
             await supabase.from("chat_messages").insert({
               project_id: projectId,
@@ -94,6 +101,7 @@ export const Route = createFileRoute("/api/chat")({
               role: "user",
               content: userText,
               status: "done",
+              image_url: userImageUrl,
             });
           }
 
@@ -192,11 +200,6 @@ export const Route = createFileRoute("/api/chat")({
           }
 
           try {
-            const imageParts = messages
-              .flatMap((m) => m.parts)
-              .filter((p): p is { type: "file"; mediaType?: string; url?: string } =>
-                p.type === "file" && typeof (p as { mediaType?: string }).mediaType === "string" && String((p as { mediaType?: string }).mediaType).startsWith("image/"),
-              );
             if (imageParts.length > 0) {
               const vision = await describeImageWithNvidiaPaliGemma(imageParts);
               if (vision) {
@@ -205,6 +208,20 @@ export const Route = createFileRoute("/api/chat")({
             }
           } catch (e) {
             console.warn("[chat] NVIDIA PaliGemma vision analysis failed", e);
+          }
+
+          let generatedUiConceptUrl: string | null = null;
+          const uiConceptRequested = mode === "build" && /(\bgenerate ui\b|\bimage to roblox ui\b|\bimage-to-roblox ui\b|loading screen|main menu|play button|settings menu|shop ui|inventory ui|gamepass ui|quest ui|\bhud\b|health bar|xp bar|currency display|mobile controls)/i.test(userText);
+          if (uiConceptRequested) {
+            try {
+              generatedUiConceptUrl = await generateUiConceptImage({
+                prompt: userText,
+                style: "Premium Roblox UI",
+              });
+              contextBlock += `\n\n---\nAI IMAGE-TO-ROBLOX UI GENERATOR:\nA premium UI concept image has been generated and saved to this chat. Use it as the visual concept, then rebuild it as REAL Roblox UI: ScreenGui, Frames, Buttons, TextLabels, ImageLabels, UICorner, UIStroke, UIGradient, UIPadding, layouts, constraints, UIScale, LocalScripts, animations, remotes, and scan_project/autofix_project checks. Do not leave it as a flat image.`;
+            } catch (e) {
+              console.warn("[chat] UI concept image generation failed", e);
+            }
           }
 
           const convertedMessages = await convertToModelMessages(messages);
@@ -226,6 +243,7 @@ export const Route = createFileRoute("/api/chat")({
                   status: actions.length > 0 ? "sending" : "done",
                   model: usedModelId,
                   actions,
+                  image_url: generatedUiConceptUrl,
                 }).select("id").single();
 
                 if (actions.length > 0 && mode === "build") {
