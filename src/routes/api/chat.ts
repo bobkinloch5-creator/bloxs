@@ -69,7 +69,9 @@ export const Route = createFileRoute("/api/chat")({
           if (projErr || !project) return jsonError("Project not found or you don't have access to it.", 404, "project_not_found");
 
           // Per-user asset preference (stored in profiles.settings.asset_mode).
-          let assetMode: "auto" | "toolbox_only" | "primitives_only" | "both" = "auto";
+          // Old "auto" / "primitives_only" settings are treated as toolbox-only
+          // so visual builds do not silently become procedural placeholders.
+          let assetMode: "toolbox_only" | "both" = "toolbox_only";
           try {
             const { data: prof } = await supabase
               .from("profiles")
@@ -78,7 +80,7 @@ export const Route = createFileRoute("/api/chat")({
               .maybeSingle();
             const s = (prof?.settings && typeof prof.settings === "object" ? prof.settings : {}) as Record<string, unknown>;
             const m = s.asset_mode;
-            if (m === "toolbox_only" || m === "primitives_only" || m === "both" || m === "auto") assetMode = m;
+            if (m === "both") assetMode = "both";
           } catch { /* ignore */ }
 
 
@@ -263,19 +265,17 @@ export const Route = createFileRoute("/api/chat")({
           // Try the requested model. On upstream error, retry once with fallback.
           const modeHeader = `\n\n[MODE: ${mode}]\n${mode === "chat"
             ? "The user is in CHAT MODE — pure brainstorming and conversation. ABSOLUTE RULES for this turn:\n- You MUST NOT emit a `bloxsmith-actions` block under ANY circumstance.\n- You MUST NOT call the search_toolbox tool (it is not even available this turn).\n- You MUST NOT plan or queue any Studio build, even if the user says 'make', 'build', 'add', 'create', or 'insert'.\n- Just talk: help them think, plan, compare options, sketch systems in words, answer questions, give Roblox advice.\n- If they clearly want something built, tell them to switch to Build Mode (the toggle next to the send button) and then re-send.\nThis rule overrides every other instruction in this prompt about emitting actions or using tools."
-            : "The user wants you to BUILD a COMPLETE WORKING SYSTEM inside Roblox Studio. Emit a bloxsmith-actions block at the end that ships the FULL system end-to-end: every script, every UI, every RemoteEvent, every DataStore, every placement, all wired together and actually functional. Use run_lua liberally for procedural geometry (maps, tycoons, obbies, NPC rigs). Place everything in the correct Roblox service (Workspace / StarterGui / ServerScriptService / StarterPlayerScripts / ReplicatedStorage / StarterPack / Lighting). BEFORE building anything that should be a real model (trees, cars, buildings, NPCs, pets, weapons, props, vehicles, furniture, environment kits), CALL THE search_toolbox TOOL to discover real free Roblox asset ids, then emit insert_asset actions using the ids it returns. Only fall back to primitives / run_lua when search_toolbox returns nothing. NO fake buttons, NO empty folders, NO placeholder scripts, NO TODOs. Stay on-topic but inside the topic build EVERYTHING the system needs. Aim for 10-30 actions for full systems."}\n`;
+            : "The user wants you to BUILD a COMPLETE WORKING SYSTEM inside Roblox Studio. Emit a bloxsmith-actions block at the end that ships the FULL system end-to-end: every script, every UI, every RemoteEvent, every DataStore, every placement, all wired together and actually functional. For visual Roblox content, use safe free Toolbox / Creator Store models: maps, worlds, props, vehicles, NPCs, tools, decorations, buildings, roads, trees, pets, weapons, environment kits, and full game environments must come from search_toolbox + insert_asset. Use run_lua only for clean placement, scaling, organization, terrain adjustments, scripts, UI wiring, and Roblox service setup; do not create random blocky placeholder objects or procedural fake maps. If no safe relevant Toolbox asset is found, ask the user before generating any fallback geometry. NO fake buttons, NO empty folders, NO placeholder scripts, NO TODOs. Stay on-topic but inside the topic build EVERYTHING the system needs. Aim for 10-30 actions for full systems."}\n`;
           const languageHeader = `\n[LANGUAGE: ${languageCode} / ${languageName}]\nRespond ENTIRELY in ${languageName}. Translate every sentence, heading, button name, status message, error message, and explanation into natural, fluent, idiomatic ${languageName}. Keep code identifiers, Roblox API names (Instance class names, services, property names like Workspace, Part, ScreenGui, HumanoidRootPart), and the bloxsmith-actions block contents in English exactly as required by Roblox. Translate UI strings the player will see (TextLabel.Text, button text, GUI titles, error notifications shown to players) into ${languageName}. Markdown formatting stays the same.\n`;
 
           const assetModeRule = mode === "chat" ? "" : (() => {
             switch (assetMode) {
               case "toolbox_only":
-                return `\n[ASSET MODE: TOOLBOX ONLY]\nThe user has chosen Toolbox Assets Only. Hard rules for this turn:\n- For every visual model (trees, buildings, vehicles, NPCs, pets, weapons, props, decor, furniture, environment kits) you MUST call the search_toolbox tool and emit insert_asset actions with the returned ids.\n- DO NOT build trees/houses/cars/etc. from primitives in run_lua. DO NOT emit raw "part" actions to fake a tree or building.\n- Only use run_lua for placement/scaling/rotation of inserted assets, terrain edits, scripts, and UI wiring — never for fake geometry of real-world objects.\n- If search_toolbox returns source "none" for a required category, tell the user plainly that no safe free Toolbox asset was found and ASK whether to fall back to primitives — do not silently invent one.\n- Briefly list which assets you inserted (name + creatorName + id) in your explanation.\n`;
-              case "primitives_only":
-                return `\n[ASSET MODE: PRIMITIVES ONLY]\nThe user has chosen Generated Parts Only. Do NOT call search_toolbox and do NOT emit insert_asset actions this turn. Build everything from primitives via run_lua, "part", "model", and scripts.\n`;
+                return `\n[ASSET MODE: TOOLBOX ONLY]\nThe user has chosen Toolbox Assets Only. Hard rules for this turn:\n- For every visual model (trees, buildings, vehicles, NPCs, pets, weapons, props, decor, furniture, roads, shops, cities, forests, maps, worlds, and environment kits) you MUST call the search_toolbox tool and emit insert_asset actions with safe returned ids.\n- DO NOT build trees, houses, roads, cars, NPCs, weapons, decorations, maps, or random scenery from primitives in run_lua. DO NOT emit raw "part" actions to fake real-world objects.\n- Only use run_lua for placement/scaling/rotation of inserted assets, clean organization, service setup, scripts, UI wiring, and non-visual support logic.\n- If search_toolbox returns source "none" for a required category, tell the user plainly that no safe free Toolbox asset was found and ASK whether to fall back to generated geometry.\n- Briefly list which assets you inserted (name + creatorName + id) in your explanation.\n`;
               case "both":
-                return `\n[ASSET MODE: HYBRID]\nUse Toolbox assets via search_toolbox + insert_asset for real models (trees, vehicles, NPCs, weapons, props), and use primitives/run_lua for terrain, scaffolding, scripts, and UI. Blend the two.\n`;
+                return `\n[ASSET MODE: TOOLBOX + SCRIPTED SYSTEMS]\nUse Toolbox assets via search_toolbox + insert_asset for all visual models and environment content. Use run_lua for placement, scaling, rotation, scripted systems, UI, remotes, storage organization, and light terrain/support edits only. If no safe relevant Toolbox asset exists, ask before generating fallback geometry.\n`;
               default:
-                return `\n[ASSET MODE: AUTO]\nPrefer search_toolbox + insert_asset whenever a real Roblox model would look better than primitives. Fall back to run_lua primitives only when no good asset is found.\n`;
+                return `\n[ASSET MODE: TOOLBOX ONLY]\nUse safe free Roblox Toolbox / Creator Store assets for visual content. Ask before generating any fallback geometry.\n`;
             }
           })();
 
@@ -288,18 +288,10 @@ export const Route = createFileRoute("/api/chat")({
               limit: z.number().int().min(1).max(10).optional().describe("Max results, default 6."),
             }),
             execute: async ({ keyword, category, limit }: { keyword: string; category?: ToolboxCategory; limit?: number }) => {
-              if (assetMode === "primitives_only") {
-                return {
-                  source: "none" as const,
-                  count: 0,
-                  results: [],
-                  note: "User has Asset Mode set to PRIMITIVES ONLY — do not insert Toolbox assets. Build from primitives via run_lua.",
-                };
-              }
               const out = await searchRobloxToolbox(keyword, category ?? "Model", limit ?? 6);
               // Hide low-quality rows from the AI (it can still rely on the top picks).
-              const filtered = out.results.filter((r) => (r.safety ?? 0) >= 0.4 && (r.relevance ?? 0) >= 0.3);
-              const final = filtered.length > 0 ? filtered : out.results;
+              const filtered = out.results.filter((r) => r.free !== false && (r.safety ?? 0) >= 0.8 && (r.relevance ?? 0) >= 0.3 && r.creatorName === "Roblox");
+              const final = filtered;
               return {
                 source: out.source,
                 count: final.length,
@@ -307,10 +299,8 @@ export const Route = createFileRoute("/api/chat")({
                 note: out.source === "fallback"
                   ? "Live search unavailable; these are curated verified-free Roblox-owned assets."
                   : out.source === "none"
-                  ? (assetMode === "toolbox_only"
-                      ? "No safe free assets matched. Tell the user no Toolbox match was found and ASK before falling back to primitives."
-                      : "No safe free assets matched — build from primitives via run_lua instead.")
-                  : "Live results from Roblox public toolbox. Prefer rows with creatorName 'Roblox' and the highest relevance × safety.",
+                  ? "No safe free assets matched. Tell the user no Toolbox match was found and ASK before falling back to generated geometry."
+                  : "Live results from Roblox public toolbox. Use only safe, free, relevant rows from trusted creators and list inserted assets for the user.",
               };
             },
           });

@@ -24,7 +24,7 @@ function SettingsPage() {
     roblox_username: "",
     language: "en" as LangCode,
     is_private: false,
-    asset_mode: "auto" as "auto" | "toolbox_only" | "primitives_only" | "both",
+    asset_mode: "toolbox_only" as "toolbox_only" | "both",
   });
   useEffect(() => {
     if (profile) {
@@ -36,7 +36,7 @@ function SettingsPage() {
         roblox_username: profile.roblox_username ?? "",
         language: ((profile as any).language ?? "en") as LangCode,
         is_private: !!profile.is_private,
-        asset_mode: (mode === "toolbox_only" || mode === "primitives_only" || mode === "both" ? mode : "auto"),
+        asset_mode: (mode === "both" ? mode : "toolbox_only"),
       });
     }
   }, [profile]);
@@ -89,13 +89,11 @@ function SettingsPage() {
             onChange={(e) => setForm({ ...form, asset_mode: e.target.value as typeof form.asset_mode })}
             className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm"
           >
-            <option value="auto">Auto — prefer Toolbox, fall back to primitives</option>
-            <option value="toolbox_only">Toolbox assets only — no procedural/blocky fakes</option>
-            <option value="primitives_only">Generated parts only — never insert Toolbox assets</option>
-            <option value="both">Hybrid — use Toolbox for models, primitives for everything else</option>
+            <option value="toolbox_only">Toolbox assets only — ask before fallback</option>
+            <option value="both">Toolbox assets + scripted systems</option>
           </select>
           <div className="mt-1 text-xs text-muted-foreground">
-            Controls how BloxSmith builds visual objects (trees, vehicles, NPCs, weapons, props). Toolbox-only forces real Roblox Creator Store assets and disables fake blocky versions.
+            BloxSmith uses safe, free Roblox Creator Store assets for visual objects and asks before using any generated fallback.
           </div>
         </Field>
         <label className="flex items-center gap-2 text-sm">

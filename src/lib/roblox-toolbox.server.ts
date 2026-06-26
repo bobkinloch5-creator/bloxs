@@ -2,7 +2,7 @@
 // matching a keyword. Returns a small list of { id, name, creatorName, creatorType,
 // thumbnail, relevance, safety }.
 // Best-effort — Roblox occasionally changes these endpoints; we try a few and
-// fall back to a curated allowlist if the network call fails.
+// only fall back to a curated allowlist of verified free Roblox assets.
 
 export interface ToolboxResult {
   id: number;
@@ -80,6 +80,14 @@ const JUNK_PATTERNS = [
   /\bnsfw\b/i,
   /\bscam\b/i,
   /\bvirus\b/i,
+  /\binfected\b/i,
+  /\bbackdoor\b/i,
+  /\brequire\s*\(/i,
+  /\badmin\b/i,
+  /\bhack(ed|s|er)?\b/i,
+  /\bexploit\b/i,
+  /\bscript\s*builder\b/i,
+  /\bhd\s*admin\b/i,
   /[💰🤑💎]/u,
   /\bclick\s*here\b/i,
   /\bgive\s*?away\b/i,
@@ -115,6 +123,10 @@ function safetyScore(creatorName: string, name: string): number {
   return Math.max(0, Math.min(1, s));
 }
 
+function isTrustedCreator(creatorName: string): boolean {
+  return creatorName.trim().toLowerCase() === "roblox";
+}
+
 function thumbnailFor(id: number): string {
   // Public Roblox thumbnail endpoint — returns a redirect to a CDN image.
   return `https://www.roblox.com/asset-thumbnail/image?assetId=${id}&width=150&height=150&format=png`;
@@ -144,7 +156,7 @@ export async function searchRobloxToolbox(
   const rank = (rows: ToolboxResult[]) =>
     rows
       .map(enrich)
-      .filter((r) => !looksLikeJunk(r.name) && (r.relevance ?? 0) > 0.1)
+      .filter((r) => r.free !== false && !looksLikeJunk(r.name) && isTrustedCreator(r.creatorName) && (r.relevance ?? 0) > 0.1 && (r.safety ?? 0) >= 0.8)
       .sort((a, b) => (b.relevance! * 0.6 + b.safety! * 0.4) - (a.relevance! * 0.6 + a.safety! * 0.4))
       .slice(0, limit);
 

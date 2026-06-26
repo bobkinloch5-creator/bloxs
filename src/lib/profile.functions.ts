@@ -38,7 +38,7 @@ export const getMyProfile = createServerFn({ method: "GET" })
     return profile;
   });
 
-export const ASSET_MODES = ["auto", "toolbox_only", "primitives_only", "both"] as const;
+export const ASSET_MODES = ["toolbox_only", "both"] as const;
 export type AssetMode = (typeof ASSET_MODES)[number];
 
 export const updateMyProfile = createServerFn({ method: "POST" })
