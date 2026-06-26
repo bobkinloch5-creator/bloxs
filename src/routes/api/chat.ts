@@ -206,6 +206,12 @@ export const Route = createFileRoute("/api/chat")({
                   );
                 }
 
+                // Extra credit charge when the turn actually produces a build.
+                if (actions.length > 0 && mode === "build") {
+                  const bonus = BUILD_ACTIONS_BONUS + Math.min(4, Math.floor(actions.length / 8));
+                  await chargeCredits(supabase, userId, bonus).catch(() => null);
+                }
+
                 const { data: currentProject } = await supabase
                   .from("projects")
                   .select("build_count")
