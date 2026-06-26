@@ -23,6 +23,7 @@ import { OnboardingTour } from "@/components/OnboardingTour";
 import { MobileNavTrigger } from "@/components/MobileNav";
 
 import { VoiceControls, useBloxSmithSpeaker } from "@/components/VoiceControls";
+import { VoiceBuildButton } from "@/components/VoiceBuildButton";
 import { improvePrompt } from "@/lib/improve.functions";
 
 export const Route = createFileRoute("/_authenticated/project/$projectId")({
@@ -933,6 +934,10 @@ function Composer({
                 else setInput(t);
               }}
               busy={busy}
+            />
+            <VoiceBuildButton
+              disabled={busy}
+              onUtterance={(t: string) => { if (t.trim()) onVoiceTranscript?.(t.trim()); }}
             />
 
             {COMPOSER_ACTIONS.map((a) => (
