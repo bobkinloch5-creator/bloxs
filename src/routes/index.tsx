@@ -489,14 +489,12 @@ function Footer() {
             <p className="mt-3 max-w-xs text-xs text-slate-300 leading-relaxed">
               The free AI Roblox game builder. Built for Roblox creators.
             </p>
-            <a
-              href="https://paypal.me/kinloch930"
-              target="_blank"
-              rel="noreferrer"
+            <Link
+              to="/donate"
               className="mt-4 inline-flex items-center gap-2 rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-2 text-xs font-semibold text-amber-300 hover:bg-amber-400/20 transition"
             >
-              <Heart className="h-3.5 w-3.5" /> Donate — anything helps keep this going
-            </a>
+              <Heart className="h-3.5 w-3.5" /> Donate — get the Donator role
+            </Link>
           </div>
           <FootCol title="Product" links={[["Features", "/#features"], ["How It Works", "/#how"], ["Plugin", "/#plugin"], ["3D Models", "/#templates"]]} />
           <FootCol title="Resources" links={[["Docs", "/docs"], ["Support", "/support"], ["Contact", "/contact"]]} />
@@ -513,17 +511,15 @@ function Footer() {
 
 function FloatingDonate() {
   return (
-    <a
-      href="https://paypal.me/kinloch930"
-      target="_blank"
-      rel="noreferrer"
+    <Link
+      to="/donate"
       className="fixed bottom-5 right-5 z-50 inline-flex max-w-[220px] items-center gap-2 rounded-full border border-amber-400/40 bg-slate-950/90 px-4 py-3 text-xs font-semibold text-amber-300 shadow-2xl backdrop-blur-xl transition hover:scale-105 hover:bg-slate-900/95"
     >
       <Heart className="h-4 w-4 fill-amber-300 text-amber-300" />
       <span className="leading-tight">
-        Donate<br /><span className="font-normal text-amber-300/80">anything helps keep this going</span>
+        Donate<br /><span className="font-normal text-amber-300/80">get the Donator role</span>
       </span>
-    </a>
+    </Link>
   );
 }
 

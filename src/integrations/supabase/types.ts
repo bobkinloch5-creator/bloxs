@@ -150,6 +150,45 @@ export type Database = {
         }
         Relationships: []
       }
+      donation_claims: {
+        Row: {
+          admin_note: string | null
+          amount_note: string | null
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          id: string
+          paypal_reference: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          admin_note?: string | null
+          amount_note?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          paypal_reference: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          admin_note?: string | null
+          amount_note?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          paypal_reference?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       plugin_actions: {
         Row: {
           completed_at: string | null
@@ -509,7 +548,7 @@ export type Database = {
       regenerate_my_plugin_token: { Args: never; Returns: string }
     }
     Enums: {
-      app_role: "admin" | "owner" | "user"
+      app_role: "admin" | "owner" | "user" | "donator"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -637,7 +676,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "owner", "user"],
+      app_role: ["admin", "owner", "user", "donator"],
     },
   },
 } as const
