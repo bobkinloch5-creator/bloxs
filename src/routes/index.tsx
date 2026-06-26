@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   Sparkles, Zap, ChevronRight, Code2, Map, Cpu, Layers, Box, ArrowRight,
   Puzzle, Save, Rocket, MessageSquare, Upload, Settings2, Check,
-  Plug, FileCode, Wand2, Shield,
+  Plug, FileCode, Wand2, Shield, Heart,
 } from "lucide-react";
 import bloxLogo from "@/assets/bloxsmith-logo.png.asset.json";
 import heroBg from "@/assets/hero-roblox-background.jpg";
@@ -37,6 +37,7 @@ function Landing() {
         <FinalCTA />
       </main>
       <Footer />
+      <FloatingDonate />
       <LandingCss />
     </div>
   );
@@ -285,16 +286,38 @@ function HowItWorks() {
   );
 }
 
-/* ---------------- Previews (chat + templates + plugin) ---------------- */
+/* ---------------- Previews (chat + templates + plugin + models) ---------------- */
 function Previews() {
   return (
     <section id="templates" className="mx-auto mt-16 max-w-7xl px-6">
-      <div className="grid gap-5 lg:grid-cols-3">
+      <div className="grid gap-5 lg:grid-cols-4">
         <ChatPreview />
         <TemplatesCard />
         <PluginPreview />
+        <ModelsCard />
       </div>
     </section>
+  );
+}
+
+function ModelsCard() {
+  return (
+    <div className="bs-panel relative overflow-hidden rounded-3xl border border-white/10 p-5">
+      <span className="absolute right-3 top-3 rounded-md bg-amber-400/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-300">Coming Soon</span>
+      <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">3D Model Generation</div>
+      <div className="mt-4 flex items-center justify-center">
+        <div className="grid h-20 w-20 place-items-center rounded-2xl bs-icon-grad">
+          <Box className="h-10 w-10 text-blue-300" />
+        </div>
+      </div>
+      <p className="mt-4 text-center text-sm font-bold text-white">AI-Generated 3D Assets</p>
+      <p className="mt-1.5 text-center text-xs leading-relaxed text-slate-400">
+        Describe any model and BloxSmith will generate it ready for your Roblox game.
+      </p>
+      <div className="mt-4 rounded-xl border border-white/10 bg-slate-950/40 px-3 py-2 text-center text-[11px] text-slate-300">
+        Join the waitlist — launching next.
+      </div>
+    </div>
   );
 }
 
@@ -466,8 +489,16 @@ function Footer() {
             <p className="mt-3 max-w-xs text-xs text-slate-300 leading-relaxed">
               The free AI Roblox game builder. Built for Roblox creators.
             </p>
+            <a
+              href="https://paypal.me/kinloch930"
+              target="_blank"
+              rel="noreferrer"
+              className="mt-4 inline-flex items-center gap-2 rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-2 text-xs font-semibold text-amber-300 hover:bg-amber-400/20 transition"
+            >
+              <Heart className="h-3.5 w-3.5" /> Donate — anything helps keep this going
+            </a>
           </div>
-          <FootCol title="Product" links={[["Features", "/#features"], ["How It Works", "/#how"], ["Plugin", "/#plugin"]]} />
+          <FootCol title="Product" links={[["Features", "/#features"], ["How It Works", "/#how"], ["Plugin", "/#plugin"], ["3D Models", "/#templates"]]} />
           <FootCol title="Resources" links={[["Docs", "/docs"], ["Support", "/support"], ["Contact", "/contact"]]} />
           <FootCol title="Legal" links={[["Terms of Service", "/terms"], ["Privacy Policy", "/privacy"], ["Discord", "https://discord.gg/lovable-dev"]]} />
         </div>
@@ -477,6 +508,22 @@ function Footer() {
         </div>
       </div>
     </footer>
+  );
+}
+
+function FloatingDonate() {
+  return (
+    <a
+      href="https://paypal.me/kinloch930"
+      target="_blank"
+      rel="noreferrer"
+      className="fixed bottom-5 right-5 z-50 inline-flex max-w-[220px] items-center gap-2 rounded-full border border-amber-400/40 bg-slate-950/90 px-4 py-3 text-xs font-semibold text-amber-300 shadow-2xl backdrop-blur-xl transition hover:scale-105 hover:bg-slate-900/95"
+    >
+      <Heart className="h-4 w-4 fill-amber-300 text-amber-300" />
+      <span className="leading-tight">
+        Donate<br /><span className="font-normal text-amber-300/80">anything helps keep this going</span>
+      </span>
+    </a>
   );
 }
 
