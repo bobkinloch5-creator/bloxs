@@ -191,6 +191,7 @@ export type Database = {
       }
       model_generations: {
         Row: {
+          animation_name: string | null
           completed_at: string | null
           created_at: string
           error: string | null
@@ -198,6 +199,7 @@ export type Database = {
           image_url: string | null
           mode: string
           model_url: string | null
+          parent_id: string | null
           progress: number
           project_id: string
           prompt: string | null
@@ -207,6 +209,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          animation_name?: string | null
           completed_at?: string | null
           created_at?: string
           error?: string | null
@@ -214,6 +217,7 @@ export type Database = {
           image_url?: string | null
           mode: string
           model_url?: string | null
+          parent_id?: string | null
           progress?: number
           project_id: string
           prompt?: string | null
@@ -223,6 +227,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          animation_name?: string | null
           completed_at?: string | null
           created_at?: string
           error?: string | null
@@ -230,6 +235,7 @@ export type Database = {
           image_url?: string | null
           mode?: string
           model_url?: string | null
+          parent_id?: string | null
           progress?: number
           project_id?: string
           prompt?: string | null
@@ -239,6 +245,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "model_generations_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "model_generations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "model_generations_project_id_fkey"
             columns: ["project_id"]
