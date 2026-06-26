@@ -33,6 +33,7 @@ import { Route as AuthenticatedChatRouteImport } from './routes/_authenticated/c
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as ApiPublicMcpRouteImport } from './routes/api/public/mcp'
 import { Route as AuthenticatedProjectProjectIdRouteImport } from './routes/_authenticated/project.$projectId'
+import { Route as AuthenticatedModelsProjectIdRouteImport } from './routes/_authenticated/models.$projectId'
 import { Route as ApiPublicPluginScanRouteImport } from './routes/api/public/plugin/scan'
 import { Route as ApiPublicPluginPollRouteImport } from './routes/api/public/plugin/poll'
 import { Route as ApiPublicPluginErrorRouteImport } from './routes/api/public/plugin/error'
@@ -163,6 +164,12 @@ const AuthenticatedProjectProjectIdRoute =
     path: '/project/$projectId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedModelsProjectIdRoute =
+  AuthenticatedModelsProjectIdRouteImport.update({
+    id: '/models/$projectId',
+    path: '/models/$projectId',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const ApiPublicPluginScanRoute = ApiPublicPluginScanRouteImport.update({
   id: '/api/public/plugin/scan',
   path: '/api/public/plugin/scan',
@@ -222,6 +229,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AuthenticatedSettingsRoute
   '/ui-generator': typeof AuthenticatedUiGeneratorRoute
   '/api/chat': typeof ApiChatRoute
+  '/models/$projectId': typeof AuthenticatedModelsProjectIdRoute
   '/project/$projectId': typeof AuthenticatedProjectProjectIdRoute
   '/api/public/mcp': typeof ApiPublicMcpRoute
   '/api/public/plugin/clear': typeof ApiPublicPluginClearRoute
@@ -254,6 +262,7 @@ export interface FileRoutesByTo {
   '/settings': typeof AuthenticatedSettingsRoute
   '/ui-generator': typeof AuthenticatedUiGeneratorRoute
   '/api/chat': typeof ApiChatRoute
+  '/models/$projectId': typeof AuthenticatedModelsProjectIdRoute
   '/project/$projectId': typeof AuthenticatedProjectProjectIdRoute
   '/api/public/mcp': typeof ApiPublicMcpRoute
   '/api/public/plugin/clear': typeof ApiPublicPluginClearRoute
@@ -288,6 +297,7 @@ export interface FileRoutesById {
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/ui-generator': typeof AuthenticatedUiGeneratorRoute
   '/api/chat': typeof ApiChatRoute
+  '/_authenticated/models/$projectId': typeof AuthenticatedModelsProjectIdRoute
   '/_authenticated/project/$projectId': typeof AuthenticatedProjectProjectIdRoute
   '/api/public/mcp': typeof ApiPublicMcpRoute
   '/api/public/plugin/clear': typeof ApiPublicPluginClearRoute
@@ -322,6 +332,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/ui-generator'
     | '/api/chat'
+    | '/models/$projectId'
     | '/project/$projectId'
     | '/api/public/mcp'
     | '/api/public/plugin/clear'
@@ -354,6 +365,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/ui-generator'
     | '/api/chat'
+    | '/models/$projectId'
     | '/project/$projectId'
     | '/api/public/mcp'
     | '/api/public/plugin/clear'
@@ -387,6 +399,7 @@ export interface FileRouteTypes {
     | '/_authenticated/settings'
     | '/_authenticated/ui-generator'
     | '/api/chat'
+    | '/_authenticated/models/$projectId'
     | '/_authenticated/project/$projectId'
     | '/api/public/mcp'
     | '/api/public/plugin/clear'
@@ -590,6 +603,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProjectProjectIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/models/$projectId': {
+      id: '/_authenticated/models/$projectId'
+      path: '/models/$projectId'
+      fullPath: '/models/$projectId'
+      preLoaderRoute: typeof AuthenticatedModelsProjectIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/api/public/plugin/scan': {
       id: '/api/public/plugin/scan'
       path: '/api/public/plugin/scan'
@@ -654,6 +674,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedPluginRoute: typeof AuthenticatedPluginRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedUiGeneratorRoute: typeof AuthenticatedUiGeneratorRoute
+  AuthenticatedModelsProjectIdRoute: typeof AuthenticatedModelsProjectIdRoute
   AuthenticatedProjectProjectIdRoute: typeof AuthenticatedProjectProjectIdRoute
 }
 
@@ -669,6 +690,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedPluginRoute: AuthenticatedPluginRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedUiGeneratorRoute: AuthenticatedUiGeneratorRoute,
+  AuthenticatedModelsProjectIdRoute: AuthenticatedModelsProjectIdRoute,
   AuthenticatedProjectProjectIdRoute: AuthenticatedProjectProjectIdRoute,
 }
 
