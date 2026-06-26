@@ -202,7 +202,7 @@ export type Database = {
           model_urls: Json | null
           parent_id: string | null
           progress: number
-          project_id: string
+          project_id: string | null
           prompt: string | null
           status: string
           task_id: string | null
@@ -222,7 +222,7 @@ export type Database = {
           model_urls?: Json | null
           parent_id?: string | null
           progress?: number
-          project_id: string
+          project_id?: string | null
           prompt?: string | null
           status?: string
           task_id?: string | null
@@ -242,7 +242,7 @@ export type Database = {
           model_urls?: Json | null
           parent_id?: string | null
           progress?: number
-          project_id?: string
+          project_id?: string | null
           prompt?: string | null
           status?: string
           task_id?: string | null
