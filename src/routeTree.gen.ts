@@ -18,10 +18,16 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
+import { Route as AuthenticatedUiGeneratorRouteImport } from './routes/_authenticated/ui-generator'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedPluginRouteImport } from './routes/_authenticated/plugin'
+import { Route as AuthenticatedMcpRouteImport } from './routes/_authenticated/mcp'
 import { Route as AuthenticatedLinkRouteImport } from './routes/_authenticated/link'
+import { Route as AuthenticatedIdeasRouteImport } from './routes/_authenticated/ideas'
+import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedCollaboratorsRouteImport } from './routes/_authenticated/collaborators'
+import { Route as AuthenticatedChatRouteImport } from './routes/_authenticated/chat'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedProjectProjectIdRouteImport } from './routes/_authenticated/project.$projectId'
 import { Route as ApiPublicPluginPollRouteImport } from './routes/api/public/plugin/poll'
@@ -74,6 +80,12 @@ const ApiChatRoute = ApiChatRouteImport.update({
   path: '/api/chat',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedUiGeneratorRoute =
+  AuthenticatedUiGeneratorRouteImport.update({
+    id: '/ui-generator',
+    path: '/ui-generator',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -84,14 +96,40 @@ const AuthenticatedPluginRoute = AuthenticatedPluginRouteImport.update({
   path: '/plugin',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedMcpRoute = AuthenticatedMcpRouteImport.update({
+  id: '/mcp',
+  path: '/mcp',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedLinkRoute = AuthenticatedLinkRouteImport.update({
   id: '/link',
   path: '/link',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedIdeasRoute = AuthenticatedIdeasRouteImport.update({
+  id: '/ideas',
+  path: '/ideas',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedHistoryRoute = AuthenticatedHistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedCollaboratorsRoute =
+  AuthenticatedCollaboratorsRouteImport.update({
+    id: '/collaborators',
+    path: '/collaborators',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedChatRoute = AuthenticatedChatRouteImport.update({
+  id: '/chat',
+  path: '/chat',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
@@ -141,10 +179,16 @@ export interface FileRoutesByFullPath {
   '/support': typeof SupportRoute
   '/terms': typeof TermsRoute
   '/admin': typeof AuthenticatedAdminRoute
+  '/chat': typeof AuthenticatedChatRoute
+  '/collaborators': typeof AuthenticatedCollaboratorsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/history': typeof AuthenticatedHistoryRoute
+  '/ideas': typeof AuthenticatedIdeasRoute
   '/link': typeof AuthenticatedLinkRoute
+  '/mcp': typeof AuthenticatedMcpRoute
   '/plugin': typeof AuthenticatedPluginRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/ui-generator': typeof AuthenticatedUiGeneratorRoute
   '/api/chat': typeof ApiChatRoute
   '/project/$projectId': typeof AuthenticatedProjectProjectIdRoute
   '/api/public/plugin/clear': typeof ApiPublicPluginClearRoute
@@ -162,10 +206,16 @@ export interface FileRoutesByTo {
   '/support': typeof SupportRoute
   '/terms': typeof TermsRoute
   '/admin': typeof AuthenticatedAdminRoute
+  '/chat': typeof AuthenticatedChatRoute
+  '/collaborators': typeof AuthenticatedCollaboratorsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/history': typeof AuthenticatedHistoryRoute
+  '/ideas': typeof AuthenticatedIdeasRoute
   '/link': typeof AuthenticatedLinkRoute
+  '/mcp': typeof AuthenticatedMcpRoute
   '/plugin': typeof AuthenticatedPluginRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/ui-generator': typeof AuthenticatedUiGeneratorRoute
   '/api/chat': typeof ApiChatRoute
   '/project/$projectId': typeof AuthenticatedProjectProjectIdRoute
   '/api/public/plugin/clear': typeof ApiPublicPluginClearRoute
@@ -185,10 +235,16 @@ export interface FileRoutesById {
   '/support': typeof SupportRoute
   '/terms': typeof TermsRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
+  '/_authenticated/chat': typeof AuthenticatedChatRoute
+  '/_authenticated/collaborators': typeof AuthenticatedCollaboratorsRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/history': typeof AuthenticatedHistoryRoute
+  '/_authenticated/ideas': typeof AuthenticatedIdeasRoute
   '/_authenticated/link': typeof AuthenticatedLinkRoute
+  '/_authenticated/mcp': typeof AuthenticatedMcpRoute
   '/_authenticated/plugin': typeof AuthenticatedPluginRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+  '/_authenticated/ui-generator': typeof AuthenticatedUiGeneratorRoute
   '/api/chat': typeof ApiChatRoute
   '/_authenticated/project/$projectId': typeof AuthenticatedProjectProjectIdRoute
   '/api/public/plugin/clear': typeof ApiPublicPluginClearRoute
@@ -208,10 +264,16 @@ export interface FileRouteTypes {
     | '/support'
     | '/terms'
     | '/admin'
+    | '/chat'
+    | '/collaborators'
     | '/dashboard'
+    | '/history'
+    | '/ideas'
     | '/link'
+    | '/mcp'
     | '/plugin'
     | '/settings'
+    | '/ui-generator'
     | '/api/chat'
     | '/project/$projectId'
     | '/api/public/plugin/clear'
@@ -229,10 +291,16 @@ export interface FileRouteTypes {
     | '/support'
     | '/terms'
     | '/admin'
+    | '/chat'
+    | '/collaborators'
     | '/dashboard'
+    | '/history'
+    | '/ideas'
     | '/link'
+    | '/mcp'
     | '/plugin'
     | '/settings'
+    | '/ui-generator'
     | '/api/chat'
     | '/project/$projectId'
     | '/api/public/plugin/clear'
@@ -251,10 +319,16 @@ export interface FileRouteTypes {
     | '/support'
     | '/terms'
     | '/_authenticated/admin'
+    | '/_authenticated/chat'
+    | '/_authenticated/collaborators'
     | '/_authenticated/dashboard'
+    | '/_authenticated/history'
+    | '/_authenticated/ideas'
     | '/_authenticated/link'
+    | '/_authenticated/mcp'
     | '/_authenticated/plugin'
     | '/_authenticated/settings'
+    | '/_authenticated/ui-generator'
     | '/api/chat'
     | '/_authenticated/project/$projectId'
     | '/api/public/plugin/clear'
@@ -346,6 +420,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiChatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/ui-generator': {
+      id: '/_authenticated/ui-generator'
+      path: '/ui-generator'
+      fullPath: '/ui-generator'
+      preLoaderRoute: typeof AuthenticatedUiGeneratorRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/settings': {
       id: '/_authenticated/settings'
       path: '/settings'
@@ -360,6 +441,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPluginRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/mcp': {
+      id: '/_authenticated/mcp'
+      path: '/mcp'
+      fullPath: '/mcp'
+      preLoaderRoute: typeof AuthenticatedMcpRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/link': {
       id: '/_authenticated/link'
       path: '/link'
@@ -367,11 +455,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedLinkRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/ideas': {
+      id: '/_authenticated/ideas'
+      path: '/ideas'
+      fullPath: '/ideas'
+      preLoaderRoute: typeof AuthenticatedIdeasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/history': {
+      id: '/_authenticated/history'
+      path: '/history'
+      fullPath: '/history'
+      preLoaderRoute: typeof AuthenticatedHistoryRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/dashboard': {
       id: '/_authenticated/dashboard'
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/collaborators': {
+      id: '/_authenticated/collaborators'
+      path: '/collaborators'
+      fullPath: '/collaborators'
+      preLoaderRoute: typeof AuthenticatedCollaboratorsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/chat': {
+      id: '/_authenticated/chat'
+      path: '/chat'
+      fullPath: '/chat'
+      preLoaderRoute: typeof AuthenticatedChatRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/admin': {
@@ -428,19 +544,31 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
+  AuthenticatedChatRoute: typeof AuthenticatedChatRoute
+  AuthenticatedCollaboratorsRoute: typeof AuthenticatedCollaboratorsRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedHistoryRoute: typeof AuthenticatedHistoryRoute
+  AuthenticatedIdeasRoute: typeof AuthenticatedIdeasRoute
   AuthenticatedLinkRoute: typeof AuthenticatedLinkRoute
+  AuthenticatedMcpRoute: typeof AuthenticatedMcpRoute
   AuthenticatedPluginRoute: typeof AuthenticatedPluginRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedUiGeneratorRoute: typeof AuthenticatedUiGeneratorRoute
   AuthenticatedProjectProjectIdRoute: typeof AuthenticatedProjectProjectIdRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
+  AuthenticatedChatRoute: AuthenticatedChatRoute,
+  AuthenticatedCollaboratorsRoute: AuthenticatedCollaboratorsRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedHistoryRoute: AuthenticatedHistoryRoute,
+  AuthenticatedIdeasRoute: AuthenticatedIdeasRoute,
   AuthenticatedLinkRoute: AuthenticatedLinkRoute,
+  AuthenticatedMcpRoute: AuthenticatedMcpRoute,
   AuthenticatedPluginRoute: AuthenticatedPluginRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedUiGeneratorRoute: AuthenticatedUiGeneratorRoute,
   AuthenticatedProjectProjectIdRoute: AuthenticatedProjectProjectIdRoute,
 }
 
