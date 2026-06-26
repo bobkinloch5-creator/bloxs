@@ -642,25 +642,29 @@ local function pollOnce(force)
         log(("Heartbeat — %d pending"):format(#actions), "debug")
         lastHeartbeat = os.clock()
     end
-    if #actions == 0 then return end
+    if #actions == 0 then return 0 end
     log(("Received %d action(s)."):format(#actions), "success")
     ChangeHistoryService:SetWaypoint("BloxSmith batch start")
     local okN, failN = 0, 0
+    local results = {}
     for _, a in ipairs(actions) do
         local ok, errOrInst = pcall(executeAction, a)
         if ok then
             okN += 1; lastAction = describeAction(a)
             log("✓ " .. lastAction, "action")
-            reportComplete(a.id, "done", nil, nil)
+            results[#results+1] = { action_id = a.id, status = "done" }
         else
             failN += 1
             log("✗ " .. a.kind .. " '" .. tostring(a.name) .. "': " .. tostring(errOrInst), "error")
-            reportComplete(a.id, "failed", tostring(errOrInst), nil)
+            results[#results+1] = { action_id = a.id, status = "failed", error = tostring(errOrInst) }
         end
-        refreshInfo()
     end
+    queueLen = 0; refreshInfo()
     ChangeHistoryService:SetWaypoint("BloxSmith batch done")
+    -- Report all results in a single HTTP call, off the hot path.
+    task.spawn(reportBatch, results)
     log(("Batch complete — %d ok, %d failed."):format(okN, failN), failN > 0 and "warn" or "success")
+    return #actions
 end
 
 local function startPairing()
