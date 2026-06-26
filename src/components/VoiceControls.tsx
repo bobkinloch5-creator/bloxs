@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Mic, MicOff, Volume2, VolumeX, Square } from "lucide-react";
-import { useServerFn } from "@tanstack/react-start";
-import { synthesizeVoice } from "@/lib/voice.functions";
+import { createParser } from "eventsource-parser";
+import { supabase } from "@/integrations/supabase/client";
+
 
 type Status = "idle" | "listening" | "speaking" | "loading";
 
