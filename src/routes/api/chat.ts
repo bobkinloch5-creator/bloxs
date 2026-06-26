@@ -21,12 +21,13 @@ export const Route = createFileRoute("/api/chat")({
           const token = auth.replace(/^Bearer\s+/i, "");
           if (!token) return jsonError("Please sign in again before sending a message.", 401, "no_auth");
 
-          let body: { messages?: UIMessage[]; projectId?: string; modelId?: string; autoExecute?: boolean };
+          let body: { messages?: UIMessage[]; projectId?: string; modelId?: string; autoExecute?: boolean; mode?: "chat" | "build" };
           try {
             body = (await request.json()) as typeof body;
           } catch {
             return jsonError("Invalid JSON in request body.", 400, "bad_json");
           }
+          const mode: "chat" | "build" = body.mode === "chat" ? "chat" : "build";
           const { messages, projectId } = body;
           if (!Array.isArray(messages) || messages.length === 0) {
             return jsonError("No messages were sent — type something and try again.", 400, "missing_messages");
