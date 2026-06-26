@@ -1,3 +1,4 @@
+import type React from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   Sparkles, Zap, ChevronRight, Code2, Map, Cpu, Layers, Box, ArrowRight,
