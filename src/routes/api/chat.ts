@@ -6,6 +6,7 @@ import { getProviderModel, getFallbackModel } from "@/lib/ai-gateway.server";
 import { BLOXSMITH_SYSTEM_PROMPT, parseActions } from "@/lib/bloxsmith-prompt";
 import { DEFAULT_MODEL_ID, findModel, isSelectable } from "@/lib/models";
 import { searchRobloxToolbox, type ToolboxCategory } from "@/lib/roblox-toolbox.server";
+import { chargeCredits, creditCostForTier, BUILD_ACTIONS_BONUS } from "@/lib/credits.server";
 
 function jsonError(message: string, status: number, code?: string) {
   return new Response(JSON.stringify({ error: message, code }), {
@@ -85,6 +86,20 @@ export const Route = createFileRoute("/api/chat")({
           } catch (e) {
             return jsonError(e instanceof Error ? e.message : "Model unavailable", 500, "provider_init_failed");
           }
+
+          // ── CREDIT GATE ──
+          // Charge upfront based on the model's tier; if a build is produced,
+          // we charge a small bonus inside onFinish.
+          const baseCost = creditCostForTier(requested.credits);
+          const charge = await chargeCredits(supabase, userId, baseCost);
+          if (!charge.ok) {
+            return jsonError(
+              charge.message ?? "Out of credits.",
+              charge.code === "banned" ? 403 : 402,
+              charge.code ?? "no_credits",
+            );
+          }
+
 
           // ── MEMORY + STUDIO CONTEXT ──
           // Pull project metadata, recent builds, latest game scan, recent errors,
@@ -189,6 +204,12 @@ export const Route = createFileRoute("/api/chat")({
                       position: i,
                     })),
                   );
+                }
+
+                // Extra credit charge when the turn actually produces a build.
+                if (actions.length > 0 && mode === "build") {
+                  const bonus = BUILD_ACTIONS_BONUS + Math.min(4, Math.floor(actions.length / 8));
+                  await chargeCredits(supabase, userId, bonus).catch(() => null);
                 }
 
                 const { data: currentProject } = await supabase

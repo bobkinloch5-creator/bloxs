@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { chargeCredits, VOICE_COST } from "@/lib/credits.server";
 
 const DEFAULT_BLOXSMITH_VOICE = "alloy";
 
@@ -12,10 +13,14 @@ const SynthInput = z.object({
 export const synthesizeVoice = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => SynthInput.parse(input))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
     const apiKey = process.env.LOVABLE_API_KEY;
     if (!apiKey) {
       return { ok: false as const, error: "voice_not_configured" };
+    }
+    const charge = await chargeCredits(context.supabase, context.userId, VOICE_COST);
+    if (!charge.ok) {
+      return { ok: false as const, error: "no_credits", message: charge.message };
     }
     const voice = data.voiceId || DEFAULT_BLOXSMITH_VOICE;
 
