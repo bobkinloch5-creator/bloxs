@@ -38,6 +38,9 @@ export const getMyProfile = createServerFn({ method: "GET" })
     return profile;
   });
 
+export const ASSET_MODES = ["auto", "toolbox_only", "primitives_only", "both"] as const;
+export type AssetMode = (typeof ASSET_MODES)[number];
+
 export const updateMyProfile = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
@@ -47,12 +50,24 @@ export const updateMyProfile = createServerFn({ method: "POST" })
       roblox_username: z.string().max(40).optional(),
       language: z.enum(["en","es","pt","fr","de","it","ru","ar","zh","ja","ko","hi","tr","pl","nl"]).optional(),
       is_private: z.boolean().optional(),
+      asset_mode: z.enum(ASSET_MODES).optional(),
     }).parse(input),
   )
   .handler(async ({ data, context }) => {
+    const { asset_mode, ...rest } = data;
+    const patch: Record<string, unknown> = { ...rest };
+    if (asset_mode) {
+      const { data: cur } = await context.supabase
+        .from("profiles")
+        .select("settings")
+        .eq("id", context.userId)
+        .maybeSingle();
+      const settings = (cur?.settings && typeof cur.settings === "object" ? cur.settings : {}) as Record<string, unknown>;
+      patch.settings = { ...settings, asset_mode };
+    }
     const { data: row, error } = await context.supabase
       .from("profiles")
-      .update(data)
+      .update(patch as never)
       .eq("id", context.userId)
       .select(PROFILE_COLS)
       .single();

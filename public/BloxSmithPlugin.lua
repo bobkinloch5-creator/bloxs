@@ -439,19 +439,39 @@ end
 Exec.insert_asset = function(a, p)
     local payload = a.payload or {}
     local id = tonumber(payload.asset_id)
-    if not id then error("insert_asset missing asset_id") end
-    local ok, model = pcall(function() return InsertService:LoadAsset(id) end)
-    if not ok or not model then error("LoadAsset failed for " .. tostring(id)) end
-    model.Name = a.name or ("Asset_" .. id)
-    -- Unwrap single-child Model container into the target parent
-    local children = model:GetChildren()
-    if #children == 1 then
-        children[1].Name = model.Name
-        children[1].Parent = p
-        model:Destroy()
-        return children[1]
+    if not id or id <= 0 then error("insert_asset missing asset_id") end
+    local ok, container = pcall(function() return InsertService:LoadAsset(id) end)
+    if not ok or not container then
+        error("LoadAsset failed for " .. tostring(id) .. ": " .. tostring(container))
     end
-    model.Parent = p; return model
+    local kids = container:GetChildren()
+    if #kids == 0 then
+        container:Destroy()
+        error("Asset " .. tostring(id) .. " loaded but was empty — skipping.")
+    end
+    container.Name = a.name or ("Asset_" .. id)
+    -- Unwrap single-child container into the target parent.
+    local inserted
+    if #kids == 1 then
+        kids[1].Name = container.Name
+        kids[1].Parent = p
+        inserted = kids[1]
+        container:Destroy()
+    else
+        container.Parent = p
+        inserted = container
+    end
+    -- Optional placement: payload.position {x,y,z}, payload.scale (number).
+    if payload.position and (inserted:IsA("Model") or inserted:IsA("BasePart")) then
+        local pos = payload.position
+        local cf = CFrame.new(tonumber(pos[1]) or 0, tonumber(pos[2]) or 0, tonumber(pos[3]) or 0)
+        pcall(function() inserted:PivotTo(cf) end)
+    end
+    if payload.scale and inserted:IsA("Model") then
+        pcall(function() inserted:ScaleTo(tonumber(payload.scale) or 1) end)
+    end
+    log(("✓ inserted asset id=%d as '%s' under %s"):format(id, inserted.Name, p:GetFullName()), "success")
+    return { asset_id = id, name = inserted.Name, path = inserted:GetFullName(), class = inserted.ClassName }
 end
 
 Exec.set_properties = function(a, _)

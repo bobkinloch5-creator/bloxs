@@ -24,15 +24,21 @@ function SettingsPage() {
     roblox_username: "",
     language: "en" as LangCode,
     is_private: false,
+    asset_mode: "auto" as "auto" | "toolbox_only" | "primitives_only" | "both",
   });
   useEffect(() => {
-    if (profile) setForm({
-      display_name: profile.display_name ?? "",
-      bio: profile.bio ?? "",
-      roblox_username: profile.roblox_username ?? "",
-      language: ((profile as any).language ?? "en") as LangCode,
-      is_private: !!profile.is_private,
-    });
+    if (profile) {
+      const settings = ((profile as any).settings ?? {}) as Record<string, unknown>;
+      const mode = settings.asset_mode;
+      setForm({
+        display_name: profile.display_name ?? "",
+        bio: profile.bio ?? "",
+        roblox_username: profile.roblox_username ?? "",
+        language: ((profile as any).language ?? "en") as LangCode,
+        is_private: !!profile.is_private,
+        asset_mode: (mode === "toolbox_only" || mode === "primitives_only" || mode === "both" ? mode : "auto"),
+      });
+    }
   }, [profile]);
 
   const save = useMutation({
@@ -76,6 +82,21 @@ function SettingsPage() {
             ))}
           </select>
           <div className="mt-1 text-xs text-muted-foreground">{t("settings.languageHelp")}</div>
+        </Field>
+        <Field label="Roblox asset mode">
+          <select
+            value={form.asset_mode}
+            onChange={(e) => setForm({ ...form, asset_mode: e.target.value as typeof form.asset_mode })}
+            className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm"
+          >
+            <option value="auto">Auto — prefer Toolbox, fall back to primitives</option>
+            <option value="toolbox_only">Toolbox assets only — no procedural/blocky fakes</option>
+            <option value="primitives_only">Generated parts only — never insert Toolbox assets</option>
+            <option value="both">Hybrid — use Toolbox for models, primitives for everything else</option>
+          </select>
+          <div className="mt-1 text-xs text-muted-foreground">
+            Controls how BloxSmith builds visual objects (trees, vehicles, NPCs, weapons, props). Toolbox-only forces real Roblox Creator Store assets and disables fake blocky versions.
+          </div>
         </Field>
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={form.is_private} onChange={(e) => setForm({ ...form, is_private: e.target.checked })} />
