@@ -196,6 +196,24 @@ function ProjectPage() {
   }, [isAdmin, resetAt]);
   const [showTour, setShowTour] = useState(false);
 
+  // ── voice mode (BloxSmith speaks replies via ElevenLabs) ──
+  const [ttsEnabled, setTtsEnabled] = useState(false);
+  const { speak, stop: stopSpeak } = useBloxSmithSpeaker(ttsEnabled);
+  const spokenIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!ttsEnabled) return;
+    if (status !== "ready") return;
+    const last = [...messages].reverse().find((m) => m.role === "assistant");
+    if (!last || spokenIdRef.current === last.id) return;
+    const text = last.parts.map((p: any) => (p.type === "text" ? p.text : "")).join("");
+    if (!text.trim()) return;
+    spokenIdRef.current = last.id;
+    speak(text);
+  }, [messages, status, ttsEnabled, speak]);
+  useEffect(() => {
+    if (!ttsEnabled) stopSpeak();
+  }, [ttsEnabled, stopSpeak]);
+
   // build step progression (visual only)
   const buildStepIndex = useMemo(() => {
     if (status === "submitted") return 0;
