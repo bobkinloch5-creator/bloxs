@@ -25,6 +25,7 @@ import { MobileNavTrigger } from "@/components/MobileNav";
 import { VoiceControls, useBloxSmithSpeaker } from "@/components/VoiceControls";
 import { VoiceBuildButton } from "@/components/VoiceBuildButton";
 import { improvePrompt } from "@/lib/improve.functions";
+import { useLang, LANGUAGES } from "@/lib/i18n";
 
 export const Route = createFileRoute("/_authenticated/project/$projectId")({
   head: () => ({ meta: [{ title: "Build — BloxSmith" }] }),
