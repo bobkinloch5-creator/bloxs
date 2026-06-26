@@ -68,6 +68,20 @@ export const Route = createFileRoute("/api/chat")({
             .maybeSingle();
           if (projErr || !project) return jsonError("Project not found or you don't have access to it.", 404, "project_not_found");
 
+          // Per-user asset preference (stored in profiles.settings.asset_mode).
+          let assetMode: "auto" | "toolbox_only" | "primitives_only" | "both" = "auto";
+          try {
+            const { data: prof } = await supabase
+              .from("profiles")
+              .select("settings")
+              .eq("id", userId)
+              .maybeSingle();
+            const s = (prof?.settings && typeof prof.settings === "object" ? prof.settings : {}) as Record<string, unknown>;
+            const m = s.asset_mode;
+            if (m === "toolbox_only" || m === "primitives_only" || m === "both" || m === "auto") assetMode = m;
+          } catch { /* ignore */ }
+
+
           const lastUser = [...messages].reverse().find((m) => m.role === "user");
           const userText = lastUser?.parts.map((p) => (p.type === "text" ? p.text : "")).join("") ?? "";
           if (userText) {
