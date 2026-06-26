@@ -128,11 +128,11 @@ function ProjectPage() {
 
   const transport = useMemo(() => new DefaultChatTransport({
     api: "/api/chat",
-    prepareSendMessagesRequest: async ({ body, headers }) => {
+    prepareSendMessagesRequest: async ({ messages, id, body, headers, trigger, messageId }) => {
       const { data } = await supabase.auth.getSession();
       const freshToken = data.session?.access_token;
       return {
-        body: body ?? {},
+        body: { ...(body ?? {}), id, messages, trigger, messageId },
         headers: freshToken ? { ...headers, Authorization: `Bearer ${freshToken}` } : headers,
       };
     },
