@@ -59,11 +59,15 @@ export function PageShell({
               </h1>
               {description && <p className="mt-1 truncate text-xs text-muted-foreground sm:text-sm">{description}</p>}
             </div>
-            {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
+            {actions && <div className="hidden shrink-0 items-center gap-2 md:flex">{actions}</div>}
+            <ProfileMenu />
           </header>
 
           <main className={`mx-auto grid max-w-[1600px] gap-6 px-4 py-6 sm:px-8 sm:py-8 ${rightPanel ? "xl:grid-cols-[minmax(0,1fr)_320px]" : ""}`}>
-            <div className="min-w-0 space-y-6">{children}</div>
+            <div className="min-w-0 space-y-6">
+              {actions && <div className="flex flex-wrap items-center gap-2 md:hidden">{actions}</div>}
+              {children}
+            </div>
             {rightPanel && <aside className="space-y-4">{rightPanel}</aside>}
           </main>
 
