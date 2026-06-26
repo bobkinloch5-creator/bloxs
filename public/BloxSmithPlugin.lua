@@ -15,10 +15,11 @@ local Teams                 = game:GetService("Teams")
 local Workspace             = game:GetService("Workspace")
 local ChangeHistoryService  = game:GetService("ChangeHistoryService")
 local InsertService         = game:GetService("InsertService")
+local CollectionService     = game:GetService("CollectionService")
 
 local API_BASE       = "https://bloxsmith.pro"
 local POLL_INTERVAL  = 1
-local PLUGIN_VERSION = "1.6.1"
+local PLUGIN_VERSION = "1.7.0"
 
 ------------------------------------------------------------------- token helpers
 local TOKEN_KEY = "token"
@@ -94,7 +95,7 @@ linkBox.Parent = main
 
 -- control buttons grid (2 rows x 3 cols)
 local controls = Instance.new("Frame")
-controls.Position = UDim2.new(0,12,0,216); controls.Size = UDim2.new(1,-24,0,98)
+controls.Position = UDim2.new(0,12,0,216); controls.Size = UDim2.new(1,-24,0,128)
 controls.BackgroundTransparency = 1; controls.Parent = main
 local grid = Instance.new("UIGridLayout", controls)
 grid.CellPadding = UDim2.new(0,6,0,6)
@@ -120,10 +121,12 @@ local openWebBtn   = ctrlBtn("Open Website", 6)
 local scanBtn      = ctrlBtn("Scan Game", 7)
 local sendErrBtn   = ctrlBtn("Send Errors", 8)
 local autoErrBtn   = ctrlBtn("Auto-Send: ON", 9)
+local organizeBtn  = ctrlBtn("Organize", 10)
+local autoFixBtn   = ctrlBtn("Auto-Fix", 11)
 
 ------------------------------------------------------------------- log
 local logBar = Instance.new("Frame")
-logBar.Position = UDim2.new(0,12,0,322); logBar.Size = UDim2.new(1,-24,0,22)
+logBar.Position = UDim2.new(0,12,0,352); logBar.Size = UDim2.new(1,-24,0,22)
 logBar.BackgroundTransparency = 1; logBar.Parent = main
 
 local logTitle = Instance.new("TextLabel")
@@ -148,7 +151,7 @@ local clearLogBtn = miniBtn("Clear", -66)
 local verboseBtn  = miniBtn("Verbose", -132)
 
 local logFrame = Instance.new("ScrollingFrame")
-logFrame.Position = UDim2.new(0,12,0,348); logFrame.Size = UDim2.new(1,-24,1,-360)
+logFrame.Position = UDim2.new(0,12,0,378); logFrame.Size = UDim2.new(1,-24,1,-390)
 logFrame.BackgroundColor3 = Color3.fromRGB(14,16,22); logFrame.BorderSizePixel = 0
 logFrame.CanvasSize = UDim2.new(0,0,0,0); logFrame.ScrollBarThickness = 4
 logFrame.Parent = main
@@ -276,6 +279,191 @@ local function findByPath(path)
         node = node:FindFirstChild(parts[i])
     end
     return node
+end
+
+local function fullPath(inst)
+    local ok, path = pcall(function() return inst:GetFullName() end)
+    return ok and path or tostring(inst)
+end
+
+local function ensureFolder(parent, name)
+    local existing = parent:FindFirstChild(name)
+    if existing and existing:IsA("Folder") then return existing end
+    local f = Instance.new("Folder")
+    f.Name = name
+    f.Parent = parent
+    return f
+end
+
+local function ensureProjectFolders()
+    local folders = {
+        ensureFolder(Workspace, "Map"),
+        ensureFolder(Workspace, "NPCs"),
+        ensureFolder(Workspace, "Props"),
+        ensureFolder(Workspace, "Vehicles"),
+        ensureFolder(Workspace, "Gameplay"),
+        ensureFolder(ReplicatedStorage, "Remotes"),
+        ensureFolder(ReplicatedStorage, "Modules"),
+        ensureFolder(ReplicatedStorage, "Assets"),
+        ensureFolder(ServerScriptService, "Systems"),
+        ensureFolder(ServerStorage, "BloxSmith_Quarantine"),
+    }
+    local starterScripts = StarterPlayer:FindFirstChild("StarterPlayerScripts") or Instance.new("StarterPlayerScripts")
+    starterScripts.Name = "StarterPlayerScripts"
+    starterScripts.Parent = StarterPlayer
+    table.insert(folders, starterScripts)
+    return folders
+end
+
+local SUSPICIOUS_SOURCE_PATTERNS = {
+    "require%s*%(",
+    "loadstring%s*%(",
+    "getfenv%s*%(",
+    "setfenv%s*%(",
+    "HttpService%s*:",
+    "InsertService%s*:%s*LoadAsset",
+    "MarketplaceService%s*:%s*PromptPurchase",
+}
+
+local function sourceLooksSuspicious(source)
+    if type(source) ~= "string" or source == "" then return false, nil end
+    for _, pattern in ipairs(SUSPICIOUS_SOURCE_PATTERNS) do
+        if string.find(source, pattern) then return true, pattern end
+    end
+    return false, nil
+end
+
+local function quarantineInstance(inst, reason)
+    local quarantine = ensureFolder(ServerStorage, "BloxSmith_Quarantine")
+    local marker = Instance.new("StringValue")
+    marker.Name = "BloxSmith_QuarantineReason"
+    marker.Value = tostring(reason or "suspicious")
+    marker.Parent = inst
+    pcall(function() CollectionService:AddTag(inst, "BloxSmithQuarantined") end)
+    inst.Parent = quarantine
+    return fullPath(inst)
+end
+
+local function inspectInsertedAsset(root)
+    local report = { scanned = 0, scripts = 0, quarantined = 0, warnings = {} }
+    local descendants = root:GetDescendants()
+    table.insert(descendants, 1, root)
+    for _, inst in ipairs(descendants) do
+        report.scanned += 1
+        if inst:IsA("BasePart") then
+            if inst.Anchored == false and not inst:FindFirstAncestorOfClass("Tool") and not inst:FindFirstAncestorWhichIsA("Humanoid") then
+                table.insert(report.warnings, "loose_unanchored_part:" .. fullPath(inst))
+            end
+        elseif inst:IsA("Script") or inst:IsA("LocalScript") or inst:IsA("ModuleScript") then
+            report.scripts += 1
+            local source = ""
+            pcall(function() source = inst.Source end)
+            local suspicious, pattern = sourceLooksSuspicious(source)
+            if suspicious then
+                report.quarantined += 1
+                pcall(function()
+                    if inst:IsA("Script") or inst:IsA("LocalScript") then inst.Disabled = true end
+                end)
+                local before = fullPath(inst)
+                quarantineInstance(inst, "Suspicious source pattern: " .. tostring(pattern))
+                table.insert(report.warnings, "quarantined_script:" .. before)
+            end
+        end
+        if #report.warnings >= 40 then
+            table.insert(report.warnings, "warning_limit_reached")
+            break
+        end
+    end
+    return report
+end
+
+local function organizeProject()
+    ensureProjectFolders()
+    local moved = {}
+    local workspaceFolders = {
+        Map = Workspace:FindFirstChild("Map"),
+        NPCs = Workspace:FindFirstChild("NPCs"),
+        Props = Workspace:FindFirstChild("Props"),
+        Vehicles = Workspace:FindFirstChild("Vehicles"),
+        Gameplay = Workspace:FindFirstChild("Gameplay"),
+    }
+    local protected = {
+        Terrain = true, Camera = true, Map = true, NPCs = true, Props = true,
+        Vehicles = true, Gameplay = true,
+    }
+    for _, inst in ipairs(Workspace:GetChildren()) do
+        if not protected[inst.Name] then
+            local target = nil
+            local lower = string.lower(inst.Name)
+            if inst:IsA("SpawnLocation") or string.find(lower, "checkpoint") or string.find(lower, "teleport") then
+                target = workspaceFolders.Gameplay
+            elseif inst:FindFirstChildOfClass("Humanoid") or string.find(lower, "npc") or string.find(lower, "enemy") or string.find(lower, "zombie") then
+                target = workspaceFolders.NPCs
+            elseif string.find(lower, "car") or string.find(lower, "vehicle") or string.find(lower, "boat") or string.find(lower, "plane") then
+                target = workspaceFolders.Vehicles
+            elseif inst:IsA("Model") or inst:IsA("Folder") then
+                target = workspaceFolders.Map
+            elseif inst:IsA("BasePart") then
+                target = workspaceFolders.Props
+            end
+            if target then
+                local from = fullPath(inst)
+                inst.Parent = target
+                table.insert(moved, from .. " -> " .. fullPath(target))
+            end
+        end
+    end
+    for _, inst in ipairs(ReplicatedStorage:GetChildren()) do
+        if inst:IsA("RemoteEvent") or inst:IsA("RemoteFunction") or inst:IsA("BindableEvent") or inst:IsA("BindableFunction") then
+            local from = fullPath(inst)
+            inst.Parent = ReplicatedStorage.Remotes
+            table.insert(moved, from .. " -> " .. fullPath(ReplicatedStorage.Remotes))
+        elseif inst:IsA("ModuleScript") then
+            local from = fullPath(inst)
+            inst.Parent = ReplicatedStorage.Modules
+            table.insert(moved, from .. " -> " .. fullPath(ReplicatedStorage.Modules))
+        end
+    end
+    for _, inst in ipairs(ServerScriptService:GetChildren()) do
+        if inst:IsA("Script") and inst.Name ~= "BloxSmith_Leaderstats" and inst.Name ~= "Systems" then
+            local from = fullPath(inst)
+            inst.Parent = ServerScriptService.Systems
+            table.insert(moved, from .. " -> " .. fullPath(ServerScriptService.Systems))
+        end
+    end
+    return { moved = moved, moved_count = #moved }
+end
+
+local function autoFixProject()
+    local result = organizeProject()
+    result.fixed = {}
+    result.warnings = {}
+    for _, inst in ipairs(game:GetDescendants()) do
+        if #result.warnings >= 80 then
+            table.insert(result.warnings, "warning_limit_reached")
+            break
+        end
+        if inst:IsA("Script") or inst:IsA("LocalScript") or inst:IsA("ModuleScript") then
+            local source = ""
+            pcall(function() source = inst.Source end)
+            local suspicious, pattern = sourceLooksSuspicious(source)
+            if suspicious and not inst:FindFirstAncestor("BloxSmith_Quarantine") then
+                local before = fullPath(inst)
+                pcall(function()
+                    if inst:IsA("Script") or inst:IsA("LocalScript") then inst.Disabled = true end
+                end)
+                quarantineInstance(inst, "Suspicious source pattern: " .. tostring(pattern))
+                table.insert(result.fixed, "quarantined suspicious script: " .. before)
+            end
+        elseif inst:IsA("BasePart") then
+            if inst.Parent == Workspace and inst.Anchored == false and not inst:FindFirstAncestorOfClass("Tool") then
+                inst.Anchored = true
+                table.insert(result.fixed, "anchored loose root part: " .. fullPath(inst))
+            end
+        end
+    end
+    result.fixed_count = #result.fixed
+    return result
 end
 
 local function applyProps(inst, props)
@@ -436,6 +624,18 @@ Exec.leaderstats = function(a, _)
     s.Source = table.concat(lines, "\n"); s.Parent = ServerScriptService; return s
 end
 
+Exec.organize_project = function(_, _)
+    local result = organizeProject()
+    log(("Organized project — moved %d item(s)."):format(result.moved_count or 0), "success")
+    return result
+end
+
+Exec.autofix_project = function(_, _)
+    local result = autoFixProject()
+    log(("Auto-fix complete — %d moved, %d fixed."):format(result.moved_count or 0, result.fixed_count or 0), "success")
+    return result
+end
+
 Exec.insert_asset = function(a, p)
     local payload = a.payload or {}
     local id = tonumber(payload.asset_id)
@@ -490,15 +690,20 @@ Exec.insert_asset = function(a, p)
         pcall(function() inserted:ScaleTo(tonumber(payload.scale) or 1) end)
     end
     if payload.tags and type(payload.tags) == "table" then
-        local CollectionService = game:GetService("CollectionService")
         for _, tag in ipairs(payload.tags) do
             if type(tag) == "string" and tag ~= "" then
                 pcall(function() CollectionService:AddTag(inserted, tag) end)
             end
         end
     end
+    local safetyReport = inspectInsertedAsset(inserted)
+    if safetyReport.quarantined > 0 then
+        log(("Asset safety scan quarantined %d suspicious script(s) from id=%d."):format(safetyReport.quarantined, id), "warn")
+    elseif safetyReport.scripts > 0 then
+        log(("Asset safety scan checked %d script(s) in id=%d."):format(safetyReport.scripts, id), "debug")
+    end
     log(("✓ inserted asset id=%d as '%s' under %s"):format(id, inserted.Name, p:GetFullName()), "success")
-    return { asset_id = id, name = inserted.Name, path = inserted:GetFullName(), class = inserted.ClassName }
+    return { asset_id = id, name = inserted.Name, path = inserted:GetFullName(), class = inserted.ClassName, safety = safetyReport }
 end
 
 Exec.set_properties = function(a, _)
@@ -607,6 +812,15 @@ local function executeAction(action)
     local parent = resolveParent(action.parent_path, kind)
     log("→ " .. describeAction(action), "debug")
     return handler(action, parent)
+end
+
+local function reportableResult(value)
+    if typeof(value) == "Instance" then
+        return { path = fullPath(value), class = value.ClassName, name = value.Name }
+    elseif type(value) == "table" then
+        return value
+    end
+    return nil
 end
 
 ------------------------------------------------------------------- HTTP
@@ -734,12 +948,22 @@ local function pollOnce(force)
         if ok then
             okN += 1; lastAction = describeAction(a)
             log("✓ " .. lastAction, "action")
-            results[#results+1] = { action_id = a.id, status = "done" }
+            results[#results+1] = { action_id = a.id, status = "done", result = reportableResult(errOrInst) }
         else
             failN += 1
             log("✗ " .. a.kind .. " '" .. tostring(a.name) .. "': " .. tostring(errOrInst), "error")
             results[#results+1] = { action_id = a.id, status = "failed", error = tostring(errOrInst) }
         end
+    end
+    local fixOk, fixResult = pcall(autoFixProject)
+    if fixOk and fixResult then
+        local moved = fixResult.moved_count or 0
+        local fixed = fixResult.fixed_count or 0
+        if moved > 0 or fixed > 0 then
+            log(("Auto-cleanup after batch — %d moved, %d fixed."):format(moved, fixed), "success")
+        end
+    elseif not fixOk then
+        log("Auto-cleanup skipped: " .. tostring(fixResult), "warn")
     end
     queueLen = 0; refreshInfo()
     ChangeHistoryService:SetWaypoint("BloxSmith batch done")
@@ -859,6 +1083,91 @@ local SCAN_ROOTS = {
     "ReplicatedFirst", "StarterGui", "StarterPack", "StarterPlayer",
     "Lighting", "SoundService", "Teams",
 }
+local function pushLimited(list, value, max)
+    if #list < (max or 50) then table.insert(list, value) end
+end
+local function analyzeWorkspace()
+    local summary = {
+        counts = {},
+        folders = {},
+        issues = {},
+        remotes = {},
+        modules = {},
+        systems = {},
+        gui = {},
+        tools = {},
+        assets = {},
+        suggestions = {},
+    }
+    local expected = {
+        "Workspace.Map",
+        "Workspace.NPCs",
+        "Workspace.Props",
+        "Workspace.Vehicles",
+        "Workspace.Gameplay",
+        "ReplicatedStorage.Remotes",
+        "ReplicatedStorage.Modules",
+        "ReplicatedStorage.Assets",
+        "ServerScriptService.Systems",
+    }
+    for _, path in ipairs(expected) do
+        summary.folders[path] = findByPath(path) ~= nil
+        if not summary.folders[path] then
+            pushLimited(summary.issues, "missing_folder:" .. path, 80)
+        end
+    end
+    local services = {}
+    for _, svcName in ipairs(SCAN_ROOTS) do
+        local ok, svc = pcall(function() return game:GetService(svcName) end)
+        if ok and svc then table.insert(services, svc) end
+    end
+    for _, svc in ipairs(services) do
+        for _, inst in ipairs(svc:GetDescendants()) do
+            summary.counts[inst.ClassName] = (summary.counts[inst.ClassName] or 0) + 1
+            if inst:IsA("RemoteEvent") or inst:IsA("RemoteFunction") or inst:IsA("BindableEvent") or inst:IsA("BindableFunction") then
+                pushLimited(summary.remotes, fullPath(inst), 60)
+                if inst.Parent == ReplicatedStorage then
+                    pushLimited(summary.issues, "remote_not_in_remotes_folder:" .. fullPath(inst), 80)
+                end
+            elseif inst:IsA("ModuleScript") then
+                pushLimited(summary.modules, fullPath(inst), 60)
+                local source = ""
+                pcall(function() source = inst.Source end)
+                local suspicious, pattern = sourceLooksSuspicious(source)
+                if suspicious then pushLimited(summary.issues, "suspicious_module:" .. fullPath(inst) .. ":" .. tostring(pattern), 80) end
+            elseif inst:IsA("Script") or inst:IsA("LocalScript") then
+                local source = ""
+                pcall(function() source = inst.Source end)
+                local suspicious, pattern = sourceLooksSuspicious(source)
+                if suspicious then pushLimited(summary.issues, "suspicious_script:" .. fullPath(inst) .. ":" .. tostring(pattern), 80) end
+                if inst:IsA("Script") and inst.Parent == ServerScriptService and inst.Name ~= "BloxSmith_Leaderstats" then
+                    pushLimited(summary.issues, "server_script_not_in_systems:" .. fullPath(inst), 80)
+                end
+            elseif inst:IsA("ScreenGui") then
+                pushLimited(summary.gui, fullPath(inst), 50)
+            elseif inst:IsA("Tool") then
+                pushLimited(summary.tools, fullPath(inst), 50)
+            elseif inst:IsA("BasePart") then
+                if inst.Parent == Workspace and inst.Anchored == false and not inst:FindFirstAncestorOfClass("Tool") then
+                    pushLimited(summary.issues, "loose_unanchored_root_part:" .. fullPath(inst), 80)
+                end
+            end
+            if CollectionService:HasTag(inst, "BloxSmithAsset") then
+                pushLimited(summary.assets, fullPath(inst), 60)
+            end
+        end
+    end
+    if #summary.issues > 0 then
+        pushLimited(summary.suggestions, "Run organize_project or autofix_project before adding more systems.", 10)
+    end
+    if #(summary.remotes) == 0 then
+        pushLimited(summary.suggestions, "No remotes found; new interactive systems should create ReplicatedStorage.Remotes.", 10)
+    end
+    if #(summary.modules) == 0 then
+        pushLimited(summary.suggestions, "No modules found; reusable catalogs/config should go in ReplicatedStorage.Modules.", 10)
+    end
+    return summary
+end
 local function scanInstance(inst, depth, maxDepth, budget)
     if budget.count >= budget.max then return nil end
     budget.count += 1
@@ -886,7 +1195,14 @@ local function buildScan()
             if node then table.insert(roots, node) end
         end
     end
-    return { place_id = tostring(game.PlaceId or 0), built_at = os.time(), roots = roots, sampled = budget.count }
+    return {
+        place_id = tostring(game.PlaceId or 0),
+        built_at = os.time(),
+        plugin_version = PLUGIN_VERSION,
+        roots = roots,
+        sampled = budget.count,
+        awareness = analyzeWorkspace(),
+    }
 end
 
 scanBtn.MouseButton1Click:Connect(function()
@@ -945,6 +1261,28 @@ autoErrBtn.MouseButton1Click:Connect(function()
     autoErrBtn.Text = "Auto-Send: " .. (AUTO_SEND_ERRORS and "ON" or "OFF")
     autoErrBtn.BackgroundColor3 = AUTO_SEND_ERRORS and Color3.fromRGB(45,48,58) or Color3.fromRGB(80,50,50)
     log("Auto error upload " .. (AUTO_SEND_ERRORS and "enabled" or "disabled"), "debug")
+end)
+
+organizeBtn.MouseButton1Click:Connect(function()
+    ChangeHistoryService:SetWaypoint("BloxSmith organize start")
+    local ok, result = pcall(organizeProject)
+    ChangeHistoryService:SetWaypoint("BloxSmith organize done")
+    if ok then
+        log(("Organized project — moved %d item(s)."):format((result and result.moved_count) or 0), "success")
+    else
+        log("Organize failed: " .. tostring(result), "error")
+    end
+end)
+
+autoFixBtn.MouseButton1Click:Connect(function()
+    ChangeHistoryService:SetWaypoint("BloxSmith auto-fix start")
+    local ok, result = pcall(autoFixProject)
+    ChangeHistoryService:SetWaypoint("BloxSmith auto-fix done")
+    if ok then
+        log(("Auto-fix complete — %d moved, %d fixed."):format((result and result.moved_count) or 0, (result and result.fixed_count) or 0), "success")
+    else
+        log("Auto-fix failed: " .. tostring(result), "error")
+    end
 end)
 
 task.spawn(function()
