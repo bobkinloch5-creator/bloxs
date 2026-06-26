@@ -17,20 +17,28 @@ const ACCENT_HUE: Record<Accent, string> = {
   collaborators: "#ec4899",
 };
 
+import robloxBg from "@/assets/roblox-bg.jpg";
+
 export function RobloxBackdrop({ accent = "default" }: { accent?: Accent }) {
   const hue = ACCENT_HUE[accent];
   return (
     <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-      {/* base gradient */}
+      {/* photographic Roblox-style world */}
+      <div
+        className="absolute inset-0 bg-cover bg-center"
+        style={{ backgroundImage: `url(${robloxBg})`, opacity: 0.55 }}
+      />
+      {/* color wash */}
       <div
         className="absolute inset-0"
         style={{
           background:
-            "radial-gradient(1200px 700px at 15% 0%, color-mix(in oklab, var(--bs-primary, #3b82f6) 18%, transparent), transparent 60%)," +
-            "radial-gradient(900px 600px at 100% 100%, color-mix(in oklab, " + hue + " 16%, transparent), transparent 60%)," +
-            "linear-gradient(180deg, var(--bs-bg, #0a0f1e) 0%, var(--bs-bg, #0a0f1e) 100%)",
+            "radial-gradient(1200px 700px at 15% 0%, color-mix(in oklab, var(--bs-primary, #3b82f6) 22%, transparent), transparent 60%)," +
+            "radial-gradient(900px 600px at 100% 100%, color-mix(in oklab, " + hue + " 22%, transparent), transparent 60%)," +
+            "linear-gradient(180deg, color-mix(in oklab, var(--bs-bg, #0a0f1e) 70%, transparent) 0%, var(--bs-bg, #0a0f1e) 100%)",
         }}
       />
+
       {/* grid */}
       <svg className="absolute inset-0 h-full w-full opacity-[0.07]" xmlns="http://www.w3.org/2000/svg">
         <defs>
