@@ -32,7 +32,7 @@ async function meshyFetch(path: string, init?: RequestInit) {
 
 export const getModelStatus = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) => z.object({ projectId: z.string().uuid() }).parse(i))
+  .inputValidator((i: unknown) => z.object({ projectId: z.string().uuid().optional() }).parse(i ?? {}))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { data: rows } = await supabase
@@ -40,9 +40,11 @@ export const getModelStatus = createServerFn({ method: "GET" })
       .select("*")
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
-      .limit(80);
+      .limit(120);
 
-    const projectRows = (rows || []).filter((r) => r.project_id === data.projectId);
+    const projectRows = data.projectId
+      ? (rows || []).filter((r) => r.project_id === data.projectId)
+      : (rows || []);
     // 24h cooldown only counts brand-new text/image generations, not animations/retexture/refine of existing ones.
     const lastNew = (rows || []).find((r) => r.mode === "text" || r.mode === "image");
     const lastTs = lastNew ? new Date(lastNew.created_at).getTime() : 0;
@@ -56,6 +58,7 @@ export const getModelStatus = createServerFn({ method: "GET" })
       models: projectRows,
     };
   });
+
 
 export const startModelGeneration = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
