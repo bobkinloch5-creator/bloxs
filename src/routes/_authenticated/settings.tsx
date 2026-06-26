@@ -4,31 +4,25 @@ import { useServerFn } from "@tanstack/react-start";
 import { getMyProfile, updateMyProfile } from "@/lib/profile.functions";
 import { useEffect, useState } from "react";
 import { Loader2, Save } from "lucide-react";
+import { LANGUAGES, useLang, type LangCode } from "@/lib/i18n";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({ meta: [{ title: "Settings — BloxSmith" }] }),
   component: SettingsPage,
 });
 
-const LANGS = [
-  { id: "en", label: "English" },
-  { id: "es", label: "Español" },
-  { id: "pt", label: "Português" },
-  { id: "fr", label: "Français" },
-  { id: "de", label: "Deutsch" },
-];
-
 function SettingsPage() {
   const qc = useQueryClient();
   const profileFn = useServerFn(getMyProfile);
   const updateFn = useServerFn(updateMyProfile);
   const { data: profile } = useQuery({ queryKey: ["profile"], queryFn: () => profileFn() });
+  const { t, setLang } = useLang();
 
   const [form, setForm] = useState({
     display_name: "",
     bio: "",
     roblox_username: "",
-    language: "en" as "en"|"es"|"pt"|"fr"|"de",
+    language: "en" as LangCode,
     is_private: false,
   });
   useEffect(() => {
@@ -36,48 +30,62 @@ function SettingsPage() {
       display_name: profile.display_name ?? "",
       bio: profile.bio ?? "",
       roblox_username: profile.roblox_username ?? "",
-      language: (profile.language ?? "en") as "en"|"es"|"pt"|"fr"|"de",
+      language: ((profile as any).language ?? "en") as LangCode,
       is_private: !!profile.is_private,
     });
   }, [profile]);
 
   const save = useMutation({
     mutationFn: () => updateFn({ data: form }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["profile"] }),
+    onSuccess: () => {
+      setLang(form.language);
+      qc.invalidateQueries({ queryKey: ["profile"] });
+    },
   });
 
   return (
     <div className="mx-auto max-w-2xl px-6 py-10">
-      <h1 className="font-display text-3xl font-bold">Settings</h1>
+      <h1 className="font-display text-3xl font-bold">{t("settings.title")}</h1>
       <div className="glass mt-6 space-y-4 rounded-2xl p-6">
-        <Field label="Display name">
+        <Field label={t("settings.displayName")}>
           <input value={form.display_name} onChange={(e) => setForm({ ...form, display_name: e.target.value })}
             className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm" />
         </Field>
-        <Field label="Roblox username">
+        <Field label={t("settings.robloxUser")}>
           <input value={form.roblox_username} onChange={(e) => setForm({ ...form, roblox_username: e.target.value })}
             className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm" />
         </Field>
-        <Field label="Bio">
+        <Field label={t("settings.bio")}>
           <textarea rows={3} value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })}
             className="w-full resize-none rounded-lg border border-border bg-input px-3 py-2 text-sm" />
         </Field>
-        <Field label="Language">
-          <select value={form.language}
-            onChange={(e) => setForm({ ...form, language: e.target.value as typeof form.language })}
-            className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm">
-            {LANGS.map((l) => <option key={l.id} value={l.id}>{l.label}</option>)}
+        <Field label={t("common.language")}>
+          <select
+            value={form.language}
+            onChange={(e) => {
+              const next = e.target.value as LangCode;
+              setForm({ ...form, language: next });
+              setLang(next); // preview the language immediately
+            }}
+            className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm"
+          >
+            {LANGUAGES.map((l) => (
+              <option key={l.code} value={l.code}>
+                {l.nativeLabel} ({l.label})
+              </option>
+            ))}
           </select>
+          <div className="mt-1 text-xs text-muted-foreground">{t("settings.languageHelp")}</div>
         </Field>
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={form.is_private} onChange={(e) => setForm({ ...form, is_private: e.target.checked })} />
-          Private profile
+          {t("settings.private")}
         </label>
         <button onClick={() => save.mutate()} disabled={save.isPending}
           className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50">
-          {save.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save
+          {save.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} {t("common.save")}
         </button>
-        {save.isSuccess && <p className="text-xs text-success">Saved.</p>}
+        {save.isSuccess && <p className="text-xs text-success">{t("common.saved")}</p>}
       </div>
     </div>
   );
