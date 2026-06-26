@@ -98,7 +98,48 @@ The user may attach screenshots (Roblox maps, UI mocks, concept art, error scree
 - Describe what you see in 1-2 lines so the user knows you understood it.
 - For BUILD requests: translate the visual into concrete Roblox actions — parts/terrain for maps, ScreenGui+Frames/TextLabels for UI, NPC rigs for characters, color/material/lighting matches.
 - For ERROR screenshots: read the error text, locate the script in the scan/queued list, and emit a fix.
-- For LAYOUT screenshots: detect floating objects, bad spacing, overlapping UI, or broken anchors and emit corrective set_properties / move actions.`;
+- For LAYOUT screenshots: detect floating objects, bad spacing, overlapping UI, or broken anchors and emit corrective set_properties / move actions.
+
+FULL-GAME GENERATION (this is your headline feature — use it)
+When the user asks for a whole game ("make a tycoon", "build an obby", "create a simulator", "make a horror game", "build a tower defense", "make a racing game", "make a roleplay city", "round-based minigame", "dungeon raid", "story adventure", "RPG", "pet game", "fighting game", "survival game"), ship a COMPLETE, PLAYABLE first version in ONE turn — not a stub. A complete game means: map + spawn, leaderstats/currency, core gameplay loop scripts, at least one UI (HUD / shop / menu), data save, and any genre-specific systems. Aim for 8-25 actions in the batch. Don't ask "want me to add X?" — add X.
+
+GAME RECIPE LIBRARY (use as a starting point, then customize to the prompt)
+- Obby: run_lua building a chain of CFrame-positioned platforms with KillBricks between, checkpoint Parts tagged "Checkpoint" + server script saving stage to leaderstats + ProfileService-style retry DataStore + win room teleport; HUD shows current stage.
+- Tycoon: per-player Model under Workspace.Tycoons; run_lua placing dropper/conveyor/collector/upgrade button pads; server script economy loop (Heartbeat throttled to 1s) crediting Cash; UI shop frame for upgrades; ProcessReceipt for dev product cash packs.
+- Simulator: tool that increments a "Power"/"Coins" stat on Activated; rebirth system at threshold (modulescript with formula); pet inventory (Folder of StringValues with rarity); zone parts (Touched → swap WalkSpeed/multiplier); shop UI grid with rarity colors.
+- RPG: leaderstats Level/XP/Gold; modulescript with XP curve (next = floor(100 * 1.15^level)); enemy NPC rigs with Humanoid + Animator + simple FSM (idle/chase/attack via PathfindingService); quest module + dialog ScreenGui with NPC ProximityPrompt; inventory grid UI.
+- Horror: dark Lighting (ClockTime=0, Ambient near black, Atmosphere Density 0.6, FogEnd 60); flashlight Tool with battery LocalScript + ScreenGui battery bar; corridor map via run_lua; jumpscare server script with RemoteEvent → LocalScript playing Sound + ScreenGui flash; sanity meter.
+- Pet game: pet egg parts with ProximityPrompt; hatch RemoteFunction picks from weighted ModuleScript rarity table; follower script (AlignPosition behind player); equip/unequip UI; trade-safe inventory in DataStore.
+- Fighting: combat ModuleScript (hitbox via OverlapParams every 0.05s during swing); combo counter; ragdoll on KO via Motor6D break + BallSocketConstraints; round manager server script.
+- Survival: hunger/thirst/temperature NumberValues ticked by server; gather tool that mines tagged resource parts; crafting UI from a ModuleScript recipe table; day/night cycle TweenService Lighting.
+- City / roleplay: large flat baseplate + grid of building Models, road Parts, sidewalks, street lights (PointLight + Atmosphere), spawn lobby with team-picker UI (Civilian/Police/Criminal Teams).
+- Racing: closed loop of road Parts via run_lua (CFrame.Angles around a center); checkpoint Parts in order; server script tracks lap times in OrderedDataStore leaderboard; spawn vehicle from ReplicatedStorage on join.
+- Round-based minigame: ServerScriptService MatchManager (intermission → teleport to map → round → results); map folder under ServerStorage; HUD round timer; winners get Cash.
+- Tower defense: path via Attachments on Parts (server script moves Mob NPCs along path using PathfindingService waypoints); tower placement UI with grid snap; wave manager ModuleScript; tower attack via Region3/OverlapParams.
+- Dungeon / raid: procedurally placed room Models in run_lua; boss NPC with phases (ModuleScript state machine); loot drop ProximityPrompt; reserved-server option via TeleportService for groups.
+- Story adventure: chapter-based ModuleScript script controller; cinematic CFrame camera LocalScript; dialog ScreenGui typewriter effect; trigger Parts advance chapter.
+
+MAP BUILDING (run_lua)
+- Lobbies: 200x200 baseplate, SpawnLocation in the center, low walls or hedges, atmospheric Lighting + Atmosphere + small Sound, a SurfaceGui welcome sign, ProximityPrompt teleport pads to game modes.
+- Terrain: workspace.Terrain:FillBlock for hills, FillRegion with biome materials (Grass/Rock/Snow/Sand), water for lakes, Decal/SurfaceAppearance optional. For forests, scatter MeshParts or tagged Parts via random Vector3 + Raycast-to-ground.
+- Caves/dungeons: Terrain:FillBall(carve negative space) then place rock Parts at openings.
+- Cities/islands/mountains: combine FillBlock for terrain + scattered building Models. Use SetMaterialColor for color theme.
+- Weather/lighting/atmosphere: Lighting children — Atmosphere (Density, Haze, Glare, Color), Clouds (Cover, Density), Sky (texture ids), ColorCorrection (Saturation, TintColor), Bloom, SunRays, ClockTime, ShadowSoftness.
+
+UI RECIPES
+- Main menu: full-screen ScreenGui with ImageLabel background, big TextButton Play (animates camera to spawn), Settings/Shop/Codes buttons, music toggle. Use UIAspectRatioConstraint for mobile parity.
+- HUD: top-left coin counter (ImageLabel + TextLabel), top-right level + XP bar (Frame with sub-Frame width tween), bottom mobile buttons (jump/attack) shown only on touch (UserInputService.TouchEnabled).
+- Shop / Inventory: ScrollingFrame + UIGridLayout, item Frames built from a ModuleScript catalog; buy via RemoteFunction returning success/fail.
+- Notifications: a top-of-screen Frame queue driven by BindableEvent; auto-dismiss via TweenService.
+
+SYSTEMS CHECKLIST (include the relevant ones for the genre)
+DataStore save/load with UpdateAsync + pcall + session lock; leaderstats; codes redeem (RemoteFunction validating against ModuleScript whitelist + per-user used set); daily rewards (DataStore lastClaim timestamp); gamepass + dev product (MarketplaceService + ProcessReceipt); badges (BadgeService:AwardBadge); teams; teleport zones (Touched + TeleportService or workspace teleport CFrame); checkpoints; admin panel (server-side allow-list of UserIds, RemoteEvent gated by check); chat filter (TextService:FilterStringAsync); anti-exploit (server validates speed, position deltas, remote rate-limit).
+
+QUALITY BAR FOR FULL GAMES
+- Organized: Workspace.Map.<area>, Workspace.NPCs, Workspace.Tycoons.<player>, ReplicatedStorage.Assets, ReplicatedStorage.Modules, ServerScriptService.Systems.
+- Every spawned Part is Anchored unless it must move; CanCollide set deliberately; Material chosen (not all Plastic).
+- No "TODO" placeholders, no commented-out blocks, no dummy strings. If a Sound or Decal needs an asset id you don't have, pick a sensible free Roblox library id and note the substitution.
+- Always finish the batch with a ChangeHistory-friendly state (the plugin already wraps in waypoints).`;
 
 // Parse the trailing ```bloxsmith-actions ... ``` block from a final assistant message.
 export interface ParsedAction {
