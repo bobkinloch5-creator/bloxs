@@ -29,6 +29,7 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as AuthenticatedCollaboratorsRouteImport } from './routes/_authenticated/collaborators'
 import { Route as AuthenticatedChatRouteImport } from './routes/_authenticated/chat'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as ApiPublicMcpRouteImport } from './routes/api/public/mcp'
 import { Route as AuthenticatedProjectProjectIdRouteImport } from './routes/_authenticated/project.$projectId'
 import { Route as ApiPublicPluginPollRouteImport } from './routes/api/public/plugin/poll'
 import { Route as ApiPublicPluginCompleteRouteImport } from './routes/api/public/plugin/complete'
@@ -137,6 +138,11 @@ const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const ApiPublicMcpRoute = ApiPublicMcpRouteImport.update({
+  id: '/api/public/mcp',
+  path: '/api/public/mcp',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedProjectProjectIdRoute =
   AuthenticatedProjectProjectIdRouteImport.update({
     id: '/project/$projectId',
@@ -191,6 +197,7 @@ export interface FileRoutesByFullPath {
   '/ui-generator': typeof AuthenticatedUiGeneratorRoute
   '/api/chat': typeof ApiChatRoute
   '/project/$projectId': typeof AuthenticatedProjectProjectIdRoute
+  '/api/public/mcp': typeof ApiPublicMcpRoute
   '/api/public/plugin/clear': typeof ApiPublicPluginClearRoute
   '/api/public/plugin/complete': typeof ApiPublicPluginCompleteRoute
   '/api/public/plugin/poll': typeof ApiPublicPluginPollRoute
@@ -218,6 +225,7 @@ export interface FileRoutesByTo {
   '/ui-generator': typeof AuthenticatedUiGeneratorRoute
   '/api/chat': typeof ApiChatRoute
   '/project/$projectId': typeof AuthenticatedProjectProjectIdRoute
+  '/api/public/mcp': typeof ApiPublicMcpRoute
   '/api/public/plugin/clear': typeof ApiPublicPluginClearRoute
   '/api/public/plugin/complete': typeof ApiPublicPluginCompleteRoute
   '/api/public/plugin/poll': typeof ApiPublicPluginPollRoute
@@ -247,6 +255,7 @@ export interface FileRoutesById {
   '/_authenticated/ui-generator': typeof AuthenticatedUiGeneratorRoute
   '/api/chat': typeof ApiChatRoute
   '/_authenticated/project/$projectId': typeof AuthenticatedProjectProjectIdRoute
+  '/api/public/mcp': typeof ApiPublicMcpRoute
   '/api/public/plugin/clear': typeof ApiPublicPluginClearRoute
   '/api/public/plugin/complete': typeof ApiPublicPluginCompleteRoute
   '/api/public/plugin/poll': typeof ApiPublicPluginPollRoute
@@ -276,6 +285,7 @@ export interface FileRouteTypes {
     | '/ui-generator'
     | '/api/chat'
     | '/project/$projectId'
+    | '/api/public/mcp'
     | '/api/public/plugin/clear'
     | '/api/public/plugin/complete'
     | '/api/public/plugin/poll'
@@ -303,6 +313,7 @@ export interface FileRouteTypes {
     | '/ui-generator'
     | '/api/chat'
     | '/project/$projectId'
+    | '/api/public/mcp'
     | '/api/public/plugin/clear'
     | '/api/public/plugin/complete'
     | '/api/public/plugin/poll'
@@ -331,6 +342,7 @@ export interface FileRouteTypes {
     | '/_authenticated/ui-generator'
     | '/api/chat'
     | '/_authenticated/project/$projectId'
+    | '/api/public/mcp'
     | '/api/public/plugin/clear'
     | '/api/public/plugin/complete'
     | '/api/public/plugin/poll'
@@ -348,6 +360,7 @@ export interface RootRouteChildren {
   SupportRoute: typeof SupportRoute
   TermsRoute: typeof TermsRoute
   ApiChatRoute: typeof ApiChatRoute
+  ApiPublicMcpRoute: typeof ApiPublicMcpRoute
   ApiPublicPluginClearRoute: typeof ApiPublicPluginClearRoute
   ApiPublicPluginCompleteRoute: typeof ApiPublicPluginCompleteRoute
   ApiPublicPluginPollRoute: typeof ApiPublicPluginPollRoute
@@ -497,6 +510,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/mcp': {
+      id: '/api/public/mcp'
+      path: '/api/public/mcp'
+      fullPath: '/api/public/mcp'
+      preLoaderRoute: typeof ApiPublicMcpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/project/$projectId': {
       id: '/_authenticated/project/$projectId'
       path: '/project/$projectId'
@@ -585,6 +605,7 @@ const rootRouteChildren: RootRouteChildren = {
   SupportRoute: SupportRoute,
   TermsRoute: TermsRoute,
   ApiChatRoute: ApiChatRoute,
+  ApiPublicMcpRoute: ApiPublicMcpRoute,
   ApiPublicPluginClearRoute: ApiPublicPluginClearRoute,
   ApiPublicPluginCompleteRoute: ApiPublicPluginCompleteRoute,
   ApiPublicPluginPollRoute: ApiPublicPluginPollRoute,
