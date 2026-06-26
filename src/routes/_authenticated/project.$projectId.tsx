@@ -105,6 +105,17 @@ function ProjectPage() {
     return (localStorage.getItem("bs-chat-mode") as "chat" | "build") || "build";
   });
   useEffect(() => { localStorage.setItem("bs-chat-mode", mode); }, [mode]);
+  // Auto-execute: when true (default), Build-mode messages run in Studio immediately.
+  // When false, BloxSmith drafts a plan and waits for the user to click Push to Studio.
+  const [autoExecute, setAutoExecute] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    return localStorage.getItem("bs-auto-execute") !== "0";
+  });
+  useEffect(() => {
+    localStorage.setItem("bs-auto-execute", autoExecute ? "1" : "0");
+  }, [autoExecute]);
+  const { lang: uiLang, t: tr } = useLang();
+  const aiLanguageName = LANGUAGES.find((l) => l.code === uiLang)?.aiName ?? "English";
   const clearQueueFn = useServerFn(clearActionQueue);
   const undoFn = useServerFn(undoLastBuild);
   const [queueNotice, setQueueNotice] = useState<string | null>(null);
