@@ -98,7 +98,20 @@ function ProjectPage() {
   const { data: profile } = useQuery({ queryKey: ["profile"], queryFn: () => profileFn(), refetchInterval: 30000 });
 
   const [modelId, setModelId] = useState(DEFAULT_MODEL_ID);
-  const [autoExecute, setAutoExecute] = useState(true);
+  // Chat-vs-Build mode: chat = brainstorm only (no actions), build = execute in Studio.
+  const [mode, setMode] = useState<"chat" | "build">(() => {
+    if (typeof window === "undefined") return "build";
+    return (localStorage.getItem("bs-chat-mode") as "chat" | "build") || "build";
+  });
+  useEffect(() => { localStorage.setItem("bs-chat-mode", mode); }, [mode]);
+  const clearQueueFn = useServerFn(clearActionQueue);
+  const undoFn = useServerFn(undoLastBuild);
+  const [queueNotice, setQueueNotice] = useState<string | null>(null);
+  useEffect(() => {
+    if (!queueNotice) return;
+    const t = setTimeout(() => setQueueNotice(null), 4000);
+    return () => clearTimeout(t);
+  }, [queueNotice]);
   const [theme, setTheme] = useState<Theme>(() => {
     if (typeof window === "undefined") return "default";
     return (localStorage.getItem("bs-chat-theme") as Theme) || "default";
