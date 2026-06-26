@@ -108,7 +108,7 @@ export async function chargeCredits(
     if (didRefill) {
       await supabaseAdmin
         .from("profiles")
-        .update({ credits, credits_reset_at: resetAt })
+        .update({ credits, credits_reset_at: resetAt ?? undefined })
         .eq("id", userId);
     }
     const minutes = resetAt ? Math.max(1, Math.round((new Date(resetAt).getTime() - nowMs) / 60000)) : null;
