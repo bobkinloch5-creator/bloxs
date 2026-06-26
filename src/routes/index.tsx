@@ -545,7 +545,7 @@ function FootCol({ title, links }: { title: string; links: [string, string][] })
 }
 
 /* ---------------- Social + Share ---------------- */
-const SOCIALS: { label: string; href: string; icon: (p: { className?: string }) => JSX.Element }[] = [
+const SOCIALS: { label: string; href: string; icon: (p: { className?: string }) => React.ReactElement }[] = [
   { label: "TikTok", href: "https://www.tiktok.com/search?q=bloxsmith", icon: TikTokIcon },
   { label: "Discord", href: "https://discord.gg/lovable-dev", icon: DiscordIcon },
   { label: "YouTube", href: "https://www.youtube.com/results?search_query=bloxsmith", icon: YouTubeIcon },
@@ -580,7 +580,7 @@ function ShareBar() {
   const SITE = "https://bloxsmith.pro";
   const TEXT = "BloxSmith — the 100% free AI Roblox game builder. Describe your idea, AI builds it.";
   const enc = encodeURIComponent;
-  const links: { label: string; href: string; icon: (p: { className?: string }) => JSX.Element }[] = [
+  const links: { label: string; href: string; icon: (p: { className?: string }) => React.ReactElement }[] = [
     { label: "Share on TikTok", href: `https://www.tiktok.com/upload?lang=en&u=${enc(SITE)}`, icon: TikTokIcon },
     { label: "Share on X", href: `https://twitter.com/intent/tweet?text=${enc(TEXT)}&url=${enc(SITE)}`, icon: XIcon },
     { label: "Share on Reddit", href: `https://www.reddit.com/submit?title=${enc("BloxSmith — free AI Roblox builder")}&url=${enc(SITE)}`, icon: RedditIcon },
