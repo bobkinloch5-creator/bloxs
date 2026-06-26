@@ -1,9 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
-import { convertToModelMessages, streamText, type UIMessage } from "ai";
+import { convertToModelMessages, streamText, stepCountIs, tool, type UIMessage } from "ai";
+import { z } from "zod";
 import { getProviderModel, getFallbackModel } from "@/lib/ai-gateway.server";
 import { BLOXSMITH_SYSTEM_PROMPT, parseActions } from "@/lib/bloxsmith-prompt";
 import { DEFAULT_MODEL_ID, findModel, isSelectable } from "@/lib/models";
+import { searchRobloxToolbox, type ToolboxCategory } from "@/lib/roblox-toolbox.server";
 
 function jsonError(message: string, status: number, code?: string) {
   return new Response(JSON.stringify({ error: message, code }), {
@@ -222,8 +224,32 @@ export const Route = createFileRoute("/api/chat")({
           // Try the requested model. On upstream error, retry once with fallback.
           const modeHeader = `\n\n[MODE: ${mode}]\n${mode === "chat"
             ? "The user is BRAINSTORMING — respond conversationally and DO NOT emit any bloxsmith-actions block. Help them think, plan, and explore ideas."
-            : "The user wants you to BUILD a COMPLETE WORKING SYSTEM inside Roblox Studio. Emit a bloxsmith-actions block at the end that ships the FULL system end-to-end: every script, every UI, every RemoteEvent, every DataStore, every placement, all wired together and actually functional. Use run_lua liberally for procedural geometry (maps, tycoons, obbies, NPC rigs). Place everything in the correct Roblox service (Workspace / StarterGui / ServerScriptService / StarterPlayerScripts / ReplicatedStorage / StarterPack / Lighting). Use insert_asset with curated Roblox-owned ids when the user asks for trees, weapons, or NPC rigs. NO fake buttons, NO empty folders, NO placeholder scripts, NO TODOs. Stay on-topic but inside the topic build EVERYTHING the system needs. Aim for 10-30 actions for full systems."}\n`;
+            : "The user wants you to BUILD a COMPLETE WORKING SYSTEM inside Roblox Studio. Emit a bloxsmith-actions block at the end that ships the FULL system end-to-end: every script, every UI, every RemoteEvent, every DataStore, every placement, all wired together and actually functional. Use run_lua liberally for procedural geometry (maps, tycoons, obbies, NPC rigs). Place everything in the correct Roblox service (Workspace / StarterGui / ServerScriptService / StarterPlayerScripts / ReplicatedStorage / StarterPack / Lighting). BEFORE building anything that should be a real model (trees, cars, buildings, NPCs, pets, weapons, props, vehicles, furniture, environment kits), CALL THE search_toolbox TOOL to discover real free Roblox asset ids, then emit insert_asset actions using the ids it returns. Only fall back to primitives / run_lua when search_toolbox returns nothing. NO fake buttons, NO empty folders, NO placeholder scripts, NO TODOs. Stay on-topic but inside the topic build EVERYTHING the system needs. Aim for 10-30 actions for full systems."}\n`;
           const languageHeader = `\n[LANGUAGE: ${languageCode} / ${languageName}]\nRespond ENTIRELY in ${languageName}. Translate every sentence, heading, button name, status message, error message, and explanation into natural, fluent, idiomatic ${languageName}. Keep code identifiers, Roblox API names (Instance class names, services, property names like Workspace, Part, ScreenGui, HumanoidRootPart), and the bloxsmith-actions block contents in English exactly as required by Roblox. Translate UI strings the player will see (TextLabel.Text, button text, GUI titles, error notifications shown to players) into ${languageName}. Markdown formatting stays the same.\n`;
+
+          const toolboxTool = tool({
+            description:
+              "Search Roblox's public Toolbox/Marketplace for FREE assets matching a keyword. Use this whenever the user asks for trees, buildings, cars, vehicles, furniture, weapons, NPCs, pets, props, environment kits, sounds, or anything that looks better as a real model than primitives. Returns a list of { id, name, creatorName } you can pass to insert_asset actions. Call once per distinct asset type you need.",
+            inputSchema: z.object({
+              keyword: z.string().describe("What to search for, e.g. 'oak tree', 'sports car', 'medieval house', 'zombie npc'."),
+              category: z.enum(["Model", "Audio", "Decal", "Mesh"]).optional().describe("Asset category, defaults to Model."),
+              limit: z.number().int().min(1).max(10).optional().describe("Max results, default 6."),
+            }),
+            execute: async ({ keyword, category, limit }: { keyword: string; category?: ToolboxCategory; limit?: number }) => {
+              const out = await searchRobloxToolbox(keyword, category ?? "Model", limit ?? 6);
+              return {
+                source: out.source,
+                count: out.results.length,
+                results: out.results,
+                note: out.source === "fallback"
+                  ? "Live search unavailable; these are curated verified-free Roblox-owned assets."
+                  : out.source === "none"
+                  ? "No safe free assets matched — build from primitives via run_lua instead."
+                  : "Live results from Roblox public toolbox.",
+              };
+            },
+          });
+
           const tryStream = (
             model: typeof modelChoice.model,
             usedModelId: string,
@@ -232,6 +258,8 @@ export const Route = createFileRoute("/api/chat")({
             model,
             system: BLOXSMITH_SYSTEM_PROMPT + modeHeader + languageHeader + contextBlock,
             messages: convertedMessages,
+            tools: { search_toolbox: toolboxTool },
+            stopWhen: stepCountIs(50),
             onFinish: persistFinish(usedModelId, notice),
             onError: ({ error }) => {
               console.error(`[chat] upstream error on ${usedModelId}`, error);
