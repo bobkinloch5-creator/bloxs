@@ -11,9 +11,9 @@ export type Status = "Working" | "Coming Soon";
 export type Gateway = "lovable" | "quatarly" | "nvidia";
 
 export interface ModelOption {
-  id: string;          // unique id used in UI
-  upstreamId: string;  // model id sent to the gateway
-  gateway: Gateway;    // which API to route through
+  id: string;          // unique id used in UI (also default upstream id)
+  upstreamId?: string; // override id sent to the gateway (defaults to id)
+  gateway?: Gateway;   // which API to route through (defaults to "lovable")
   label: string;       // real public model name
   provider: Provider;  // who actually trained the model
   via: string;         // routing path description
