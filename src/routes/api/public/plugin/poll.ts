@@ -15,15 +15,20 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
       OPTIONS: async () => new Response(null, { status: 204, headers: cors() }),
       POST: async ({ request }) => {
         try {
-          const body = (await request.json()) as {
+          const body = (await request.json().catch(() => ({}))) as {
             token?: string; place_id?: string; studio_version?: string; project_id?: string | null;
           };
-          if (!body.token) return json({ error: "missing token" }, 401);
+          const headerToken =
+            request.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim() ||
+            request.headers.get("x-bloxsmith-token")?.trim() ||
+            "";
+          const token = (body.token && body.token.trim()) || headerToken;
+          if (!token) return json({ error: "missing token" }, 401);
 
           const sb = admin();
           const { data: profile } = await sb.from("profiles")
             .select("id")
-            .eq("plugin_token", body.token)
+            .eq("plugin_token", token)
             .maybeSingle();
           if (!profile) return json({ error: "invalid token" }, 401);
 
@@ -53,14 +58,13 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
             await sb.from("plugin_actions")
               .update({ status: "sent", sent_at: new Date().toISOString() })
               .in("id", ids);
-            // Mark projects as plugin_connected
             const projectIds = [...new Set(actions.map((a) => a.project_id))];
             for (const pid of projectIds) {
               await sb.from("projects").update({ plugin_connected: true }).eq("id", pid);
             }
           }
 
-          return json({ actions: actions ?? [] });
+          return json({ user_id: profile.id, actions: actions ?? [] });
         } catch (e) {
           return json({ error: e instanceof Error ? e.message : "error" }, 500);
         }
@@ -72,7 +76,7 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
 function cors() {
   return {
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "content-type",
+    "Access-Control-Allow-Headers": "content-type, authorization, x-bloxsmith-token",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
   };
 }

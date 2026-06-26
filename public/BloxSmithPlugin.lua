@@ -18,7 +18,20 @@ local InsertService         = game:GetService("InsertService")
 
 local API_BASE       = "https://bloxsmith.pro"
 local POLL_INTERVAL  = 4
-local PLUGIN_VERSION = "1.3.0"
+local PLUGIN_VERSION = "1.3.1"
+
+------------------------------------------------------------------- token helpers
+local TOKEN_KEY = "token"
+local function validToken()
+    local t = plugin:GetSetting(TOKEN_KEY)
+    if type(t) ~= "string" then return nil end
+    t = (t:gsub("^%s+", ""):gsub("%s+$", ""))
+    if t == "" then return nil end
+    return t
+end
+local function clearToken()
+    plugin:SetSetting(TOKEN_KEY, nil)
+end
 
 ------------------------------------------------------------------- UI shell
 local toolbar = plugin:CreateToolbar("BloxSmith")
@@ -500,32 +513,39 @@ local function post(path, body, opts)
     opts = opts or {}
     local verbose = opts.verbose ~= false and (VERBOSE or opts.force)
     local t0 = os.clock()
-    if verbose then log("→ POST " .. path, "net") end
+    if verbose then log("→ POST " .. API_BASE .. path, "net") end
+    body = body or {}
+    local headers = { ["Content-Type"] = "application/json" }
+    -- Forward token in both header and body for defense-in-depth.
+    if type(body.token) == "string" and body.token ~= "" then
+        headers["Authorization"] = "Bearer " .. body.token
+        headers["X-BloxSmith-Token"] = body.token
+    end
     local ok, res = pcall(function()
         return HttpService:RequestAsync({
             Url = API_BASE .. path, Method = "POST",
-            Headers = { ["Content-Type"] = "application/json" },
-            Body = HttpService:JSONEncode(body or {}),
+            Headers = headers,
+            Body = HttpService:JSONEncode(body),
         })
     end)
     local dt = math.floor((os.clock() - t0) * 1000)
     if not ok then
         log(("✗ POST %s failed after %dms — %s"):format(path, dt, tostring(res)), "error")
-        return nil, tostring(res)
+        return nil, tostring(res), 0
     end
     if not res.Success then
         local short = tostring(res.Body or "")
         if #short > 240 then short = short:sub(1,240) .. "…" end
         log(("✗ POST %s → HTTP %s in %dms — %s"):format(path, tostring(res.StatusCode), dt, short), "error")
-        return nil, "HTTP " .. tostring(res.StatusCode) .. ": " .. tostring(res.Body)
+        return nil, "HTTP " .. tostring(res.StatusCode) .. ": " .. tostring(res.Body), tonumber(res.StatusCode) or 0
     end
     local decoded; pcall(function() decoded = HttpService:JSONDecode(res.Body) end)
     if verbose then log(("← POST %s → %s in %dms"):format(path, tostring(res.StatusCode), dt), "net") end
-    return decoded or {}, nil
+    return decoded or {}, nil, tonumber(res.StatusCode) or 200
 end
 
 local function reportComplete(actionId, status, errMsg, result)
-    local token = plugin:GetSetting("token")
+    local token = validToken()
     if not token then return end
     post("/api/public/plugin/complete", {
         token = token, action_id = actionId, status = status, error = errMsg, result = result,
@@ -547,14 +567,34 @@ local function refreshInfo()
 end
 
 local function pollOnce(force)
-    local token = plugin:GetSetting("token")
-    if not token then return end
-    local data, err = post("/api/public/plugin/poll", {
+    local token = validToken()
+    if not token then
+        connected = false
+        setStatus("not connected", Color3.fromRGB(255,180,80),
+            "Plugin not connected. Please reconnect from bloxsmith.pro.")
+        if force then log("No saved token — click Connect to link.", "warn") end
+        return
+    end
+    if force then log(("token found: yes  ·  API: %s  ·  place: %s  ·  v%s")
+        :format(API_BASE, tostring(game.PlaceId or 0), PLUGIN_VERSION), "debug") end
+    local data, err, status = post("/api/public/plugin/poll", {
         token = token, place_id = tostring(game.PlaceId or 0), studio_version = studioVersion(),
     }, { verbose = VERBOSE, force = force })
     if err then
+        if status == 401 then
+            clearToken(); connected = false
+            connectBtn.Text = "Connect"; connectBtn.BackgroundColor3 = Color3.fromRGB(70,130,240)
+            setStatus("not connected", Color3.fromRGB(255,180,80),
+                "Plugin not connected. Please reconnect from bloxsmith.pro.")
+            log("Token rejected by server (401) — cleared. Click Connect to reconnect.", "error")
+            return
+        end
         setStatus("error", Color3.fromRGB(255,120,120), err)
         log("Poll failed — will retry.", "error"); return
+    end
+    if data and data.user_id then
+        -- userId surfaced only on first successful poll after (re)connect
+        if lastHeartbeat == 0 then log("userId: " .. tostring(data.user_id), "debug") end
     end
     setStatus("Connected", Color3.fromRGB(120,220,160), "Linked to your BloxSmith account.")
     local actions = data.actions or {}
@@ -627,7 +667,7 @@ local function startPairing()
 end
 
 local function disconnect()
-    plugin:SetSetting("token", nil)
+    clearToken()
     connected = false; pairingCode = nil
     connectBtn.Text = "Connect"; connectBtn.BackgroundColor3 = Color3.fromRGB(70,130,240)
     linkBox.Visible = false
@@ -647,8 +687,10 @@ connectBtn.MouseButton1Click:Connect(function()
 end)
 
 reconnectBtn.MouseButton1Click:Connect(function()
-    if not plugin:GetSetting("token") then
-        log("No saved token — use Connect first.", "warn"); return
+    if not validToken() then
+        log("No saved token — starting fresh connect.", "warn")
+        clearToken(); connected = false
+        task.spawn(startPairing); return
     end
     log("Reconnecting…", "info"); connected = true; pollOnce(true)
 end)
@@ -664,8 +706,8 @@ execBtn.MouseButton1Click:Connect(function()
 end)
 
 clearBtn.MouseButton1Click:Connect(function()
-    local token = plugin:GetSetting("token")
-    if not token then log("Not connected.", "warn"); return end
+    local token = validToken()
+    if not token then log("Not connected — click Connect first.", "warn"); return end
     log("Clearing stuck queue…", "info")
     local data, err = post("/api/public/plugin/clear", { token = token }, { verbose = true })
     if err then log("Clear failed: " .. err, "error")
@@ -688,11 +730,13 @@ end)
 
 ------------------------------------------------------------------- boot
 task.spawn(function()
-    if plugin:GetSetting("token") then
+    if validToken() then
         connected = true
         connectBtn.Text = "Disconnect"; connectBtn.BackgroundColor3 = Color3.fromRGB(220,90,90)
         log("Restoring previous session…", "info"); pollOnce(true)
     else
+        clearToken() -- scrub any stale empty/garbage value
+        connected = false
         setStatus("not connected", Color3.fromRGB(200,200,210), "Click Connect to link.")
     end
     refreshInfo()
