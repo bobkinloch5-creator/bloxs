@@ -335,6 +335,9 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          banned: boolean
+          banned_at: string | null
+          banned_reason: string | null
           bio: string
           created_at: string
           credits: number
@@ -354,6 +357,9 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
+          banned?: boolean
+          banned_at?: string | null
+          banned_reason?: string | null
           bio?: string
           created_at?: string
           credits?: number
@@ -373,6 +379,9 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
+          banned?: boolean
+          banned_at?: string | null
+          banned_reason?: string | null
           bio?: string
           created_at?: string
           credits?: number
@@ -548,7 +557,7 @@ export type Database = {
       regenerate_my_plugin_token: { Args: never; Returns: string }
     }
     Enums: {
-      app_role: "admin" | "owner" | "user" | "donator"
+      app_role: "admin" | "owner" | "user" | "donator" | "moderator"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -676,7 +685,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "owner", "user", "donator"],
+      app_role: ["admin", "owner", "user", "donator", "moderator"],
     },
   },
 } as const
