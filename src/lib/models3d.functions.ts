@@ -40,12 +40,14 @@ export const getModelStatus = createServerFn({ method: "GET" })
       .select("*")
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
-      .limit(20);
+      .limit(40);
 
     const projectRows = (rows || []).filter((r) => r.project_id === data.projectId);
-    const last = (rows || [])[0];
-    const lastTs = last ? new Date(last.created_at).getTime() : 0;
+    // 24h cooldown only counts NEW model generations, not animations of existing ones.
+    const lastNew = (rows || []).find((r) => r.mode === "text" || r.mode === "image");
+    const lastTs = lastNew ? new Date(lastNew.created_at).getTime() : 0;
     const remaining = Math.max(0, COOLDOWN_MS - (Date.now() - lastTs));
+
 
     return {
       cooldownMs: COOLDOWN_MS,
