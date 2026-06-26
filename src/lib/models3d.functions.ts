@@ -70,14 +70,16 @@ export const startModelGeneration = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
 
-    // 24h rate-limit (per user)
+    // 24h rate-limit (per user) — only counts text/image, not animations of existing models
     const { data: last } = await supabase
       .from("model_generations")
       .select("created_at")
       .eq("user_id", userId)
+      .in("mode", ["text", "image"])
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
+
 
     if (last) {
       const elapsed = Date.now() - new Date(last.created_at).getTime();
