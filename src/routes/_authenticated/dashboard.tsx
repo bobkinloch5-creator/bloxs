@@ -329,14 +329,15 @@ function LeftSidebar({
   theme, setTheme, credits, maxCredits, isAdmin, resetLabel,
 }: { theme: Theme; setTheme: (t: Theme) => void; credits: number; maxCredits: number; isAdmin: boolean; resetLabel: string }) {
   return (
-    <aside className="sticky top-0 hidden h-screen w-[240px] shrink-0 flex-col gap-3 border-r p-3 lg:flex" style={{ background: "var(--bs-card)", borderColor: "var(--bs-border)" }}>
-      <Link to="/dashboard" className="flex items-center gap-2.5 px-2 py-2">
-        <img src={bloxLogo.url} alt="BloxSmith" className="h-9 w-9 rounded-xl" />
+    <aside className="sticky top-0 hidden h-screen w-[272px] shrink-0 flex-col gap-5 border-r p-5 lg:flex" style={{ background: "var(--bs-card)", borderColor: "var(--bs-border)" }}>
+      <Link to="/dashboard" className="flex items-center gap-3">
+        <div className="vapor-diamond"><i /></div>
         <div className="min-w-0">
-          <div className="truncate text-sm font-extrabold tracking-tight">BloxSmith</div>
-          <div className="truncate text-[10px] font-semibold tracking-[0.18em]" style={{ color: "var(--bs-muted-fg)" }}>AI GAME BUILDER</div>
+          <div className="truncate text-xl font-bold uppercase italic tracking-tighter text-white" style={{ fontFamily: "Space Mono, monospace" }}>BloxSmith</div>
+          <div className="truncate text-[10px] font-semibold tracking-[0.22em] text-cyan-300/70" style={{ fontFamily: "Space Mono, monospace" }}>AI GAME BUILDER</div>
         </div>
       </Link>
+
 
       <nav className="flex flex-1 flex-col gap-1">
         {isAdmin && (
@@ -426,9 +427,10 @@ function TopBar({
   return (
     <header className="sticky top-0 z-30 flex items-center gap-3 border-b px-4 py-3 sm:px-6" style={{ background: "color-mix(in oklab, var(--bs-card) 90%, transparent)", borderColor: "var(--bs-border)", backdropFilter: "blur(12px)" }}>
       <div className="min-w-0 flex-1">
-        <h1 className="truncate text-xl font-extrabold tracking-tight sm:text-2xl">Your BloxSmith Projects</h1>
+        <h1 className="truncate text-3xl font-bold uppercase italic tracking-tighter text-white sm:text-4xl" style={{ fontFamily: "Space Mono, monospace" }}>Projects</h1>
         <p className="truncate text-xs" style={{ color: "var(--bs-muted-fg)" }}>Create, manage, and continue your Roblox AI builds.</p>
       </div>
+
 
       <div className="hidden items-center gap-2 md:flex">
         <div className="bs-soft flex items-center gap-2 px-3 py-2">
@@ -570,12 +572,12 @@ function StatsRow({ total, active, builds, connected, credits, maxCredits, isAdm
       {items.map((it) => {
         const Icon = it.icon;
         return (
-          <div key={it.label} className="bs-card p-3.5">
-            <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--bs-muted-fg)" }}>
+          <div key={it.label} className="vapor-card p-4">
+            <div className="flex items-center justify-between vapor-label">
               {it.label}
-              <Icon className="h-3.5 w-3.5" style={{ color: it.accent ? "var(--bs-primary)" : "var(--bs-muted-fg)" }} />
+              <Icon className="h-3.5 w-3.5" style={{ color: it.accent ? "#67e8f9" : "rgba(167,139,250,0.6)" }} />
             </div>
-            <div className="mt-1 text-2xl font-extrabold" style={it.accent ? { color: "var(--bs-primary)" } : undefined}>{it.value}</div>
+            <div className="mt-2 vapor-stat-num" style={it.accent ? { color: "#67e8f9" } : undefined}>{it.value}</div>
             <div className="mt-0.5 truncate text-[11px]" style={{ color: "var(--bs-muted-fg)" }}>{it.sub}</div>
           </div>
         );
@@ -583,6 +585,7 @@ function StatsRow({ total, active, builds, connected, credits, maxCredits, isAdm
     </div>
   );
 }
+
 
 /* ────────────────── TOOLBAR ────────────────── */
 function ProjectsToolbar({
@@ -637,7 +640,7 @@ function ProjectCard({ p, onDelete }: { p: any; onDelete: (id: string) => void }
   const statusColor = needsFix ? "var(--bs-warning)" : isActive ? "var(--bs-success)" : "var(--bs-muted-fg)";
 
   return (
-    <div className="bs-card group relative overflow-hidden">
+    <div className="vapor-card group relative overflow-hidden">
       <div className="relative">
         <GameThumb type={p.game_type} className="h-44 w-full" />
         <span className="absolute left-3 top-3 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider backdrop-blur" style={{ background: "color-mix(in oklab, var(--bs-card) 70%, transparent)", color: statusColor, border: `1px solid ${statusColor}` }}>
