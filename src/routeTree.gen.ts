@@ -23,6 +23,7 @@ import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as AuthenticatedUiGeneratorRouteImport } from './routes/_authenticated/ui-generator'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedPluginRouteImport } from './routes/_authenticated/plugin'
+import { Route as AuthenticatedModelsRouteImport } from './routes/_authenticated/models'
 import { Route as AuthenticatedMcpRouteImport } from './routes/_authenticated/mcp'
 import { Route as AuthenticatedLinkRouteImport } from './routes/_authenticated/link'
 import { Route as AuthenticatedIdeasRouteImport } from './routes/_authenticated/ideas'
@@ -31,7 +32,6 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as AuthenticatedCollaboratorsRouteImport } from './routes/_authenticated/collaborators'
 import { Route as AuthenticatedChatRouteImport } from './routes/_authenticated/chat'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
-import { Route as AuthenticatedModelsIndexRouteImport } from './routes/_authenticated/models.index'
 import { Route as ApiPublicMcpRouteImport } from './routes/api/public/mcp'
 import { Route as AuthenticatedProjectProjectIdRouteImport } from './routes/_authenticated/project.$projectId'
 import { Route as AuthenticatedModelsProjectIdRouteImport } from './routes/_authenticated/models.$projectId'
@@ -113,6 +113,11 @@ const AuthenticatedPluginRoute = AuthenticatedPluginRouteImport.update({
   path: '/plugin',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedModelsRoute = AuthenticatedModelsRouteImport.update({
+  id: '/models',
+  path: '/models',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedMcpRoute = AuthenticatedMcpRouteImport.update({
   id: '/mcp',
   path: '/mcp',
@@ -154,12 +159,6 @@ const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedModelsIndexRoute =
-  AuthenticatedModelsIndexRouteImport.update({
-    id: '/models/',
-    path: '/models/',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
 const ApiPublicMcpRoute = ApiPublicMcpRouteImport.update({
   id: '/api/public/mcp',
   path: '/api/public/mcp',
@@ -173,9 +172,9 @@ const AuthenticatedProjectProjectIdRoute =
   } as any)
 const AuthenticatedModelsProjectIdRoute =
   AuthenticatedModelsProjectIdRouteImport.update({
-    id: '/models/$projectId',
-    path: '/models/$projectId',
-    getParentRoute: () => AuthenticatedRouteRoute,
+    id: '/$projectId',
+    path: '/$projectId',
+    getParentRoute: () => AuthenticatedModelsRoute,
   } as any)
 const ApiPublicPluginScanRoute = ApiPublicPluginScanRouteImport.update({
   id: '/api/public/plugin/scan',
@@ -232,6 +231,7 @@ export interface FileRoutesByFullPath {
   '/ideas': typeof AuthenticatedIdeasRoute
   '/link': typeof AuthenticatedLinkRoute
   '/mcp': typeof AuthenticatedMcpRoute
+  '/models': typeof AuthenticatedModelsRouteWithChildren
   '/plugin': typeof AuthenticatedPluginRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/ui-generator': typeof AuthenticatedUiGeneratorRoute
@@ -239,7 +239,6 @@ export interface FileRoutesByFullPath {
   '/models/$projectId': typeof AuthenticatedModelsProjectIdRoute
   '/project/$projectId': typeof AuthenticatedProjectProjectIdRoute
   '/api/public/mcp': typeof ApiPublicMcpRoute
-  '/models/': typeof AuthenticatedModelsIndexRoute
   '/api/public/plugin/clear': typeof ApiPublicPluginClearRoute
   '/api/public/plugin/complete': typeof ApiPublicPluginCompleteRoute
   '/api/public/plugin/error': typeof ApiPublicPluginErrorRoute
@@ -266,6 +265,7 @@ export interface FileRoutesByTo {
   '/ideas': typeof AuthenticatedIdeasRoute
   '/link': typeof AuthenticatedLinkRoute
   '/mcp': typeof AuthenticatedMcpRoute
+  '/models': typeof AuthenticatedModelsRouteWithChildren
   '/plugin': typeof AuthenticatedPluginRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/ui-generator': typeof AuthenticatedUiGeneratorRoute
@@ -273,7 +273,6 @@ export interface FileRoutesByTo {
   '/models/$projectId': typeof AuthenticatedModelsProjectIdRoute
   '/project/$projectId': typeof AuthenticatedProjectProjectIdRoute
   '/api/public/mcp': typeof ApiPublicMcpRoute
-  '/models': typeof AuthenticatedModelsIndexRoute
   '/api/public/plugin/clear': typeof ApiPublicPluginClearRoute
   '/api/public/plugin/complete': typeof ApiPublicPluginCompleteRoute
   '/api/public/plugin/error': typeof ApiPublicPluginErrorRoute
@@ -302,6 +301,7 @@ export interface FileRoutesById {
   '/_authenticated/ideas': typeof AuthenticatedIdeasRoute
   '/_authenticated/link': typeof AuthenticatedLinkRoute
   '/_authenticated/mcp': typeof AuthenticatedMcpRoute
+  '/_authenticated/models': typeof AuthenticatedModelsRouteWithChildren
   '/_authenticated/plugin': typeof AuthenticatedPluginRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/ui-generator': typeof AuthenticatedUiGeneratorRoute
@@ -309,7 +309,6 @@ export interface FileRoutesById {
   '/_authenticated/models/$projectId': typeof AuthenticatedModelsProjectIdRoute
   '/_authenticated/project/$projectId': typeof AuthenticatedProjectProjectIdRoute
   '/api/public/mcp': typeof ApiPublicMcpRoute
-  '/_authenticated/models/': typeof AuthenticatedModelsIndexRoute
   '/api/public/plugin/clear': typeof ApiPublicPluginClearRoute
   '/api/public/plugin/complete': typeof ApiPublicPluginCompleteRoute
   '/api/public/plugin/error': typeof ApiPublicPluginErrorRoute
@@ -338,6 +337,7 @@ export interface FileRouteTypes {
     | '/ideas'
     | '/link'
     | '/mcp'
+    | '/models'
     | '/plugin'
     | '/settings'
     | '/ui-generator'
@@ -345,7 +345,6 @@ export interface FileRouteTypes {
     | '/models/$projectId'
     | '/project/$projectId'
     | '/api/public/mcp'
-    | '/models/'
     | '/api/public/plugin/clear'
     | '/api/public/plugin/complete'
     | '/api/public/plugin/error'
@@ -372,6 +371,7 @@ export interface FileRouteTypes {
     | '/ideas'
     | '/link'
     | '/mcp'
+    | '/models'
     | '/plugin'
     | '/settings'
     | '/ui-generator'
@@ -379,7 +379,6 @@ export interface FileRouteTypes {
     | '/models/$projectId'
     | '/project/$projectId'
     | '/api/public/mcp'
-    | '/models'
     | '/api/public/plugin/clear'
     | '/api/public/plugin/complete'
     | '/api/public/plugin/error'
@@ -407,6 +406,7 @@ export interface FileRouteTypes {
     | '/_authenticated/ideas'
     | '/_authenticated/link'
     | '/_authenticated/mcp'
+    | '/_authenticated/models'
     | '/_authenticated/plugin'
     | '/_authenticated/settings'
     | '/_authenticated/ui-generator'
@@ -414,7 +414,6 @@ export interface FileRouteTypes {
     | '/_authenticated/models/$projectId'
     | '/_authenticated/project/$projectId'
     | '/api/public/mcp'
-    | '/_authenticated/models/'
     | '/api/public/plugin/clear'
     | '/api/public/plugin/complete'
     | '/api/public/plugin/error'
@@ -546,6 +545,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPluginRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/models': {
+      id: '/_authenticated/models'
+      path: '/models'
+      fullPath: '/models'
+      preLoaderRoute: typeof AuthenticatedModelsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/mcp': {
       id: '/_authenticated/mcp'
       path: '/mcp'
@@ -602,13 +608,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/models/': {
-      id: '/_authenticated/models/'
-      path: '/models'
-      fullPath: '/models/'
-      preLoaderRoute: typeof AuthenticatedModelsIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/api/public/mcp': {
       id: '/api/public/mcp'
       path: '/api/public/mcp'
@@ -625,10 +624,10 @@ declare module '@tanstack/react-router' {
     }
     '/_authenticated/models/$projectId': {
       id: '/_authenticated/models/$projectId'
-      path: '/models/$projectId'
+      path: '/$projectId'
       fullPath: '/models/$projectId'
       preLoaderRoute: typeof AuthenticatedModelsProjectIdRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+      parentRoute: typeof AuthenticatedModelsRoute
     }
     '/api/public/plugin/scan': {
       id: '/api/public/plugin/scan'
@@ -682,6 +681,17 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AuthenticatedModelsRouteChildren {
+  AuthenticatedModelsProjectIdRoute: typeof AuthenticatedModelsProjectIdRoute
+}
+
+const AuthenticatedModelsRouteChildren: AuthenticatedModelsRouteChildren = {
+  AuthenticatedModelsProjectIdRoute: AuthenticatedModelsProjectIdRoute,
+}
+
+const AuthenticatedModelsRouteWithChildren =
+  AuthenticatedModelsRoute._addFileChildren(AuthenticatedModelsRouteChildren)
+
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
   AuthenticatedChatRoute: typeof AuthenticatedChatRoute
@@ -691,12 +701,11 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedIdeasRoute: typeof AuthenticatedIdeasRoute
   AuthenticatedLinkRoute: typeof AuthenticatedLinkRoute
   AuthenticatedMcpRoute: typeof AuthenticatedMcpRoute
+  AuthenticatedModelsRoute: typeof AuthenticatedModelsRouteWithChildren
   AuthenticatedPluginRoute: typeof AuthenticatedPluginRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedUiGeneratorRoute: typeof AuthenticatedUiGeneratorRoute
-  AuthenticatedModelsProjectIdRoute: typeof AuthenticatedModelsProjectIdRoute
   AuthenticatedProjectProjectIdRoute: typeof AuthenticatedProjectProjectIdRoute
-  AuthenticatedModelsIndexRoute: typeof AuthenticatedModelsIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -708,12 +717,11 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedIdeasRoute: AuthenticatedIdeasRoute,
   AuthenticatedLinkRoute: AuthenticatedLinkRoute,
   AuthenticatedMcpRoute: AuthenticatedMcpRoute,
+  AuthenticatedModelsRoute: AuthenticatedModelsRouteWithChildren,
   AuthenticatedPluginRoute: AuthenticatedPluginRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedUiGeneratorRoute: AuthenticatedUiGeneratorRoute,
-  AuthenticatedModelsProjectIdRoute: AuthenticatedModelsProjectIdRoute,
   AuthenticatedProjectProjectIdRoute: AuthenticatedProjectProjectIdRoute,
-  AuthenticatedModelsIndexRoute: AuthenticatedModelsIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
