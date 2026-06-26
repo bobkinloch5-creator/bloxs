@@ -7,6 +7,7 @@ import { BLOXSMITH_SYSTEM_PROMPT, parseActions } from "@/lib/bloxsmith-prompt";
 import { DEFAULT_MODEL_ID, findModel, isSelectable } from "@/lib/models";
 import { searchRobloxToolbox, type ToolboxCategory } from "@/lib/roblox-toolbox.server";
 import { chargeCredits, creditCostForTier, BUILD_ACTIONS_BONUS } from "@/lib/credits.server";
+import { describeImageWithNvidiaPaliGemma } from "@/lib/nvidia-vision.server";
 
 function jsonError(message: string, status: number, code?: string) {
   return new Response(JSON.stringify({ error: message, code }), {
@@ -188,6 +189,22 @@ export const Route = createFileRoute("/api/chat")({
             contextBlock = "\n\n---\nLIVE CONTEXT (auto-injected memory + Studio state):\n\n" + parts.join("\n\n---\n");
           } catch (e) {
             console.warn("[chat] failed to load studio context", e);
+          }
+
+          try {
+            const imageParts = messages
+              .flatMap((m) => m.parts)
+              .filter((p): p is { type: "file"; mediaType?: string; url?: string } =>
+                p.type === "file" && typeof (p as { mediaType?: string }).mediaType === "string" && String((p as { mediaType?: string }).mediaType).startsWith("image/"),
+              );
+            if (imageParts.length > 0) {
+              const vision = await describeImageWithNvidiaPaliGemma(imageParts);
+              if (vision) {
+                contextBlock += `\n\n---\nNVIDIA PALIGEMMA VISION ANALYSIS:\n${vision}\nUse this as visual reference context only. Build with safe free Toolbox assets and clean Roblox systems; do not invent unsafe assets.`;
+              }
+            }
+          } catch (e) {
+            console.warn("[chat] NVIDIA PaliGemma vision analysis failed", e);
           }
 
           const convertedMessages = await convertToModelMessages(messages);
