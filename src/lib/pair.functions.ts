@@ -25,17 +25,17 @@ export const claimPairCode = createServerFn({ method: "POST" })
     if (!row) throw new Error("This code is not valid. Open the BloxSmith plugin in Studio and click Connect again.");
     if (new Date(row.expires_at) < new Date()) throw new Error("This code expired. Click Connect in the plugin again to get a fresh one.");
 
-    // Get the user's plugin token (create one if missing — first-time users).
-    const { data: profile } = await context.supabase
-      .from("profiles")
-      .select("plugin_token")
-      .eq("id", context.userId)
-      .maybeSingle();
-    let token = profile?.plugin_token as string | null | undefined;
+    // Get the user's plugin token via secure RPC (column is not directly readable).
+    let token: string | null | undefined;
+    {
+      const { data: t, error: tokErr } = await context.supabase.rpc("get_my_plugin_token");
+      if (tokErr) throw new Error(tokErr.message);
+      token = (t as unknown as string) ?? null;
+    }
     if (!token) {
-      token = "BS-" + Math.random().toString(36).slice(2, 8).toUpperCase() +
-              Math.random().toString(36).slice(2, 8).toUpperCase();
-      await context.supabase.from("profiles").update({ plugin_token: token }).eq("id", context.userId);
+      const { data: rotated, error: rotErr } = await context.supabase.rpc("regenerate_my_plugin_token");
+      if (rotErr) throw new Error(rotErr.message);
+      token = rotated as unknown as string;
     }
 
     const { error: updErr } = await supabaseAdmin
