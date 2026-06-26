@@ -95,13 +95,16 @@ export interface ParsedAction {
 }
 
 export function parseActions(content: string): { cleanContent: string; actions: ParsedAction[] } {
-  const re = /```bloxsmith-actions\s*([\s\S]*?)```\s*$/i;
-  const m = content.match(re);
-  if (!m) return { cleanContent: content, actions: [] };
+  // Find the LAST bloxsmith-actions fenced block anywhere in the message.
+  const re = /```bloxsmith-actions\s*\n?([\s\S]*?)```/gi;
+  let lastMatch: RegExpExecArray | null = null;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(content)) !== null) lastMatch = m;
+  if (!lastMatch) return { cleanContent: content, actions: [] };
   try {
-    const json = JSON.parse(m[1].trim());
+    const json = JSON.parse(lastMatch[1].trim());
     if (!Array.isArray(json)) return { cleanContent: content, actions: [] };
-    const cleaned = content.replace(re, "").trimEnd();
+    const cleaned = (content.slice(0, lastMatch.index) + content.slice(lastMatch.index + lastMatch[0].length)).trimEnd();
     const actions: ParsedAction[] = json
       .filter((a) => a && typeof a === "object")
       .map((a) => ({
