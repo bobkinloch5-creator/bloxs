@@ -935,8 +935,10 @@ function Composer({
   onSubmit, onStop, onAction, modelId, setModelId,
   ttsEnabled, setTtsEnabled, onVoiceTranscript,
   attachment, setAttachment, onAttachFile,
+  autoExecute, setAutoExecute, onPushToStudio,
 }: any) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { t } = useLang();
   const canSend = !!token && !busy && (input.trim().length > 0 || !!attachment);
   return (
     <div
