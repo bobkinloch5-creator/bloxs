@@ -45,7 +45,7 @@ export const updateMyProfile = createServerFn({ method: "POST" })
       .from("profiles")
       .update(data)
       .eq("id", context.userId)
-      .select()
+      .select(PROFILE_COLS)
       .single();
     if (error) throw new Error(error.message);
     return row;
