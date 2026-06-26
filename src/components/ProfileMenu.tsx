@@ -45,7 +45,8 @@ export function ProfileMenu({ compact = false }: { compact?: boolean }) {
   const maxCredits = (profile as any)?.max_credits ?? 30;
   const reset = useResetTimer((profile as any)?.credits_reset_at);
   const pct = Math.min(100, Math.max(0, (credits / Math.max(1, maxCredits)) * 100));
-  const initial = name.slice(0, 1).toUpperCase();
+  const { lang, setLang, t } = useLang();
+  const currentLang = LANGUAGES.find((l) => l.code === lang) ?? LANGUAGES[0];
 
   const signOut = async () => {
     await supabase.auth.signOut();
