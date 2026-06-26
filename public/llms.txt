@@ -1,0 +1,18 @@
+# BloxSmith
+
+> BloxSmith is the free AI Roblox game builder. Describe an idea in plain text, and AI generates scripts, maps, UI, and systems that flow straight into Roblox Studio through the BloxSmith plugin.
+
+BloxSmith turns natural-language game ideas into working Roblox experiences. It is built for Roblox creators who want to prototype and ship games faster without writing every line of Lua by hand. The website lets users start an idea, manage generated assets, and install the Roblox Studio plugin. The plugin connects the website to Roblox Studio so assets can be pulled into a live place.
+
+## Pages
+
+- [Home](/): The BloxSmith landing page, feature overview, and “Start Building Free” call to action.
+- [Docs](/docs): Help documentation for getting started, using the AI builder, and installing the Roblox Studio plugin.
+- [Support](/support): Support resources, FAQs, and how to get help with BloxSmith.
+- [Contact](/contact): Contact form and channels for reaching the BloxSmith team.
+- [Privacy](/privacy): Privacy policy and data practices for BloxSmith users.
+- [Terms](/terms): Terms of service and usage rules for the BloxSmith platform.
+
+## Optional
+
+- [BloxSmith Roblox Studio Plugin](/BloxSmithPlugin.lua): The Roblox Studio plugin Lua file that connects a Roblox place to the BloxSmith website. Advanced users can reference it directly.
