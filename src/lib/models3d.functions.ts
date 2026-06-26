@@ -5,10 +5,49 @@ import { z } from "zod";
 const COOLDOWN_MS = 24 * 60 * 60 * 1000;
 const MESHY_BASE = "https://api.meshy.ai/openapi";
 
+// ── Meshy model selection ───────────────────────────────────────────────
+// Always prefer the newest, highest-quality model for Roblox-ready assets.
+// "meshy-6" (aka "latest") is currently Meshy's best model and the only tier
+// that supports HD 2K textures + emission PBR maps. "meshy-4" is retired and
+// was the cause of the previous failures.
+const MESHY_BEST_MODEL = "meshy-6";
+// If the account/endpoint can't use the newest model, fall back in quality order.
+const MESHY_MODEL_FALLBACKS = ["meshy-5"];
+
+// Optional request fields that a given model/endpoint may not support. If Meshy
+// rejects one of these, we drop just that field and retry — so a job always ends
+// up using the best *compatible* settings instead of failing outright.
+const MESHY_OPTIONAL_FIELDS = [
+  "hd_texture",
+  "enable_pbr",
+  "should_texture",
+  "should_remesh",
+  "topology",
+  "target_polycount",
+  "art_style",
+  "negative_prompt",
+  "enable_original_uv",
+  "symmetry_mode",
+] as const;
+
+// Extra substrings (besides the field name itself) that an error might use to
+// refer to a field, so we can detect-and-drop it reliably.
+const MESHY_FIELD_ALIASES: Record<string, string[]> = {
+  enable_pbr: ["pbr"],
+  hd_texture: ["hd texture", "2k texture"],
+  target_polycount: ["polycount", "poly count"],
+  should_remesh: ["remesh"],
+  enable_original_uv: ["original uv"],
+};
+
 function meshyKey() {
   const k = process.env.MESHY_API_KEY;
   if (!k) throw new Error("MESHY_API_KEY is not configured.");
   return k;
+}
+
+function stripUndefined<T extends Record<string, any>>(obj: T): T {
+  return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined)) as T;
 }
 
 async function meshyFetch(path: string, init?: RequestInit) {
@@ -28,6 +67,72 @@ async function meshyFetch(path: string, init?: RequestInit) {
     throw new Error(typeof msg === "string" ? msg : JSON.stringify(msg));
   }
   return json;
+}
+
+/**
+ * Create a Meshy task with automatic compatibility fallback.
+ *
+ * 1. Tries the requested (best) ai_model first, then progressively older models,
+ *    so we always use the highest-quality model the account can actually run.
+ * 2. If Meshy rejects an optional field (e.g. `enable_pbr` / `hd_texture` on a
+ *    model or endpoint that doesn't support it), that field is removed and the
+ *    request retried — unsupported options are auto-disabled instead of failing.
+ *
+ * Genuine errors (auth, rate-limit, invalid prompt/image) are surfaced
+ * immediately rather than burning retries.
+ */
+async function meshyCreate(path: string, baseBody: Record<string, any>) {
+  const requested = baseBody.ai_model as string | undefined;
+  const modelChain: (string | undefined)[] = requested
+    ? [requested, ...MESHY_MODEL_FALLBACKS.filter((m) => m !== requested)]
+    : [undefined];
+
+  let lastErr: unknown = new Error("Meshy request failed.");
+
+  for (const model of modelChain) {
+    const body: Record<string, any> = stripUndefined({
+      ...baseBody,
+      ...(model !== undefined ? { ai_model: model } : {}),
+    });
+    const dropped = new Set<string>();
+
+    // Retry on this model while it keeps rejecting optional fields.
+    for (let i = 0; i <= MESHY_OPTIONAL_FIELDS.length; i++) {
+      try {
+        return await meshyFetch(path, { method: "POST", body: JSON.stringify(body) });
+      } catch (e) {
+        lastErr = e;
+        const msg = (e instanceof Error ? e.message : String(e)).toLowerCase();
+
+        // Drop the first optional field the error names, then retry on this model.
+        const offending = MESHY_OPTIONAL_FIELDS.find((f) => {
+          if (!(f in body) || dropped.has(f)) return false;
+          const needles = [f, f.replace(/_/g, " "), ...(MESHY_FIELD_ALIASES[f] ?? [])];
+          return needles.some((n) => msg.includes(n));
+        });
+        if (offending) {
+          delete body[offending];
+          dropped.add(offending);
+          continue;
+        }
+
+        // Error points at the model itself (or is a generic parameter problem)
+        // → step down to the next, older model in the chain.
+        const modelIssue =
+          msg.includes("ai_model") ||
+          msg.includes(" model") ||
+          msg.includes("not support") ||
+          msg.includes("unsupported") ||
+          msg.includes("invalid");
+        if (modelIssue) break;
+
+        // Otherwise it's a real error (auth, rate limit, bad input) — surface it.
+        throw e;
+      }
+    }
+  }
+
+  throw lastErr;
 }
 
 export const getModelStatus = createServerFn({ method: "GET" })
@@ -101,34 +206,35 @@ export const startModelGeneration = createServerFn({ method: "POST" })
       throw new Error("Please provide an image URL or upload an image.");
     }
 
+    // Sculpture art style is incompatible with PBR per Meshy's guidance.
+    const wantPbr = data.artStyle !== "sculpture";
+
     let taskId: string;
     try {
       if (data.mode === "text") {
-        const res = await meshyFetch("/v2/text-to-3d", {
-          method: "POST",
-          body: JSON.stringify({
-            mode: "preview",
-            prompt: data.prompt,
-            negative_prompt: data.negativePrompt || undefined,
-            art_style: data.artStyle,
-            ai_model: "meshy-4",
-            topology: data.topology,
-            target_polycount: data.targetPolycount,
-            should_remesh: true,
-          }),
+        // Preview is mesh-only; PBR/HD textures are applied later in the refine
+        // stage (see pollModelGeneration). We still pick the best model + topology.
+        const res = await meshyCreate("/v2/text-to-3d", {
+          mode: "preview",
+          prompt: data.prompt,
+          negative_prompt: data.negativePrompt || undefined,
+          art_style: data.artStyle,
+          ai_model: MESHY_BEST_MODEL,
+          topology: data.topology,
+          target_polycount: data.targetPolycount,
+          should_remesh: true,
         });
         taskId = res.result;
       } else {
-        const res = await meshyFetch("/v1/image-to-3d", {
-          method: "POST",
-          body: JSON.stringify({
-            image_url: data.imageUrl,
-            enable_pbr: true,
-            ai_model: "meshy-4",
-            topology: data.topology,
-            target_polycount: data.targetPolycount,
-            should_remesh: true,
-          }),
+        const res = await meshyCreate("/v1/image-to-3d", {
+          image_url: data.imageUrl,
+          ai_model: MESHY_BEST_MODEL,
+          enable_pbr: wantPbr,
+          should_texture: true,
+          hd_texture: true, // highest-quality 2K textures; auto-dropped if unsupported
+          topology: data.topology,
+          target_polycount: data.targetPolycount,
+          should_remesh: true,
         });
         taskId = res.result;
       }
@@ -144,6 +250,7 @@ export const startModelGeneration = createServerFn({ method: "POST" })
         mode: data.mode,
         prompt: data.prompt ?? null,
         image_url: data.mode === "image" ? data.imageUrl?.slice(0, 1000) ?? null : null,
+        art_style: data.artStyle,
         task_id: taskId,
         status: "PENDING",
         progress: 0,
@@ -214,9 +321,16 @@ export const pollModelGeneration = createServerFn({ method: "POST" })
         .maybeSingle();
       if (!already) {
         try {
-          const refine = await meshyFetch("/v2/text-to-3d", {
-            method: "POST",
-            body: JSON.stringify({ mode: "refine", preview_task_id: gen.task_id }),
+          // Refine adds textures. Request the highest-quality maps (PBR + HD 2K);
+          // meshyCreate auto-drops any option this model/account can't run, and
+          // PBR is skipped for sculpture (incompatible per Meshy).
+          const sculpture = (gen as any).art_style === "sculpture";
+          const refine = await meshyCreate("/v2/text-to-3d", {
+            mode: "refine",
+            preview_task_id: gen.task_id,
+            ai_model: MESHY_BEST_MODEL,
+            enable_pbr: sculpture ? undefined : true,
+            hd_texture: true,
           });
           await supabase.from("model_generations").insert({
             user_id: userId,
@@ -297,16 +411,15 @@ export const retextureModel = createServerFn({ method: "POST" })
 
     let taskId: string;
     try {
-      const res = await meshyFetch("/v1/text-to-texture", {
-        method: "POST",
-        body: JSON.stringify({
-          model_url: source.model_url,
-          object_prompt: source.prompt ?? "3D model",
-          style_prompt: data.texturePrompt,
-          enable_original_uv: true,
-          enable_pbr: true,
-          art_style: data.artStyle,
-        }),
+      // Routed through meshyCreate so PBR / original-UV are auto-dropped if the
+      // texture endpoint rejects them, instead of failing the whole re-texture.
+      const res = await meshyCreate("/v1/text-to-texture", {
+        model_url: source.model_url,
+        object_prompt: source.prompt ?? "3D model",
+        style_prompt: data.texturePrompt,
+        enable_original_uv: true,
+        enable_pbr: true,
+        art_style: data.artStyle,
       });
       taskId = res.result;
     } catch (e) {
