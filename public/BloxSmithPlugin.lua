@@ -123,7 +123,7 @@ local autoErrBtn   = ctrlBtn("Auto-Send: ON", 9)
 
 ------------------------------------------------------------------- log
 local logBar = Instance.new("Frame")
-logBar.Position = UDim2.new(0,12,0,288); logBar.Size = UDim2.new(1,-24,0,22)
+logBar.Position = UDim2.new(0,12,0,322); logBar.Size = UDim2.new(1,-24,0,22)
 logBar.BackgroundTransparency = 1; logBar.Parent = main
 
 local logTitle = Instance.new("TextLabel")
