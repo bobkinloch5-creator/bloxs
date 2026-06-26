@@ -156,21 +156,62 @@ function ProjectPage() {
   }, [messages, status]);
   useEffect(() => { textareaRef.current?.focus(); }, [projectId, status]);
 
+  // Screenshot-to-game attachment
+  type Attachment = { dataUrl: string; mediaType: string; name: string; build: boolean };
+  const [attachment, setAttachment] = useState<Attachment | null>(null);
+
+  async function attachImageFile(file: File) {
+    if (!file.type.startsWith("image/")) return;
+    if (file.size > 6 * 1024 * 1024) {
+      alert("Image is too large — please pick an image under 6 MB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const url = String(reader.result || "");
+      if (!url) return;
+      setAttachment({ dataUrl: url, mediaType: file.type || "image/png", name: file.name || "screenshot.png", build: true });
+    };
+    reader.readAsDataURL(file);
+  }
+
   const busy = status === "submitted" || status === "streaming";
 
   async function submit(text?: string) {
     const value = (text ?? input).trim();
-    if (!value || busy) return;
+    const att = attachment;
+    if (!value && !att) return;
+    if (busy) return;
     const { data } = await supabase.auth.getSession();
     const freshToken = data.session?.access_token ?? null;
     setToken(freshToken);
     if (!freshToken) return;
-    sendMessage(
-      { text: value },
-      { body: { projectId, modelId, autoExecute } },
-    );
+
+    if (att) {
+      const modeHeader = att.build
+        ? "[SCREENSHOT MODE: BUILD] The user attached a reference screenshot. Analyze the layout, colors, and gameplay/UI elements, then plan and queue Roblox build actions to recreate it as closely as possible."
+        : "[SCREENSHOT MODE: ANALYZE ONLY] The user attached a reference screenshot. Describe what it shows, what Roblox systems would recreate it, and outline a build plan. Do NOT queue or execute build actions for this message.";
+      const promptText = value || (att.build ? "Build a Roblox game/UI that matches this screenshot." : "Analyze this screenshot.");
+      sendMessage(
+        {
+          role: "user",
+          parts: [
+            { type: "text", text: `${modeHeader}\n\n${promptText}` },
+            { type: "file", mediaType: att.mediaType, url: att.dataUrl } as any,
+          ],
+        } as any,
+        { body: { projectId, modelId, autoExecute: att.build && autoExecute } },
+      );
+    } else {
+      sendMessage(
+        { text: value },
+        { body: { projectId, modelId, autoExecute } },
+      );
+    }
     setInput("");
+    setAttachment(null);
   }
+
 
   const pluginOnline = !!(pluginSession?.online && pluginSession?.last_seen &&
     (Date.now() - new Date(pluginSession.last_seen).getTime() < 30_000));
@@ -354,7 +395,11 @@ function ProjectPage() {
               ttsEnabled={ttsEnabled}
               setTtsEnabled={setTtsEnabled}
               onVoiceTranscript={(t: string) => submit(t)}
+              attachment={attachment}
+              setAttachment={setAttachment}
+              onAttachFile={attachImageFile}
             />
+
           </div>
 
           {/* RIGHT SIDEBAR */}
@@ -702,13 +747,59 @@ function Composer({
   input, setInput, textareaRef, busy, token, autoExecute, setAutoExecute,
   onSubmit, onStop, onAction, modelId, setModelId,
   ttsEnabled, setTtsEnabled, onVoiceTranscript,
+  attachment, setAttachment, onAttachFile,
 }: any) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const canSend = !!token && !busy && (input.trim().length > 0 || !!attachment);
   return (
     <div
       className="border-t px-3 pb-4 pt-3 sm:px-6"
       style={{ borderColor: "var(--bs-border)", background: "var(--bs-card)" }}
     >
       <div className="mx-auto w-full max-w-3xl">
+        {attachment && (
+          <div className="mb-2 flex items-center gap-3 rounded-xl border p-2"
+               style={{ borderColor: "var(--bs-border)", background: "var(--bs-card-2)" }}>
+            <img src={attachment.dataUrl} alt={attachment.name} className="h-14 w-14 rounded-lg object-cover" />
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-xs font-semibold" style={{ color: "var(--bs-fg)" }}>
+                {attachment.name}
+              </div>
+              <div className="mt-1 inline-flex overflow-hidden rounded-lg border" style={{ borderColor: "var(--bs-border)" }}>
+                <button
+                  type="button"
+                  onClick={() => setAttachment({ ...attachment, build: true })}
+                  className="px-2 py-1 text-[11px] font-bold"
+                  style={{
+                    background: attachment.build ? "var(--bs-primary)" : "transparent",
+                    color: attachment.build ? "white" : "var(--bs-muted-fg)",
+                  }}
+                >
+                  Build it
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAttachment({ ...attachment, build: false })}
+                  className="px-2 py-1 text-[11px] font-bold"
+                  style={{
+                    background: !attachment.build ? "var(--bs-primary)" : "transparent",
+                    color: !attachment.build ? "white" : "var(--bs-muted-fg)",
+                  }}
+                >
+                  Just analyze
+                </button>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setAttachment(null)}
+              className="bs-icon-btn"
+              title="Remove image"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
         <div className="bs-input-wrap flex flex-col gap-2 px-3 py-2">
           <textarea
             ref={textareaRef}
@@ -717,8 +808,12 @@ function Composer({
             onKeyDown={(e: any) => {
               if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSubmit(); }
             }}
+            onPaste={(e: any) => {
+              const file = Array.from(e.clipboardData?.files || []).find((f: any) => (f as File).type?.startsWith("image/")) as File | undefined;
+              if (file) { e.preventDefault(); onAttachFile?.(file); }
+            }}
             rows={1}
-            placeholder="Describe anything you want to build…"
+            placeholder={attachment ? (attachment.build ? "Optional: describe what you want built from this screenshot…" : "Optional: what should I analyze about this screenshot?") : "Describe anything you want to build…"}
             className="max-h-44 min-h-[40px] w-full resize-none bg-transparent px-1 py-2 text-sm outline-none placeholder:opacity-60"
             style={{ color: "var(--bs-fg)" }}
           />
@@ -727,9 +822,26 @@ function Composer({
             <button className="bs-icon-btn" title="New" type="button" onClick={() => setInput("")}>
               <Plus className="h-4 w-4" />
             </button>
-            <button className="bs-icon-btn" title="Attach image" type="button">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) onAttachFile?.(f);
+                if (fileInputRef.current) fileInputRef.current.value = "";
+              }}
+            />
+            <button
+              className="bs-icon-btn"
+              title="Attach screenshot (AI will analyze or build from it)"
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+            >
               <Paperclip className="h-4 w-4" />
             </button>
+
             <ImprovePromptButton input={input} setInput={setInput} disabled={busy} />
             <VoiceControls
               ttsEnabled={ttsEnabled}
@@ -781,7 +893,7 @@ function Composer({
                 <X className="h-4 w-4" /> Stop
               </button>
             ) : (
-              <button onClick={onSubmit} disabled={!input.trim() || !token}
+              <button onClick={onSubmit} disabled={!canSend}
                 className="bs-send-btn flex h-10 items-center gap-1.5 px-4 text-sm font-medium">
                 <Send className="h-4 w-4" />
                 <span className="hidden sm:inline">Send</span>
