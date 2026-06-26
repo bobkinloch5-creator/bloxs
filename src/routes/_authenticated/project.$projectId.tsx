@@ -875,7 +875,7 @@ function RightSidebar({
   );
 }
 
-/* ────────────────── MODEL PICKER (themed) ────────────────── */
+/* ────────────────── MODEL PICKER (real models) ────────────────── */
 function ModelPicker({
   modelId, setModelId, variant = "bar",
 }: { modelId: string; setModelId: (id: string) => void; variant?: "bar" | "compact" }) {
@@ -888,7 +888,9 @@ function ModelPicker({
   }, [open]);
 
   const current = MODELS.find((m) => m.id === modelId) ?? MODELS[0];
-  const bestFor = current?.bestFor?.split(",")[0].replace(/\.$/, "") ?? "";
+
+  const creditColor = (c: string) =>
+    c === "Low" ? "#22c55e" : c === "Medium" ? "#eab308" : c === "High" ? "#f97316" : "#ef4444";
 
   return (
     <div ref={ref} className="relative">
@@ -898,43 +900,80 @@ function ModelPicker({
         className={
           variant === "bar"
             ? "bs-soft flex min-w-0 items-center gap-2 px-2.5 py-1.5 text-left"
-            : "bs-soft flex min-w-0 items-center gap-2 px-2.5 py-1.5 text-left max-w-[200px]"
+            : "bs-soft flex min-w-0 items-center gap-2 px-2.5 py-1.5 text-left max-w-[260px]"
         }
       >
         <Cpu className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--bs-muted-fg)" }} />
         {variant === "bar" && (
-          <span className="text-[10px] uppercase tracking-wider" style={{ color: "var(--bs-muted-fg)" }}>AI Model</span>
+          <span className="text-[10px] uppercase tracking-wider" style={{ color: "var(--bs-muted-fg)" }}>Model</span>
         )}
         <span className="truncate text-sm font-semibold" style={{ color: "var(--bs-fg)" }}>
-          {current?.label}{variant === "bar" ? ` — best for ${bestFor}` : ""}
+          {current?.label}
+        </span>
+        <span className="hidden sm:inline text-[10px] rounded-md px-1.5 py-0.5"
+          style={{ background: "color-mix(in oklab, var(--bs-fg) 8%, transparent)", color: "var(--bs-muted-fg)" }}>
+          {current?.provider}
         </span>
         <ChevronDown className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--bs-muted-fg)" }} />
       </button>
 
       {open && (
         <div
-          className="scrollbar-thin absolute right-0 z-50 mt-1.5 max-h-[60vh] w-[280px] overflow-y-auto rounded-xl border p-1 shadow-2xl"
+          className="scrollbar-thin absolute right-0 z-50 mt-1.5 max-h-[70vh] w-[360px] overflow-y-auto rounded-xl border p-1.5 shadow-2xl"
           style={{ background: "var(--bs-card)", borderColor: "var(--bs-border)", color: "var(--bs-fg)" }}
         >
+          <div className="px-2 py-1 text-[10px] uppercase tracking-wider" style={{ color: "var(--bs-muted-fg)" }}>
+            Real models · via Lovable AI Gateway
+          </div>
           {MODELS.map((m) => {
             const active = m.id === modelId;
-            const tag = m.bestFor?.split(",")[0].replace(/\.$/, "") ?? "";
+            const disabled = m.status !== "Working";
             return (
               <button
                 key={m.id}
                 type="button"
-                onClick={() => { setModelId(m.id); setOpen(false); }}
-                className="flex w-full items-start gap-2 rounded-lg px-2.5 py-2 text-left text-sm transition"
+                disabled={disabled}
+                onClick={() => { if (!disabled) { setModelId(m.id); setOpen(false); } }}
+                className="flex w-full items-start gap-2 rounded-lg px-2.5 py-2 text-left text-sm transition disabled:opacity-50 disabled:cursor-not-allowed"
                 style={active
                   ? { background: "var(--bs-primary)", color: "var(--bs-primary-fg)" }
                   : { color: "var(--bs-fg)" }}
-                onMouseEnter={(e) => { if (!active) (e.currentTarget as HTMLElement).style.background = "var(--bs-card-2)"; }}
-                onMouseLeave={(e) => { if (!active) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                onMouseEnter={(e) => { if (!active && !disabled) (e.currentTarget as HTMLElement).style.background = "var(--bs-card-2)"; }}
+                onMouseLeave={(e) => { if (!active && !disabled) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
               >
                 <div className="min-w-0 flex-1">
-                  <div className="truncate font-semibold">{m.label}</div>
-                  <div className="truncate text-[11px]" style={active ? { color: "var(--bs-primary-fg)", opacity: 0.85 } : { color: "var(--bs-muted-fg)" }}>
-                    best for {tag}
+                  <div className="flex items-center gap-1.5">
+                    <span className="truncate font-semibold">{m.label}</span>
+                    <span className="text-[10px] rounded-md px-1.5 py-0.5 shrink-0"
+                      style={active
+                        ? { background: "color-mix(in oklab, var(--bs-primary-fg) 22%, transparent)", color: "var(--bs-primary-fg)" }
+                        : { background: "color-mix(in oklab, var(--bs-fg) 8%, transparent)", color: "var(--bs-muted-fg)" }}>
+                      {m.provider}
+                    </span>
+                    {disabled && (
+                      <span className="text-[10px] rounded-md px-1.5 py-0.5 shrink-0"
+                        style={{ background: "color-mix(in oklab, #eab308 18%, transparent)", color: "#eab308" }}>
+                        Coming Soon
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-0.5 truncate text-[11px]"
+                    style={active ? { color: "var(--bs-primary-fg)", opacity: 0.85 } : { color: "var(--bs-muted-fg)" }}>
+                    {m.bestFor}
+                  </div>
+                  <div className="mt-1 flex flex-wrap items-center gap-1 text-[10px]">
+                    <span className="rounded px-1.5 py-0.5"
+                      style={{ background: "color-mix(in oklab, var(--bs-fg) 6%, transparent)", color: "var(--bs-muted-fg)" }}>
+                      {m.speed}
+                    </span>
+                    <span className="rounded px-1.5 py-0.5"
+                      style={{ background: "color-mix(in oklab, var(--bs-fg) 6%, transparent)", color: "var(--bs-muted-fg)" }}>
+                      {m.quality}
+                    </span>
+                    <span className="rounded px-1.5 py-0.5 font-medium"
+                      style={{ background: `color-mix(in oklab, ${creditColor(m.credits)} 18%, transparent)`, color: creditColor(m.credits) }}>
+                      {m.credits} credits
+                    </span>
                   </div>
                 </div>
                 {active && <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />}
