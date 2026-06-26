@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { testModel } from "@/lib/model-test.functions";
 import { MODELS, isSelectable } from "@/lib/models";
-import { CheckCircle2, XCircle, Loader2, PlayCircle, FlaskConical } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Gauge, Loader2, PlayCircle, RefreshCw, FlaskConical, XCircle } from "lucide-react";
+
+type ModelHealthStatus = "Working" | "Partially Working" | "Not Working" | "Slow" | "Needs Fix";
 
 type Result = {
   ok: boolean;
@@ -10,11 +12,15 @@ type Result = {
   error?: string;
   actions?: number;
   issues?: string[];
+  healthStatus?: ModelHealthStatus;
+  score?: number;
+  metrics?: Record<string, string>;
   durationMs: number;
 };
 
 type Status = "idle" | "running" | Result;
 const STORAGE_KEY = "bloxsmith-model-health-v1";
+const AUTO_SCAN_MS = 6 * 60 * 60 * 1000;
 
 export function ModelTestPanel() {
   const runTest = useServerFn(testModel);
@@ -28,6 +34,10 @@ export function ModelTestPanel() {
     }
   });
   const [bulkRunning, setBulkRunning] = useState(false);
+  const [autoScan, setAutoScan] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return localStorage.getItem(`${STORAGE_KEY}:auto`) !== "0";
+  });
 
   const selectable = MODELS.filter(isSelectable);
   const lastTestedAt = useMemo(() => {
@@ -42,6 +52,26 @@ export function ModelTestPanel() {
       localStorage.setItem(`${STORAGE_KEY}:testedAt`, new Date().toISOString());
     }
   }, [results]);
+  useEffect(() => {
+    localStorage.setItem(`${STORAGE_KEY}:auto`, autoScan ? "1" : "0");
+  }, [autoScan]);
+  useEffect(() => {
+    if (!autoScan || bulkRunning) return;
+    const last = localStorage.getItem(`${STORAGE_KEY}:testedAt`);
+    const stale = !last || Number.isNaN(Date.parse(last)) || Date.now() - Date.parse(last) > AUTO_SCAN_MS;
+    if (stale) setTimeout(() => void runAll(), 500);
+    const timer = window.setInterval(() => void runAll(), AUTO_SCAN_MS);
+    return () => window.clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoScan]);
+
+  function getHealth(status: Status): ModelHealthStatus | "Untested" | "Scanning" {
+    if (status === "running") return "Scanning";
+    if (status === "idle") return "Untested";
+    if (!status) return "Untested";
+    if (typeof status === "object") return status.healthStatus ?? (status.ok ? "Working" : "Needs Fix");
+    return "Untested";
+  }
 
   async function runOne(id: string) {
     setResults((r) => ({ ...r, [id]: "running" }));
@@ -51,7 +81,7 @@ export function ModelTestPanel() {
     } catch (e) {
       setResults((r) => ({
         ...r,
-        [id]: { ok: false, error: e instanceof Error ? e.message : "Failed", durationMs: 0 },
+        [id]: { ok: false, error: e instanceof Error ? e.message : "Failed", durationMs: 0, healthStatus: "Not Working", score: 0 },
       }));
     }
   }
@@ -66,16 +96,16 @@ export function ModelTestPanel() {
     setBulkRunning(false);
   }
 
-  const okCount = Object.values(results).filter((r) => typeof r === "object" && r.ok).length;
-  const failCount = Object.values(results).filter((r) => typeof r === "object" && !r.ok).length;
+  const statusCounts = selectable.reduce<Record<ModelHealthStatus | "Untested" | "Scanning", number>>((acc, m) => {
+    const health = getHealth(results[m.id] ?? "idle");
+    acc[health] = (acc[health] ?? 0) + 1;
+    return acc;
+  }, { Working: 0, "Partially Working": 0, "Not Working": 0, Slow: 0, "Needs Fix": 0, Untested: 0, Scanning: 0 });
   const downModels = selectable.filter((m) => {
-    const status = results[m.id];
-    return typeof status === "object" && !status.ok;
+    const health = getHealth(results[m.id] ?? "idle");
+    return health === "Not Working" || health === "Needs Fix";
   });
-  const readyModels = selectable.filter((m) => {
-    const status = results[m.id];
-    return typeof status === "object" && status.ok;
-  });
+  const readyModels = selectable.filter((m) => getHealth(results[m.id] ?? "idle") === "Working");
   const untestedModels = selectable.filter((m) => {
     const status = results[m.id];
     return !status || status === "idle" || status === "running";
@@ -93,8 +123,17 @@ export function ModelTestPanel() {
         </h2>
         <div className="flex items-center gap-2">
           <span className="text-xs" style={{ color: "var(--bs-muted-fg)" }}>
-            {okCount} ✓ · {failCount} ✗ · {selectable.length} total
+            {statusCounts.Working} working · {statusCounts["Not Working"]} down · {selectable.length} total
           </span>
+          <button
+            type="button"
+            onClick={() => setAutoScan((v) => !v)}
+            className="bs-quick"
+            title="Automatically rescan every 6 hours while this admin page is open"
+            style={{ color: autoScan ? "var(--bs-success)" : "var(--bs-muted-fg)" }}
+          >
+            <RefreshCw className="h-3.5 w-3.5" /> Auto {autoScan ? "On" : "Off"}
+          </button>
           <button
             type="button"
             onClick={runAll}
@@ -111,20 +150,46 @@ export function ModelTestPanel() {
         </div>
       </div>
       <p className="mt-2 text-xs" style={{ color: "var(--bs-muted-fg)" }}>
-        Sends the same BloxSmith Core Brain Roblox/Luau build probe to each model and validates Studio actions, remotes, server scripts, UI, animation, cleanup, and consistency.
+        Automatically sends the same BloxSmith Core Brain Roblox/Luau probe to every model and checks Roblox understanding, Luau scripting, tool execution, response quality, speed, and reliability.
       </p>
-      <div className="mt-3 grid gap-2 md:grid-cols-3">
+      <div className="mt-3 grid gap-2 md:grid-cols-5">
         <HealthSummary
-          title="Use these"
-          value={`${readyModels.length} Roblox-ready`}
+          title="Working"
+          value={`${statusCounts.Working}`}
           detail={readyModels.length ? readyModels.slice(0, 3).map((m) => m.label).join(", ") : "Run tests to find the best models."}
           tone="ready"
         />
         <HealthSummary
-          title="Down / failing"
-          value={`${downModels.length} models`}
-          detail={downModels.length ? downModels.map((m) => m.label).join(", ") : "No failing models in the latest test."}
+          title="Partial"
+          value={`${statusCounts["Partially Working"]}`}
+          detail="Usable, but missing quality or execution checks."
+          tone="partial"
+        />
+        <HealthSummary
+          title="Slow"
+          value={`${statusCounts.Slow}`}
+          detail="Works, but response time is high."
+          tone="slow"
+        />
+        <HealthSummary
+          title="Needs Fix"
+          value={`${statusCounts["Needs Fix"]}`}
+          detail="Responds, but fails important Roblox checks."
+          tone="fix"
+        />
+        <HealthSummary
+          title="Not Working"
+          value={`${statusCounts["Not Working"]}`}
+          detail={downModels.length ? downModels.slice(0, 2).map((m) => m.label).join(", ") : "No down models in latest scan."}
           tone={downModels.length ? "down" : "ready"}
+        />
+      </div>
+      <div className="mt-2 grid gap-2 md:grid-cols-2">
+        <HealthSummary
+          title="Auto Scanner"
+          value={autoScan ? "Every 6 hours" : "Paused"}
+          detail="Runs while the admin health panel is open and stores the latest model status."
+          tone={autoScan ? "ready" : "neutral"}
         />
         <HealthSummary
           title="Last tested"
@@ -143,7 +208,7 @@ export function ModelTestPanel() {
                 <div key={m.id} className="flex flex-wrap items-center justify-between gap-2">
                   <span className="font-semibold">{m.label}</span>
                   <span className="min-w-0 max-w-full truncate" style={{ color: "var(--bs-muted-fg)" }}>
-                    {status.error || status.issues?.join("; ") || "Model failed the Roblox readiness test"}
+                    {status.healthStatus ?? "Needs Fix"} · {status.error || status.issues?.join("; ") || "Model failed the Roblox readiness test"}
                   </span>
                 </div>
               );
@@ -155,6 +220,7 @@ export function ModelTestPanel() {
       <div className="mt-4 grid gap-2">
         {selectable.map((m) => {
           const status = results[m.id] ?? "idle";
+          const health = getHealth(status);
           return (
             <div
               key={m.id}
@@ -165,15 +231,14 @@ export function ModelTestPanel() {
                 <div className="flex items-center gap-2 font-semibold">
                   <StatusIcon status={status} />
                   <span className="truncate">{m.label}</span>
+                  <HealthBadge health={health} />
                   <span className="bs-chip text-[10px]" style={{ color: "var(--bs-muted-fg)" }}>
                     {m.via}
                   </span>
                 </div>
                 <div className="mt-0.5 truncate text-xs" style={{ color: "var(--bs-muted-fg)" }}>
                   {typeof status === "object"
-                    ? status.ok
-                      ? `Roblox-ready · ${status.actions ?? 0} actions · ${status.durationMs}ms`
-                      : `Failed · ${status.error ?? "unknown"}`
+                    ? `${status.healthStatus ?? (status.ok ? "Working" : "Needs Fix")} · score ${status.score ?? 0} · ${status.actions ?? 0} actions · ${status.durationMs}ms${status.error ? ` · ${status.error}` : ""}`
                     : m.id}
                 </div>
                 {typeof status === "object" && status.ok && status.reply && (
@@ -202,8 +267,31 @@ export function ModelTestPanel() {
 function StatusIcon({ status }: { status: Status }) {
   if (status === "idle") return <span className="inline-block h-3.5 w-3.5 rounded-full" style={{ background: "var(--bs-border)" }} />;
   if (status === "running") return <Loader2 className="h-3.5 w-3.5 animate-spin" style={{ color: "var(--bs-primary)" }} />;
+  if (status.healthStatus === "Working") return <CheckCircle2 className="h-3.5 w-3.5" style={{ color: "var(--bs-success)" }} />;
+  if (status.healthStatus === "Slow") return <Gauge className="h-3.5 w-3.5" style={{ color: "#eab308" }} />;
+  if (status.healthStatus === "Partially Working") return <AlertTriangle className="h-3.5 w-3.5" style={{ color: "#f97316" }} />;
+  if (status.healthStatus === "Needs Fix") return <AlertTriangle className="h-3.5 w-3.5" style={{ color: "#f97316" }} />;
   if (status.ok) return <CheckCircle2 className="h-3.5 w-3.5" style={{ color: "var(--bs-success)" }} />;
   return <XCircle className="h-3.5 w-3.5" style={{ color: "var(--bs-danger, #ef4444)" }} />;
+}
+
+function healthColor(health: ModelHealthStatus | "Untested" | "Scanning") {
+  if (health === "Working") return "var(--bs-success)";
+  if (health === "Slow") return "#eab308";
+  if (health === "Partially Working") return "#f97316";
+  if (health === "Needs Fix") return "#f97316";
+  if (health === "Not Working") return "var(--bs-danger, #ef4444)";
+  if (health === "Scanning") return "var(--bs-primary)";
+  return "var(--bs-muted-fg)";
+}
+
+function HealthBadge({ health }: { health: ModelHealthStatus | "Untested" | "Scanning" }) {
+  const color = healthColor(health);
+  return (
+    <span className="rounded-md px-1.5 py-0.5 text-[10px] font-bold" style={{ color, background: `color-mix(in oklab, ${color} 14%, transparent)` }}>
+      {health}
+    </span>
+  );
 }
 
 function HealthSummary({
@@ -215,9 +303,14 @@ function HealthSummary({
   title: string;
   value: string;
   detail: string;
-  tone: "ready" | "down" | "neutral";
+  tone: "ready" | "down" | "neutral" | "partial" | "slow" | "fix";
 }) {
-  const color = tone === "ready" ? "var(--bs-success)" : tone === "down" ? "#ef4444" : "var(--bs-primary)";
+  const color =
+    tone === "ready" ? "var(--bs-success)" :
+    tone === "down" ? "#ef4444" :
+    tone === "partial" || tone === "fix" ? "#f97316" :
+    tone === "slow" ? "#eab308" :
+    "var(--bs-primary)";
   return (
     <div className="rounded-xl border px-3 py-2" style={{ borderColor: "var(--bs-border)", background: "var(--bs-card-2)" }}>
       <div className="text-[10px] font-bold uppercase tracking-wide" style={{ color: "var(--bs-muted-fg)" }}>{title}</div>

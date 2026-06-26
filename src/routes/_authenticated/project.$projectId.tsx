@@ -1544,11 +1544,26 @@ function ModelPicker({
     c === "Low" ? "#22c55e" : c === "Medium" ? "#eab308" : c === "High" ? "#f97316" : "#ef4444";
   const healthLabel = (health: any) => {
     if (!health || typeof health !== "object") return "Untested";
-    return health.ok ? "Roblox-ready" : "Down in last test";
+    return health.healthStatus ?? (health.ok ? "Working" : "Needs Fix");
   };
   const healthColor = (health: any) => {
     if (!health || typeof health !== "object") return "var(--bs-muted-fg)";
-    return health.ok ? "var(--bs-success)" : "var(--bs-danger, #ef4444)";
+    const status = healthLabel(health);
+    if (status === "Working") return "var(--bs-success)";
+    if (status === "Slow") return "#eab308";
+    if (status === "Partially Working" || status === "Needs Fix") return "#f97316";
+    if (status === "Not Working") return "var(--bs-danger, #ef4444)";
+    return "var(--bs-muted-fg)";
+  };
+  const selectModel = (m: (typeof MODELS)[number], health: any, disabled: boolean) => {
+    if (disabled) return;
+    const status = healthLabel(health);
+    if (["Partially Working", "Not Working", "Slow", "Needs Fix"].includes(status)) {
+      const ok = window.confirm(`${m.label} is marked "${status}" from the latest Roblox model scan. It may fail or produce weaker Roblox builds. Use it anyway?`);
+      if (!ok) return;
+    }
+    setModelId(m.id);
+    setOpen(false);
   };
 
   return (
@@ -1589,7 +1604,7 @@ function ModelPicker({
             Real models · via Lovable AI Gateway
           </div>
           <div className="px-2 pb-1 text-[11px]" style={{ color: "var(--bs-muted-fg)" }}>
-            Every model uses the shared BloxSmith Core Brain. Status shows the latest Roblox health check; run it from Admin to update down models.
+            Automatic scans mark models as Working, Partially Working, Not Working, Slow, or Needs Fix. Risky models show a warning before selection.
           </div>
           {MODELS.map((m) => {
             const active = m.id === modelId;
@@ -1600,7 +1615,7 @@ function ModelPicker({
                 key={m.id}
                 type="button"
                 disabled={disabled}
-                onClick={() => { if (!disabled) { setModelId(m.id); setOpen(false); } }}
+                onClick={() => selectModel(m, health, disabled)}
                 className="flex w-full items-start gap-2 rounded-lg px-2.5 py-2 text-left text-sm transition disabled:opacity-50 disabled:cursor-not-allowed"
                 style={active
                   ? { background: "var(--bs-primary)", color: "var(--bs-primary-fg)" }
