@@ -199,12 +199,14 @@ export type Database = {
           image_url: string | null
           mode: string
           model_url: string | null
+          model_urls: Json | null
           parent_id: string | null
           progress: number
           project_id: string
           prompt: string | null
           status: string
           task_id: string | null
+          texture_urls: Json | null
           thumbnail_url: string | null
           user_id: string
         }
@@ -217,12 +219,14 @@ export type Database = {
           image_url?: string | null
           mode: string
           model_url?: string | null
+          model_urls?: Json | null
           parent_id?: string | null
           progress?: number
           project_id: string
           prompt?: string | null
           status?: string
           task_id?: string | null
+          texture_urls?: Json | null
           thumbnail_url?: string | null
           user_id: string
         }
@@ -235,12 +239,14 @@ export type Database = {
           image_url?: string | null
           mode?: string
           model_url?: string | null
+          model_urls?: Json | null
           parent_id?: string | null
           progress?: number
           project_id?: string
           prompt?: string | null
           status?: string
           task_id?: string | null
+          texture_urls?: Json | null
           thumbnail_url?: string | null
           user_id?: string
         }
