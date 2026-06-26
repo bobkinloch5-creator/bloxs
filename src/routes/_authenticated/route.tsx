@@ -29,39 +29,8 @@ function AuthedLayout() {
   }
 
   return (
-    <div className="surface-grad flex min-h-screen text-foreground">
-      <aside className="hidden w-60 shrink-0 flex-col border-r border-border bg-sidebar p-4 md:flex">
-        <Link to="/dashboard" className="flex items-center gap-2 px-2 py-2">
-          <div className="grid h-8 w-8 place-items-center rounded-lg bg-primary text-primary-foreground">
-            <Hammer className="h-4 w-4" />
-          </div>
-          <span className="font-display text-lg font-semibold">BloxSmith</span>
-        </Link>
-        <nav className="mt-4 flex-1 space-y-1 text-sm">
-          <SideLink to="/dashboard" icon={LayoutDashboard}>Projects</SideLink>
-          <SideLink to="/plugin" icon={Plug}>Studio Plugin</SideLink>
-          {profile?.is_admin && <SideLink to="/admin" icon={Crown}>Owner Admin</SideLink>}
-          <SideLink to="/settings" icon={SettingsIcon}>Settings</SideLink>
-        </nav>
-        <div className="rounded-xl border border-border bg-card/60 p-3 text-xs">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-3.5 w-3.5 text-primary" />
-            <span className="font-medium">{profile?.plan ?? "Free"} plan</span>
-          </div>
-          <div className="mt-2 text-muted-foreground">
-            Credits: <span className="font-mono text-foreground">{profile?.credits ?? 0}</span> / {profile?.max_credits ?? 100}
-          </div>
-          <button
-            onClick={signOut}
-            className="mt-3 flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
-          >
-            <LogOut className="h-3.5 w-3.5" /> Sign out
-          </button>
-        </div>
-      </aside>
-      <div className="flex-1 overflow-auto">
-        <Outlet />
-      </div>
+    <div className="surface-grad min-h-screen text-foreground">
+      <Outlet />
     </div>
   );
 }
