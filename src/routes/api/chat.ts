@@ -6,6 +6,7 @@ import { getProviderModel, getFallbackModel } from "@/lib/ai-gateway.server";
 import { BLOXSMITH_SYSTEM_PROMPT, parseActions } from "@/lib/bloxsmith-prompt";
 import { DEFAULT_MODEL_ID, findModel, isSelectable } from "@/lib/models";
 import { searchRobloxToolbox, type ToolboxCategory } from "@/lib/roblox-toolbox.server";
+import { chargeCredits, creditCostForTier, BUILD_ACTIONS_BONUS } from "@/lib/credits.server";
 
 function jsonError(message: string, status: number, code?: string) {
   return new Response(JSON.stringify({ error: message, code }), {
