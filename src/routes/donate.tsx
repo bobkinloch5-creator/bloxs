@@ -84,10 +84,11 @@ function DonatePage() {
 
 function ClaimSection() {
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
-  useState(() => {
-    supabase.auth.getUser().then(({ data }) => setSignedIn(!!data.user));
-    return undefined;
-  });
+  useEffect(() => {
+    let alive = true;
+    supabase.auth.getUser().then(({ data }) => { if (alive) setSignedIn(!!data.user); });
+    return () => { alive = false; };
+  }, []);
 
   if (signedIn === null) {
     return <div className="mt-5 flex items-center gap-2 text-xs text-slate-400"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading…</div>;
