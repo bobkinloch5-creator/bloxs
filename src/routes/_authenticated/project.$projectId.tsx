@@ -16,7 +16,7 @@ import {
   Sun, Moon, ChevronDown, Zap, Timer, Box, X, Infinity as InfinityIcon,
   Folder, Lightbulb, LayoutDashboard, Search, Settings as SettingsIcon,
   Plug, History, Users, Bell, Plus, ExternalLink, RefreshCw, ImageIcon,
-  Cpu, Music, BookOpen, Upload, RotateCcw,
+  Cpu, Music, BookOpen, Upload, RotateCcw, Square, Undo2,
 } from "lucide-react";
 import bloxLogo from "@/assets/bloxsmith-logo.png.asset.json";
 import { OnboardingTour } from "@/components/OnboardingTour";
