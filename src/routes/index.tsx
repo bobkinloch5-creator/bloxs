@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   Sparkles, Zap, ChevronRight, Code2, Map, Cpu, Layers, Box, ArrowRight,
   Puzzle, Save, Rocket, MessageSquare, Upload, Settings2, Check,
-  Plug, FileCode, Wand2, Shield,
+  Plug, FileCode, Wand2, Shield, Heart,
 } from "lucide-react";
 import bloxLogo from "@/assets/bloxsmith-logo.png.asset.json";
 import heroBg from "@/assets/hero-roblox-background.jpg";
