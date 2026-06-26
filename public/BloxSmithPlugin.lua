@@ -17,8 +17,8 @@ local ChangeHistoryService  = game:GetService("ChangeHistoryService")
 local InsertService         = game:GetService("InsertService")
 
 local API_BASE       = "https://bloxsmith.pro"
-local POLL_INTERVAL  = 4
-local PLUGIN_VERSION = "1.5.0"
+local POLL_INTERVAL  = 1
+local PLUGIN_VERSION = "1.6.0"
 
 ------------------------------------------------------------------- token helpers
 local TOKEN_KEY = "token"
@@ -576,6 +576,21 @@ local function reportComplete(actionId, status, errMsg, result)
     }, { verbose = false })
 end
 
+-- Fast batch report: one HTTP call for many results.
+local function reportBatch(results)
+    local token = validToken()
+    if not token or #results == 0 then return end
+    local ok = pcall(function()
+        post("/api/public/plugin/complete", { token = token, results = results }, { verbose = false })
+    end)
+    if not ok then
+        -- Fallback: per-action (older server)
+        for _, r in ipairs(results) do
+            reportComplete(r.action_id, r.status, r.error, r.result)
+        end
+    end
+end
+
 ------------------------------------------------------------------- state
 local connected, pairingCode = false, nil
 local lastHeartbeat, queueLen, lastAction = 0, 0, "—"
@@ -627,25 +642,29 @@ local function pollOnce(force)
         log(("Heartbeat — %d pending"):format(#actions), "debug")
         lastHeartbeat = os.clock()
     end
-    if #actions == 0 then return end
+    if #actions == 0 then return 0 end
     log(("Received %d action(s)."):format(#actions), "success")
     ChangeHistoryService:SetWaypoint("BloxSmith batch start")
     local okN, failN = 0, 0
+    local results = {}
     for _, a in ipairs(actions) do
         local ok, errOrInst = pcall(executeAction, a)
         if ok then
             okN += 1; lastAction = describeAction(a)
             log("✓ " .. lastAction, "action")
-            reportComplete(a.id, "done", nil, nil)
+            results[#results+1] = { action_id = a.id, status = "done" }
         else
             failN += 1
             log("✗ " .. a.kind .. " '" .. tostring(a.name) .. "': " .. tostring(errOrInst), "error")
-            reportComplete(a.id, "failed", tostring(errOrInst), nil)
+            results[#results+1] = { action_id = a.id, status = "failed", error = tostring(errOrInst) }
         end
-        refreshInfo()
     end
+    queueLen = 0; refreshInfo()
     ChangeHistoryService:SetWaypoint("BloxSmith batch done")
+    -- Report all results in a single HTTP call, off the hot path.
+    task.spawn(reportBatch, results)
     log(("Batch complete — %d ok, %d failed."):format(okN, failN), failN > 0 and "warn" or "success")
+    return #actions
 end
 
 local function startPairing()
@@ -874,8 +893,15 @@ task.spawn(function()
     while true do
         task.wait(POLL_INTERVAL)
         if connected then
-            local ok, err = pcall(pollOnce)
-            if not ok then log("Poll loop crashed: " .. tostring(err), "error") end
+            -- Drain: keep polling immediately while the server has work queued.
+            for _ = 1, 8 do
+                local ok, errOrCount = pcall(pollOnce)
+                if not ok then
+                    log("Poll loop crashed: " .. tostring(errOrCount), "error")
+                    break
+                end
+                if (errOrCount or 0) == 0 then break end
+            end
         end
     end
 end)

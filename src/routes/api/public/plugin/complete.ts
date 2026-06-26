@@ -21,42 +21,45 @@ export const Route = createFileRoute("/api/public/plugin/complete")({
       POST: async ({ request }) => {
         try {
           const body = (await request.json()) as {
-            token?: string; action_id?: string; status?: "done" | "failed";
-            error?: string; result?: unknown;
+            token?: string;
+            // single
+            action_id?: string; status?: "done" | "failed"; error?: string; result?: unknown;
+            // batch
+            results?: Array<{ action_id: string; status?: "done" | "failed"; error?: string; result?: unknown }>;
           };
-          if (!body.token || !body.action_id) {
-            return new Response(JSON.stringify({ error: "missing fields" }), { status: 400, headers: { "content-type": "application/json", ...CORS } });
+          if (!body.token) {
+            return new Response(JSON.stringify({ error: "missing token" }), { status: 400, headers: { "content-type": "application/json", ...CORS } });
           }
           const sb = admin();
           const { data: profile } = await sb.from("profiles").select("id").eq("plugin_token", body.token).maybeSingle();
           if (!profile) return new Response(JSON.stringify({ error: "invalid token" }), { status: 401, headers: { "content-type": "application/json", ...CORS } });
 
-          const status = body.status === "failed" ? "failed" : "done";
-          const { data: action } = await sb.from("plugin_actions")
-            .update({
-              status,
-              error: body.error ?? null,
-              result: body.result ?? null,
-              completed_at: new Date().toISOString(),
-            })
-            .eq("id", body.action_id)
-            .eq("user_id", profile.id)
-            .select("project_id")
-            .maybeSingle();
-
-          // If failed, log a studio error too
-          if (status === "failed" && body.error && action) {
-            await sb.from("studio_errors").insert({
-              user_id: profile.id,
-              project_id: action.project_id,
-              action_id: body.action_id,
-              source: "plugin",
-              level: "error",
-              message: body.error,
-            });
+          const items = Array.isArray(body.results) && body.results.length > 0
+            ? body.results
+            : (body.action_id ? [{ action_id: body.action_id, status: body.status, error: body.error, result: body.result }] : []);
+          if (items.length === 0) {
+            return new Response(JSON.stringify({ error: "missing fields" }), { status: 400, headers: { "content-type": "application/json", ...CORS } });
           }
 
-          return new Response(JSON.stringify({ ok: true }), { headers: { "content-type": "application/json", ...CORS } });
+          const now = new Date().toISOString();
+          // Process in parallel for speed.
+          await Promise.all(items.map(async (it) => {
+            const status = it.status === "failed" ? "failed" : "done";
+            const { data: action } = await sb.from("plugin_actions")
+              .update({ status, error: it.error ?? null, result: it.result ?? null, completed_at: now })
+              .eq("id", it.action_id)
+              .eq("user_id", profile.id)
+              .select("project_id")
+              .maybeSingle();
+            if (status === "failed" && it.error && action) {
+              await sb.from("studio_errors").insert({
+                user_id: profile.id, project_id: action.project_id,
+                action_id: it.action_id, source: "plugin", level: "error", message: it.error,
+              });
+            }
+          }));
+
+          return new Response(JSON.stringify({ ok: true, count: items.length }), { headers: { "content-type": "application/json", ...CORS } });
         } catch (e) {
           return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "error" }), { status: 500, headers: { "content-type": "application/json", ...CORS } });
         }
