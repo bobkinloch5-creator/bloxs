@@ -48,7 +48,7 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
             .eq("user_id", profile.id)
             .eq("status", "pending")
             .order("created_at", { ascending: true })
-            .limit(25);
+            .limit(100);
           if (body.project_id) q = q.eq("project_id", body.project_id);
           const { data: actions, error } = await q;
           if (error) return json({ error: error.message }, 500);
