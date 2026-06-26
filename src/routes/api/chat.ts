@@ -87,6 +87,20 @@ export const Route = createFileRoute("/api/chat")({
             return jsonError(e instanceof Error ? e.message : "Model unavailable", 500, "provider_init_failed");
           }
 
+          // ── CREDIT GATE ──
+          // Charge upfront based on the model's tier; if a build is produced,
+          // we charge a small bonus inside onFinish.
+          const baseCost = creditCostForTier(requested.credits);
+          const charge = await chargeCredits(supabase, userId, baseCost);
+          if (!charge.ok) {
+            return jsonError(
+              charge.message ?? "Out of credits.",
+              charge.code === "banned" ? 403 : 402,
+              charge.code ?? "no_credits",
+            );
+          }
+
+
           // ── MEMORY + STUDIO CONTEXT ──
           // Pull project metadata, recent builds, latest game scan, recent errors,
           // and existing queued actions so the AI knows what already exists and
