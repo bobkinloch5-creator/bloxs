@@ -19,7 +19,7 @@ type Result = {
 };
 
 type Status = "idle" | "running" | Result;
-const STORAGE_KEY = "bloxsmith-model-health-v1";
+const STORAGE_KEY = "bloxsmith-model-health-v2";
 const AUTO_SCAN_MS = 6 * 60 * 60 * 1000;
 
 export function ModelTestPanel() {

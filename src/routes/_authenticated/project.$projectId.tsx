@@ -1546,7 +1546,7 @@ function ModelPicker({
     if (typeof window === "undefined") return;
     const load = () => {
       try {
-        setModelHealth(JSON.parse(localStorage.getItem("bloxsmith-model-health-v1") || "{}"));
+        setModelHealth(JSON.parse(localStorage.getItem("bloxsmith-model-health-v2") || "{}"));
       } catch {
         setModelHealth({});
       }

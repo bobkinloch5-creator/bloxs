@@ -16,8 +16,8 @@ type LanguageModel = ReturnType<Provider>;
 
 function buildProvider(gateway: Gateway): Provider {
   if (gateway === "quatarly") {
-    const key = process.env.QUATARLY_API_KEY;
-    if (!key) throw new Error("Quatarly is not configured — QUATARLY_API_KEY is missing.");
+    const key = process.env.QUATARLY_API_KEY || process.env.QUARTLY_API_KEY || process.env.QUATARY_API_KEY;
+    if (!key) throw new Error("Quatarly is not configured — set QUATARLY_API_KEY.");
     return createOpenAICompatible({
       name: "quatarly",
       baseURL: "https://api.quatarly.cloud/v1",

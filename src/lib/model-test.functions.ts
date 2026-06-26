@@ -32,7 +32,9 @@ const ROBLOX_MODEL_TEST_PROMPT = `Build a premium Roblox coin HUD with:
 Use this exact response shape:
 1 short sentence explaining the Roblox Core Brain check.
 \`\`\`bloxsmith-actions
-{"actions":[...]}
+[
+  {"kind":"folder","parent_path":"ReplicatedStorage","name":"Remotes","payload":{}}
+]
 \`\`\``;
 
 function validateRobloxBuild(text: string) {

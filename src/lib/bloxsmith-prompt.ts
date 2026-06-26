@@ -456,9 +456,14 @@ export function parseActions(content: string): { cleanContent: string; actions: 
   if (!lastMatch) return { cleanContent: content, actions: [] };
   try {
     const json = JSON.parse(lastMatch[1].trim());
-    if (!Array.isArray(json)) return { cleanContent: content, actions: [] };
+    const rawActions = Array.isArray(json)
+      ? json
+      : json && typeof json === "object" && Array.isArray((json as { actions?: unknown }).actions)
+      ? (json as { actions: unknown[] }).actions
+      : [];
+    if (rawActions.length === 0) return { cleanContent: content, actions: [] };
     const cleaned = (content.slice(0, lastMatch.index) + content.slice(lastMatch.index + lastMatch[0].length)).trimEnd();
-    const actions: ParsedAction[] = json
+    const actions: ParsedAction[] = rawActions
       .filter((a) => a && typeof a === "object")
       .map((a) => ({
         kind: String(a.kind ?? "script"),
