@@ -14,6 +14,8 @@ Return a short answer plus exactly one fenced bloxsmith-actions JSON block.
 The build must be Roblox/Luau-specific, safe, and executable by the BloxSmith plugin.
 Rules:
 - Create a complete tiny Roblox UI/system, not generic web code.
+- The fenced block must be named exactly bloxsmith-actions and contain valid JSON.
+- Include 5-8 actions so the scanner can verify Roblox execution readiness.
 - Use Roblox services, Luau, RemoteEvent/RemoteFunction, StarterGui, ReplicatedStorage, and ServerScriptService correctly.
 - Include server validation, testing/cleanup intent, and no TODO/placeholders.
 - Use action kinds only from: folder, script, localscript, modulescript, screengui, remoteevent, remotefunction, frame, textlabel, textbutton, run_lua, organize_project.
@@ -25,7 +27,13 @@ const ROBLOX_MODEL_TEST_PROMPT = `Build a premium Roblox coin HUD with:
 - StarterGui ScreenGui with polished currency HUD
 - LocalScript that animates the coin text when the value changes
 - organize_project at the end
-- mention the shared Core Brain briefly in the explanation`;
+- mention the shared Core Brain briefly in the explanation
+
+Use this exact response shape:
+1 short sentence explaining the Roblox Core Brain check.
+\`\`\`bloxsmith-actions
+{"actions":[...]}
+\`\`\``;
 
 function validateRobloxBuild(text: string) {
   const parsed = parseActions(text);

@@ -1551,8 +1551,8 @@ function ModelPicker({
     const status = healthLabel(health);
     if (status === "Working") return "var(--bs-success)";
     if (status === "Slow") return "#eab308";
-    if (status === "Partially Working" || status === "Needs Fix") return "#f97316";
-    if (status === "Not Working") return "var(--bs-danger, #ef4444)";
+    if (status === "Partially Working") return "#f97316";
+    if (status === "Not Working" || status === "Needs Fix") return "var(--bs-danger, #ef4444)";
     return "var(--bs-muted-fg)";
   };
   const selectModel = (m: (typeof MODELS)[number], health: any, disabled: boolean) => {
@@ -1582,6 +1582,7 @@ function ModelPicker({
           <span className="text-[10px] uppercase tracking-wider" style={{ color: "var(--bs-muted-fg)" }}>Model</span>
         )}
         <span className="truncate text-sm font-semibold" style={{ color: "var(--bs-fg)" }}>
+          <span className="mr-1.5 inline-block h-2 w-2 rounded-full align-middle" style={{ background: healthColor(currentHealth) }} />
           {current?.label}
         </span>
         <span className="hidden sm:inline text-[10px] rounded-md px-1.5 py-0.5"
@@ -1610,6 +1611,8 @@ function ModelPicker({
             const active = m.id === modelId;
             const disabled = m.status !== "Working";
             const health = modelHealth[m.id];
+            const modelHealthColor = healthColor(health);
+            const modelHealthLabel = healthLabel(health);
             return (
               <button
                 key={m.id}
@@ -1619,12 +1622,17 @@ function ModelPicker({
                 className="flex w-full items-start gap-2 rounded-lg px-2.5 py-2 text-left text-sm transition disabled:opacity-50 disabled:cursor-not-allowed"
                 style={active
                   ? { background: "var(--bs-primary)", color: "var(--bs-primary-fg)" }
-                  : { color: "var(--bs-fg)" }}
+                  : {
+                      color: "var(--bs-fg)",
+                      boxShadow: `inset 3px 0 0 ${modelHealthColor}`,
+                      background: `color-mix(in oklab, ${modelHealthColor} ${modelHealthLabel === "Untested" ? 0 : 5}%, transparent)`,
+                    }}
                 onMouseEnter={(e) => { if (!active && !disabled) (e.currentTarget as HTMLElement).style.background = "var(--bs-card-2)"; }}
                 onMouseLeave={(e) => { if (!active && !disabled) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
+                    <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: active ? "var(--bs-primary-fg)" : modelHealthColor }} />
                     <span className="truncate font-semibold">{m.label}</span>
                     <span className="text-[10px] rounded-md px-1.5 py-0.5 shrink-0"
                       style={active
@@ -1640,11 +1648,11 @@ function ModelPicker({
                     )}
                     <span className="text-[10px] rounded-md px-1.5 py-0.5 shrink-0"
                       style={{
-                        background: `color-mix(in oklab, ${healthColor(health)} 16%, transparent)`,
-                        color: active ? "var(--bs-primary-fg)" : healthColor(health),
+                        background: `color-mix(in oklab, ${modelHealthColor} 18%, transparent)`,
+                        color: active ? "var(--bs-primary-fg)" : modelHealthColor,
                       }}
                     >
-                      {healthLabel(health)}
+                      {modelHealthLabel}
                     </span>
                   </div>
                   <div className="mt-0.5 truncate text-[11px]"

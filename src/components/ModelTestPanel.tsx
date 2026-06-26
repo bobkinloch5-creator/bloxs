@@ -221,11 +221,12 @@ export function ModelTestPanel() {
         {selectable.map((m) => {
           const status = results[m.id] ?? "idle";
           const health = getHealth(status);
+          const tone = healthTone(health);
           return (
             <div
               key={m.id}
               className="flex flex-wrap items-center justify-between gap-2 rounded-xl border px-3 py-2 text-sm"
-              style={{ borderColor: "var(--bs-border)", background: "var(--bs-card-2)" }}
+              style={{ borderColor: tone.borderColor, background: tone.background }}
             >
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 font-semibold">
@@ -270,7 +271,7 @@ function StatusIcon({ status }: { status: Status }) {
   if (status.healthStatus === "Working") return <CheckCircle2 className="h-3.5 w-3.5" style={{ color: "var(--bs-success)" }} />;
   if (status.healthStatus === "Slow") return <Gauge className="h-3.5 w-3.5" style={{ color: "#eab308" }} />;
   if (status.healthStatus === "Partially Working") return <AlertTriangle className="h-3.5 w-3.5" style={{ color: "#f97316" }} />;
-  if (status.healthStatus === "Needs Fix") return <AlertTriangle className="h-3.5 w-3.5" style={{ color: "#f97316" }} />;
+  if (status.healthStatus === "Needs Fix") return <XCircle className="h-3.5 w-3.5" style={{ color: "var(--bs-danger, #ef4444)" }} />;
   if (status.ok) return <CheckCircle2 className="h-3.5 w-3.5" style={{ color: "var(--bs-success)" }} />;
   return <XCircle className="h-3.5 w-3.5" style={{ color: "var(--bs-danger, #ef4444)" }} />;
 }
@@ -279,16 +280,26 @@ function healthColor(health: ModelHealthStatus | "Untested" | "Scanning") {
   if (health === "Working") return "var(--bs-success)";
   if (health === "Slow") return "#eab308";
   if (health === "Partially Working") return "#f97316";
-  if (health === "Needs Fix") return "#f97316";
+  if (health === "Needs Fix") return "var(--bs-danger, #ef4444)";
   if (health === "Not Working") return "var(--bs-danger, #ef4444)";
   if (health === "Scanning") return "var(--bs-primary)";
   return "var(--bs-muted-fg)";
 }
 
+function healthTone(health: ModelHealthStatus | "Untested" | "Scanning") {
+  const color = healthColor(health);
+  const tint = health === "Working" ? 9 : health === "Not Working" || health === "Needs Fix" ? 10 : 6;
+  const border = health === "Untested" ? 18 : 45;
+  return {
+    borderColor: `color-mix(in oklab, ${color} ${border}%, var(--bs-border))`,
+    background: `color-mix(in oklab, ${color} ${tint}%, var(--bs-card-2))`,
+  };
+}
+
 function HealthBadge({ health }: { health: ModelHealthStatus | "Untested" | "Scanning" }) {
   const color = healthColor(health);
   return (
-    <span className="rounded-md px-1.5 py-0.5 text-[10px] font-bold" style={{ color, background: `color-mix(in oklab, ${color} 14%, transparent)` }}>
+    <span className="rounded-md px-1.5 py-0.5 text-[10px] font-bold" style={{ color, background: `color-mix(in oklab, ${color} 16%, transparent)` }}>
       {health}
     </span>
   );
