@@ -1539,12 +1539,10 @@ function ModelPicker({
           style={{ background: "color-mix(in oklab, var(--bs-fg) 8%, transparent)", color: "var(--bs-muted-fg)" }}>
           {current?.provider}
         </span>
-        {currentHealth && (
-          <span className="hidden lg:inline text-[10px] rounded-md px-1.5 py-0.5"
-            style={{ background: "color-mix(in oklab, var(--bs-fg) 8%, transparent)", color: healthColor(currentHealth) }}>
-            {healthLabel(currentHealth)}
-          </span>
-        )}
+        <span className="hidden lg:inline text-[10px] rounded-md px-1.5 py-0.5"
+          style={{ background: "color-mix(in oklab, var(--bs-fg) 8%, transparent)", color: healthColor(currentHealth) }}>
+          {healthLabel(currentHealth)}
+        </span>
         <ChevronDown className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--bs-muted-fg)" }} />
       </button>
 
@@ -1555,6 +1553,9 @@ function ModelPicker({
         >
           <div className="px-2 py-1 text-[10px] uppercase tracking-wider" style={{ color: "var(--bs-muted-fg)" }}>
             Real models · via Lovable AI Gateway
+          </div>
+          <div className="px-2 pb-1 text-[11px]" style={{ color: "var(--bs-muted-fg)" }}>
+            Status shows the latest Roblox health check. Run it from Admin to update which models are down.
           </div>
           {MODELS.map((m) => {
             const active = m.id === modelId;
@@ -1588,16 +1589,14 @@ function ModelPicker({
                         Coming Soon
                       </span>
                     )}
-                    {health && (
-                      <span className="text-[10px] rounded-md px-1.5 py-0.5 shrink-0"
-                        style={{
-                          background: `color-mix(in oklab, ${healthColor(health)} 16%, transparent)`,
-                          color: active ? "var(--bs-primary-fg)" : healthColor(health),
-                        }}
-                      >
-                        {healthLabel(health)}
-                      </span>
-                    )}
+                    <span className="text-[10px] rounded-md px-1.5 py-0.5 shrink-0"
+                      style={{
+                        background: `color-mix(in oklab, ${healthColor(health)} 16%, transparent)`,
+                        color: active ? "var(--bs-primary-fg)" : healthColor(health),
+                      }}
+                    >
+                      {healthLabel(health)}
+                    </span>
                   </div>
                   <div className="mt-0.5 truncate text-[11px]"
                     style={active ? { color: "var(--bs-primary-fg)", opacity: 0.85 } : { color: "var(--bs-muted-fg)" }}>
