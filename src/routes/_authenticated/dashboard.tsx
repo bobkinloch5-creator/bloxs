@@ -43,6 +43,7 @@ const THUMBS: Record<string, string> = {
 };
 import { OnboardingTour } from "@/components/OnboardingTour";
 import { MobileNavTrigger } from "@/components/MobileNav";
+import { ProfileMenu } from "@/components/ProfileMenu";
 import { supabase } from "@/integrations/supabase/client";
 
 
