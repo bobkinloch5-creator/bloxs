@@ -234,7 +234,7 @@ function ProjectPage() {
   const themeClass = theme === "light" ? "bloxchat-light" : theme === "grey" ? "bloxchat-grey" : "bloxchat-dark";
 
   return (
-    <div className={`${themeClass} flex h-screen min-h-0 w-full overflow-hidden`} style={{ background: "var(--bs-bg)", color: "var(--bs-fg)" }}>
+    <div className={`${themeClass} flex h-screen min-h-0 w-full overflow-hidden`} style={{ color: "var(--bs-fg)" }}>
       <OnboardingTour
         storageKey="bs-onboarding-project"
         force={showTour}

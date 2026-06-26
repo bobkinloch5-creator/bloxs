@@ -51,7 +51,7 @@ function TermsPage() {
 
 export function LegalShell({ title, updated, children }: { title: string; updated: string; children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-[#070b16] text-slate-200">
+    <div className="min-h-screen text-slate-200">
       <header className="border-b border-white/10">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-5">
           <Link to="/" className="text-sm font-bold text-white hover:text-blue-300">← BloxSmith</Link>

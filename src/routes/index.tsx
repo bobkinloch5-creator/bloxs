@@ -526,7 +526,7 @@ function BgFx() {
 function LandingCss() {
   return (
     <style>{`
-      .bs-land { background: #070b16; color: #fff; font-family: var(--font-display), Inter, sans-serif; }
+      .bs-land { color: #fff; font-family: var(--font-display), Inter, sans-serif; }
       .bs-h1 { font-size: clamp(2.25rem, 5vw, 4.25rem); line-height: 1.05; }
       .bs-text-grad {
         background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 60%, #fbbf24 100%);
