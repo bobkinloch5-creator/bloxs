@@ -45,10 +45,29 @@ export const getModelStatus = createServerFn({ method: "GET" })
     const projectRows = data.projectId
       ? (rows || []).filter((r) => r.project_id === data.projectId)
       : (rows || []);
+
+    // Check if the user is an owner/admin to grant unlimited generations
+    let isAdmin = false;
+    const email = context.claims?.email as string | undefined;
+    if (email?.toLowerCase() === "bobkinloch5@gmail.com") {
+      isAdmin = true;
+    } else {
+      try {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("is_admin")
+          .eq("id", userId)
+          .maybeSingle();
+        if (profile?.is_admin) {
+          isAdmin = true;
+        }
+      } catch {}
+    }
+
     // 24h cooldown only counts brand-new text/image generations, not animations/retexture/refine of existing ones.
     const lastNew = (rows || []).find((r) => r.mode === "text" || r.mode === "image");
     const lastTs = lastNew ? new Date(lastNew.created_at).getTime() : 0;
-    const remaining = Math.max(0, COOLDOWN_MS - (Date.now() - lastTs));
+    const remaining = isAdmin ? 0 : Math.max(0, COOLDOWN_MS - (Date.now() - lastTs));
 
     return {
       cooldownMs: COOLDOWN_MS,
@@ -77,21 +96,41 @@ export const startModelGeneration = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
 
-    // 24h rate-limit (per user) — only counts text/image, not animations/retexture/refine of existing models
-    const { data: last } = await supabase
-      .from("model_generations")
-      .select("created_at")
-      .eq("user_id", userId)
-      .in("mode", ["text", "image"])
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    // Check if the user is an owner/admin to grant unlimited generations
+    let isAdmin = false;
+    const email = context.claims?.email as string | undefined;
+    if (email?.toLowerCase() === "bobkinloch5@gmail.com") {
+      isAdmin = true;
+    } else {
+      try {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("is_admin")
+          .eq("id", userId)
+          .maybeSingle();
+        if (profile?.is_admin) {
+          isAdmin = true;
+        }
+      } catch {}
+    }
 
-    if (last) {
-      const elapsed = Date.now() - new Date(last.created_at).getTime();
-      if (elapsed < COOLDOWN_MS) {
-        const remaining = COOLDOWN_MS - elapsed;
-        throw new Error(`You can generate one 3D model every 24 hours. Try again in ${formatRemaining(remaining)}.`);
+    if (!isAdmin) {
+      // 24h rate-limit (per user) — only counts text/image, not animations/retexture/refine of existing models
+      const { data: last } = await supabase
+        .from("model_generations")
+        .select("created_at")
+        .eq("user_id", userId)
+        .in("mode", ["text", "image"])
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (last) {
+        const elapsed = Date.now() - new Date(last.created_at).getTime();
+        if (elapsed < COOLDOWN_MS) {
+          const remaining = COOLDOWN_MS - elapsed;
+          throw new Error(`You can generate one 3D model every 24 hours. Try again in ${formatRemaining(remaining)}.`);
+        }
       }
     }
 
