@@ -81,6 +81,16 @@ export function MobileNavTrigger({ isAdmin, className = "" }: { isAdmin?: boolea
               <NavGroup label="Core Suite" items={CORE} onPick={() => setOpen(false)} />
               <NavGroup label="Integration" items={INT} onPick={() => setOpen(false)} />
             </nav>
+
+            <a
+              href="https://discord.gg/6QDYT3RUkv"
+              target="_blank"
+              rel="noreferrer"
+              className="mt-6 flex items-center justify-center gap-2 rounded-xl border border-indigo-500/20 bg-indigo-500/10 px-3 py-2.5 text-xs font-bold uppercase tracking-[0.18em] text-indigo-200 transition hover:bg-indigo-500/20 hover:text-white"
+              style={{ fontFamily: "Space Mono, monospace" }}
+            >
+              Join Discord
+            </a>
           </aside>
         </div>
       )}

@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { ReactNode } from "react";
 import { RobloxBackdrop } from "./RobloxBackdrop";
 import { MobileNavTrigger } from "./MobileNav";
+import { ProfileMenu, DiscordIcon } from "./ProfileMenu";
 import {
   Folder, MessageSquare, Lightbulb, LayoutDashboard, Users, Plug, Wand2,
   History as HistoryIcon, BookOpen, Settings as SettingsIcon, Crown, Box,
@@ -58,11 +59,15 @@ export function PageShell({
               </h1>
               {description && <p className="mt-1 truncate text-xs text-muted-foreground sm:text-sm">{description}</p>}
             </div>
-            {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
+            {actions && <div className="hidden shrink-0 items-center gap-2 md:flex">{actions}</div>}
+            <ProfileMenu />
           </header>
 
           <main className={`mx-auto grid max-w-[1600px] gap-6 px-4 py-6 sm:px-8 sm:py-8 ${rightPanel ? "xl:grid-cols-[minmax(0,1fr)_320px]" : ""}`}>
-            <div className="min-w-0 space-y-6">{children}</div>
+            <div className="min-w-0 space-y-6">
+              {actions && <div className="flex flex-wrap items-center gap-2 md:hidden">{actions}</div>}
+              {children}
+            </div>
             {rightPanel && <aside className="space-y-4">{rightPanel}</aside>}
           </main>
 
@@ -100,20 +105,17 @@ function VaporSidebar({ isAdmin, activeKey }: { isAdmin: boolean; activeKey?: st
         <NavGroup label="Integration" items={NAV_INTEGRATION} activeKey={activeKey} />
       </nav>
 
-      <div className="border-t border-indigo-500/10 bg-white/[0.02] p-5">
-        <div className="flex items-center gap-3">
-          <div className="vapor-ring-avatar h-10 w-10">
-            <div className="h-full w-full text-[11px] font-bold text-white" style={{ fontFamily: "Space Mono, monospace" }}>
-              BX
-            </div>
-          </div>
-          <div className="min-w-0">
-            <div className="truncate text-sm font-semibold text-white">Builder</div>
-            <div className="truncate text-[10px] uppercase tracking-[0.18em] text-cyan-300" style={{ fontFamily: "Space Mono, monospace" }}>
-              {isAdmin ? "Owner" : "Builder Plan"}
-            </div>
-          </div>
-        </div>
+      <div className="space-y-2 border-t border-indigo-500/10 bg-white/[0.02] p-4">
+        <ProfileMenu />
+        <a
+          href="https://discord.gg/6QDYT3RUkv"
+          target="_blank"
+          rel="noreferrer"
+          className="flex items-center justify-center gap-2 rounded-xl border border-indigo-500/15 bg-white/[0.02] px-3 py-2 text-[11px] font-bold uppercase tracking-[0.18em] text-indigo-200 transition hover:border-indigo-400/40 hover:bg-indigo-500/10 hover:text-white"
+          style={{ fontFamily: "Space Mono, monospace" }}
+        >
+          <DiscordIcon className="h-3.5 w-3.5" /> Community
+        </a>
       </div>
     </aside>
   );

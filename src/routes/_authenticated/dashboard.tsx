@@ -43,6 +43,7 @@ const THUMBS: Record<string, string> = {
 };
 import { OnboardingTour } from "@/components/OnboardingTour";
 import { MobileNavTrigger } from "@/components/MobileNav";
+import { ProfileMenu } from "@/components/ProfileMenu";
 import { supabase } from "@/integrations/supabase/client";
 
 
@@ -475,16 +476,8 @@ function TopBar({
         <Plus className="h-3.5 w-3.5" /> New Project
       </button>
 
-      <div className="flex items-center gap-2 rounded-xl border px-2 py-1.5" style={{ borderColor: "var(--bs-border)", background: "var(--bs-card-2)" }}>
-        <div className="grid h-7 w-7 place-items-center rounded-lg text-xs font-bold" style={{ background: "var(--bs-grad)", color: "#fff" }}>
-          {name.slice(0, 1).toUpperCase()}
-        </div>
-        <div className="hidden text-[11px] leading-tight sm:block">
-          <div className="font-bold">{name}{isAdmin && <Crown className="ml-1 inline h-3 w-3" style={{ color: "var(--bs-primary)" }} />}</div>
-          <div style={{ color: "var(--bs-muted-fg)" }}>Online</div>
-        </div>
-        <ChevronDown className="hidden h-3.5 w-3.5 sm:inline" style={{ color: "var(--bs-muted-fg)" }} />
-      </div>
+      <ProfileMenu />
+
     </header>
   );
 }
