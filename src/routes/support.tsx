@@ -8,7 +8,9 @@ export const Route = createFileRoute("/support")({
       { name: "description", content: "Get help with BloxSmith: plugin issues, AI errors, account questions." },
       { property: "og:title", content: "BloxSmith Support" },
       { property: "og:description", content: "Help with plugin, AI, and account." },
+          { property: "og:url", content: "https://bloxsmith.pro/support" },
     ],
+    links: [{ rel: "canonical", href: "https://bloxsmith.pro/support" }],
   }),
   component: () => (
     <LegalShell title="Support" updated="June 25, 2026">

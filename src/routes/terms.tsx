@@ -7,7 +7,9 @@ export const Route = createFileRoute("/terms")({
       { name: "description", content: "BloxSmith Terms of Service. Read the rules for using our free AI Roblox game builder." },
       { property: "og:title", content: "Terms of Service — BloxSmith" },
       { property: "og:description", content: "The rules for using BloxSmith." },
+          { property: "og:url", content: "https://bloxsmith.pro/terms" },
     ],
+    links: [{ rel: "canonical", href: "https://bloxsmith.pro/terms" }],
   }),
   component: TermsPage,
 });
