@@ -61,10 +61,11 @@ export function PageShell({
             {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
           </header>
 
-          <main className={`mx-auto grid max-w-[1600px] gap-6 px-4 py-8 sm:px-8 ${rightPanel ? "xl:grid-cols-[minmax(0,1fr)_320px]" : ""}`}>
+          <main className={`mx-auto grid max-w-[1600px] gap-6 px-4 py-6 sm:px-8 sm:py-8 ${rightPanel ? "xl:grid-cols-[minmax(0,1fr)_320px]" : ""}`}>
             <div className="min-w-0 space-y-6">{children}</div>
             {rightPanel && <aside className="space-y-4">{rightPanel}</aside>}
           </main>
+
         </div>
       </div>
     </div>
