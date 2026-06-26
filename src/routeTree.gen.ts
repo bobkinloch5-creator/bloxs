@@ -19,6 +19,7 @@ import { Route as ContactRouteImport } from './routes/contact'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiVoiceRouteImport } from './routes/api/voice'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as AuthenticatedVoiceRouteImport } from './routes/_authenticated/voice'
 import { Route as AuthenticatedUiGeneratorRouteImport } from './routes/_authenticated/ui-generator'
@@ -91,6 +92,11 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiVoiceRoute = ApiVoiceRouteImport.update({
+  id: '/api/voice',
+  path: '/api/voice',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiChatRoute = ApiChatRouteImport.update({
@@ -243,6 +249,7 @@ export interface FileRoutesByFullPath {
   '/ui-generator': typeof AuthenticatedUiGeneratorRoute
   '/voice': typeof AuthenticatedVoiceRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/voice': typeof ApiVoiceRoute
   '/models/$projectId': typeof AuthenticatedModelsProjectIdRoute
   '/project/$projectId': typeof AuthenticatedProjectProjectIdRoute
   '/api/public/mcp': typeof ApiPublicMcpRoute
@@ -278,6 +285,7 @@ export interface FileRoutesByTo {
   '/ui-generator': typeof AuthenticatedUiGeneratorRoute
   '/voice': typeof AuthenticatedVoiceRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/voice': typeof ApiVoiceRoute
   '/models/$projectId': typeof AuthenticatedModelsProjectIdRoute
   '/project/$projectId': typeof AuthenticatedProjectProjectIdRoute
   '/api/public/mcp': typeof ApiPublicMcpRoute
@@ -315,6 +323,7 @@ export interface FileRoutesById {
   '/_authenticated/ui-generator': typeof AuthenticatedUiGeneratorRoute
   '/_authenticated/voice': typeof AuthenticatedVoiceRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/voice': typeof ApiVoiceRoute
   '/_authenticated/models/$projectId': typeof AuthenticatedModelsProjectIdRoute
   '/_authenticated/project/$projectId': typeof AuthenticatedProjectProjectIdRoute
   '/api/public/mcp': typeof ApiPublicMcpRoute
@@ -352,6 +361,7 @@ export interface FileRouteTypes {
     | '/ui-generator'
     | '/voice'
     | '/api/chat'
+    | '/api/voice'
     | '/models/$projectId'
     | '/project/$projectId'
     | '/api/public/mcp'
@@ -387,6 +397,7 @@ export interface FileRouteTypes {
     | '/ui-generator'
     | '/voice'
     | '/api/chat'
+    | '/api/voice'
     | '/models/$projectId'
     | '/project/$projectId'
     | '/api/public/mcp'
@@ -423,6 +434,7 @@ export interface FileRouteTypes {
     | '/_authenticated/ui-generator'
     | '/_authenticated/voice'
     | '/api/chat'
+    | '/api/voice'
     | '/_authenticated/models/$projectId'
     | '/_authenticated/project/$projectId'
     | '/api/public/mcp'
@@ -447,6 +459,7 @@ export interface RootRouteChildren {
   SupportRoute: typeof SupportRoute
   TermsRoute: typeof TermsRoute
   ApiChatRoute: typeof ApiChatRoute
+  ApiVoiceRoute: typeof ApiVoiceRoute
   ApiPublicMcpRoute: typeof ApiPublicMcpRoute
   ApiPublicPluginClearRoute: typeof ApiPublicPluginClearRoute
   ApiPublicPluginCompleteRoute: typeof ApiPublicPluginCompleteRoute
@@ -527,6 +540,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/voice': {
+      id: '/api/voice'
+      path: '/api/voice'
+      fullPath: '/api/voice'
+      preLoaderRoute: typeof ApiVoiceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/chat': {
@@ -760,6 +780,7 @@ const rootRouteChildren: RootRouteChildren = {
   SupportRoute: SupportRoute,
   TermsRoute: TermsRoute,
   ApiChatRoute: ApiChatRoute,
+  ApiVoiceRoute: ApiVoiceRoute,
   ApiPublicMcpRoute: ApiPublicMcpRoute,
   ApiPublicPluginClearRoute: ApiPublicPluginClearRoute,
   ApiPublicPluginCompleteRoute: ApiPublicPluginCompleteRoute,
