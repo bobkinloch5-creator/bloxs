@@ -730,6 +730,15 @@ function Composer({
             <button className="bs-icon-btn" title="Attach image" type="button">
               <Paperclip className="h-4 w-4" />
             </button>
+            <VoiceControls
+              ttsEnabled={ttsEnabled}
+              setTtsEnabled={setTtsEnabled}
+              onTranscript={(t: string, send: boolean) => {
+                if (send) onVoiceTranscript?.(t);
+                else setInput(t);
+              }}
+              busy={busy}
+            />
 
             {COMPOSER_ACTIONS.map((a) => (
               <button
