@@ -576,6 +576,21 @@ local function reportComplete(actionId, status, errMsg, result)
     }, { verbose = false })
 end
 
+-- Fast batch report: one HTTP call for many results.
+local function reportBatch(results)
+    local token = validToken()
+    if not token or #results == 0 then return end
+    local ok = pcall(function()
+        post("/api/public/plugin/complete", { token = token, results = results }, { verbose = false })
+    end)
+    if not ok then
+        -- Fallback: per-action (older server)
+        for _, r in ipairs(results) do
+            reportComplete(r.action_id, r.status, r.error, r.result)
+        end
+    end
+end
+
 ------------------------------------------------------------------- state
 local connected, pairingCode = false, nil
 local lastHeartbeat, queueLen, lastAction = 0, 0, "—"
