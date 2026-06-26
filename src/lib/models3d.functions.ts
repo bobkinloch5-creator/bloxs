@@ -281,7 +281,7 @@ export const animateModel = createServerFn({ method: "POST" })
 export const retextureModel = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => z.object({
-    projectId: z.string().uuid(),
+    projectId: z.string().uuid().optional(),
     sourceId: z.string().uuid(),
     texturePrompt: z.string().trim().min(3).max(400),
     artStyle: z.enum(["realistic", "fake-3d-cartoon", "japanese-anime", "cartoon-line-art", "realistic-hand-drawn", "fake-3d-hand-drawn", "oriental-comic-ink"]).default("realistic"),
