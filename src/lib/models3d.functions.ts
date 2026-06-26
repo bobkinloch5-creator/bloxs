@@ -195,10 +195,72 @@ export const pollModelGeneration = createServerFn({ method: "POST" })
     return updated ?? gen;
   });
 
+export const ANIMATION_PRESETS = ["walking", "running", "dancing", "idle", "jumping"] as const;
+export type AnimationPreset = typeof ANIMATION_PRESETS[number];
+
+export const animateModel = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => z.object({
+    projectId: z.string().uuid(),
+    sourceId: z.string().uuid(),
+    animation: z.enum(ANIMATION_PRESETS),
+  }).parse(i))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: source } = await supabase
+      .from("model_generations")
+      .select("*")
+      .eq("id", data.sourceId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (!source) throw new Error("Source 3D model not found.");
+    if (source.status !== "SUCCEEDED" || !source.task_id) {
+      throw new Error("Source model must finish generating before it can be animated.");
+    }
+    if (source.mode === "animation") {
+      throw new Error("Pick an original 3D model to animate, not another animation.");
+    }
+
+    let taskId: string;
+    try {
+      const res = await meshyFetch("/v1/animations", {
+        method: "POST",
+        body: JSON.stringify({
+          input_task_id: source.task_id,
+          animation_name: data.animation,
+        }),
+      });
+      taskId = res.result;
+    } catch (e) {
+      throw new Error(`Meshy could not start the animation: ${e instanceof Error ? e.message : String(e)}`);
+    }
+
+    const promptLabel = `${data.animation.charAt(0).toUpperCase() + data.animation.slice(1)} — ${source.prompt ?? "model"}`;
+    const { data: row, error } = await supabase
+      .from("model_generations")
+      .insert({
+        user_id: userId,
+        project_id: data.projectId,
+        mode: "animation",
+        prompt: promptLabel,
+        task_id: taskId,
+        status: "PENDING",
+        progress: 0,
+        animation_name: data.animation,
+        parent_id: source.id,
+      })
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return row;
+  });
+
 function formatRemaining(ms: number) {
   const h = Math.floor(ms / 3_600_000);
   const m = Math.floor((ms % 3_600_000) / 60_000);
   if (h > 0) return `${h}h ${m}m`;
   if (m > 0) return `${m}m`;
   return `${Math.ceil(ms / 1000)}s`;
+}
+
 }
