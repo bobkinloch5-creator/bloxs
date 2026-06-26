@@ -459,7 +459,7 @@ function FinalCTA() {
             <Link to="/auth" className="bs-btn-grad inline-flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold text-white">
               <Zap className="h-4 w-4" /> Start Building Free
             </Link>
-            <a href="https://discord.gg/lovable-dev" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-6 py-3 text-sm font-semibold text-white hover:bg-white/10">
+            <a href="https://discord.gg/6QDYT3RUkv" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-6 py-3 text-sm font-semibold text-white hover:bg-white/10">
               <MessageSquare className="h-4 w-4" /> Join Discord
             </a>
           </div>
@@ -501,7 +501,7 @@ function Footer() {
           </div>
           <FootCol title="Product" links={[["Features", "/#features"], ["How It Works", "/#how"], ["Plugin", "/#plugin"], ["3D Models", "/#templates"]]} />
           <FootCol title="Resources" links={[["Docs", "/docs"], ["Support", "/support"], ["Contact", "/contact"]]} />
-          <FootCol title="Legal" links={[["Terms of Service", "/terms"], ["Privacy Policy", "/privacy"], ["Discord", "https://discord.gg/lovable-dev"]]} />
+          <FootCol title="Legal" links={[["Terms of Service", "/terms"], ["Privacy Policy", "/privacy"], ["Discord", "https://discord.gg/6QDYT3RUkv"]]} />
         </div>
         <div className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-6 text-xs text-slate-400">
           <div className="font-medium text-slate-300">Made for Roblox creators. 100% free.</div>
@@ -548,7 +548,7 @@ function FootCol({ title, links }: { title: string; links: [string, string][] })
 /* ---------------- Social + Share ---------------- */
 const SOCIALS: { label: string; href: string; icon: (p: { className?: string }) => React.ReactElement }[] = [
   { label: "TikTok", href: "https://www.tiktok.com/search?q=bloxsmith", icon: TikTokIcon },
-  { label: "Discord", href: "https://discord.gg/lovable-dev", icon: DiscordIcon },
+  { label: "Discord", href: "https://discord.gg/6QDYT3RUkv", icon: DiscordIcon },
   { label: "YouTube", href: "https://www.youtube.com/results?search_query=bloxsmith", icon: YouTubeIcon },
   { label: "X (Twitter)", href: "https://x.com/search?q=bloxsmith", icon: XIcon },
   { label: "Instagram", href: "https://www.instagram.com/explore/tags/bloxsmith/", icon: InstagramIcon },
