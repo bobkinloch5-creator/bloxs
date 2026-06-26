@@ -18,7 +18,20 @@ local InsertService         = game:GetService("InsertService")
 
 local API_BASE       = "https://bloxsmith.pro"
 local POLL_INTERVAL  = 4
-local PLUGIN_VERSION = "1.3.0"
+local PLUGIN_VERSION = "1.3.1"
+
+------------------------------------------------------------------- token helpers
+local TOKEN_KEY = "token"
+local function validToken()
+    local t = plugin:GetSetting(TOKEN_KEY)
+    if type(t) ~= "string" then return nil end
+    t = (t:gsub("^%s+", ""):gsub("%s+$", ""))
+    if t == "" then return nil end
+    return t
+end
+local function clearToken()
+    plugin:SetSetting(TOKEN_KEY, nil)
+end
 
 ------------------------------------------------------------------- UI shell
 local toolbar = plugin:CreateToolbar("BloxSmith")
@@ -500,32 +513,39 @@ local function post(path, body, opts)
     opts = opts or {}
     local verbose = opts.verbose ~= false and (VERBOSE or opts.force)
     local t0 = os.clock()
-    if verbose then log("→ POST " .. path, "net") end
+    if verbose then log("→ POST " .. API_BASE .. path, "net") end
+    body = body or {}
+    local headers = { ["Content-Type"] = "application/json" }
+    -- Forward token in both header and body for defense-in-depth.
+    if type(body.token) == "string" and body.token ~= "" then
+        headers["Authorization"] = "Bearer " .. body.token
+        headers["X-BloxSmith-Token"] = body.token
+    end
     local ok, res = pcall(function()
         return HttpService:RequestAsync({
             Url = API_BASE .. path, Method = "POST",
-            Headers = { ["Content-Type"] = "application/json" },
-            Body = HttpService:JSONEncode(body or {}),
+            Headers = headers,
+            Body = HttpService:JSONEncode(body),
         })
     end)
     local dt = math.floor((os.clock() - t0) * 1000)
     if not ok then
         log(("✗ POST %s failed after %dms — %s"):format(path, dt, tostring(res)), "error")
-        return nil, tostring(res)
+        return nil, tostring(res), 0
     end
     if not res.Success then
         local short = tostring(res.Body or "")
         if #short > 240 then short = short:sub(1,240) .. "…" end
         log(("✗ POST %s → HTTP %s in %dms — %s"):format(path, tostring(res.StatusCode), dt, short), "error")
-        return nil, "HTTP " .. tostring(res.StatusCode) .. ": " .. tostring(res.Body)
+        return nil, "HTTP " .. tostring(res.StatusCode) .. ": " .. tostring(res.Body), tonumber(res.StatusCode) or 0
     end
     local decoded; pcall(function() decoded = HttpService:JSONDecode(res.Body) end)
     if verbose then log(("← POST %s → %s in %dms"):format(path, tostring(res.StatusCode), dt), "net") end
-    return decoded or {}, nil
+    return decoded or {}, nil, tonumber(res.StatusCode) or 200
 end
 
 local function reportComplete(actionId, status, errMsg, result)
-    local token = plugin:GetSetting("token")
+    local token = validToken()
     if not token then return end
     post("/api/public/plugin/complete", {
         token = token, action_id = actionId, status = status, error = errMsg, result = result,
