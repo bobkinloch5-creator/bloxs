@@ -94,7 +94,7 @@ linkBox.Parent = main
 
 -- control buttons grid (2 rows x 3 cols)
 local controls = Instance.new("Frame")
-controls.Position = UDim2.new(0,12,0,216); controls.Size = UDim2.new(1,-24,0,64)
+controls.Position = UDim2.new(0,12,0,216); controls.Size = UDim2.new(1,-24,0,98)
 controls.BackgroundTransparency = 1; controls.Parent = main
 local grid = Instance.new("UIGridLayout", controls)
 grid.CellPadding = UDim2.new(0,6,0,6)
@@ -117,6 +117,9 @@ local execBtn      = ctrlBtn("Run Queue", 3)
 local clearBtn     = ctrlBtn("Clear Queue", 4)
 local errorsBtn    = ctrlBtn("View Errors", 5)
 local openWebBtn   = ctrlBtn("Open Website", 6)
+local scanBtn      = ctrlBtn("Scan Game", 7)
+local sendErrBtn   = ctrlBtn("Send Errors", 8)
+local autoErrBtn   = ctrlBtn("Auto-Send: ON", 9)
 
 ------------------------------------------------------------------- log
 local logBar = Instance.new("Frame")
