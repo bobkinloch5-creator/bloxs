@@ -572,12 +572,12 @@ function StatsRow({ total, active, builds, connected, credits, maxCredits, isAdm
       {items.map((it) => {
         const Icon = it.icon;
         return (
-          <div key={it.label} className="bs-card p-3.5">
-            <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--bs-muted-fg)" }}>
+          <div key={it.label} className="vapor-card p-4">
+            <div className="flex items-center justify-between vapor-label">
               {it.label}
-              <Icon className="h-3.5 w-3.5" style={{ color: it.accent ? "var(--bs-primary)" : "var(--bs-muted-fg)" }} />
+              <Icon className="h-3.5 w-3.5" style={{ color: it.accent ? "#67e8f9" : "rgba(167,139,250,0.6)" }} />
             </div>
-            <div className="mt-1 text-2xl font-extrabold" style={it.accent ? { color: "var(--bs-primary)" } : undefined}>{it.value}</div>
+            <div className="mt-2 vapor-stat-num" style={it.accent ? { color: "#67e8f9" } : undefined}>{it.value}</div>
             <div className="mt-0.5 truncate text-[11px]" style={{ color: "var(--bs-muted-fg)" }}>{it.sub}</div>
           </div>
         );
@@ -585,6 +585,7 @@ function StatsRow({ total, active, builds, connected, credits, maxCredits, isAdm
     </div>
   );
 }
+
 
 /* ────────────────── TOOLBAR ────────────────── */
 function ProjectsToolbar({
