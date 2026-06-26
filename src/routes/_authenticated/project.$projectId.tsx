@@ -77,6 +77,7 @@ function ProjectPage() {
   const actionsFn  = useServerFn(listProjectActions);
   const sessionFn  = useServerFn(getPluginSession);
   const profileFn  = useServerFn(getMyProfile);
+  const clearMessagesFn = useServerFn(clearMessages);
 
   const { data: project } = useQuery({ queryKey: ["project", projectId], queryFn: () => projectFn({ data: { id: projectId } }) });
   const { data: projects = [] } = useQuery({ queryKey: ["projects"], queryFn: () => projectsFn() });
