@@ -20,6 +20,8 @@ import {
 } from "lucide-react";
 import bloxLogo from "@/assets/bloxsmith-logo.png.asset.json";
 import { OnboardingTour } from "@/components/OnboardingTour";
+import { MobileNavTrigger } from "@/components/MobileNav";
+
 import { VoiceControls, useBloxSmithSpeaker } from "@/components/VoiceControls";
 import { improvePrompt } from "@/lib/improve.functions";
 
