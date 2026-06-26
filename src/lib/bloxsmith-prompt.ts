@@ -54,7 +54,7 @@ Primitives:
 - "sound"           payload: { "sound_id":"rbxassetid://...", "volume":0.5, "looped": false }
 - "team"            payload: { "color":[r,g,b], "auto_assignable": true }
 - "leaderstats"     payload: { "stats":[ {"name":"Cash","value":0,"kind":"IntValue"} ] }
-- "insert_asset"    payload: { "asset_id": 1234567 }
+- "insert_asset"    payload: { "asset_id": 1234567, "position":[0,5,0], "rotation":[0,90,0], "yaw":90, "scale":1, "folder_name":"MapAssets", "tags":["BloxSmithAsset"] }
 - "set_properties"  payload: { "target_path":"Workspace.MyPart", "properties":{"Anchored":true} }
 - "rename" / "move" / "delete"   payload: { "target_path":"...", "new_name":"...", "new_parent_path":"..." }
 
@@ -243,13 +243,15 @@ You have a tool named \`search_toolbox\` that searches Roblox's public Toolbox/M
   1. Call search_toolbox({ keyword: "<what the user asked for>", category: "Model" }) (or "Audio" for sounds).
   2. Pick the top 1-3 results whose name matches the user's request, are free/public, and come from a trusted creator. Prefer creatorName "Roblox". Skip anything with junk names ("FREE MODEL!!!", "GET ROBUX", weird symbols, mismatched names), suspicious script/admin/exploit wording, or poor relevance.
   3. Emit one \`insert_asset\` action per chosen id, parented to the correct service (Workspace for world models, StarterPack for tools/weapons, SoundService for audio).
-  4. Optionally follow with a \`set_properties\` or \`run_lua\` to position/rotate/scale the inserted model via PivotTo / CFrame.
+  4. Prefer the \`insert_asset\` payload fields \`position\`, \`rotation\` or \`yaw\`, \`scale\`, \`folder_name\`, and \`tags\` to place and organize the asset immediately. Use \`run_lua\` only when placement needs logic the payload cannot express.
   5. In your explanation, briefly tell the user which asset(s) you inserted (name + creator).
 If search_toolbox returns \`source: "none"\` OR none of the results look safe/relevant, ASK THE USER FIRST before building any generated fallback. Do NOT silently fall back to primitives/run_lua and do NOT invent ids. If it returns \`source: "fallback"\`, those are curated verified-free Roblox-owned ids and are safe to use.
 The plugin runs InsertService:LoadAsset(id) on every "insert_asset" action — this pulls the REAL asset from the Roblox library into the user's place. Always prefer a real library asset over building from primitives when the user asks for things that look better as models.
 Rules for insert_asset:
 - Wrap the parent_path correctly: trees/buildings/vehicles/NPCs → "Workspace", weapons/tools → "StarterPack", sounds → "SoundService", UI assets → "StarterGui".
 - Never invent fake ids. If you didn't get an id from search_toolbox or the curated list below, ask the user before generating any fallback geometry.
+- Use \`folder_name\` to organize inserted world assets under folders like "MapAssets", "Vehicles", "NPCs", "Props", "Decorations", or "Tools" instead of dumping them at the Workspace root.
+- Use \`position\`, \`rotation\` / \`yaw\`, and \`scale\` on \`insert_asset\` so assets appear in clean, intentional locations.
 Curated, pre-verified free Roblox-creator asset ids (safe fallbacks if search_toolbox fails):
 - Classic Sword (→ StarterPack): 12221720
 - Slingshot (→ StarterPack): 16895215

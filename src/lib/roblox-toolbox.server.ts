@@ -13,6 +13,7 @@ export interface ToolboxResult {
   thumbnail?: string;
   relevance?: number; // 0..1 — how well the asset name matches the query
   safety?: number;    // 0..1 — heuristic safety/quality score (creator, name junk filter)
+  reason?: string;
   free?: boolean;
 }
 
@@ -27,6 +28,10 @@ const CATEGORY_ID: Record<ToolboxCategory, number> = {
 // Curated, verified-free Roblox-creator fallbacks (creator "Roblox", price 0).
 const FALLBACK: Record<string, ToolboxResult[]> = {
   tree: [
+    { id: 1577043523, name: "Pine Tree", creatorName: "Roblox", creatorType: "User", assetType: "Model" },
+    { id: 162039248, name: "Tree Pack", creatorName: "Roblox", creatorType: "User", assetType: "Model" },
+  ],
+  forest: [
     { id: 1577043523, name: "Pine Tree", creatorName: "Roblox", creatorType: "User", assetType: "Model" },
     { id: 162039248, name: "Tree Pack", creatorName: "Roblox", creatorType: "User", assetType: "Model" },
   ],
@@ -59,6 +64,32 @@ function pickFallback(keyword: string): ToolboxResult[] {
     if (k.includes(key)) return list;
   }
   return [];
+}
+
+const QUERY_ALIASES: Array<{ test: RegExp; terms: string[] }> = [
+  { test: /\b(obby|parkour)\b/i, terms: ["obby kit", "parkour kit", "obstacle course"] },
+  { test: /\b(tycoon)\b/i, terms: ["tycoon kit", "conveyor", "dropper"] },
+  { test: /\b(city|town|roleplay)\b/i, terms: ["city kit", "road", "building"] },
+  { test: /\b(forest|woods|jungle)\b/i, terms: ["tree", "pine tree", "forest"] },
+  { test: /\b(car|cars|vehicle|vehicles)\b/i, terms: ["car", "vehicle", "race car"] },
+  { test: /\b(road|street|highway)\b/i, terms: ["road", "street", "city road"] },
+  { test: /\b(house|building|shop|store)\b/i, terms: ["building", "house", "shop"] },
+  { test: /\b(pet|pets)\b/i, terms: ["pet", "dog", "cat"] },
+  { test: /\b(zombie|enemy|monster|npc)\b/i, terms: ["npc", "zombie", "dummy"] },
+  { test: /\b(sword|weapon|gun|blaster)\b/i, terms: ["weapon", "sword", "gun"] },
+  { test: /\b(lobby|spawn)\b/i, terms: ["lobby", "spawn", "welcome"] },
+];
+
+function buildSearchTerms(keyword: string): string[] {
+  const base = keyword.trim().replace(/\s+/g, " ");
+  const terms = new Set<string>();
+  if (base) terms.add(base);
+  for (const alias of QUERY_ALIASES) {
+    if (alias.test.test(base)) {
+      for (const term of alias.terms) terms.add(term);
+    }
+  }
+  return Array.from(terms).slice(0, 4);
 }
 
 async function tryFetch(url: string): Promise<unknown | null> {
@@ -102,6 +133,15 @@ function looksLikeJunk(name: string): boolean {
   return JUNK_PATTERNS.some((re) => re.test(name));
 }
 
+function rejectionReason(r: ToolboxResult): string | null {
+  if (r.free === false) return "not_free";
+  if (looksLikeJunk(r.name)) return "suspicious_name";
+  if (!isTrustedCreator(r.creatorName)) return "untrusted_creator";
+  if ((r.relevance ?? 0) <= 0.1) return "low_relevance";
+  if ((r.safety ?? 0) < 0.8) return "low_safety";
+  return null;
+}
+
 function relevanceScore(query: string, name: string): number {
   const q = query.toLowerCase().trim();
   const n = name.toLowerCase();
@@ -141,8 +181,8 @@ export async function searchRobloxToolbox(
   category: ToolboxCategory = "Model",
   limit = 6,
 ): Promise<{ source: "live" | "fallback" | "none"; results: ToolboxResult[] }> {
-  const q = encodeURIComponent(keyword.trim());
-  if (!q) return { source: "none", results: [] };
+  const terms = buildSearchTerms(keyword);
+  if (terms.length === 0) return { source: "none", results: [] };
   const catId = CATEGORY_ID[category];
 
   const enrich = (r: ToolboxResult): ToolboxResult => ({
@@ -156,57 +196,50 @@ export async function searchRobloxToolbox(
   const rank = (rows: ToolboxResult[]) =>
     rows
       .map(enrich)
-      .filter((r) => r.free !== false && !looksLikeJunk(r.name) && isTrustedCreator(r.creatorName) && (r.relevance ?? 0) > 0.1 && (r.safety ?? 0) >= 0.8)
+      .filter((r) => rejectionReason(r) === null)
       .sort((a, b) => (b.relevance! * 0.6 + b.safety! * 0.4) - (a.relevance! * 0.6 + a.safety! * 0.4))
       .slice(0, limit);
 
   // 1. toolbox-service marketplace endpoint.
-  const tbUrl = `https://apis.roblox.com/toolbox-service/v1/marketplace/${catId}?keyword=${q}&limit=${limit * 4}&sortType=2`;
-  const tb = (await tryFetch(tbUrl)) as
-    | { data?: Array<{ asset?: { id?: number; name?: string; typeId?: number }; creator?: { name?: string; type?: number }; product?: { price?: number; isFree?: boolean } }> }
-    | null;
-  if (tb?.data && Array.isArray(tb.data) && tb.data.length > 0) {
-    const out: ToolboxResult[] = [];
+  const liveRows = new Map<number, ToolboxResult>();
+  for (const term of terms) {
+    const q = encodeURIComponent(term);
+    const tbUrl = `https://apis.roblox.com/toolbox-service/v1/marketplace/${catId}?keyword=${q}&limit=${limit * 4}&sortType=2`;
+    const tb = (await tryFetch(tbUrl)) as
+      | { data?: Array<{ asset?: { id?: number; name?: string; typeId?: number }; creator?: { name?: string; type?: number }; product?: { price?: number; isFree?: boolean } }> }
+      | null;
+    if (!tb?.data || !Array.isArray(tb.data)) continue;
     for (const row of tb.data) {
       const id = row?.asset?.id;
       const name = row?.asset?.name;
-      if (typeof id !== "number" || !name) continue;
+      if (typeof id !== "number" || !name || liveRows.has(id)) continue;
       const price = row?.product?.price;
       const isFree = row?.product?.isFree ?? (price === 0 || price == null);
-      if (!isFree) continue;
-      out.push({
+      liveRows.set(id, {
         id,
         name,
         creatorName: row?.creator?.name ?? "",
         creatorType: row?.creator?.type === 2 ? "Group" : "User",
         assetType: category,
-        free: true,
+        free: isFree,
       });
     }
-    const ranked = rank(out);
+  }
+  if (liveRows.size > 0) {
+    const ranked = rank(Array.from(liveRows.values()));
     if (ranked.length > 0) return { source: "live", results: ranked };
   }
 
-  // 2. catalog search fallback.
-  const catUrl = `https://catalog.roblox.com/v1/search/items?category=All&keyword=${q}&limit=${limit * 2}`;
-  const cat = (await tryFetch(catUrl)) as { data?: Array<{ id?: number; name?: string; price?: number }> } | null;
-  if (cat?.data && Array.isArray(cat.data) && cat.data.length > 0) {
-    const out: ToolboxResult[] = cat.data
-      .filter((r) => typeof r.id === "number" && r.name && (r.price == null || r.price === 0))
-      .map((r) => ({
-        id: r.id as number,
-        name: r.name as string,
-        creatorName: "",
-        creatorType: "User",
-        assetType: category,
-        free: true,
-      }));
-    const ranked = rank(out);
-    if (ranked.length > 0) return { source: "live", results: ranked };
-  }
-
-  // 3. curated allowlist.
-  const fb = pickFallback(keyword).map(enrich);
+  // 2. curated allowlist.
+  const seenFallback = new Set<number>();
+  const fb = terms
+    .flatMap(pickFallback)
+    .filter((r) => {
+      if (seenFallback.has(r.id)) return false;
+      seenFallback.add(r.id);
+      return true;
+    })
+    .map(enrich);
   if (fb.length > 0) return { source: "fallback", results: fb.slice(0, limit) };
   return { source: "none", results: [] };
 }

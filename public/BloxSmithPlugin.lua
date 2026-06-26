@@ -440,6 +440,15 @@ Exec.insert_asset = function(a, p)
     local payload = a.payload or {}
     local id = tonumber(payload.asset_id)
     if not id or id <= 0 then error("insert_asset missing asset_id") end
+    if payload.folder_name and type(payload.folder_name) == "string" and payload.folder_name ~= "" then
+        local folder = p:FindFirstChild(payload.folder_name)
+        if not folder then
+            folder = Instance.new("Folder")
+            folder.Name = payload.folder_name
+            folder.Parent = p
+        end
+        p = folder
+    end
     local ok, container = pcall(function() return InsertService:LoadAsset(id) end)
     if not ok or not container then
         error("LoadAsset failed for " .. tostring(id) .. ": " .. tostring(container))
@@ -461,14 +470,32 @@ Exec.insert_asset = function(a, p)
         container.Parent = p
         inserted = container
     end
-    -- Optional placement: payload.position {x,y,z}, payload.scale (number).
-    if payload.position and (inserted:IsA("Model") or inserted:IsA("BasePart")) then
+    -- Optional placement: payload.position {x,y,z}, payload.rotation {x,y,z}
+    -- in degrees, or payload.yaw in degrees. ScaleTo is supported for Models.
+    local cf = nil
+    if payload.position then
         local pos = payload.position
-        local cf = CFrame.new(tonumber(pos[1]) or 0, tonumber(pos[2]) or 0, tonumber(pos[3]) or 0)
+        cf = CFrame.new(tonumber(pos[1]) or 0, tonumber(pos[2]) or 0, tonumber(pos[3]) or 0)
+    end
+    if cf and payload.rotation then
+        local rot = payload.rotation
+        cf = cf * CFrame.Angles(math.rad(tonumber(rot[1]) or 0), math.rad(tonumber(rot[2]) or 0), math.rad(tonumber(rot[3]) or 0))
+    elseif cf and payload.yaw then
+        cf = cf * CFrame.Angles(0, math.rad(tonumber(payload.yaw) or 0), 0)
+    end
+    if cf and (inserted:IsA("Model") or inserted:IsA("BasePart")) then
         pcall(function() inserted:PivotTo(cf) end)
     end
     if payload.scale and inserted:IsA("Model") then
         pcall(function() inserted:ScaleTo(tonumber(payload.scale) or 1) end)
+    end
+    if payload.tags and type(payload.tags) == "table" then
+        local CollectionService = game:GetService("CollectionService")
+        for _, tag in ipairs(payload.tags) do
+            if type(tag) == "string" and tag ~= "" then
+                pcall(function() CollectionService:AddTag(inserted, tag) end)
+            end
+        end
     end
     log(("✓ inserted asset id=%d as '%s' under %s"):format(id, inserted.Name, p:GetFullName()), "success")
     return { asset_id = id, name = inserted.Name, path = inserted:GetFullName(), class = inserted.ClassName }
