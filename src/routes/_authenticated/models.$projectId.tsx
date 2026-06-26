@@ -8,9 +8,11 @@ import {
   getModelStatus,
   startModelGeneration,
   pollModelGeneration,
+  animateModel,
+  ANIMATION_PRESETS,
 } from "@/lib/models3d.functions";
 import { PageShell } from "@/components/PageShell";
-import { Box, Loader2, Sparkles, Image as ImageIcon, Type, Timer, Download, ExternalLink, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Box, Loader2, Sparkles, Image as ImageIcon, Type, Timer, Download, ExternalLink, AlertCircle, CheckCircle2, PlayCircle } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/models/$projectId")({
   head: () => ({ meta: [{ title: "3D Models — BloxSmith" }] }),
