@@ -45,8 +45,8 @@ const QUICK_PROMPTS = [
 ];
 
 const COMPOSER_ACTIONS = [
-  { label: "Build in Studio", icon: Upload, mode: "build" as const, prompt: "Build the current request in Roblox Studio now. Use the hidden planner, agents, safe Toolbox assets, full scripts/UI/remotes/DataStores, organize_project, and scan_project." },
-  { label: "Fix Errors", icon: Bug, mode: "build" as const, prompt: "Use the latest Studio errors and workspace scan to fix broken scripts, missing RemoteEvents, duplicated NPCs, floating assets, unwired UI buttons, DataStore problems, mobile issues, and performance problems. Include autofix_project and scan_project." },
+  { label: "Build in Studio", icon: Upload, mode: "build" as const, prompt: "Build the current request in Roblox Studio now using the full BloxSmith brain: plan the build order, use safe Toolbox assets for visuals, create complete scripts/UI/remotes/DataStores, organize services correctly, test with scan_project, and fix obvious issues." },
+  { label: "Fix Errors", icon: Bug, mode: "build" as const, prompt: "Use the latest Studio errors, memory, and workspace scan to fix broken scripts, missing RemoteEvents, duplicated NPCs, floating assets, unwired UI buttons, DataStore problems, mobile issues, and performance problems. Explain the cause briefly, include autofix_project, then scan_project to verify." },
   { label: "Add UI", icon: LayoutDashboard, mode: "build" as const, prompt: "Build premium Roblox UI for this project: loading screen, main menu, Play button, settings, shop, inventory, quest UI, health/currency HUD, notifications, mobile controls, smooth TweenService animations, responsive constraints, clean fonts/colors/spacing, click sounds, and fully wired buttons/remotes. No default grey UI, no placeholders, no overlapping text." },
   { label: "Add NPCs", icon: Bot, mode: "build" as const, prompt: "Add safe free Toolbox NPC/enemy assets that match this game, then wire Humanoids, AI behavior, spawn folders, remotes/modules if needed, and clean organization." },
   { label: "Toolbox Assets", icon: Box, mode: "build" as const, prompt: "Search Roblox Toolbox/Creator Store for safe free assets that match this project, insert real models with names/ids, place them cleanly, and organize them. Do not use placeholder geometry." },
@@ -82,6 +82,18 @@ const AGENTS = [
   { name: "UI Agent", icon: LayoutDashboard, job: "Menus, HUD, mobile" },
   { name: "Tester Agent", icon: Bug, job: "Scans and fixes" },
   { name: "Optimizer Agent", icon: Gauge, job: "Cleanup and performance" },
+  { name: "Memory Agent", icon: BookOpen, job: "Project rules and history" },
+];
+
+const BRAIN_SYSTEMS = [
+  { name: "Knowledge", detail: "Roblox Studio, Luau, services, UI, NPCs, plugins", icon: Cpu },
+  { name: "Planning", detail: "Breaks requests into build order and systems", icon: Lightbulb },
+  { name: "Execution", detail: "Creates scripts, UI, remotes, assets, folders", icon: Upload },
+  { name: "Assets", detail: "Safe free Toolbox / Creator Store models", icon: Box },
+  { name: "Testing", detail: "Scans scripts, remotes, UI, NPCs, mobile, saves", icon: ScanLine },
+  { name: "Fixing", detail: "Autofixes, retests, and explains what changed", icon: Wrench },
+  { name: "Memory", detail: "Remembers rules, style, assets, and prior fixes", icon: BookOpen },
+  { name: "Quality", detail: "Premium, organized, mobile-friendly, playable", icon: Crown },
 ];
 
 const CREDIT_GUIDE = [
@@ -1351,6 +1363,28 @@ function RightSidebar({
                 <div className="min-w-0">
                   <div className="truncate text-[11px] font-bold">{agent.name}</div>
                   <div className="truncate text-[10px]" style={{ color: "var(--bs-muted-fg)" }}>{agent.job}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* BloxSmith brain */}
+      <div className="bs-card rounded-2xl p-4">
+        <div className="flex items-center justify-between">
+          <div className="text-sm font-semibold">BloxSmith Brain</div>
+          <Cpu className="h-3.5 w-3.5" style={{ color: "var(--bs-primary)" }} />
+        </div>
+        <div className="mt-3 grid gap-1.5">
+          {BRAIN_SYSTEMS.map((brain) => {
+            const Icon = brain.icon;
+            return (
+              <div key={brain.name} className="flex items-start gap-2 rounded-lg border px-2 py-1.5" style={{ borderColor: "var(--bs-border)", background: "var(--bs-card-2)" }}>
+                <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0" style={{ color: "var(--bs-primary)" }} />
+                <div className="min-w-0">
+                  <div className="truncate text-[11px] font-bold">{brain.name} Brain</div>
+                  <div className="text-[10px] leading-snug" style={{ color: "var(--bs-muted-fg)" }}>{brain.detail}</div>
                 </div>
               </div>
             );

@@ -11,9 +11,11 @@ const SYSTEM = `You rewrite short Roblox build prompts into a clear, specific in
 
 Rules:
 - Keep the user's original intent and game type.
-- Add useful missing detail (mechanics, systems, UI, balance, save/leaderboard) only when it obviously fits.
+- Add useful missing Roblox detail (build plan, mechanics, systems, safe Toolbox assets, UI, remotes, DataStores, testing, fixes, mobile support, organization) only when it obviously fits.
+- Prefer complete Studio execution language: "build", "wire", "test", "fix", "organize", and "scan_project".
+- Do not suggest procedural placeholder maps or fake assets; prefer safe free Toolbox / Creator Store models for visual content.
 - Output ONLY the improved prompt as plain text. No preamble, no quotes, no markdown headings, no bullet list unless the original was a list.
-- Keep it under 90 words. Friendly, direct, builder voice.`;
+- Keep it under 110 words. Friendly, direct, builder voice.`;
 
 export const improvePrompt = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
