@@ -30,7 +30,7 @@ export const Route = createFileRoute("/privacy")({
       </ul>
 
       <h2>Where data lives</h2>
-      <p>Account data and projects are stored in our managed Postgres database (via Lovable Cloud). AI requests are routed through the Lovable AI Gateway to the provider you select in the model picker.</p>
+      <p>Account data and projects are stored in our managed Postgres database (via Lovable Cloud). AI chat requests are routed through the non-Lovable provider gateway shown in the model picker.</p>
 
       <h2>Cookies</h2>
       <p>We use a small number of cookies / local storage entries to keep you signed in. No third-party advertising trackers.</p>

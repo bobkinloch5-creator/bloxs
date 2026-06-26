@@ -1,5 +1,4 @@
 // Server-only AI provider factory. Routes each model to its gateway:
-// - "lovable"   → Lovable AI Gateway (OpenAI-compatible)
 // - "quatarly"  → Quatarly unified API (OpenAI-compatible)
 // - "nvidia"    → NVIDIA Integrate (OpenAI-compatible)
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
@@ -34,23 +33,11 @@ function buildProvider(gateway: Gateway): Provider {
       headers: { Authorization: `Bearer ${key}` },
     });
   }
-  // default: lovable
-  const key = process.env.LOVABLE_API_KEY;
-  if (!key) {
-    throw new Error("AI is not configured yet. Please contact support — LOVABLE_API_KEY is missing.");
-  }
-  return createOpenAICompatible({
-    name: "lovable",
-    baseURL: "https://ai.gateway.lovable.dev/v1",
-    headers: {
-      "Lovable-API-Key": key,
-      "X-Lovable-AIG-SDK": "vercel-ai-sdk",
-    },
-  });
+  throw new Error(`Unsupported AI gateway: ${gateway}`);
 }
 
 function buildModelFor(meta: ModelOption): LanguageModel {
-  const gateway = meta.gateway ?? "lovable";
+  const gateway = meta.gateway;
   const upstreamId = meta.upstreamId ?? meta.id;
   const provider = buildProvider(gateway);
   return provider(upstreamId);

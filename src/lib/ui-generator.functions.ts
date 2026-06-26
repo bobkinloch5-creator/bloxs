@@ -3,6 +3,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { generateText } from "ai";
 import { z } from "zod";
 import { getProviderModel } from "./ai-gateway.server";
+import { DEFAULT_MODEL_ID } from "./models";
 
 const SYS = `You are a Roblox UI engineer. Produce a SINGLE, self-contained Luau script that builds a polished ScreenGui at runtime.
 Hard rules:
@@ -24,7 +25,7 @@ export const generateRobloxUi = createServerFn({ method: "POST" })
     style: z.string().min(1).max(40),
   }).parse(input))
   .handler(async ({ data }) => {
-    const { model } = getProviderModel("google/gemini-3.5-flash");
+    const { model } = getProviderModel(DEFAULT_MODEL_ID);
     const userPrompt = `Style: ${data.style}
 What to build: ${data.prompt}
 

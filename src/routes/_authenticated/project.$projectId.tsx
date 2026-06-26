@@ -1601,7 +1601,7 @@ function ModelPicker({
           style={{ background: "var(--bs-card)", borderColor: "var(--bs-border)", color: "var(--bs-fg)" }}
         >
           <div className="px-2 py-1 text-[10px] uppercase tracking-wider" style={{ color: "var(--bs-muted-fg)" }}>
-            Real models · via Lovable AI Gateway
+            Real models · via Quatarly / NVIDIA
           </div>
           <div className="px-2 pb-1 text-[11px]" style={{ color: "var(--bs-muted-fg)" }}>
             Automatic scans mark models as Working, Partially Working, Not Working, Slow, or Needs Fix. Risky models show a warning before selection.
