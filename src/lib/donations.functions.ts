@@ -2,11 +2,14 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 async function callerIsAdmin(supabase: any, userId: string) {
-  const [{ data: a }, { data: o }] = await Promise.all([
-    supabase.rpc("has_role", { _user_id: userId, _role: "admin" }),
-    supabase.rpc("has_role", { _user_id: userId, _role: "owner" }),
-  ]);
-  return Boolean(a) || Boolean(o);
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId)
+    .in("role", ["admin", "owner"]);
+  if (error) throw new Error(error.message);
+  return (data ?? []).some((r: any) => r.role === "admin" || r.role === "owner");
 }
 
 export const submitDonationClaim = createServerFn({ method: "POST" })
@@ -52,7 +55,8 @@ export const listPendingDonationClaims = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     if (!(await callerIsAdmin(context.supabase, context.userId))) throw new Error("Forbidden");
-    const { data, error } = await context.supabase
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data, error } = await supabaseAdmin
       .from("donation_claims")
       .select("id, user_id, paypal_reference, amount_note, status, created_at")
       .order("created_at", { ascending: false })
@@ -61,7 +65,7 @@ export const listPendingDonationClaims = createServerFn({ method: "GET" })
     const userIds = Array.from(new Set((data ?? []).map((r: any) => r.user_id)));
     let profilesById: Record<string, { username: string | null; display_name: string | null }> = {};
     if (userIds.length) {
-      const { data: profs } = await context.supabase
+      const { data: profs } = await supabaseAdmin
         .from("profiles")
         .select("id, username, display_name")
         .in("id", userIds);
@@ -78,8 +82,9 @@ export const decideDonationClaim = createServerFn({ method: "POST" })
   })
   .handler(async ({ data, context }) => {
     if (!(await callerIsAdmin(context.supabase, context.userId))) throw new Error("Forbidden");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const { data: claim, error: cErr } = await context.supabase
+    const { data: claim, error: cErr } = await supabaseAdmin
       .from("donation_claims")
       .select("id, user_id, status")
       .eq("id", data.id)
@@ -88,7 +93,7 @@ export const decideDonationClaim = createServerFn({ method: "POST" })
     if (!claim) throw new Error("Claim not found");
 
     const newStatus = data.approve ? "approved" : "rejected";
-    const { error: uErr } = await context.supabase
+    const { error: uErr } = await supabaseAdmin
       .from("donation_claims")
       .update({
         status: newStatus,
@@ -100,7 +105,6 @@ export const decideDonationClaim = createServerFn({ method: "POST" })
     if (uErr) throw new Error(uErr.message);
 
     if (data.approve) {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       await supabaseAdmin
         .from("user_roles")
         .upsert({ user_id: claim.user_id, role: "donator" }, { onConflict: "user_id,role" });
