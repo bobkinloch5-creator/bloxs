@@ -15,6 +15,17 @@ export const getMyProfile = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
     if (!data) return data;
 
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: roles } = await supabaseAdmin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", context.userId)
+      .in("role", ["admin", "owner"]);
+    const isPrivileged = (roles ?? []).some((r: any) => r.role === "admin" || r.role === "owner");
+    if (isPrivileged && !data.is_admin) {
+      return { ...data, is_admin: true, plan: data.plan === "Free" ? "Owner" : data.plan };
+    }
+
     // Auto-refill credits when the reset timer has expired (non-admins).
     if (!data.is_admin && data.credits_reset_at && new Date(data.credits_reset_at) <= new Date()) {
       const nextReset = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
