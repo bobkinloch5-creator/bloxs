@@ -1,11 +1,40 @@
-// Server-only AI provider factory. Routes all model picks through the
-// Lovable AI Gateway. Only models marked Working in src/lib/models.ts are
-// accepted; anything else falls back to the default model so the chat never
-// crashes with a raw "Bad request".
+// Server-only AI provider factory. Routes each model to its gateway:
+// - "lovable"   → Lovable AI Gateway (OpenAI-compatible)
+// - "quatarly"  → Quatarly unified API (OpenAI-compatible)
+// - "nvidia"    → NVIDIA Integrate (OpenAI-compatible)
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
-import { findModel, isSelectable, DEFAULT_MODEL_ID, FALLBACK_MODEL_ID, type ModelOption } from "./models";
+import {
+  findModel,
+  isSelectable,
+  DEFAULT_MODEL_ID,
+  FALLBACK_MODEL_ID,
+  type ModelOption,
+  type Gateway,
+} from "./models";
 
-function lovableProvider() {
+type Provider = ReturnType<typeof createOpenAICompatible>;
+type LanguageModel = ReturnType<Provider>;
+
+function buildProvider(gateway: Gateway): Provider {
+  if (gateway === "quatarly") {
+    const key = process.env.QUATARLY_API_KEY;
+    if (!key) throw new Error("Quatarly is not configured — QUATARLY_API_KEY is missing.");
+    return createOpenAICompatible({
+      name: "quatarly",
+      baseURL: "https://api.quatarly.cloud/v1",
+      headers: { Authorization: `Bearer ${key}` },
+    });
+  }
+  if (gateway === "nvidia") {
+    const key = process.env.NVIDIA_API_KEY;
+    if (!key) throw new Error("NVIDIA is not configured — NVIDIA_API_KEY is missing.");
+    return createOpenAICompatible({
+      name: "nvidia",
+      baseURL: "https://integrate.api.nvidia.com/v1",
+      headers: { Authorization: `Bearer ${key}` },
+    });
+  }
+  // default: lovable
   const key = process.env.LOVABLE_API_KEY;
   if (!key) {
     throw new Error("AI is not configured yet. Please contact support — LOVABLE_API_KEY is missing.");
@@ -20,14 +49,34 @@ function lovableProvider() {
   });
 }
 
-export function getProviderModel(modelId: string): { model: ReturnType<ReturnType<typeof lovableProvider>>; meta: ModelOption; usedFallback: boolean } {
-  const requested = findModel(modelId);
-  const safe = isSelectable(requested) ? requested : findModel(DEFAULT_MODEL_ID);
-  const provider = lovableProvider();
-  return { model: provider(safe.id), meta: safe, usedFallback: safe.id !== modelId };
+function buildModelFor(meta: ModelOption): LanguageModel {
+  const gateway = meta.gateway ?? "lovable";
+  const upstreamId = meta.upstreamId ?? meta.id;
+  const provider = buildProvider(gateway);
+  return provider(upstreamId);
 }
 
-export function getFallbackModel(): { model: ReturnType<ReturnType<typeof lovableProvider>>; meta: ModelOption } {
+export function getProviderModel(modelId: string): {
+  model: LanguageModel;
+  meta: ModelOption;
+  usedFallback: boolean;
+  extraBody?: Record<string, unknown>;
+} {
+  const requested = findModel(modelId);
+  const safe = isSelectable(requested) ? requested : findModel(DEFAULT_MODEL_ID);
+  return {
+    model: buildModelFor(safe),
+    meta: safe,
+    usedFallback: safe.id !== modelId,
+    extraBody: safe.extraBody,
+  };
+}
+
+export function getFallbackModel(): {
+  model: LanguageModel;
+  meta: ModelOption;
+  extraBody?: Record<string, unknown>;
+} {
   const meta = findModel(FALLBACK_MODEL_ID);
-  return { model: lovableProvider()(meta.id), meta };
+  return { model: buildModelFor(meta), meta, extraBody: meta.extraBody };
 }
