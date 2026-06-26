@@ -567,14 +567,34 @@ local function refreshInfo()
 end
 
 local function pollOnce(force)
-    local token = plugin:GetSetting("token")
-    if not token then return end
-    local data, err = post("/api/public/plugin/poll", {
+    local token = validToken()
+    if not token then
+        connected = false
+        setStatus("not connected", Color3.fromRGB(255,180,80),
+            "Plugin not connected. Please reconnect from bloxsmith.pro.")
+        if force then log("No saved token — click Connect to link.", "warn") end
+        return
+    end
+    if force then log(("token found: yes  ·  API: %s  ·  place: %s  ·  v%s")
+        :format(API_BASE, tostring(game.PlaceId or 0), PLUGIN_VERSION), "debug") end
+    local data, err, status = post("/api/public/plugin/poll", {
         token = token, place_id = tostring(game.PlaceId or 0), studio_version = studioVersion(),
     }, { verbose = VERBOSE, force = force })
     if err then
+        if status == 401 then
+            clearToken(); connected = false
+            connectBtn.Text = "Connect"; connectBtn.BackgroundColor3 = Color3.fromRGB(70,130,240)
+            setStatus("not connected", Color3.fromRGB(255,180,80),
+                "Plugin not connected. Please reconnect from bloxsmith.pro.")
+            log("Token rejected by server (401) — cleared. Click Connect to reconnect.", "error")
+            return
+        end
         setStatus("error", Color3.fromRGB(255,120,120), err)
         log("Poll failed — will retry.", "error"); return
+    end
+    if data and data.user_id then
+        -- userId surfaced only on first successful poll after (re)connect
+        if lastHeartbeat == 0 then log("userId: " .. tostring(data.user_id), "debug") end
     end
     setStatus("Connected", Color3.fromRGB(120,220,160), "Linked to your BloxSmith account.")
     local actions = data.actions or {}
