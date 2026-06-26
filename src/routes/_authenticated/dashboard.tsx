@@ -763,7 +763,7 @@ function RightPanel({ pluginOnline, pluginSession, resetLabel, isAdmin, onHelp }
       <div className="bs-card p-4">
         <div className="font-bold">Need help?</div>
         <p className="mt-1 text-[11px]" style={{ color: "var(--bs-muted-fg)" }}>Join our Discord community for support, ideas, and updates.</p>
-        <a href="https://discord.gg/bloxsmith" target="_blank" rel="noreferrer" className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-bold" style={{ background: "#5865F2", color: "#fff" }}>
+          <a href="https://discord.gg/6QDYT3RUkv" target="_blank" rel="noreferrer" className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-bold" style={{ background: "#5865F2", color: "#fff" }}>
           Join Discord <ArrowRight className="h-3 w-3" />
         </a>
       </div>
