@@ -5,7 +5,7 @@ import { MobileNavTrigger } from "./MobileNav";
 import { ProfileMenu, DiscordIcon } from "./ProfileMenu";
 import {
   Folder, MessageSquare, Lightbulb, LayoutDashboard, Users, Plug, Wand2,
-  History as HistoryIcon, BookOpen, Settings as SettingsIcon, Crown, Box,
+  History as HistoryIcon, BookOpen, Settings as SettingsIcon, Crown, Box, Mic,
 } from "lucide-react";
 
 
@@ -16,6 +16,7 @@ type NavItem = { key: string; label: string; to: string; icon: typeof Folder; ac
 const NAV_CORE: NavItem[] = [
   { key: "proj",   label: "Projects",      to: "/dashboard",     icon: Folder,          accent: "default" },
   { key: "chat",   label: "AI Chat",       to: "/chat",          icon: MessageSquare,   accent: "chat" },
+  { key: "voice",  label: "Voice Agent",   to: "/voice",         icon: Mic,             accent: "chat" },
   { key: "ideas",  label: "Game Ideas",    to: "/ideas",         icon: Lightbulb,       accent: "ideas" },
   { key: "ui",     label: "UI Generator",  to: "/ui-generator",  icon: LayoutDashboard, accent: "ui" },
   { key: "models", label: "3D Models",     to: "/models",        icon: Box,             accent: "chat" },
