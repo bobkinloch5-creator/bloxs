@@ -913,7 +913,7 @@ local function pollOnce(force)
     if force then log(("token found: yes  ·  API: %s  ·  place: %s  ·  v%s")
         :format(API_BASE, tostring(game.PlaceId or 0), PLUGIN_VERSION), "debug") end
     local data, err, status = post("/api/public/plugin/poll", {
-        token = token, place_id = tostring(game.PlaceId or 0), studio_version = studioVersion(),
+        token = token, place_id = tostring(game.PlaceId or 0), studio_version = studioVersion(), plugin_version = PLUGIN_VERSION,
     }, { verbose = VERBOSE, force = force })
     if err then
         if status == 401 then
@@ -1203,6 +1203,18 @@ local function buildScan()
         sampled = budget.count,
         awareness = analyzeWorkspace(),
     }
+end
+
+Exec.scan_project = function(_, _)
+    local token = validToken()
+    if not token then error("scan_project requires connected plugin token") end
+    local scan = buildScan()
+    local data, err = post("/api/public/plugin/scan", {
+        token = token, place_id = tostring(game.PlaceId or 0), scan = scan,
+    }, { verbose = false })
+    if err then error("scan upload failed: " .. tostring(err)) end
+    log(("Workspace scan uploaded — %d instance(s), %d issue(s)."):format(scan.sampled or 0, #(scan.awareness and scan.awareness.issues or {})), "success")
+    return { scanned = scan.sampled, issues = scan.awareness and scan.awareness.issues or {}, uploaded = data and data.ok == true }
 end
 
 scanBtn.MouseButton1Click:Connect(function()

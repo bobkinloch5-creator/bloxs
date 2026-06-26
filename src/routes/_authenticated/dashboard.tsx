@@ -57,18 +57,27 @@ type Theme = "default" | "grey" | "light";
 const GAME_TYPES = [
   "custom", "tycoon", "obby", "simulator", "rpg", "horror",
   "tower-defense", "racing", "fighting", "round-based", "roleplay", "survival",
+  "pet-simulator", "zombie-survival", "bedwars", "city-builder", "dungeon-rpg",
+  "police-chase", "cooking",
 ];
 
 const TEMPLATES: { type: string; name: string; desc: string }[] = [
   { type: "tycoon",       name: "Tycoon",         desc: "Droppers, upgrades, rebirths" },
   { type: "obby",         name: "Obby",           desc: "Stages, checkpoints, leaderboard" },
   { type: "simulator",    name: "Simulator",      desc: "Pets, eggs, coin shop" },
+  { type: "pet-simulator",name: "Pet Simulator",  desc: "Eggs, pets, trading-ready saves" },
+  { type: "zombie-survival", name: "Zombie Survival", desc: "Waves, guns, shop, safe zone" },
   { type: "rpg",          name: "RPG",            desc: "Quests, NPCs, inventory" },
+  { type: "dungeon-rpg",  name: "Dungeon RPG",    desc: "Bosses, loot, classes" },
   { type: "horror",       name: "Horror",         desc: "Lights, monster AI, sound" },
   { type: "racing",       name: "Racing",         desc: "Tracks, vehicles, laps" },
   { type: "tower-defense",name: "Tower Defense",  desc: "Waves, towers, currency" },
+  { type: "bedwars",      name: "BedWars Style",  desc: "Beds, teams, generators" },
   { type: "fighting",     name: "Fighting Arena", desc: "Combat, rounds, ranks" },
+  { type: "city-builder", name: "City Builder",   desc: "Plots, roads, placement" },
   { type: "roleplay",     name: "Roleplay City",  desc: "Jobs, vehicles, houses" },
+  { type: "police-chase", name: "Police Chase",   desc: "Teams, cars, wanted level" },
+  { type: "cooking",      name: "Cooking Game",   desc: "Orders, recipes, upgrades" },
   { type: "survival",     name: "Survival",       desc: "Resources, crafting, night" },
   { type: "round-based",  name: "Round Game",     desc: "Lobbies, rounds, minigames" },
   { type: "custom",       name: "Custom",         desc: "Start from scratch" },

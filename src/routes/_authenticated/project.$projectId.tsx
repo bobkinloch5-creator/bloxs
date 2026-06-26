@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getProject, listProjects } from "@/lib/projects.functions";
-import { listMessages, listProjectActions, getPluginSession, clearMessages, clearActionQueue, undoLastBuild } from "@/lib/chat.functions";
+import { listMessages, listProjectActions, getPluginSession, clearMessages, clearActionQueue, undoLastBuild, queuePluginCommand } from "@/lib/chat.functions";
 import { getMyProfile } from "@/lib/profile.functions";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
@@ -17,6 +17,7 @@ import {
   Folder, Lightbulb, LayoutDashboard, Search, Settings as SettingsIcon,
   Plug, History, Users, Bell, Plus, ExternalLink, RefreshCw, ImageIcon,
   Cpu, Music, BookOpen, Upload, RotateCcw, Square, Undo2,
+  ShieldCheck, Bot, Hammer, Bug, PlayCircle, Gauge, ScanLine,
 } from "lucide-react";
 import bloxLogo from "@/assets/bloxsmith-logo.png.asset.json";
 import { OnboardingTour } from "@/components/OnboardingTour";
@@ -35,19 +36,64 @@ export const Route = createFileRoute("/_authenticated/project/$projectId")({
 type Theme = "default" | "grey" | "light";
 
 const QUICK_PROMPTS = [
-  { label: "Build a tycoon game", icon: Sparkles, prompt: "Make a tycoon with droppers, an upgrade shop, and a save system." },
-  { label: "Create an obby",      icon: Sparkles, prompt: "Build a 10-stage obby with checkpoints and a leaderboard." },
-  { label: "Make a pet simulator", icon: Sparkles, prompt: "Make a pet simulator with eggs, rebirths, and a coin shop." },
-  { label: "RPG quest system",     icon: Sparkles, prompt: "Add an NPC quest system with multiple quests, rewards, and a quest log GUI." },
+  { label: "Zombie survival", icon: Sparkles, prompt: "Build a zombie survival map with waves, shop, guns, safe zone, health UI, leaderboard, DataStore saving, and a scan_project check at the end." },
+  { label: "Tycoon", icon: Sparkles, prompt: "Build a complete tycoon with safe Toolbox assets, droppers, conveyors, upgrade pads, cash saving, shop UI, and organize_project." },
+  { label: "Pet simulator", icon: Sparkles, prompt: "Build a pet simulator with safe Toolbox pets/eggs/map assets, egg hatching, pet inventory, followers, rebirths, coin shop, UI, and saving." },
+  { label: "Racing game", icon: Sparkles, prompt: "Build a racing game with safe Toolbox track and vehicle assets, laps, checkpoints, timer UI, leaderboard, and mobile support." },
+  { label: "RPG quest system", icon: Sparkles, prompt: "Add an NPC quest system with safe NPC assets, dialog UI, multiple quests, rewards, quest log GUI, DataStore progress, and server validation." },
   { label: "More ideas",           icon: Lightbulb, prompt: "Give me 5 unique Roblox game ideas I haven't seen before." },
 ];
 
 const COMPOSER_ACTIONS = [
-  { label: "Toolbox",      icon: Box,        prompt: "Search the Toolbox for relevant Roblox assets for this project and list the top results I should use." },
-  { label: "UI Generator", icon: LayoutDashboard, prompt: "Generate a clean Roblox GUI for the current project — include the ScreenGui, Frames, and TextLabels." },
-  { label: "Improve",      icon: Wand2,      prompt: "Improve the most recent changes — cleaner code, better performance, nicer UX." },
-  { label: "Fix Errors",   icon: Wrench,     prompt: "Inspect the current scripts and fix any errors or warnings you find." },
-  { label: "Explain",      icon: HelpCircle, prompt: "Explain what was just built and how the scripts work, step by step." },
+  { label: "Build in Studio", icon: Upload, mode: "build" as const, prompt: "Build the current request in Roblox Studio now. Use the hidden planner, agents, safe Toolbox assets, full scripts/UI/remotes/DataStores, organize_project, and scan_project." },
+  { label: "Fix Errors", icon: Bug, mode: "build" as const, prompt: "Use the latest Studio errors and workspace scan to fix broken scripts, missing RemoteEvents, duplicated NPCs, floating assets, unwired UI buttons, DataStore problems, mobile issues, and performance problems. Include autofix_project and scan_project." },
+  { label: "Add UI", icon: LayoutDashboard, mode: "build" as const, prompt: "Add or improve a polished Roblox UI for this project: loading screen, main menu, HUD, shop/inventory if useful, mobile layout, button animations, sounds, and wiring." },
+  { label: "Add NPCs", icon: Bot, mode: "build" as const, prompt: "Add safe free Toolbox NPC/enemy assets that match this game, then wire Humanoids, AI behavior, spawn folders, remotes/modules if needed, and clean organization." },
+  { label: "Toolbox Assets", icon: Box, mode: "build" as const, prompt: "Search Roblox Toolbox/Creator Store for safe free assets that match this project, insert real models with names/ids, place them cleanly, and organize them. Do not use placeholder geometry." },
+  { label: "Scan Game", icon: ScanLine, command: "scan_project" as const },
+  { label: "Playtest", icon: PlayCircle, mode: "build" as const, prompt: "Run a playtest-style audit using the latest scan/errors. Add scan_project, report problems found, and fix obvious breakages with safe actions." },
+  { label: "Improve Map", icon: Hammer, mode: "build" as const, prompt: "Improve the existing map using safe free Toolbox assets only: better placement, lighting, spawn flow, signs, props, organization, and scan_project. Avoid procedural placeholder maps." },
+  { label: "Make Premium", icon: Crown, mode: "build" as const, prompt: "Make this game feel premium: loading screen, main menu, animated buttons, lighting, sky/atmosphere, camera effects, sounds, particles, shop UI, tutorial UI, mobile layout, cleanup, organize_project, and scan_project." },
+  { label: "Explain", icon: HelpCircle, mode: "chat" as const, prompt: "Explain what was just built and how the scripts, remotes, UI, assets, and DataStores work, step by step." },
+];
+
+const GAME_TEMPLATES = [
+  { label: "Obby", prompt: "Build a complete obby template with safe Toolbox obby/parkour assets, checkpoints, kill parts, stage saving, leaderboard, HUD, and finish reward." },
+  { label: "Tycoon", prompt: "Build a complete tycoon template with safe Toolbox tycoon/building assets, droppers, conveyors, collectors, upgrade pads, cash saving, shop UI, and rebirth-ready structure." },
+  { label: "Simulator", prompt: "Build a simulator template with safe assets, collection tool, currency, rebirths, upgrade shop, daily rewards, codes, DataStore saving, and mobile HUD." },
+  { label: "Pet Simulator", prompt: "Build a pet simulator template with eggs, hatching, weighted rarities, pet inventory, pet followers, coin multipliers, shop UI, trading-ready storage, and saving." },
+  { label: "Zombie Survival", prompt: "Build a zombie survival template with waves, safe zone, gun shop, zombie NPC AI, rewards, health UI, leaderboard, DataStore saving, and scan_project." },
+  { label: "Racing", prompt: "Build a racing template with safe Toolbox track/vehicle assets, laps, checkpoints, race timer, leaderboard, vehicle spawning, and mobile controls." },
+  { label: "BedWars Style", prompt: "Build a BedWars-style template with safe arena/island assets, teams, beds, generators, item shop, round win logic, respawns, and anti-exploit validation." },
+  { label: "Fighting Arena", prompt: "Build a fighting arena template with safe arena/weapon assets, combat system, rounds, score UI, rewards, and server hit validation." },
+  { label: "City Builder", prompt: "Build a city builder template with safe building/road assets, plot system, placement grid, catalog UI, server placement validation, and saving." },
+  { label: "Roleplay City", prompt: "Build a roleplay city template with safe city/road/building assets, teams/jobs, vehicles, spawn lobby, map labels, and role UI." },
+  { label: "Dungeon RPG", prompt: "Build a dungeon RPG template with safe dungeon/enemy/NPC assets, quests, combat, loot, inventory, boss room, XP/levels, and saving." },
+  { label: "Tower Defense", prompt: "Build a tower defense template with safe map/tower/enemy assets, path waypoints, wave manager, tower placement, cash rewards, base health UI, and saving." },
+  { label: "Police Chase", prompt: "Build a police chase template with safe city/road/police car assets, teams, wanted system, vehicle spawns, jail/safe zone, rewards, and objective UI." },
+  { label: "Horror Escape", prompt: "Build a horror escape template with safe horror/house/corridor assets, flashlight, objectives, monster AI, jumpscare UI, sounds, lighting, and checkpoints." },
+  { label: "Cooking Game", prompt: "Build a cooking game template with safe cafe/kitchen/food assets, customers, order queue, recipes, timers, earnings, upgrades, shop UI, and saving." },
+];
+
+const AGENTS = [
+  { name: "Asset Agent", icon: Box, job: "Safe free Toolbox models" },
+  { name: "Builder Agent", icon: Hammer, job: "Map, lighting, folders" },
+  { name: "Scripter Agent", icon: FileCode, job: "Luau systems and remotes" },
+  { name: "UI Agent", icon: LayoutDashboard, job: "Menus, HUD, mobile" },
+  { name: "Tester Agent", icon: Bug, job: "Scans and fixes" },
+  { name: "Optimizer Agent", icon: Gauge, job: "Cleanup and performance" },
+];
+
+const CREDIT_GUIDE = [
+  ["Chat", "1"],
+  ["Script", "5"],
+  ["UI", "10"],
+  ["Assets", "10"],
+  ["Full game", "50-150"],
+  ["Scan", "10"],
+  ["Fix", "15"],
+  ["Playtest", "20"],
+  ["Premium", "25"],
 ];
 
 const BUILD_STEPS = [
@@ -82,6 +128,7 @@ function ProjectPage() {
   const sessionFn  = useServerFn(getPluginSession);
   const profileFn  = useServerFn(getMyProfile);
   const clearMessagesFn = useServerFn(clearMessages);
+  const queueCommandFn = useServerFn(queuePluginCommand);
 
   const { data: project } = useQuery({ queryKey: ["project", projectId], queryFn: () => projectFn({ data: { id: projectId } }) });
   const { data: projects = [] } = useQuery({ queryKey: ["projects"], queryFn: () => projectsFn() });
@@ -206,7 +253,7 @@ function ProjectPage() {
 
   const busy = status === "submitted" || status === "streaming";
 
-  async function submit(text?: string) {
+  async function submit(text?: string, forcedMode?: "chat" | "build") {
     const value = (text ?? input).trim();
     const att = attachment;
     if (!value && !att) return;
@@ -218,12 +265,13 @@ function ProjectPage() {
 
     // If the user is in Build mode but auto-execute is off, downgrade this
     // turn to chat-mode planning. The Push to Studio button below executes it.
+    const baseMode = forcedMode ?? mode;
     const effectiveMode: "chat" | "build" =
-      mode === "build" && !autoExecute ? "chat" : mode;
+      baseMode === "build" && !autoExecute && !forcedMode ? "chat" : baseMode;
 
     if (att) {
       const modeHeader = att.build
-        ? "[SCREENSHOT MODE: BUILD] The user attached a reference screenshot. Analyze the layout, colors, and gameplay/UI elements, then plan and queue Roblox build actions to recreate it as closely as possible."
+        ? "[IMAGE-TO-GAME MODE: BUILD] The user attached a reference image. Identify the Roblox map theme, colors, buildings, terrain, lighting, props, UI style, mood, camera/gameplay clues, and required systems. Recreate a Roblox version using safe free Toolbox assets first, clean placement, polished UI, organize_project, and scan_project. Do not create procedural placeholder maps."
         : "[SCREENSHOT MODE: ANALYZE ONLY] The user attached a reference screenshot. Describe what it shows, what Roblox systems would recreate it, and outline a build plan. Do NOT queue or execute build actions for this message.";
       const promptText = value || (att.build ? "Build a Roblox game/UI that matches this screenshot." : "Analyze this screenshot.");
       sendMessage(
@@ -254,6 +302,27 @@ function ProjectPage() {
       { text: "Push the plan you just described to Roblox Studio now — emit the bloxsmith-actions block and execute it." },
       { body: { projectId, modelId, mode: "build" as const, language: uiLang, languageName: aiLanguageName } },
     );
+  }
+
+  async function runComposerAction(action: any) {
+    if (!action) return;
+    if (action.command) {
+      try {
+        const res: any = await queueCommandFn({
+          data: {
+            projectId,
+            kind: action.command,
+            name: action.label,
+          },
+        });
+        setQueueNotice(res?.ok ? `${action.label} queued for Roblox Studio.` : `Could not queue ${action.label}.`);
+        await qc.invalidateQueries({ queryKey: ["actions", projectId] });
+      } catch (e: any) {
+        setQueueNotice(`Could not queue ${action.label}: ${e?.message ?? "unknown error"}`);
+      }
+      return;
+    }
+    submit(action.prompt, action.mode);
   }
 
 
@@ -495,7 +564,7 @@ function ProjectPage() {
               queueNotice={queueNotice}
               onSubmit={() => submit()}
               onStop={() => stop()}
-              onAction={(p: string) => submit(p)}
+              onAction={runComposerAction}
               modelId={modelId}
               setModelId={setModelId}
               ttsEnabled={ttsEnabled}
@@ -524,6 +593,8 @@ function ProjectPage() {
             buildPct={buildPct}
             buildLabel={buildLabel}
             busy={busy}
+            onAction={runComposerAction}
+            onPrompt={(p: string) => submit(p, "build")}
           />
         </div>
       </div>
@@ -1094,7 +1165,7 @@ function Composer({
               <button
                 key={a.label}
                 disabled={busy}
-                onClick={() => onAction(a.prompt)}
+                onClick={() => onAction(a)}
                 className="bs-quick"
                 title={a.label}
               >
@@ -1220,9 +1291,12 @@ function Composer({
 
 /* ────────────────── RIGHT SIDEBAR ────────────────── */
 function RightSidebar({
-  project, pluginOnline, pluginSession, actions, buildPct, buildLabel, busy,
+  project, pluginOnline, pluginSession, actions, buildPct, buildLabel, busy, onAction, onPrompt,
 }: any) {
   const recent = (actions ?? []).slice(0, 6);
+  const awareness = pluginSession?.last_scan?.awareness;
+  const issues: string[] = Array.isArray(awareness?.issues) ? awareness.issues.slice(0, 6) : [];
+  const lastScanAt = pluginSession?.last_scan_at ? new Date(pluginSession.last_scan_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : null;
   return (
     <aside
       className="hidden w-80 shrink-0 flex-col gap-3 overflow-y-auto border-l p-3 xl:flex"
@@ -1262,6 +1336,58 @@ function RightSidebar({
         </Link>
       </div>
 
+      {/* Agent crew */}
+      <div className="bs-card rounded-2xl p-4">
+        <div className="flex items-center justify-between">
+          <div className="text-sm font-semibold">Agent Crew</div>
+          <ShieldCheck className="h-3.5 w-3.5" style={{ color: "var(--bs-primary)" }} />
+        </div>
+        <div className="mt-3 grid gap-1.5">
+          {AGENTS.map((agent) => {
+            const Icon = agent.icon;
+            return (
+              <div key={agent.name} className="flex items-center gap-2 rounded-lg border px-2 py-1.5" style={{ borderColor: "var(--bs-border)", background: "var(--bs-card-2)" }}>
+                <Icon className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--bs-primary)" }} />
+                <div className="min-w-0">
+                  <div className="truncate text-[11px] font-bold">{agent.name}</div>
+                  <div className="truncate text-[10px]" style={{ color: "var(--bs-muted-fg)" }}>{agent.job}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Workspace health */}
+      <div className="bs-card rounded-2xl p-4">
+        <div className="flex items-center justify-between">
+          <div className="text-sm font-semibold">Workspace Awareness</div>
+          <span className="text-[10px]" style={{ color: "var(--bs-muted-fg)" }}>{lastScanAt ? `Scan ${lastScanAt}` : "No scan"}</span>
+        </div>
+        {issues.length === 0 ? (
+          <p className="mt-2 text-[11px]" style={{ color: "var(--bs-muted-fg)" }}>
+            Queue a scan to detect broken scripts, missing remotes, floating assets, empty folders, unwired UI, DataStore issues, mobile problems, and performance cleanup.
+          </p>
+        ) : (
+          <ul className="mt-2 space-y-1.5 text-[11px]">
+            {issues.map((issue, i) => (
+              <li key={`${issue}-${i}`} className="flex gap-1.5">
+                <AlertCircle className="mt-0.5 h-3 w-3 shrink-0" style={{ color: "var(--bs-warning)" }} />
+                <span className="min-w-0 break-words" style={{ color: "var(--bs-muted-fg)" }}>{issue.replace(/_/g, " ")}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <button type="button" onClick={() => onAction?.(COMPOSER_ACTIONS.find((a: any) => a.label === "Scan Game"))} className="bs-quick justify-center">
+            <ScanLine className="h-3 w-3" /> Scan
+          </button>
+          <button type="button" onClick={() => onAction?.(COMPOSER_ACTIONS.find((a: any) => a.label === "Fix Errors"))} className="bs-quick justify-center" style={{ color: "var(--bs-warning)" }}>
+            <Wrench className="h-3 w-3" /> Fix All
+          </button>
+        </div>
+      </div>
+
       {/* Build progress */}
       <div className="bs-card rounded-2xl p-4">
         <div className="flex items-center justify-between">
@@ -1274,33 +1400,49 @@ function RightSidebar({
         <div className="mt-2 text-xs" style={{ color: "var(--bs-muted-fg)" }}>{buildLabel}</div>
       </div>
 
-      {/* Toolbox search (visual — no fake imports) */}
+      {/* Templates */}
       <div className="bs-card rounded-2xl p-4">
         <div className="flex items-center justify-between">
-          <div className="text-sm font-semibold">Toolbox Search</div>
-          <span className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase" style={{ background: "var(--bs-card-2)", color: "var(--bs-muted-fg)" }}>Soon</span>
+          <div className="text-sm font-semibold">Game Templates</div>
+          <LayoutDashboard className="h-3.5 w-3.5" style={{ color: "var(--bs-muted-fg)" }} />
         </div>
-        <div className="bs-input-wrap mt-2 flex items-center gap-2 px-2 py-1.5">
-          <Search className="h-3.5 w-3.5" style={{ color: "var(--bs-muted-fg)" }} />
-          <input
-            disabled
-            placeholder="Search models, assets, scripts…"
-            className="w-full bg-transparent text-xs outline-none placeholder:opacity-60"
-          />
-        </div>
-        <div className="mt-2 flex flex-wrap gap-1.5 text-[11px]">
-          {[
-            { l: "Models",  i: Box },
-            { l: "Plugins", i: Plug },
-            { l: "Audio",   i: Music },
-            { l: "Images",  i: ImageIcon },
-          ].map((t) => (
-            <span key={t.l} className="bs-quick"><t.i className="h-3 w-3" /> {t.l}</span>
+        <div className="mt-2 grid grid-cols-2 gap-1.5">
+          {GAME_TEMPLATES.slice(0, 10).map((template) => (
+            <button key={template.label} type="button" onClick={() => onPrompt?.(template.prompt)} className="rounded-lg border px-2 py-1.5 text-left text-[11px] font-semibold" style={{ borderColor: "var(--bs-border)", background: "var(--bs-card-2)" }}>
+              {template.label}
+            </button>
           ))}
         </div>
-        <p className="mt-3 text-[11px]" style={{ color: "var(--bs-muted-fg)" }}>
-          The AI uses real Toolbox lookups when generating builds. A standalone search panel is coming soon.
+      </div>
+
+      {/* Toolbox mode */}
+      <div className="bs-card rounded-2xl p-4">
+        <div className="flex items-center justify-between">
+          <div className="text-sm font-semibold">Toolbox Only Mode</div>
+          <ShieldCheck className="h-3.5 w-3.5" style={{ color: "var(--bs-success)" }} />
+        </div>
+        <p className="mt-2 text-[11px]" style={{ color: "var(--bs-muted-fg)" }}>
+          Visual builds use safe free Creator Store assets first: real names, ids, clean placement, no procedural placeholder maps.
         </p>
+        <button type="button" onClick={() => onAction?.(COMPOSER_ACTIONS.find((a: any) => a.label === "Toolbox Assets"))} className="bs-quick mt-3 w-full justify-center">
+          <Box className="h-3 w-3" /> Add Toolbox Assets
+        </button>
+      </div>
+
+      {/* Credit guide */}
+      <div className="bs-card rounded-2xl p-4">
+        <div className="flex items-center justify-between">
+          <div className="text-sm font-semibold">Credits Guide</div>
+          <Zap className="h-3.5 w-3.5" style={{ color: "var(--bs-primary)" }} />
+        </div>
+        <div className="mt-2 grid grid-cols-3 gap-1 text-[10px]">
+          {CREDIT_GUIDE.map(([label, cost]) => (
+            <div key={label} className="rounded-lg border px-1.5 py-1" style={{ borderColor: "var(--bs-border)", background: "var(--bs-card-2)" }}>
+              <div className="truncate font-semibold">{label}</div>
+              <div style={{ color: "var(--bs-muted-fg)" }}>{cost}</div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Recent Actions */}

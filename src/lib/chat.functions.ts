@@ -34,10 +34,31 @@ export const getPluginSession = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { data } = await context.supabase
       .from("plugin_sessions")
-      .select("last_seen, online, place_id, studio_version")
+      .select("last_seen, online, place_id, studio_version, plugin_version, last_scan, last_scan_at")
       .eq("user_id", context.userId)
       .maybeSingle();
     return data;
+  });
+
+export const queuePluginCommand = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({
+    projectId: z.string().uuid(),
+    kind: z.enum(["scan_project", "organize_project", "autofix_project"]),
+    name: z.string().min(1).max(80).optional(),
+  }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.from("plugin_actions").insert({
+      project_id: data.projectId,
+      user_id: context.userId,
+      kind: data.kind,
+      parent_path: "Workspace",
+      name: data.name ?? data.kind,
+      payload: {},
+      position: 0,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });
 
 export const clearMessages = createServerFn({ method: "POST" })

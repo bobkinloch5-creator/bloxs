@@ -16,7 +16,7 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
       POST: async ({ request }) => {
         try {
           const body = (await request.json().catch(() => ({}))) as {
-            token?: string; place_id?: string; studio_version?: string; project_id?: string | null;
+            token?: string; place_id?: string; studio_version?: string; plugin_version?: string; project_id?: string | null;
           };
           const headerToken =
             request.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim() ||
@@ -38,6 +38,7 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
             project_id: body.project_id ?? null,
             place_id: body.place_id ?? null,
             studio_version: body.studio_version ?? null,
+            plugin_version: body.plugin_version ?? null,
             last_seen: new Date().toISOString(),
             online: true,
           }, { onConflict: "user_id" });
