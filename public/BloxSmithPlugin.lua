@@ -18,7 +18,7 @@ local InsertService         = game:GetService("InsertService")
 
 local API_BASE       = "https://bloxsmith.pro"
 local POLL_INTERVAL  = 1
-local PLUGIN_VERSION = "1.6.0"
+local PLUGIN_VERSION = "1.6.1"
 
 ------------------------------------------------------------------- token helpers
 local TOKEN_KEY = "token"
@@ -455,8 +455,22 @@ Exec.insert_asset = function(a, p)
 end
 
 Exec.set_properties = function(a, _)
-    local inst = findByPath(a.payload and a.payload.target_path)
-    if not inst then error("target not found: " .. tostring(a.payload and a.payload.target_path)) end
+    local path = a.payload and a.payload.target_path
+    local inst = findByPath(path)
+    if not inst then
+        -- Soft-skip: don't fail the whole batch if the AI referenced a
+        -- target that doesn't exist (typo, race with a previous action, or
+        -- the target lives in a place the user hasn't scanned). Try the
+        -- action's own `name` under `parent_path` as a fallback.
+        if a.parent_path and a.name then
+            local parent = resolveParent(a.parent_path, "folder")
+            inst = parent and parent:FindFirstChild(a.name)
+        end
+        if not inst then
+            log(("set_properties skipped — target not found: %s"):format(tostring(path)), "warn")
+            return { skipped = true, reason = "target_not_found", target_path = path }
+        end
+    end
     applyProps(inst, a.payload.properties); return inst
 end
 
@@ -484,22 +498,43 @@ Exec.delete = function(a, _)
 end
 
 -- run_lua: execute a Luau builder script INSIDE the plugin context.
--- This is how complex builds (lobbies, obbies, tycoons, NPCs, full systems) are
--- created — the AI emits one builder, we loadstring it, and it has full Studio
--- access (Instance.new, InsertService, all services, ChangeHistoryService, etc.).
+-- Two extra helpers are exposed to the builder so the AI doesn't have to
+-- guard every property write itself:
+--   safeSet(inst, key, value)            — pcall-wrapped single property set
+--   safeSetProps(inst, { K = V, ... })   — pcall-wrapped bulk set
+-- Both swallow errors with a [BloxSmith] warn so one hallucinated property
+-- (e.g. workspace.Terrain.Decoration) can't kill the whole build.
 Exec.run_lua = function(a, p)
     local payload = a.payload or {}
     local source = payload.source
     if type(source) ~= "string" or source == "" then
         error("run_lua missing payload.source")
     end
-    -- Wrap so the builder gets a convenient `parent` arg (resolved parent_path or Workspace).
-    local wrapped = "return function(parent, plugin) " .. source .. "\nend"
+    local wrapped = [[
+return function(parent, plugin, safeSet, safeSetProps)
+]] .. source .. [[
+
+end
+]]
     local fn, parseErr = loadstring(wrapped, "=BloxSmith/" .. tostring(a.name or "builder"))
     if not fn then error("compile error: " .. tostring(parseErr)) end
     local builder = fn()
     if type(builder) ~= "function" then error("builder did not return a function") end
-    local ok, runErr = pcall(builder, p, plugin)
+
+    local function safeSet(inst, k, v)
+        if typeof(inst) ~= "Instance" then return false end
+        local ok, err = pcall(function() inst[k] = v end)
+        if not ok then
+            warn(("[BloxSmith] safeSet %s.%s skipped: %s"):format(inst.Name or "?", tostring(k), tostring(err)))
+        end
+        return ok
+    end
+    local function safeSetProps(inst, props)
+        if typeof(inst) ~= "Instance" or type(props) ~= "table" then return end
+        for k, v in pairs(props) do safeSet(inst, k, v) end
+    end
+
+    local ok, runErr = pcall(builder, p, plugin, safeSet, safeSetProps)
     if not ok then error("runtime error: " .. tostring(runErr)) end
     return { ran = a.name }
 end
