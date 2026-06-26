@@ -488,8 +488,16 @@ function Footer() {
             <p className="mt-3 max-w-xs text-xs text-slate-300 leading-relaxed">
               The free AI Roblox game builder. Built for Roblox creators.
             </p>
+            <a
+              href="https://paypal.me/kinloch930"
+              target="_blank"
+              rel="noreferrer"
+              className="mt-4 inline-flex items-center gap-2 rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-2 text-xs font-semibold text-amber-300 hover:bg-amber-400/20 transition"
+            >
+              <Heart className="h-3.5 w-3.5" /> Donate — anything helps keep this going
+            </a>
           </div>
-          <FootCol title="Product" links={[["Features", "/#features"], ["How It Works", "/#how"], ["Plugin", "/#plugin"]]} />
+          <FootCol title="Product" links={[["Features", "/#features"], ["How It Works", "/#how"], ["Plugin", "/#plugin"], ["3D Models", "/#templates"]]} />
           <FootCol title="Resources" links={[["Docs", "/docs"], ["Support", "/support"], ["Contact", "/contact"]]} />
           <FootCol title="Legal" links={[["Terms of Service", "/terms"], ["Privacy Policy", "/privacy"], ["Discord", "https://discord.gg/lovable-dev"]]} />
         </div>
