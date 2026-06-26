@@ -269,7 +269,7 @@ export const animateModel = createServerFn({ method: "POST" })
     const { data: row, error } = await supabase
       .from("model_generations")
       .insert({
-        user_id: userId, project_id: data.projectId, mode: "animation",
+        user_id: userId, project_id: data.projectId ?? source.project_id ?? null, mode: "animation",
         prompt: promptLabel, task_id: taskId, status: "PENDING", progress: 0,
         animation_name: data.animation, parent_id: source.id,
       })
