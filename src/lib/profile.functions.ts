@@ -54,15 +54,25 @@ export const updateMyProfile = createServerFn({ method: "POST" })
 export const regeneratePluginToken = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data, error } = await context.supabase.rpc("regenerate_my_plugin_token");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const newToken = "BS-" + Math.random().toString(36).slice(2, 14).toUpperCase();
+    const { error } = await supabaseAdmin
+      .from("profiles")
+      .update({ plugin_token: newToken })
+      .eq("id", context.userId);
     if (error) throw new Error(error.message);
-    return { plugin_token: data as unknown as string };
+    return { plugin_token: newToken };
   });
 
 export const getMyPluginToken = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data, error } = await context.supabase.rpc("get_my_plugin_token");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data, error } = await supabaseAdmin
+      .from("profiles")
+      .select("plugin_token")
+      .eq("id", context.userId)
+      .maybeSingle();
     if (error) throw new Error(error.message);
-    return { plugin_token: (data as unknown as string) ?? null };
+    return { plugin_token: (data?.plugin_token as string | null) ?? null };
   });
