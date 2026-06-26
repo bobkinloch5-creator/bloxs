@@ -156,21 +156,62 @@ function ProjectPage() {
   }, [messages, status]);
   useEffect(() => { textareaRef.current?.focus(); }, [projectId, status]);
 
+  // Screenshot-to-game attachment
+  type Attachment = { dataUrl: string; mediaType: string; name: string; build: boolean };
+  const [attachment, setAttachment] = useState<Attachment | null>(null);
+
+  async function attachImageFile(file: File) {
+    if (!file.type.startsWith("image/")) return;
+    if (file.size > 6 * 1024 * 1024) {
+      alert("Image is too large — please pick an image under 6 MB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const url = String(reader.result || "");
+      if (!url) return;
+      setAttachment({ dataUrl: url, mediaType: file.type || "image/png", name: file.name || "screenshot.png", build: true });
+    };
+    reader.readAsDataURL(file);
+  }
+
   const busy = status === "submitted" || status === "streaming";
 
   async function submit(text?: string) {
     const value = (text ?? input).trim();
-    if (!value || busy) return;
+    const att = attachment;
+    if (!value && !att) return;
+    if (busy) return;
     const { data } = await supabase.auth.getSession();
     const freshToken = data.session?.access_token ?? null;
     setToken(freshToken);
     if (!freshToken) return;
-    sendMessage(
-      { text: value },
-      { body: { projectId, modelId, autoExecute } },
-    );
+
+    if (att) {
+      const modeHeader = att.build
+        ? "[SCREENSHOT MODE: BUILD] The user attached a reference screenshot. Analyze the layout, colors, and gameplay/UI elements, then plan and queue Roblox build actions to recreate it as closely as possible."
+        : "[SCREENSHOT MODE: ANALYZE ONLY] The user attached a reference screenshot. Describe what it shows, what Roblox systems would recreate it, and outline a build plan. Do NOT queue or execute build actions for this message.";
+      const promptText = value || (att.build ? "Build a Roblox game/UI that matches this screenshot." : "Analyze this screenshot.");
+      sendMessage(
+        {
+          role: "user",
+          parts: [
+            { type: "text", text: `${modeHeader}\n\n${promptText}` },
+            { type: "file", mediaType: att.mediaType, url: att.dataUrl } as any,
+          ],
+        } as any,
+        { body: { projectId, modelId, autoExecute: att.build && autoExecute } },
+      );
+    } else {
+      sendMessage(
+        { text: value },
+        { body: { projectId, modelId, autoExecute } },
+      );
+    }
     setInput("");
+    setAttachment(null);
   }
+
 
   const pluginOnline = !!(pluginSession?.online && pluginSession?.last_seen &&
     (Date.now() - new Date(pluginSession.last_seen).getTime() < 30_000));
