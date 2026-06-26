@@ -63,7 +63,7 @@ export const getModelStatus = createServerFn({ method: "GET" })
 export const startModelGeneration = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => z.object({
-    projectId: z.string().uuid(),
+    projectId: z.string().uuid().optional(),
     mode: z.enum(["text", "image"]),
     prompt: z.string().trim().max(600).optional(),
     negativePrompt: z.string().trim().max(300).optional(),
