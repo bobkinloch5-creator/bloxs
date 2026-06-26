@@ -351,6 +351,9 @@ function ProjectPage() {
               onAction={(p: string) => submit(p)}
               modelId={modelId}
               setModelId={setModelId}
+              ttsEnabled={ttsEnabled}
+              setTtsEnabled={setTtsEnabled}
+              onVoiceTranscript={(t: string) => submit(t)}
             />
           </div>
 
