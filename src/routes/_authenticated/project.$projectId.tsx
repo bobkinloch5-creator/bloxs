@@ -893,7 +893,7 @@ function Composer({
                 <X className="h-4 w-4" /> Stop
               </button>
             ) : (
-              <button onClick={onSubmit} disabled={!input.trim() || !token}
+              <button onClick={onSubmit} disabled={!canSend}
                 className="bs-send-btn flex h-10 items-center gap-1.5 px-4 text-sm font-medium">
                 <Send className="h-4 w-4" />
                 <span className="hidden sm:inline">Send</span>
