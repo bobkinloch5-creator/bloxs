@@ -35,6 +35,7 @@ import { Route as ApiPublicMcpRouteImport } from './routes/api/public/mcp'
 import { Route as AuthenticatedProjectProjectIdRouteImport } from './routes/_authenticated/project.$projectId'
 import { Route as ApiPublicPluginScanRouteImport } from './routes/api/public/plugin/scan'
 import { Route as ApiPublicPluginPollRouteImport } from './routes/api/public/plugin/poll'
+import { Route as ApiPublicPluginErrorRouteImport } from './routes/api/public/plugin/error'
 import { Route as ApiPublicPluginCompleteRouteImport } from './routes/api/public/plugin/complete'
 import { Route as ApiPublicPluginClearRouteImport } from './routes/api/public/plugin/clear'
 import { Route as ApiPublicPluginPairStartRouteImport } from './routes/api/public/plugin/pair.start'
@@ -172,6 +173,11 @@ const ApiPublicPluginPollRoute = ApiPublicPluginPollRouteImport.update({
   path: '/api/public/plugin/poll',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicPluginErrorRoute = ApiPublicPluginErrorRouteImport.update({
+  id: '/api/public/plugin/error',
+  path: '/api/public/plugin/error',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicPluginCompleteRoute = ApiPublicPluginCompleteRouteImport.update({
   id: '/api/public/plugin/complete',
   path: '/api/public/plugin/complete',
@@ -220,6 +226,7 @@ export interface FileRoutesByFullPath {
   '/api/public/mcp': typeof ApiPublicMcpRoute
   '/api/public/plugin/clear': typeof ApiPublicPluginClearRoute
   '/api/public/plugin/complete': typeof ApiPublicPluginCompleteRoute
+  '/api/public/plugin/error': typeof ApiPublicPluginErrorRoute
   '/api/public/plugin/poll': typeof ApiPublicPluginPollRoute
   '/api/public/plugin/scan': typeof ApiPublicPluginScanRoute
   '/api/public/plugin/pair/poll': typeof ApiPublicPluginPairPollRoute
@@ -251,6 +258,7 @@ export interface FileRoutesByTo {
   '/api/public/mcp': typeof ApiPublicMcpRoute
   '/api/public/plugin/clear': typeof ApiPublicPluginClearRoute
   '/api/public/plugin/complete': typeof ApiPublicPluginCompleteRoute
+  '/api/public/plugin/error': typeof ApiPublicPluginErrorRoute
   '/api/public/plugin/poll': typeof ApiPublicPluginPollRoute
   '/api/public/plugin/scan': typeof ApiPublicPluginScanRoute
   '/api/public/plugin/pair/poll': typeof ApiPublicPluginPairPollRoute
@@ -284,6 +292,7 @@ export interface FileRoutesById {
   '/api/public/mcp': typeof ApiPublicMcpRoute
   '/api/public/plugin/clear': typeof ApiPublicPluginClearRoute
   '/api/public/plugin/complete': typeof ApiPublicPluginCompleteRoute
+  '/api/public/plugin/error': typeof ApiPublicPluginErrorRoute
   '/api/public/plugin/poll': typeof ApiPublicPluginPollRoute
   '/api/public/plugin/scan': typeof ApiPublicPluginScanRoute
   '/api/public/plugin/pair/poll': typeof ApiPublicPluginPairPollRoute
@@ -317,6 +326,7 @@ export interface FileRouteTypes {
     | '/api/public/mcp'
     | '/api/public/plugin/clear'
     | '/api/public/plugin/complete'
+    | '/api/public/plugin/error'
     | '/api/public/plugin/poll'
     | '/api/public/plugin/scan'
     | '/api/public/plugin/pair/poll'
@@ -348,6 +358,7 @@ export interface FileRouteTypes {
     | '/api/public/mcp'
     | '/api/public/plugin/clear'
     | '/api/public/plugin/complete'
+    | '/api/public/plugin/error'
     | '/api/public/plugin/poll'
     | '/api/public/plugin/scan'
     | '/api/public/plugin/pair/poll'
@@ -380,6 +391,7 @@ export interface FileRouteTypes {
     | '/api/public/mcp'
     | '/api/public/plugin/clear'
     | '/api/public/plugin/complete'
+    | '/api/public/plugin/error'
     | '/api/public/plugin/poll'
     | '/api/public/plugin/scan'
     | '/api/public/plugin/pair/poll'
@@ -401,6 +413,7 @@ export interface RootRouteChildren {
   ApiPublicMcpRoute: typeof ApiPublicMcpRoute
   ApiPublicPluginClearRoute: typeof ApiPublicPluginClearRoute
   ApiPublicPluginCompleteRoute: typeof ApiPublicPluginCompleteRoute
+  ApiPublicPluginErrorRoute: typeof ApiPublicPluginErrorRoute
   ApiPublicPluginPollRoute: typeof ApiPublicPluginPollRoute
   ApiPublicPluginScanRoute: typeof ApiPublicPluginScanRoute
   ApiPublicPluginPairPollRoute: typeof ApiPublicPluginPairPollRoute
@@ -591,6 +604,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicPluginPollRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/plugin/error': {
+      id: '/api/public/plugin/error'
+      path: '/api/public/plugin/error'
+      fullPath: '/api/public/plugin/error'
+      preLoaderRoute: typeof ApiPublicPluginErrorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/plugin/complete': {
       id: '/api/public/plugin/complete'
       path: '/api/public/plugin/complete'
@@ -670,6 +690,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicMcpRoute: ApiPublicMcpRoute,
   ApiPublicPluginClearRoute: ApiPublicPluginClearRoute,
   ApiPublicPluginCompleteRoute: ApiPublicPluginCompleteRoute,
+  ApiPublicPluginErrorRoute: ApiPublicPluginErrorRoute,
   ApiPublicPluginPollRoute: ApiPublicPluginPollRoute,
   ApiPublicPluginScanRoute: ApiPublicPluginScanRoute,
   ApiPublicPluginPairPollRoute: ApiPublicPluginPairPollRoute,

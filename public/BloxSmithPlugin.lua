@@ -18,7 +18,7 @@ local InsertService         = game:GetService("InsertService")
 
 local API_BASE       = "https://bloxsmith.pro"
 local POLL_INTERVAL  = 4
-local PLUGIN_VERSION = "1.4.0"
+local PLUGIN_VERSION = "1.5.0"
 
 ------------------------------------------------------------------- token helpers
 local TOKEN_KEY = "token"
