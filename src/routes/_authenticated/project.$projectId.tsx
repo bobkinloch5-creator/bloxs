@@ -355,15 +355,25 @@ function ProjectPage() {
                   />
                 )}
 
-                {messages.map((m) => {
-                  const text = m.parts.map((p) => (p.type === "text" ? p.text : "")).join("");
-                  const isUser = m.role === "user";
-                  return isUser ? (
-                    <UserBubble key={m.id} text={text} profile={profile} />
-                  ) : (
-                    <AssistantCard key={m.id} text={text} pluginOnline={pluginOnline} />
-                  );
-                })}
+                {(() => {
+                  const lastAssistantId = [...messages].reverse().find((m) => m.role === "assistant")?.id;
+                  const pendingCount = (actions ?? []).filter((a: any) => a.status === "pending").length;
+                  return messages.map((m) => {
+                    const text = m.parts.map((p) => (p.type === "text" ? p.text : "")).join("");
+                    const isUser = m.role === "user";
+                    if (isUser) return <UserBubble key={m.id} text={text} profile={profile} />;
+                    const isLatest = m.id === lastAssistantId;
+                    return (
+                      <AssistantCard
+                        key={m.id}
+                        text={text}
+                        pluginOnline={pluginOnline}
+                        pendingCount={isLatest ? pendingCount : 0}
+                        isLatest={isLatest}
+                      />
+                    );
+                  });
+                })()}
 
                 {busy && (
                   <BuildProgressCard
