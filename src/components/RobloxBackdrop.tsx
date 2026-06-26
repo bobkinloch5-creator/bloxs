@@ -26,7 +26,7 @@ export function RobloxBackdrop({ accent = "default" }: { accent?: Accent }) {
       {/* photographic Roblox-style world */}
       <div
         className="absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: `url(${robloxBg})`, opacity: 0.55 }}
+        style={{ backgroundImage: `url(${robloxBg})`, opacity: 0.8 }}
       />
       {/* color wash */}
       <div
