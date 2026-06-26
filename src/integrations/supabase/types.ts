@@ -295,6 +295,8 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          last_scan: Json | null
+          last_scan_at: string | null
           last_seen: string
           online: boolean
           place_id: string | null
@@ -305,6 +307,8 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          last_scan?: Json | null
+          last_scan_at?: string | null
           last_seen?: string
           online?: boolean
           place_id?: string | null
@@ -315,6 +319,8 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          last_scan?: Json | null
+          last_scan_at?: string | null
           last_seen?: string
           online?: boolean
           place_id?: string | null
