@@ -730,6 +730,7 @@ function Composer({
             <button className="bs-icon-btn" title="Attach image" type="button">
               <Paperclip className="h-4 w-4" />
             </button>
+            <ImprovePromptButton input={input} setInput={setInput} disabled={busy} />
             <VoiceControls
               ttsEnabled={ttsEnabled}
               setTtsEnabled={setTtsEnabled}
