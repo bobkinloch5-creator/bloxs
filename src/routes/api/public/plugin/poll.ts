@@ -76,7 +76,7 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
 function cors() {
   return {
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "content-type",
+    "Access-Control-Allow-Headers": "content-type, authorization, x-bloxsmith-token",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
   };
 }
