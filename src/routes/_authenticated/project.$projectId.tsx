@@ -1075,6 +1075,9 @@ function Composer({
             <VoiceControls
               ttsEnabled={ttsEnabled}
               setTtsEnabled={setTtsEnabled}
+              voiceSpeaking={voiceSpeaking}
+              voiceLoading={voiceLoading}
+              voiceError={voiceError}
               onTranscript={(t: string, send: boolean) => {
                 if (send) onVoiceTranscript?.(t);
                 else setInput(t);
