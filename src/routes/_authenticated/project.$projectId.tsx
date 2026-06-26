@@ -57,15 +57,14 @@ const BUILD_STEPS = [
 ] as const;
 
 const SIDEBAR_NAV: { label: string; icon: typeof Box; to?: string; soon?: boolean; key: string }[] = [
-  { key: "chat",   label: "AI Chat",         icon: MessageSquare },
+  { key: "chat",   label: "AI Chat",         icon: MessageSquare, to: "/chat" },
   { key: "proj",   label: "Projects",        icon: Folder,    to: "/dashboard" },
-  { key: "ideas",  label: "Game Ideas",      icon: Lightbulb, soon: true },
-  { key: "ui",     label: "UI Generator",    icon: LayoutDashboard, soon: true },
-  { key: "tb",     label: "Toolbox Search",  icon: Search,    soon: true },
-  { key: "mcp",    label: "MCP / Tools",     icon: Plug,      soon: true },
-  { key: "co",     label: "Collaborators",   icon: Users,     soon: true },
+  { key: "ideas",  label: "Game Ideas",      icon: Lightbulb, to: "/ideas" },
+  { key: "ui",     label: "UI Generator",    icon: LayoutDashboard, to: "/ui-generator" },
+  { key: "mcp",    label: "MCP / Tools",     icon: Plug,      to: "/mcp" },
+  { key: "co",     label: "Collaborators",   icon: Users,     to: "/collaborators" },
   { key: "plug",   label: "Studio Plugin",   icon: Radio,     to: "/plugin" },
-  { key: "hist",   label: "History",         icon: History,   soon: true },
+  { key: "hist",   label: "History",         icon: History,   to: "/history" },
   { key: "set",    label: "Settings",        icon: SettingsIcon, to: "/settings" },
 ];
 
