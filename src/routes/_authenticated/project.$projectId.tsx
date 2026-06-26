@@ -216,6 +216,11 @@ function ProjectPage() {
     setToken(freshToken);
     if (!freshToken) return;
 
+    // If the user is in Build mode but auto-execute is off, downgrade this
+    // turn to chat-mode planning. The Push to Studio button below executes it.
+    const effectiveMode: "chat" | "build" =
+      mode === "build" && !autoExecute ? "chat" : mode;
+
     if (att) {
       const modeHeader = att.build
         ? "[SCREENSHOT MODE: BUILD] The user attached a reference screenshot. Analyze the layout, colors, and gameplay/UI elements, then plan and queue Roblox build actions to recreate it as closely as possible."
@@ -229,17 +234,28 @@ function ProjectPage() {
             { type: "file", mediaType: att.mediaType, url: att.dataUrl } as any,
           ],
         } as any,
-        { body: { projectId, modelId, mode: att.build ? mode : "chat" } },
+        { body: { projectId, modelId, mode: att.build ? effectiveMode : "chat", language: uiLang, languageName: aiLanguageName } },
       );
     } else {
       sendMessage(
         { text: value },
-        { body: { projectId, modelId, mode } },
+        { body: { projectId, modelId, mode: effectiveMode, language: uiLang, languageName: aiLanguageName } },
       );
     }
     setInput("");
     setAttachment(null);
   }
+
+  // Push the last assistant plan to Roblox Studio (used when auto-execute is off
+  // or when the user wants to re-run the latest plan as real actions).
+  async function pushToStudio() {
+    if (busy) return;
+    sendMessage(
+      { text: "Push the plan you just described to Roblox Studio now — emit the bloxsmith-actions block and execute it." },
+      { body: { projectId, modelId, mode: "build" as const, language: uiLang, languageName: aiLanguageName } },
+    );
+  }
+
 
 
   const pluginOnline = !!(pluginSession?.online && pluginSession?.last_seen &&
