@@ -8,12 +8,13 @@ import { parseActions } from "@/lib/bloxsmith-prompt";
 const OWNER_EMAIL = "bobkinloch5@gmail.com";
 
 const ROBLOX_MODEL_TEST_SYSTEM = `You are BloxSmith's Roblox Studio model validation harness.
+Every tested model must follow the shared BloxSmith Core Brain: Roblox knowledge, Luau rules, safe Toolbox/Creator Store asset discipline, build planning, plugin execution, testing/fixing, project memory, and premium quality. No model is allowed to behave like a generic chatbot.
 Return a short answer plus exactly one fenced bloxsmith-actions JSON block.
 The build must be Roblox/Luau-specific, safe, and executable by the BloxSmith plugin.
 Rules:
 - Create a complete tiny Roblox UI/system, not generic web code.
 - Use Roblox services, Luau, RemoteEvent/RemoteFunction, StarterGui, ReplicatedStorage, and ServerScriptService correctly.
-- Include server validation and no TODO/placeholders.
+- Include server validation, testing/cleanup intent, and no TODO/placeholders.
 - Use action kinds only from: folder, script, localscript, modulescript, screengui, remoteevent, remotefunction, frame, textlabel, textbutton, run_lua, organize_project.
 - Do not mention copying code manually.`;
 
@@ -22,7 +23,8 @@ const ROBLOX_MODEL_TEST_PROMPT = `Build a premium Roblox coin HUD with:
 - ServerScriptService script that validates amount and updates leaderstats Coins
 - StarterGui ScreenGui with polished currency HUD
 - LocalScript that animates the coin text when the value changes
-- organize_project at the end`;
+- organize_project at the end
+- mention the shared Core Brain briefly in the explanation`;
 
 function validateRobloxBuild(text: string) {
   const parsed = parseActions(text);
@@ -36,6 +38,7 @@ function validateRobloxBuild(text: string) {
   if (!parsed.actions.some((a) => a.kind === "localscript")) issues.push("missing LocalScript");
   if (!parsed.actions.some((a) => a.kind === "organize_project")) issues.push("missing organize_project");
   if (!lower.includes("game:getservice")) issues.push("missing Roblox service usage");
+  if (!lower.includes("core brain")) issues.push("missing Core Brain acknowledgement");
   if (!lower.includes("leaderstats")) issues.push("missing leaderstats");
   if (!lower.includes("tweenservice")) issues.push("missing UI animation");
   if (lower.includes("todo") || lower.includes("placeholder")) issues.push("contains placeholder/TODO wording");

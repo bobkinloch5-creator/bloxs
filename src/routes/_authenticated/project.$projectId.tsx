@@ -1589,7 +1589,7 @@ function ModelPicker({
             Real models · via Lovable AI Gateway
           </div>
           <div className="px-2 pb-1 text-[11px]" style={{ color: "var(--bs-muted-fg)" }}>
-            Status shows the latest Roblox health check. Run it from Admin to update which models are down.
+            Every model uses the shared BloxSmith Core Brain. Status shows the latest Roblox health check; run it from Admin to update down models.
           </div>
           {MODELS.map((m) => {
             const active = m.id === modelId;

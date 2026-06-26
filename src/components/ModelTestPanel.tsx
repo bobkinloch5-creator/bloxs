@@ -111,7 +111,7 @@ export function ModelTestPanel() {
         </div>
       </div>
       <p className="mt-2 text-xs" style={{ color: "var(--bs-muted-fg)" }}>
-        Sends a Roblox/Luau build probe to each model and validates Studio action format, remotes, server scripts, UI, animation, and cleanup.
+        Sends the same BloxSmith Core Brain Roblox/Luau build probe to each model and validates Studio actions, remotes, server scripts, UI, animation, cleanup, and consistency.
       </p>
       <div className="mt-3 grid gap-2 md:grid-cols-3">
         <HealthSummary
