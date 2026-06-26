@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { listProjects } from "@/lib/projects.functions";
 import { getMyProfile } from "@/lib/profile.functions";
 import { PageShell, EmptyState } from "@/components/PageShell";
-import { MessageSquare, ArrowRight, Sparkles, Folder, Plus } from "lucide-react";
+import { MessageSquare, ArrowRight, Sparkles, Folder, Plus, Mic } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/chat")({
   head: () => ({ meta: [
@@ -28,9 +28,14 @@ function ChatHub() {
       activeKey="chat"
       isAdmin={!!profile?.is_admin}
       actions={
-        <Link to="/dashboard" className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-blue-500 to-violet-500 px-3 py-2 text-xs font-semibold text-white">
-          <Plus className="h-3.5 w-3.5" /> New Project
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link to="/voice" className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-xs font-semibold text-cyan-100 transition hover:bg-cyan-400/20">
+            <Mic className="h-3.5 w-3.5" /> Voice Chat
+          </Link>
+          <Link to="/dashboard" className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-blue-500 to-violet-500 px-3 py-2 text-xs font-semibold text-white">
+            <Plus className="h-3.5 w-3.5" /> New Project
+          </Link>
+        </div>
       }
     >
       <section className="rounded-2xl border border-white/10 bg-gradient-to-br from-blue-500/10 via-transparent to-violet-500/10 p-6 backdrop-blur-sm">
