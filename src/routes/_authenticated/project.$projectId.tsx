@@ -898,7 +898,8 @@ function BuildProgressCard({ stepIndex, onStop, onAction }: { stepIndex: number;
 
 /* ────────────────── BOTTOM COMPOSER ────────────────── */
 function Composer({
-  input, setInput, textareaRef, busy, token, autoExecute, setAutoExecute,
+  input, setInput, textareaRef, busy, token,
+  mode, setMode, onClearQueue, onUndoLast, queueNotice,
   onSubmit, onStop, onAction, modelId, setModelId,
   ttsEnabled, setTtsEnabled, onVoiceTranscript,
   attachment, setAttachment, onAttachFile,
