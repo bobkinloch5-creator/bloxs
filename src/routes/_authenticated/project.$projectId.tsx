@@ -1032,20 +1032,57 @@ function Composer({
               <ModelPicker modelId={modelId} setModelId={setModelId} variant="compact" />
             </div>
 
-            <label
-              className="ml-1 flex cursor-pointer select-none items-center gap-2 text-xs"
-              style={{ color: "var(--bs-muted-fg)" }}
-              title="When on, AI plans + queues actions automatically"
+            {/* Chat / Build segmented toggle — controls whether the AI executes in Studio */}
+            <div
+              className="ml-1 inline-flex overflow-hidden rounded-lg border text-[11px] font-bold"
+              style={{ borderColor: "var(--bs-border)" }}
+              title="Chat = brainstorm only · Build = create in Roblox Studio"
             >
-              <span
-                role="switch"
-                aria-checked={autoExecute}
-                className="bs-toggle"
-                data-on={autoExecute ? "true" : "false"}
-                onClick={() => setAutoExecute((v: boolean) => !v)}
-              />
-              <span className="hidden sm:inline">Auto-execute</span>
-            </label>
+              <button
+                type="button"
+                onClick={() => setMode("chat")}
+                className="px-2.5 py-1.5"
+                style={{
+                  background: mode === "chat" ? "var(--bs-primary)" : "transparent",
+                  color: mode === "chat" ? "white" : "var(--bs-muted-fg)",
+                }}
+              >
+                <MessageSquare className="mr-1 inline h-3 w-3" />
+                Chat
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode("build")}
+                className="px-2.5 py-1.5"
+                style={{
+                  background: mode === "build" ? "var(--bs-primary)" : "transparent",
+                  color: mode === "build" ? "white" : "var(--bs-muted-fg)",
+                }}
+              >
+                <Wrench className="mr-1 inline h-3 w-3" />
+                Build
+              </button>
+            </div>
+
+            {/* Queue control buttons — always visible */}
+            <button
+              type="button"
+              onClick={onClearQueue}
+              className="bs-quick"
+              title="Stop the build and clear all queued actions for Roblox Studio"
+            >
+              <Square className="h-3.5 w-3.5" />
+              <span className="hidden md:inline">Stop Build</span>
+            </button>
+            <button
+              type="button"
+              onClick={onUndoLast}
+              className="bs-quick"
+              title="Cancel queued actions from your last build (use Ctrl+Z in Studio to revert applied ones)"
+            >
+              <Undo2 className="h-3.5 w-3.5" />
+              <span className="hidden md:inline">Undo Last</span>
+            </button>
 
             {busy ? (
               <button onClick={onStop} className="bs-send-btn flex h-10 items-center gap-1.5 px-4 text-sm font-medium"
@@ -1054,9 +1091,10 @@ function Composer({
               </button>
             ) : (
               <button onClick={onSubmit} disabled={!canSend}
-                className="bs-send-btn flex h-10 items-center gap-1.5 px-4 text-sm font-medium">
+                className="bs-send-btn flex h-10 items-center gap-1.5 px-4 text-sm font-medium"
+                style={mode === "chat" ? { background: "color-mix(in oklab, var(--bs-primary) 70%, transparent)" } : undefined}>
                 <Send className="h-4 w-4" />
-                <span className="hidden sm:inline">Send</span>
+                <span className="hidden sm:inline">{mode === "chat" ? "Send (chat)" : "Build"}</span>
               </button>
             )}
           </div>
