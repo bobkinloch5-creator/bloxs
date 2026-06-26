@@ -24,15 +24,21 @@ function SettingsPage() {
     roblox_username: "",
     language: "en" as LangCode,
     is_private: false,
+    asset_mode: "auto" as "auto" | "toolbox_only" | "primitives_only" | "both",
   });
   useEffect(() => {
-    if (profile) setForm({
-      display_name: profile.display_name ?? "",
-      bio: profile.bio ?? "",
-      roblox_username: profile.roblox_username ?? "",
-      language: ((profile as any).language ?? "en") as LangCode,
-      is_private: !!profile.is_private,
-    });
+    if (profile) {
+      const settings = ((profile as any).settings ?? {}) as Record<string, unknown>;
+      const mode = settings.asset_mode;
+      setForm({
+        display_name: profile.display_name ?? "",
+        bio: profile.bio ?? "",
+        roblox_username: profile.roblox_username ?? "",
+        language: ((profile as any).language ?? "en") as LangCode,
+        is_private: !!profile.is_private,
+        asset_mode: (mode === "toolbox_only" || mode === "primitives_only" || mode === "both" ? mode : "auto"),
+      });
+    }
   }, [profile]);
 
   const save = useMutation({
