@@ -355,15 +355,25 @@ function ProjectPage() {
                   />
                 )}
 
-                {messages.map((m) => {
-                  const text = m.parts.map((p) => (p.type === "text" ? p.text : "")).join("");
-                  const isUser = m.role === "user";
-                  return isUser ? (
-                    <UserBubble key={m.id} text={text} profile={profile} />
-                  ) : (
-                    <AssistantCard key={m.id} text={text} pluginOnline={pluginOnline} />
-                  );
-                })}
+                {(() => {
+                  const lastAssistantId = [...messages].reverse().find((m) => m.role === "assistant")?.id;
+                  const pendingCount = (actions ?? []).filter((a: any) => a.status === "pending").length;
+                  return messages.map((m) => {
+                    const text = m.parts.map((p) => (p.type === "text" ? p.text : "")).join("");
+                    const isUser = m.role === "user";
+                    if (isUser) return <UserBubble key={m.id} text={text} profile={profile} />;
+                    const isLatest = m.id === lastAssistantId;
+                    return (
+                      <AssistantCard
+                        key={m.id}
+                        text={text}
+                        pluginOnline={pluginOnline}
+                        pendingCount={isLatest ? pendingCount : 0}
+                        isLatest={isLatest}
+                      />
+                    );
+                  });
+                })()}
 
                 {busy && (
                   <BuildProgressCard
@@ -697,7 +707,17 @@ function UserBubble({ text, profile }: { text: string; profile: any }) {
   );
 }
 
-function AssistantCard({ text, pluginOnline }: { text: string; pluginOnline?: boolean }) {
+function AssistantCard({
+  text,
+  pluginOnline,
+  pendingCount = 0,
+  isLatest = false,
+}: {
+  text: string;
+  pluginOnline?: boolean;
+  pendingCount?: number;
+  isLatest?: boolean;
+}) {
   // Strip the trailing bloxsmith-actions JSON block — it's executed by the
   // plugin, not meant for the user to read. Surface a friendly build banner instead.
   const actionsMatch = text.match(/```bloxsmith-actions\s*\n?([\s\S]*?)```/i);
@@ -715,6 +735,8 @@ function AssistantCard({ text, pluginOnline }: { text: string; pluginOnline?: bo
     }
   }
   const [showRaw, setShowRaw] = useState(false);
+  // Older messages: assume already built. Latest message: rely on live pending count.
+  const stillBuilding = isLatest && pendingCount > 0;
   return (
     <div className="bs-msg-in flex gap-2.5">
       <div className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-xl ring-1 ring-[var(--bs-border)]" style={{ background: "var(--bs-card-2)" }}>
@@ -729,24 +751,37 @@ function AssistantCard({ text, pluginOnline }: { text: string; pluginOnline?: bo
             <div
               className="flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-medium"
               style={{
-                borderColor: pluginOnline
-                  ? "color-mix(in oklab, var(--bs-success) 40%, transparent)"
-                  : "color-mix(in oklab, var(--bs-danger) 40%, transparent)",
-                background: pluginOnline
-                  ? "color-mix(in oklab, var(--bs-success) 10%, transparent)"
-                  : "color-mix(in oklab, var(--bs-danger) 10%, transparent)",
-                color: pluginOnline ? "var(--bs-success)" : "var(--bs-danger)",
+                borderColor: !pluginOnline
+                  ? "color-mix(in oklab, var(--bs-danger) 40%, transparent)"
+                  : stillBuilding
+                  ? "color-mix(in oklab, var(--bs-primary) 40%, transparent)"
+                  : "color-mix(in oklab, var(--bs-success) 40%, transparent)",
+                background: !pluginOnline
+                  ? "color-mix(in oklab, var(--bs-danger) 10%, transparent)"
+                  : stillBuilding
+                  ? "color-mix(in oklab, var(--bs-primary) 10%, transparent)"
+                  : "color-mix(in oklab, var(--bs-success) 10%, transparent)",
+                color: !pluginOnline
+                  ? "var(--bs-danger)"
+                  : stillBuilding
+                  ? "var(--bs-primary)"
+                  : "var(--bs-success)",
               }}
             >
-              {pluginOnline ? (
-                <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Building {actionCount} {actionCount === 1 ? "action" : "actions"} in Roblox Studio now…
-                </>
-              ) : (
+              {!pluginOnline ? (
                 <>
                   <AlertCircle className="h-3.5 w-3.5" />
                   Roblox Studio plugin is not connected. Open Studio and reconnect — {actionCount} {actionCount === 1 ? "action is" : "actions are"} queued and will run on connect.
+                </>
+              ) : stillBuilding ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Building in Roblox Studio — {pendingCount} of {actionCount} {actionCount === 1 ? "action" : "actions"} left…
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  Built {actionCount} {actionCount === 1 ? "action" : "actions"} in Roblox Studio.
                 </>
               )}
             </div>
@@ -769,6 +804,7 @@ function AssistantCard({ text, pluginOnline }: { text: string; pluginOnline?: bo
     </div>
   );
 }
+
 
 function BuildProgressCard({ stepIndex, onStop, onAction }: { stepIndex: number; onStop: () => void; onAction: (p: string) => void }) {
   return (
@@ -937,6 +973,7 @@ function Composer({
             />
             <VoiceBuildButton
               disabled={busy}
+              setTtsEnabled={setTtsEnabled}
               onUtterance={(t: string) => { if (t.trim()) onVoiceTranscript?.(t.trim()); }}
             />
 
