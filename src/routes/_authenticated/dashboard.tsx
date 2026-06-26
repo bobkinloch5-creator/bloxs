@@ -427,9 +427,10 @@ function TopBar({
   return (
     <header className="sticky top-0 z-30 flex items-center gap-3 border-b px-4 py-3 sm:px-6" style={{ background: "color-mix(in oklab, var(--bs-card) 90%, transparent)", borderColor: "var(--bs-border)", backdropFilter: "blur(12px)" }}>
       <div className="min-w-0 flex-1">
-        <h1 className="truncate text-xl font-extrabold tracking-tight sm:text-2xl">Your BloxSmith Projects</h1>
+        <h1 className="truncate text-3xl font-bold uppercase italic tracking-tighter text-white sm:text-4xl" style={{ fontFamily: "Space Mono, monospace" }}>Projects</h1>
         <p className="truncate text-xs" style={{ color: "var(--bs-muted-fg)" }}>Create, manage, and continue your Roblox AI builds.</p>
       </div>
+
 
       <div className="hidden items-center gap-2 md:flex">
         <div className="bs-soft flex items-center gap-2 px-3 py-2">
