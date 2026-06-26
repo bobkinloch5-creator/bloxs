@@ -40,15 +40,37 @@ function formatRemaining(ms: number) {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-const EXPORT_FORMATS: { key: string; label: string }[] = [
-  { key: "glb", label: "GLB" },
-  { key: "fbx", label: "FBX" },
-  { key: "obj", label: "OBJ" },
-  { key: "usdz", label: "USDZ" },
-  { key: "stl", label: "STL" },
-  { key: "blend", label: "BLEND" },
-  { key: "mtl", label: "MTL" },
+const EXPORT_FORMATS: { key: string; label: string; ext: string }[] = [
+  { key: "glb", label: "GLB", ext: "glb" },
+  { key: "fbx", label: "FBX", ext: "fbx" },
+  { key: "obj", label: "OBJ", ext: "obj" },
+  { key: "usdz", label: "USDZ", ext: "usdz" },
+  { key: "stl", label: "STL", ext: "stl" },
+  { key: "blend", label: "BLEND", ext: "blend" },
+  { key: "mtl", label: "MTL", ext: "mtl" },
 ];
+
+async function forceDownload(url: string, filename: string) {
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = objectUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+  } catch {
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+}
+
+function safeName(m: any, ext: string) {
+  const base = (m.prompt || m.mode || "model").toString().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "").slice(0, 40) || "model";
+  return `${base}-${String(m.id).slice(0, 6)}.${ext}`;
+}
 
 function ModelsPage() {
   useModelViewerScript();
