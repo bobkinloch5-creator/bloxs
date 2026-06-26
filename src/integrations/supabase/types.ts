@@ -498,6 +498,7 @@ export type Database = {
       }
     }
     Functions: {
+      get_my_plugin_token: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -505,6 +506,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      regenerate_my_plugin_token: { Args: never; Returns: string }
     }
     Enums: {
       app_role: "admin" | "owner" | "user"
