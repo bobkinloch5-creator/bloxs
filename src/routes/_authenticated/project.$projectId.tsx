@@ -946,7 +946,7 @@ function Composer({
   input, setInput, textareaRef, busy, token,
   mode, setMode, onClearQueue, onUndoLast, queueNotice,
   onSubmit, onStop, onAction, modelId, setModelId,
-  ttsEnabled, setTtsEnabled, onVoiceTranscript,
+  ttsEnabled, setTtsEnabled, voiceSpeaking, voiceLoading, voiceError, onVoiceTranscript,
   attachment, setAttachment, onAttachFile,
   autoExecute, setAutoExecute, onPushToStudio,
 }: any) {
