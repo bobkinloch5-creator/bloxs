@@ -21,12 +21,13 @@ export const Route = createFileRoute("/api/chat")({
           const token = auth.replace(/^Bearer\s+/i, "");
           if (!token) return jsonError("Please sign in again before sending a message.", 401, "no_auth");
 
-          let body: { messages?: UIMessage[]; projectId?: string; modelId?: string; autoExecute?: boolean };
+          let body: { messages?: UIMessage[]; projectId?: string; modelId?: string; autoExecute?: boolean; mode?: "chat" | "build" };
           try {
             body = (await request.json()) as typeof body;
           } catch {
             return jsonError("Invalid JSON in request body.", 400, "bad_json");
           }
+          const mode: "chat" | "build" = body.mode === "chat" ? "chat" : "build";
           const { messages, projectId } = body;
           if (!Array.isArray(messages) || messages.length === 0) {
             return jsonError("No messages were sent — type something and try again.", 400, "missing_messages");
@@ -171,7 +172,7 @@ export const Route = createFileRoute("/api/chat")({
                   actions,
                 }).select("id").single();
 
-                if (actions.length > 0) {
+                if (actions.length > 0 && mode === "build") {
                   await supabase.from("plugin_actions").insert(
                     actions.map((a, i) => ({
                       project_id: projectId,
@@ -217,13 +218,16 @@ export const Route = createFileRoute("/api/chat")({
             };
 
           // Try the requested model. On upstream error, retry once with fallback.
+          const modeHeader = `\n\n[MODE: ${mode}]\n${mode === "chat"
+            ? "The user is BRAINSTORMING — respond conversationally and DO NOT emit any bloxsmith-actions block. Help them think, plan, and explore ideas."
+            : "The user wants you to BUILD — emit a bloxsmith-actions block at the end with ONLY what they explicitly asked for, polished to the premium quality bar."}\n`;
           const tryStream = (
             model: typeof modelChoice.model,
             usedModelId: string,
             notice: string | null,
           ) => streamText({
             model,
-            system: BLOXSMITH_SYSTEM_PROMPT + contextBlock,
+            system: BLOXSMITH_SYSTEM_PROMPT + modeHeader + contextBlock,
             messages: convertedMessages,
             onFinish: persistFinish(usedModelId, notice),
             onError: ({ error }) => {

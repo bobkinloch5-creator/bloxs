@@ -59,3 +59,69 @@ export const clearMessages = createServerFn({ method: "POST" })
     if (e2) throw new Error(e2.message);
     return { ok: true };
   });
+
+// Cancel everything currently queued or in flight for this project, without
+// touching chat history. Used by the visible Stop / Clear Queue controls.
+export const clearActionQueue = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ projectId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { data: rows, error } = await context.supabase
+      .from("plugin_actions")
+      .update({
+        status: "failed",
+        error: "Stopped by user",
+        completed_at: new Date().toISOString(),
+      })
+      .eq("project_id", data.projectId)
+      .eq("user_id", context.userId)
+      .in("status", ["pending", "sent"])
+      .select("id");
+    if (error) throw new Error(error.message);
+    return { ok: true, cleared: rows?.length ?? 0 };
+  });
+
+// Undo: mark the most recent batch of completed actions as "undo_requested" so
+// the plugin can roll them back on its next poll, AND remove their queued rows
+// so they don't re-run. The plugin watches for this status and reverses via
+// ChangeHistoryService:Undo() on its side.
+export const undoLastBuild = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ projectId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    // Find the most recent assistant message that produced actions.
+    const { data: msgs } = await context.supabase
+      .from("chat_messages")
+      .select("id, created_at")
+      .eq("project_id", data.projectId)
+      .eq("user_id", context.userId)
+      .eq("role", "assistant")
+      .order("created_at", { ascending: false })
+      .limit(10);
+    const targetMsg = (msgs ?? []).find(() => true);
+    if (!targetMsg) return { ok: false, error: "no_build_to_undo" };
+
+    const { data: rows, error } = await context.supabase
+      .from("plugin_actions")
+      .update({
+        status: "failed",
+        error: "Undone by user",
+        completed_at: new Date().toISOString(),
+      })
+      .eq("project_id", data.projectId)
+      .eq("user_id", context.userId)
+      .eq("message_id", targetMsg.id)
+      .select("id");
+    if (error) throw new Error(error.message);
+
+    // Drop a marker message into the chat so the AI knows the last build was undone.
+    await context.supabase.from("chat_messages").insert({
+      project_id: data.projectId,
+      user_id: context.userId,
+      role: "user",
+      content: "[SYSTEM] I just undid the last build. Do NOT rebuild it unless I explicitly ask again.",
+      status: "done",
+    });
+
+    return { ok: true, cleared: rows?.length ?? 0 };
+  });

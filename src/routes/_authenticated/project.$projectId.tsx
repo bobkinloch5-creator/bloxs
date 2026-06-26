@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getProject, listProjects } from "@/lib/projects.functions";
-import { listMessages, listProjectActions, getPluginSession, clearMessages } from "@/lib/chat.functions";
+import { listMessages, listProjectActions, getPluginSession, clearMessages, clearActionQueue, undoLastBuild } from "@/lib/chat.functions";
 import { getMyProfile } from "@/lib/profile.functions";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
@@ -16,7 +16,7 @@ import {
   Sun, Moon, ChevronDown, Zap, Timer, Box, X, Infinity as InfinityIcon,
   Folder, Lightbulb, LayoutDashboard, Search, Settings as SettingsIcon,
   Plug, History, Users, Bell, Plus, ExternalLink, RefreshCw, ImageIcon,
-  Cpu, Music, BookOpen, Upload, RotateCcw,
+  Cpu, Music, BookOpen, Upload, RotateCcw, Square, Undo2,
 } from "lucide-react";
 import bloxLogo from "@/assets/bloxsmith-logo.png.asset.json";
 import { OnboardingTour } from "@/components/OnboardingTour";
@@ -98,7 +98,20 @@ function ProjectPage() {
   const { data: profile } = useQuery({ queryKey: ["profile"], queryFn: () => profileFn(), refetchInterval: 30000 });
 
   const [modelId, setModelId] = useState(DEFAULT_MODEL_ID);
-  const [autoExecute, setAutoExecute] = useState(true);
+  // Chat-vs-Build mode: chat = brainstorm only (no actions), build = execute in Studio.
+  const [mode, setMode] = useState<"chat" | "build">(() => {
+    if (typeof window === "undefined") return "build";
+    return (localStorage.getItem("bs-chat-mode") as "chat" | "build") || "build";
+  });
+  useEffect(() => { localStorage.setItem("bs-chat-mode", mode); }, [mode]);
+  const clearQueueFn = useServerFn(clearActionQueue);
+  const undoFn = useServerFn(undoLastBuild);
+  const [queueNotice, setQueueNotice] = useState<string | null>(null);
+  useEffect(() => {
+    if (!queueNotice) return;
+    const t = setTimeout(() => setQueueNotice(null), 4000);
+    return () => clearTimeout(t);
+  }, [queueNotice]);
   const [theme, setTheme] = useState<Theme>(() => {
     if (typeof window === "undefined") return "default";
     return (localStorage.getItem("bs-chat-theme") as Theme) || "default";
@@ -204,12 +217,12 @@ function ProjectPage() {
             { type: "file", mediaType: att.mediaType, url: att.dataUrl } as any,
           ],
         } as any,
-        { body: { projectId, modelId, autoExecute: att.build && autoExecute } },
+        { body: { projectId, modelId, mode: att.build ? mode : "chat" } },
       );
     } else {
       sendMessage(
         { text: value },
-        { body: { projectId, modelId, autoExecute } },
+        { body: { projectId, modelId, mode } },
       );
     }
     setInput("");
@@ -418,8 +431,30 @@ function ProjectPage() {
               textareaRef={textareaRef}
               busy={busy}
               token={token}
-              autoExecute={autoExecute}
-              setAutoExecute={setAutoExecute}
+              mode={mode}
+              setMode={setMode}
+              onClearQueue={async () => {
+                if (!confirm("Stop the build and cancel everything currently queued for Roblox Studio? Chat history is kept.")) return;
+                try {
+                  const res: any = await clearQueueFn({ data: { projectId } });
+                  setQueueNotice(`Build stopped — cleared ${res?.cleared ?? 0} queued action${res?.cleared === 1 ? "" : "s"}.`);
+                  await qc.invalidateQueries({ queryKey: ["actions", projectId] });
+                } catch (e: any) {
+                  setQueueNotice(`Couldn't clear queue: ${e?.message ?? "unknown error"}`);
+                }
+              }}
+              onUndoLast={async () => {
+                if (!confirm("Undo the last build? Queued actions for the most recent reply will be cancelled. Open Roblox Studio and press Ctrl+Z to revert anything that already ran.")) return;
+                try {
+                  const res: any = await undoFn({ data: { projectId } });
+                  setQueueNotice(res?.ok ? `Last build undone — cleared ${res?.cleared ?? 0} action${res?.cleared === 1 ? "" : "s"}. In Studio press Ctrl+Z to revert.` : "Nothing to undo yet.");
+                  await qc.invalidateQueries({ queryKey: ["actions", projectId] });
+                  await qc.invalidateQueries({ queryKey: ["messages", projectId] });
+                } catch (e: any) {
+                  setQueueNotice(`Couldn't undo: ${e?.message ?? "unknown error"}`);
+                }
+              }}
+              queueNotice={queueNotice}
               onSubmit={() => submit()}
               onStop={() => stop()}
               onAction={(p: string) => submit(p)}
@@ -863,7 +898,8 @@ function BuildProgressCard({ stepIndex, onStop, onAction }: { stepIndex: number;
 
 /* ────────────────── BOTTOM COMPOSER ────────────────── */
 function Composer({
-  input, setInput, textareaRef, busy, token, autoExecute, setAutoExecute,
+  input, setInput, textareaRef, busy, token,
+  mode, setMode, onClearQueue, onUndoLast, queueNotice,
   onSubmit, onStop, onAction, modelId, setModelId,
   ttsEnabled, setTtsEnabled, onVoiceTranscript,
   attachment, setAttachment, onAttachFile,
@@ -876,6 +912,34 @@ function Composer({
       style={{ borderColor: "var(--bs-border)", background: "var(--bs-card)" }}
     >
       <div className="mx-auto w-full max-w-3xl">
+        {queueNotice && (
+          <div
+            className="mb-2 flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold"
+            style={{
+              borderColor: "color-mix(in oklab, var(--bs-primary) 40%, transparent)",
+              background: "color-mix(in oklab, var(--bs-primary) 12%, transparent)",
+              color: "var(--bs-primary)",
+            }}
+          >
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            {queueNotice}
+          </div>
+        )}
+        {mode === "chat" && (
+          <div
+            className="mb-2 flex items-center gap-2 rounded-xl border px-3 py-2 text-[11px]"
+            style={{
+              borderColor: "var(--bs-border)",
+              background: "var(--bs-card-2)",
+              color: "var(--bs-muted-fg)",
+            }}
+          >
+            <MessageSquare className="h-3.5 w-3.5" />
+            <span>
+              <strong style={{ color: "var(--bs-fg)" }}>Chat mode:</strong> BloxSmith will brainstorm and plan with you — it won't create anything in Studio. Switch to <strong>Build</strong> when you're ready.
+            </span>
+          </div>
+        )}
         {attachment && (
           <div className="mb-2 flex items-center gap-3 rounded-xl border p-2"
                style={{ borderColor: "var(--bs-border)", background: "var(--bs-card-2)" }}>
@@ -996,20 +1060,57 @@ function Composer({
               <ModelPicker modelId={modelId} setModelId={setModelId} variant="compact" />
             </div>
 
-            <label
-              className="ml-1 flex cursor-pointer select-none items-center gap-2 text-xs"
-              style={{ color: "var(--bs-muted-fg)" }}
-              title="When on, AI plans + queues actions automatically"
+            {/* Chat / Build segmented toggle — controls whether the AI executes in Studio */}
+            <div
+              className="ml-1 inline-flex overflow-hidden rounded-lg border text-[11px] font-bold"
+              style={{ borderColor: "var(--bs-border)" }}
+              title="Chat = brainstorm only · Build = create in Roblox Studio"
             >
-              <span
-                role="switch"
-                aria-checked={autoExecute}
-                className="bs-toggle"
-                data-on={autoExecute ? "true" : "false"}
-                onClick={() => setAutoExecute((v: boolean) => !v)}
-              />
-              <span className="hidden sm:inline">Auto-execute</span>
-            </label>
+              <button
+                type="button"
+                onClick={() => setMode("chat")}
+                className="px-2.5 py-1.5"
+                style={{
+                  background: mode === "chat" ? "var(--bs-primary)" : "transparent",
+                  color: mode === "chat" ? "white" : "var(--bs-muted-fg)",
+                }}
+              >
+                <MessageSquare className="mr-1 inline h-3 w-3" />
+                Chat
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode("build")}
+                className="px-2.5 py-1.5"
+                style={{
+                  background: mode === "build" ? "var(--bs-primary)" : "transparent",
+                  color: mode === "build" ? "white" : "var(--bs-muted-fg)",
+                }}
+              >
+                <Wrench className="mr-1 inline h-3 w-3" />
+                Build
+              </button>
+            </div>
+
+            {/* Queue control buttons — always visible */}
+            <button
+              type="button"
+              onClick={onClearQueue}
+              className="bs-quick"
+              title="Stop the build and clear all queued actions for Roblox Studio"
+            >
+              <Square className="h-3.5 w-3.5" />
+              <span className="hidden md:inline">Stop Build</span>
+            </button>
+            <button
+              type="button"
+              onClick={onUndoLast}
+              className="bs-quick"
+              title="Cancel queued actions from your last build (use Ctrl+Z in Studio to revert applied ones)"
+            >
+              <Undo2 className="h-3.5 w-3.5" />
+              <span className="hidden md:inline">Undo Last</span>
+            </button>
 
             {busy ? (
               <button onClick={onStop} className="bs-send-btn flex h-10 items-center gap-1.5 px-4 text-sm font-medium"
@@ -1018,9 +1119,10 @@ function Composer({
               </button>
             ) : (
               <button onClick={onSubmit} disabled={!canSend}
-                className="bs-send-btn flex h-10 items-center gap-1.5 px-4 text-sm font-medium">
+                className="bs-send-btn flex h-10 items-center gap-1.5 px-4 text-sm font-medium"
+                style={mode === "chat" ? { background: "color-mix(in oklab, var(--bs-primary) 70%, transparent)" } : undefined}>
                 <Send className="h-4 w-4" />
-                <span className="hidden sm:inline">Send</span>
+                <span className="hidden sm:inline">{mode === "chat" ? "Send (chat)" : "Build"}</span>
               </button>
             )}
           </div>
