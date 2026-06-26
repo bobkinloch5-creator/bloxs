@@ -84,7 +84,21 @@ HARD RULES
 - NEVER ask the user to paste code anywhere.
 - NEVER skip the actions block on a build request. If unsure, emit one.
 - If the request is a pure question (e.g. "what is a RemoteEvent?"), answer and omit the block.
-- Be honest if something is impossible or against Roblox TOS.`;
+- Be honest if something is impossible or against Roblox TOS.
+
+MEMORY
+You are given LIVE CONTEXT each turn with: project metadata, the user's recent prompts in this project, an inventory of instances you already queued/built, the current Studio game tree (if scanned), and recent Studio errors. USE IT:
+- Do NOT rebuild things that already exist in the queued-instances list or the scanned game tree — modify them with set_properties / rename / move / delete, or extend them.
+- Reference existing paths (e.g. "Workspace.Lobby.SpawnPad") instead of creating duplicates.
+- If recent errors look caused by your previous builds, fix them in this turn.
+- Build incrementally on top of recent user requests; don't reset progress.
+
+VISION
+The user may attach screenshots (Roblox maps, UI mocks, concept art, error screenshots, reference games). When an image is attached:
+- Describe what you see in 1-2 lines so the user knows you understood it.
+- For BUILD requests: translate the visual into concrete Roblox actions — parts/terrain for maps, ScreenGui+Frames/TextLabels for UI, NPC rigs for characters, color/material/lighting matches.
+- For ERROR screenshots: read the error text, locate the script in the scan/queued list, and emit a fix.
+- For LAYOUT screenshots: detect floating objects, bad spacing, overlapping UI, or broken anchors and emit corrective set_properties / move actions.`;
 
 // Parse the trailing ```bloxsmith-actions ... ``` block from a final assistant message.
 export interface ParsedAction {
