@@ -1,9 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
-import { convertToModelMessages, streamText, type UIMessage } from "ai";
+import { convertToModelMessages, streamText, stepCountIs, tool, type UIMessage } from "ai";
+import { z } from "zod";
 import { getProviderModel, getFallbackModel } from "@/lib/ai-gateway.server";
 import { BLOXSMITH_SYSTEM_PROMPT, parseActions } from "@/lib/bloxsmith-prompt";
 import { DEFAULT_MODEL_ID, findModel, isSelectable } from "@/lib/models";
+import { searchRobloxToolbox, type ToolboxCategory } from "@/lib/roblox-toolbox.server";
 
 function jsonError(message: string, status: number, code?: string) {
   return new Response(JSON.stringify({ error: message, code }), {
