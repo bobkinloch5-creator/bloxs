@@ -187,7 +187,7 @@ export const Route = createFileRoute("/api/chat")({
             notice: string | null,
           ) => streamText({
             model,
-            system: BLOXSMITH_SYSTEM_PROMPT,
+            system: BLOXSMITH_SYSTEM_PROMPT + contextBlock,
             messages: convertedMessages,
             onFinish: persistFinish(usedModelId, notice),
             onError: ({ error }) => {
