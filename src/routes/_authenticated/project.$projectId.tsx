@@ -1023,6 +1023,14 @@ function RightSidebar({
         <Link to="/plugin" className="bs-send-btn mt-3 flex w-full items-center justify-center gap-2 rounded-xl py-2 text-sm font-medium">
           {pluginOnline ? <><ExternalLink className="h-4 w-4" /> Open in Roblox Studio</> : <><RefreshCw className="h-4 w-4" /> Connect plugin</>}
         </Link>
+        <Link
+          to="/models/$projectId"
+          params={{ projectId: project?.id ?? "" }}
+          className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl py-2 text-sm font-semibold text-white"
+          style={{ background: "linear-gradient(135deg, #8b5cf6, #3b82f6)" }}
+        >
+          <Box className="h-4 w-4" /> Generate 3D model
+        </Link>
       </div>
 
       {/* Build progress */}

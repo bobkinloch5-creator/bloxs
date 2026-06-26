@@ -189,6 +189,65 @@ export type Database = {
         }
         Relationships: []
       }
+      model_generations: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          error: string | null
+          id: string
+          image_url: string | null
+          mode: string
+          model_url: string | null
+          progress: number
+          project_id: string
+          prompt: string | null
+          status: string
+          task_id: string | null
+          thumbnail_url: string | null
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          image_url?: string | null
+          mode: string
+          model_url?: string | null
+          progress?: number
+          project_id: string
+          prompt?: string | null
+          status?: string
+          task_id?: string | null
+          thumbnail_url?: string | null
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          image_url?: string | null
+          mode?: string
+          model_url?: string | null
+          progress?: number
+          project_id?: string
+          prompt?: string | null
+          status?: string
+          task_id?: string | null
+          thumbnail_url?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "model_generations_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       plugin_actions: {
         Row: {
           completed_at: string | null
