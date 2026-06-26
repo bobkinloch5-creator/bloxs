@@ -81,6 +81,43 @@ export const Route = createFileRoute("/api/chat")({
             return jsonError(e instanceof Error ? e.message : "Model unavailable", 500, "provider_init_failed");
           }
 
+          // Pull recent Studio context (latest game scan + unresolved errors) so the AI
+          // can fix what's broken and avoid duplicating what already exists.
+          let contextBlock = "";
+          try {
+            const { data: session } = await supabase
+              .from("plugin_sessions")
+              .select("last_scan, last_scan_at, online")
+              .eq("user_id", userId)
+              .maybeSingle();
+            const { data: recentErrors } = await supabase
+              .from("studio_errors")
+              .select("level, source, message, created_at")
+              .eq("user_id", userId)
+              .order("created_at", { ascending: false })
+              .limit(15);
+            const parts: string[] = [];
+            if (session?.last_scan) {
+              const scanStr = JSON.stringify(session.last_scan);
+              parts.push(
+                `CURRENT ROBLOX STUDIO GAME TREE (uploaded ${session.last_scan_at ?? "recently"}). Use this to avoid duplicating things that already exist; reference existing instances by path when appropriate:\n${scanStr.length > 12000 ? scanStr.slice(0, 12000) + "…[truncated]" : scanStr}`,
+              );
+            }
+            if (recentErrors && recentErrors.length > 0) {
+              const errLines = recentErrors
+                .map((e) => `[${e.level}] ${e.source}: ${e.message}`)
+                .join("\n");
+              parts.push(
+                `RECENT ROBLOX STUDIO OUTPUT (newest first). If any of these were caused by your previous builds, emit corrected actions to fix them in this response:\n${errLines}`,
+              );
+            }
+            if (parts.length > 0) {
+              contextBlock = "\n\n---\nSTUDIO CONTEXT (injected automatically by the plugin):\n\n" + parts.join("\n\n---\n");
+            }
+          } catch (e) {
+            console.warn("[chat] failed to load studio context", e);
+          }
+
           const convertedMessages = await convertToModelMessages(messages);
 
           const persistFinish = (usedModelId: string, fallbackNotice: string | null) =>
