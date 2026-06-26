@@ -80,7 +80,7 @@ function VoicePage() {
     await conversation.endSession();
   }, [conversation]);
 
-  useEffect(() => () => { conversation.endSession().catch(() => {}); }, []); // eslint-disable-line
+  useEffect(() => () => { try { void conversation.endSession(); } catch {} }, []); // eslint-disable-line
 
   return (
     <PageShell
