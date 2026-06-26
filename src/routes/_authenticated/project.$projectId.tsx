@@ -217,12 +217,12 @@ function ProjectPage() {
             { type: "file", mediaType: att.mediaType, url: att.dataUrl } as any,
           ],
         } as any,
-        { body: { projectId, modelId, autoExecute: att.build && autoExecute } },
+        { body: { projectId, modelId, mode: att.build ? mode : "chat" } },
       );
     } else {
       sendMessage(
         { text: value },
-        { body: { projectId, modelId, autoExecute } },
+        { body: { projectId, modelId, mode } },
       );
     }
     setInput("");
