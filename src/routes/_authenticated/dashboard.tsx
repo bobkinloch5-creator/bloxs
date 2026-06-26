@@ -329,14 +329,15 @@ function LeftSidebar({
   theme, setTheme, credits, maxCredits, isAdmin, resetLabel,
 }: { theme: Theme; setTheme: (t: Theme) => void; credits: number; maxCredits: number; isAdmin: boolean; resetLabel: string }) {
   return (
-    <aside className="sticky top-0 hidden h-screen w-[240px] shrink-0 flex-col gap-3 border-r p-3 lg:flex" style={{ background: "var(--bs-card)", borderColor: "var(--bs-border)" }}>
-      <Link to="/dashboard" className="flex items-center gap-2.5 px-2 py-2">
-        <img src={bloxLogo.url} alt="BloxSmith" className="h-9 w-9 rounded-xl" />
+    <aside className="sticky top-0 hidden h-screen w-[272px] shrink-0 flex-col gap-5 border-r p-5 lg:flex" style={{ background: "var(--bs-card)", borderColor: "var(--bs-border)" }}>
+      <Link to="/dashboard" className="flex items-center gap-3">
+        <div className="vapor-diamond"><i /></div>
         <div className="min-w-0">
-          <div className="truncate text-sm font-extrabold tracking-tight">BloxSmith</div>
-          <div className="truncate text-[10px] font-semibold tracking-[0.18em]" style={{ color: "var(--bs-muted-fg)" }}>AI GAME BUILDER</div>
+          <div className="truncate text-xl font-bold uppercase italic tracking-tighter text-white" style={{ fontFamily: "Space Mono, monospace" }}>BloxSmith</div>
+          <div className="truncate text-[10px] font-semibold tracking-[0.22em] text-cyan-300/70" style={{ fontFamily: "Space Mono, monospace" }}>AI GAME BUILDER</div>
         </div>
       </Link>
+
 
       <nav className="flex flex-1 flex-col gap-1">
         {isAdmin && (
