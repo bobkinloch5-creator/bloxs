@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import bloxLogo from "@/assets/bloxsmith-logo.png.asset.json";
 import { OnboardingTour } from "@/components/OnboardingTour";
+import { VoiceControls, useBloxSmithSpeaker } from "@/components/VoiceControls";
 
 export const Route = createFileRoute("/_authenticated/project/$projectId")({
   head: () => ({ meta: [{ title: "Build — BloxSmith" }] }),
@@ -195,6 +196,24 @@ function ProjectPage() {
   }, [isAdmin, resetAt]);
   const [showTour, setShowTour] = useState(false);
 
+  // ── voice mode (BloxSmith speaks replies via ElevenLabs) ──
+  const [ttsEnabled, setTtsEnabled] = useState(false);
+  const { speak, stop: stopSpeak } = useBloxSmithSpeaker(ttsEnabled);
+  const spokenIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!ttsEnabled) return;
+    if (status !== "ready") return;
+    const last = [...messages].reverse().find((m) => m.role === "assistant");
+    if (!last || spokenIdRef.current === last.id) return;
+    const text = last.parts.map((p: any) => (p.type === "text" ? p.text : "")).join("");
+    if (!text.trim()) return;
+    spokenIdRef.current = last.id;
+    speak(text);
+  }, [messages, status, ttsEnabled, speak]);
+  useEffect(() => {
+    if (!ttsEnabled) stopSpeak();
+  }, [ttsEnabled, stopSpeak]);
+
   // build step progression (visual only)
   const buildStepIndex = useMemo(() => {
     if (status === "submitted") return 0;
@@ -332,6 +351,9 @@ function ProjectPage() {
               onAction={(p: string) => submit(p)}
               modelId={modelId}
               setModelId={setModelId}
+              ttsEnabled={ttsEnabled}
+              setTtsEnabled={setTtsEnabled}
+              onVoiceTranscript={(t: string) => submit(t)}
             />
           </div>
 
@@ -679,6 +701,7 @@ function BuildProgressCard({ stepIndex, onStop, onAction }: { stepIndex: number;
 function Composer({
   input, setInput, textareaRef, busy, token, autoExecute, setAutoExecute,
   onSubmit, onStop, onAction, modelId, setModelId,
+  ttsEnabled, setTtsEnabled, onVoiceTranscript,
 }: any) {
   return (
     <div
@@ -707,6 +730,15 @@ function Composer({
             <button className="bs-icon-btn" title="Attach image" type="button">
               <Paperclip className="h-4 w-4" />
             </button>
+            <VoiceControls
+              ttsEnabled={ttsEnabled}
+              setTtsEnabled={setTtsEnabled}
+              onTranscript={(t: string, send: boolean) => {
+                if (send) onVoiceTranscript?.(t);
+                else setInput(t);
+              }}
+              busy={busy}
+            />
 
             {COMPOSER_ACTIONS.map((a) => (
               <button
