@@ -36,7 +36,7 @@ export function PageShell({
 }) {
   return (
     <div className="relative min-h-screen w-full text-foreground">
-      <RobloxBackdrop accent={accent} />
+      {/* Backdrop is now mounted globally in __root.tsx */}
       <div className="flex">
         {sidebar ?? <DefaultSidebar isAdmin={!!isAdmin} activeKey={activeKey} />}
         <div className="min-w-0 flex-1">
