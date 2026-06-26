@@ -283,14 +283,24 @@ function ProjectPage() {
   const [showTour, setShowTour] = useState(false);
 
   // ── voice mode (BloxSmith speaks replies via ElevenLabs) ──
-  const [ttsEnabled, setTtsEnabled] = useState(false);
-  const { speak, stop: stopSpeak } = useBloxSmithSpeaker(ttsEnabled);
+  const [ttsEnabled, setTtsEnabled] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    return localStorage.getItem("bs-tts-enabled") !== "0";
+  });
+  useEffect(() => {
+    localStorage.setItem("bs-tts-enabled", ttsEnabled ? "1" : "0");
+  }, [ttsEnabled]);
+  const { speak, stop: stopSpeak, speaking, loading: voiceLoading, error: voiceError } = useBloxSmithSpeaker(ttsEnabled);
   const spokenIdRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!ttsEnabled) return;
     if (status !== "ready") return;
     const last = [...messages].reverse().find((m) => m.role === "assistant");
-    if (!last || spokenIdRef.current === last.id) return;
+    if (!last) return;
+    if (spokenIdRef.current === null) {
+      spokenIdRef.current = last.id;
+      return;
+    }
+    if (!ttsEnabled || spokenIdRef.current === last.id) return;
     const text = last.parts.map((p: any) => (p.type === "text" ? p.text : "")).join("");
     if (!text.trim()) return;
     spokenIdRef.current = last.id;
@@ -490,6 +500,9 @@ function ProjectPage() {
               setModelId={setModelId}
               ttsEnabled={ttsEnabled}
               setTtsEnabled={setTtsEnabled}
+              voiceSpeaking={speaking}
+              voiceLoading={voiceLoading}
+              voiceError={voiceError}
               onVoiceTranscript={(t: string) => submit(t)}
               attachment={attachment}
               setAttachment={setAttachment}
