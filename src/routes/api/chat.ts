@@ -218,13 +218,16 @@ export const Route = createFileRoute("/api/chat")({
             };
 
           // Try the requested model. On upstream error, retry once with fallback.
+          const modeHeader = `\n\n[MODE: ${mode}]\n${mode === "chat"
+            ? "The user is BRAINSTORMING — respond conversationally and DO NOT emit any bloxsmith-actions block. Help them think, plan, and explore ideas."
+            : "The user wants you to BUILD — emit a bloxsmith-actions block at the end with ONLY what they explicitly asked for, polished to the premium quality bar."}\n`;
           const tryStream = (
             model: typeof modelChoice.model,
             usedModelId: string,
             notice: string | null,
           ) => streamText({
             model,
-            system: BLOXSMITH_SYSTEM_PROMPT + contextBlock,
+            system: BLOXSMITH_SYSTEM_PROMPT + modeHeader + contextBlock,
             messages: convertedMessages,
             onFinish: persistFinish(usedModelId, notice),
             onError: ({ error }) => {
