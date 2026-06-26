@@ -140,7 +140,7 @@ export const startModelGeneration = createServerFn({ method: "POST" })
       .from("model_generations")
       .insert({
         user_id: userId,
-        project_id: data.projectId,
+        project_id: data.projectId ?? null,
         mode: data.mode,
         prompt: data.prompt ?? null,
         image_url: data.mode === "image" ? data.imageUrl?.slice(0, 1000) ?? null : null,
