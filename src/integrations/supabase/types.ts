@@ -378,6 +378,7 @@ export type Database = {
           last_seen: string
           online: boolean
           place_id: string | null
+          plugin_version: string | null
           project_id: string | null
           studio_version: string | null
           user_id: string
@@ -390,6 +391,7 @@ export type Database = {
           last_seen?: string
           online?: boolean
           place_id?: string | null
+          plugin_version?: string | null
           project_id?: string | null
           studio_version?: string | null
           user_id: string
@@ -402,6 +404,7 @@ export type Database = {
           last_seen?: string
           online?: boolean
           place_id?: string | null
+          plugin_version?: string | null
           project_id?: string | null
           studio_version?: string | null
           user_id?: string
