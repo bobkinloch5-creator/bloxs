@@ -1482,17 +1482,40 @@ function ModelPicker({
   modelId, setModelId, variant = "bar",
 }: { modelId: string; setModelId: (id: string) => void; variant?: "bar" | "compact" }) {
   const [open, setOpen] = useState(false);
+  const [modelHealth, setModelHealth] = useState<Record<string, any>>({});
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const close = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
     if (open) document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
   }, [open]);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const load = () => {
+      try {
+        setModelHealth(JSON.parse(localStorage.getItem("bloxsmith-model-health-v1") || "{}"));
+      } catch {
+        setModelHealth({});
+      }
+    };
+    load();
+    window.addEventListener("storage", load);
+    return () => window.removeEventListener("storage", load);
+  }, []);
 
   const current = MODELS.find((m) => m.id === modelId) ?? MODELS[0];
+  const currentHealth = modelHealth[current?.id ?? ""];
 
   const creditColor = (c: string) =>
     c === "Low" ? "#22c55e" : c === "Medium" ? "#eab308" : c === "High" ? "#f97316" : "#ef4444";
+  const healthLabel = (health: any) => {
+    if (!health || typeof health !== "object") return "Untested";
+    return health.ok ? "Roblox-ready" : "Down in last test";
+  };
+  const healthColor = (health: any) => {
+    if (!health || typeof health !== "object") return "var(--bs-muted-fg)";
+    return health.ok ? "var(--bs-success)" : "var(--bs-danger, #ef4444)";
+  };
 
   return (
     <div ref={ref} className="relative">
@@ -1516,6 +1539,12 @@ function ModelPicker({
           style={{ background: "color-mix(in oklab, var(--bs-fg) 8%, transparent)", color: "var(--bs-muted-fg)" }}>
           {current?.provider}
         </span>
+        {currentHealth && (
+          <span className="hidden lg:inline text-[10px] rounded-md px-1.5 py-0.5"
+            style={{ background: "color-mix(in oklab, var(--bs-fg) 8%, transparent)", color: healthColor(currentHealth) }}>
+            {healthLabel(currentHealth)}
+          </span>
+        )}
         <ChevronDown className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--bs-muted-fg)" }} />
       </button>
 
@@ -1530,6 +1559,7 @@ function ModelPicker({
           {MODELS.map((m) => {
             const active = m.id === modelId;
             const disabled = m.status !== "Working";
+            const health = modelHealth[m.id];
             return (
               <button
                 key={m.id}
@@ -1556,6 +1586,16 @@ function ModelPicker({
                       <span className="text-[10px] rounded-md px-1.5 py-0.5 shrink-0"
                         style={{ background: "color-mix(in oklab, #eab308 18%, transparent)", color: "#eab308" }}>
                         Coming Soon
+                      </span>
+                    )}
+                    {health && (
+                      <span className="text-[10px] rounded-md px-1.5 py-0.5 shrink-0"
+                        style={{
+                          background: `color-mix(in oklab, ${healthColor(health)} 16%, transparent)`,
+                          color: active ? "var(--bs-primary-fg)" : healthColor(health),
+                        }}
+                      >
+                        {healthLabel(health)}
                       </span>
                     )}
                   </div>
