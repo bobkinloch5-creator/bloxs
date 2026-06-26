@@ -455,33 +455,6 @@ export const MODELS: ModelOption[] = [
     description: "OpenAI's open-source 120B model via NVIDIA Integrate.",
   },
 
-  // ── Coming Soon (not selectable) ────────────────────────────────
-  {
-    id: "anthropic/claude-sonnet",
-    label: "Claude Sonnet",
-    provider: "OpenAI", // placeholder; gated by status
-    via: "Coming Soon",
-    tier: "premium",
-    speed: "Medium",
-    quality: "Best",
-    credits: "High",
-    status: "Coming Soon",
-    bestFor: "Planning large Roblox systems and long-form design.",
-    description: "Anthropic Claude integration is coming soon.",
-  },
-  {
-    id: "groq/qwen2.5-coder-32b",
-    label: "Qwen 2.5 Coder 32B",
-    provider: "OpenAI",
-    via: "Coming Soon",
-    tier: "balanced",
-    speed: "Fast",
-    quality: "Great",
-    credits: "Low",
-    status: "Coming Soon",
-    bestFor: "Roblox Luau scripts and debugging at high speed.",
-    description: "Groq-hosted Qwen Coder integration is coming soon.",
-  },
 ];
 
 export const DEFAULT_MODEL_ID = "google/gemini-3-flash-preview";
