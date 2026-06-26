@@ -1,193 +1,291 @@
-// Client-safe model catalog. Server picks the provider implementation.
-// User-facing names are branded BloxSmith identities — the underlying
-// provider/model is intentionally hidden so creators pick by USE CASE.
+// Real model catalog. Each entry is a real, connected model on the Lovable AI
+// Gateway. No fantasy names — the model id is the actual provider model id and
+// the label uses the real public name. UI shows provider, best-for, speed, and
+// credit cost so creators know exactly what they're picking.
 
-export type Provider = "lovable" | "quatarly" | "nvidia" | "groq";
+export type Provider = "OpenAI" | "Google" | "Lovable AI";
+export type Speed = "Fast" | "Medium" | "Slow";
+export type Quality = "Good" | "Great" | "Best";
+export type Credits = "Low" | "Medium" | "High" | "Very High";
+export type Status = "Working" | "Coming Soon";
 
 export interface ModelOption {
-  id: string;          // unique key used by client + server
-  label: string;       // BloxSmith brand name — no provider exposed
-  provider: Provider;  // internal only
-  upstream: string;    // upstream model id passed to provider API (internal)
+  id: string;          // also the upstream model id sent to Lovable Gateway
+  label: string;       // real public model name
+  provider: Provider;  // who actually trained the model
+  via: string;         // routing path (always Lovable Gateway today)
   tier: "fast" | "balanced" | "premium";
-  description: string; // what it does
-  bestFor: string;     // which Roblox build it shines at
+  speed: Speed;
+  quality: Quality;
+  credits: Credits;
+  status: Status;
+  bestFor: string;     // Roblox use-case
+  description: string;
 }
 
+// Every id below is a real Lovable AI Gateway model id (see ai-models-catalog).
 export const MODELS: ModelOption[] = [
-  // Lovable AI Gateway (free, default)
+  // ── Google Gemini ───────────────────────────────────────────────
   {
-    id: "lovable-ai",
-    label: "Spark",
-    provider: "lovable",
-    upstream: "google/gemini-2.5-flash-lite",
-    tier: "fast",
-    description: "Cheapest everyday builder. Plans simple scripts, GUIs, and tweaks fast.",
-    bestFor: "Obbies, small minigames, quick edits, and learning Luau.",
-  },
-  {
-    id: "blox-flash",
-    label: "Forge",
-    provider: "lovable",
-    upstream: "google/gemini-3-flash-preview",
-    tier: "fast",
-    description: "Default builder. Balanced speed and quality for most prompts.",
-    bestFor: "Simulators, tycoons starter systems, leaderboards, shop UIs.",
-  },
-  {
-    id: "blox-pro",
-    label: "Architect",
-    provider: "lovable",
-    upstream: "google/gemini-2.5-pro",
-    tier: "premium",
-    description: "Deep reasoning for multi-system game design.",
-    bestFor: "Full tycoons, RPG progression, datastore systems, round-based games.",
-  },
-  {
-    id: "blox-coder",
-    label: "Maestro",
-    provider: "lovable",
-    upstream: "openai/gpt-5.5",
-    tier: "premium",
-    description: "Strongest coder. Writes clean, optimized Luau and complex modules.",
-    bestFor: "Combat systems, anti-exploit, networking, performance-critical scripts.",
-  },
-  {
-    id: "blox-nano",
-    label: "Pixel",
-    provider: "lovable",
-    upstream: "google/gemini-3.1-flash-lite",
-    tier: "fast",
-    description: "Lightning fast for tiny tweaks and one-line fixes.",
-    bestFor: "Renaming parts, color/material swaps, GUI text edits, quick patches.",
-  },
-
-  // Premium BloxSmith modes. All route through Lovable AI so every picker option works without extra keys.
-  {
-    id: "qua-sonnet",
-    label: "Loom",
-    provider: "lovable",
-    upstream: "google/gemini-3.1-pro-preview",
-    tier: "premium",
-    description: "Thoughtful planner. Strong at game design docs and balanced builds.",
-    bestFor: "Game design, story-driven games, dialog systems, quest chains.",
-  },
-  {
-    id: "qua-opus",
-    label: "Titan",
-    provider: "lovable",
-    upstream: "openai/gpt-5.5-pro",
-    tier: "premium",
-    description: "Heaviest reasoning model. Slow but extremely thorough.",
-    bestFor: "Whole-game blueprints, refactoring large places, complex economies.",
-  },
-  {
-    id: "qua-haiku",
-    label: "Dash",
-    provider: "lovable",
-    upstream: "google/gemini-3.5-flash",
-    tier: "fast",
-    description: "Quick replies with surprisingly good code quality.",
-    bestFor: "Iterating on UI, fast prototyping, debugging Luau errors.",
-  },
-  {
-    id: "qua-gem-pro",
-    label: "Vision",
-    provider: "lovable",
-    upstream: "google/gemini-2.5-pro",
-    tier: "premium",
-    description: "Multimodal pro. Great when prompts include images or references.",
-    bestFor: "Map building from screenshots, UI replicas, asset-driven builds.",
-  },
-  {
-    id: "qua-gpt-codex",
-    label: "Forge X",
-    provider: "lovable",
-    upstream: "openai/gpt-5.4",
-    tier: "premium",
-    description: "Code-focused. Excellent module structure and pattern reuse.",
-    bestFor: "ModuleScripts, OOP class systems, framework-style codebases.",
-  },
-  {
-    id: "qua-gpt-55",
-    label: "Apex",
-    provider: "lovable",
-    upstream: "openai/gpt-5.5",
-    tier: "premium",
-    description: "Top-tier all-rounder. Smart at scripts, design, and explanations.",
-    bestFor: "End-to-end game builds, polishing released games, mentor-style help.",
-  },
-
-  // Extra branded modes backed by maintained Lovable AI models.
-  {
-    id: "nv-llama-405",
-    label: "Anvil",
-    provider: "lovable",
-    upstream: "google/gemini-2.5-pro",
-    tier: "premium",
-    description: "Massive open model. Heavy reasoning at lower cost than premiums.",
-    bestFor: "Bulk script generation, big AI NPCs, lore/quest writing.",
-  },
-  {
-    id: "nv-llama-70",
-    label: "Iron",
-    provider: "lovable",
-    upstream: "google/gemini-2.5-flash",
+    id: "google/gemini-3-flash-preview",
+    label: "Gemini 3 Flash",
+    provider: "Google",
+    via: "Lovable AI Gateway",
     tier: "balanced",
-    description: "Solid mid-tier. Reliable Luau and consistent answers.",
-    bestFor: "Combat scripts, pets/companions, basic shop and inventory systems.",
+    speed: "Fast",
+    quality: "Great",
+    credits: "Low",
+    status: "Working",
+    bestFor: "Default Roblox builder — scripts, GUIs, quick edits.",
+    description: "Balanced speed and quality for most prompts. Recommended default.",
   },
   {
-    id: "nv-mixtral",
-    label: "Mosaic",
-    provider: "lovable",
-    upstream: "google/gemini-2.5-flash",
-    tier: "balanced",
-    description: "Mixture-of-experts. Strong on structured tasks.",
-    bestFor: "Config files, datastore schemas, repetitive boilerplate.",
-  },
-
-  // Fast modes also run through Lovable AI.
-  {
-    id: "groq-llama-70",
-    label: "Bolt",
-    provider: "lovable",
-    upstream: "google/gemini-3.5-flash",
-    tier: "balanced",
-    description: "Sub-second responses. Strong code at insane speed.",
-    bestFor: "Live iteration, in-Studio quick fixes, rapid prototyping.",
-  },
-  {
-    id: "groq-llama-8",
-    label: "Zap",
-    provider: "lovable",
-    upstream: "openai/gpt-5-nano",
+    id: "google/gemini-3.1-flash-lite",
+    label: "Gemini 3.1 Flash Lite",
+    provider: "Google",
+    via: "Lovable AI Gateway",
     tier: "fast",
-    description: "Near-instant replies. Lightest brain on the list.",
-    bestFor: "One-liner scripts, renames, simple GUI tweaks.",
+    speed: "Fast",
+    quality: "Good",
+    credits: "Low",
+    status: "Working",
+    bestFor: "Tiny tweaks, renames, color/material swaps, GUI text edits.",
+    description: "Fastest and cheapest Gemini — great for one-line fixes.",
   },
   {
-    id: "groq-mixtral",
-    label: "Surge",
-    provider: "lovable",
-    upstream: "google/gemini-2.5-flash",
+    id: "google/gemini-3.5-flash",
+    label: "Gemini 3.5 Flash",
+    provider: "Google",
+    via: "Lovable AI Gateway",
     tier: "balanced",
-    description: "Long-context fast model. Holds big projects in mind.",
-    bestFor: "Refactoring large scripts, multi-file edits, big map logic.",
+    speed: "Fast",
+    quality: "Great",
+    credits: "Low",
+    status: "Working",
+    bestFor: "Rapid Luau iteration, debugging, fast prototyping.",
+    description: "High-efficiency Gemini for fast coding and reasoning.",
   },
   {
-    id: "groq-gemma",
-    label: "Ember",
-    provider: "lovable",
-    upstream: "google/gemini-2.5-flash-lite",
+    id: "google/gemini-2.5-flash",
+    label: "Gemini 2.5 Flash",
+    provider: "Google",
+    via: "Lovable AI Gateway",
+    tier: "balanced",
+    speed: "Fast",
+    quality: "Great",
+    credits: "Low",
+    status: "Working",
+    bestFor: "Combat scripts, pets, shops, inventory — solid mid-tier.",
+    description: "Reliable balanced Gemini with multimodal support.",
+  },
+  {
+    id: "google/gemini-2.5-flash-lite",
+    label: "Gemini 2.5 Flash Lite",
+    provider: "Google",
+    via: "Lovable AI Gateway",
     tier: "fast",
-    description: "Tiny, snappy, surprisingly capable.",
+    speed: "Fast",
+    quality: "Good",
+    credits: "Low",
+    status: "Working",
     bestFor: "Beginner prompts, learning Luau, tiny gameplay scripts.",
+    description: "Cheapest Gemini option for high-volume simple tasks.",
+  },
+  {
+    id: "google/gemini-2.5-pro",
+    label: "Gemini 2.5 Pro",
+    provider: "Google",
+    via: "Lovable AI Gateway",
+    tier: "premium",
+    speed: "Medium",
+    quality: "Best",
+    credits: "High",
+    status: "Working",
+    bestFor: "Full tycoons, RPGs, datastore systems, round-based games.",
+    description: "Strong multimodal reasoning for complex multi-system builds.",
+  },
+  {
+    id: "google/gemini-3.1-pro-preview",
+    label: "Gemini 3.1 Pro (Preview)",
+    provider: "Google",
+    via: "Lovable AI Gateway",
+    tier: "premium",
+    speed: "Medium",
+    quality: "Best",
+    credits: "High",
+    status: "Working",
+    bestFor: "Planning large Roblox systems and game design docs.",
+    description: "Next-gen Gemini reasoning when quality matters more than latency.",
+  },
+
+  // ── OpenAI GPT ──────────────────────────────────────────────────
+  {
+    id: "openai/gpt-5-nano",
+    label: "GPT-5 Nano",
+    provider: "OpenAI",
+    via: "Lovable AI Gateway",
+    tier: "fast",
+    speed: "Fast",
+    quality: "Good",
+    credits: "Low",
+    status: "Working",
+    bestFor: "One-liner scripts, renames, simple GUI tweaks.",
+    description: "Fast, low-cost OpenAI model for simple or high-volume tasks.",
+  },
+  {
+    id: "openai/gpt-5-mini",
+    label: "GPT-5 Mini",
+    provider: "OpenAI",
+    via: "Lovable AI Gateway",
+    tier: "balanced",
+    speed: "Fast",
+    quality: "Great",
+    credits: "Medium",
+    status: "Working",
+    bestFor: "General Roblox scripting with strong reasoning at lower cost.",
+    description: "Lower-cost OpenAI model with strong general performance.",
+  },
+  {
+    id: "openai/gpt-5",
+    label: "GPT-5",
+    provider: "OpenAI",
+    via: "Lovable AI Gateway",
+    tier: "premium",
+    speed: "Medium",
+    quality: "Best",
+    credits: "High",
+    status: "Working",
+    bestFor: "Full game planning, code, and UI with nuance.",
+    description: "Powerful all-rounder for accuracy and multimodal tasks.",
+  },
+  {
+    id: "openai/gpt-5.2",
+    label: "GPT-5.2",
+    provider: "OpenAI",
+    via: "Lovable AI Gateway",
+    tier: "premium",
+    speed: "Medium",
+    quality: "Best",
+    credits: "High",
+    status: "Working",
+    bestFor: "Complex Luau problem-solving and refactors.",
+    description: "Enhanced reasoning for complex problem solving.",
+  },
+  {
+    id: "openai/gpt-5.4",
+    label: "GPT-5.4",
+    provider: "OpenAI",
+    via: "Lovable AI Gateway",
+    tier: "premium",
+    speed: "Medium",
+    quality: "Best",
+    credits: "High",
+    status: "Working",
+    bestFor: "ModuleScripts, OOP systems, framework-style codebases.",
+    description: "Advanced reasoning, code generation, and analysis.",
+  },
+  {
+    id: "openai/gpt-5.4-mini",
+    label: "GPT-5.4 Mini",
+    provider: "OpenAI",
+    via: "Lovable AI Gateway",
+    tier: "balanced",
+    speed: "Fast",
+    quality: "Great",
+    credits: "Medium",
+    status: "Working",
+    bestFor: "Balanced reasoning + cost for everyday Roblox builds.",
+    description: "Smaller, faster GPT-5.4 with strong capability per credit.",
+  },
+  {
+    id: "openai/gpt-5.4-nano",
+    label: "GPT-5.4 Nano",
+    provider: "OpenAI",
+    via: "Lovable AI Gateway",
+    tier: "fast",
+    speed: "Fast",
+    quality: "Good",
+    credits: "Low",
+    status: "Working",
+    bestFor: "High-volume quick fixes and simple Luau snippets.",
+    description: "Fastest, lowest-cost GPT-5.4 variant.",
+  },
+  {
+    id: "openai/gpt-5.4-pro",
+    label: "GPT-5.4 Pro",
+    provider: "OpenAI",
+    via: "Lovable AI Gateway",
+    tier: "premium",
+    speed: "Slow",
+    quality: "Best",
+    credits: "Very High",
+    status: "Working",
+    bestFor: "Hardest Roblox systems: anti-exploit, networking, large refactors.",
+    description: "Premium GPT-5.4 variant for the most complex reasoning tasks.",
+  },
+  {
+    id: "openai/gpt-5.5",
+    label: "GPT-5.5",
+    provider: "OpenAI",
+    via: "Lovable AI Gateway",
+    tier: "premium",
+    speed: "Medium",
+    quality: "Best",
+    credits: "High",
+    status: "Working",
+    bestFor: "End-to-end game builds, polishing released games.",
+    description: "Most capable GPT-5.5 model for demanding reasoning and code.",
+  },
+  {
+    id: "openai/gpt-5.5-pro",
+    label: "GPT-5.5 Pro",
+    provider: "OpenAI",
+    via: "Lovable AI Gateway",
+    tier: "premium",
+    speed: "Slow",
+    quality: "Best",
+    credits: "Very High",
+    status: "Working",
+    bestFor: "Whole-game blueprints, complex economies, deep refactors.",
+    description: "Premium GPT-5.5 with extended reasoning for the hardest problems.",
+  },
+
+  // ── Coming Soon (not selectable) ────────────────────────────────
+  {
+    id: "anthropic/claude-sonnet",
+    label: "Claude Sonnet",
+    provider: "OpenAI", // placeholder; gated by status
+    via: "Coming Soon",
+    tier: "premium",
+    speed: "Medium",
+    quality: "Best",
+    credits: "High",
+    status: "Coming Soon",
+    bestFor: "Planning large Roblox systems and long-form design.",
+    description: "Anthropic Claude integration is coming soon.",
+  },
+  {
+    id: "groq/qwen2.5-coder-32b",
+    label: "Qwen 2.5 Coder 32B",
+    provider: "OpenAI",
+    via: "Coming Soon",
+    tier: "balanced",
+    speed: "Fast",
+    quality: "Great",
+    credits: "Low",
+    status: "Coming Soon",
+    bestFor: "Roblox Luau scripts and debugging at high speed.",
+    description: "Groq-hosted Qwen Coder integration is coming soon.",
   },
 ];
 
-export const DEFAULT_MODEL_ID = "blox-flash";
+export const DEFAULT_MODEL_ID = "google/gemini-3-flash-preview";
+export const FALLBACK_MODEL_ID = "google/gemini-2.5-flash-lite";
 
 export function findModel(id: string): ModelOption {
   return MODELS.find((m) => m.id === id) ?? MODELS[0];
+}
+
+export function isSelectable(m: ModelOption): boolean {
+  return m.status === "Working";
 }
