@@ -431,8 +431,30 @@ function ProjectPage() {
               textareaRef={textareaRef}
               busy={busy}
               token={token}
-              autoExecute={autoExecute}
-              setAutoExecute={setAutoExecute}
+              mode={mode}
+              setMode={setMode}
+              onClearQueue={async () => {
+                if (!confirm("Stop the build and cancel everything currently queued for Roblox Studio? Chat history is kept.")) return;
+                try {
+                  const res: any = await clearQueueFn({ data: { projectId } });
+                  setQueueNotice(`Build stopped — cleared ${res?.cleared ?? 0} queued action${res?.cleared === 1 ? "" : "s"}.`);
+                  await qc.invalidateQueries({ queryKey: ["actions", projectId] });
+                } catch (e: any) {
+                  setQueueNotice(`Couldn't clear queue: ${e?.message ?? "unknown error"}`);
+                }
+              }}
+              onUndoLast={async () => {
+                if (!confirm("Undo the last build? Queued actions for the most recent reply will be cancelled. Open Roblox Studio and press Ctrl+Z to revert anything that already ran.")) return;
+                try {
+                  const res: any = await undoFn({ data: { projectId } });
+                  setQueueNotice(res?.ok ? `Last build undone — cleared ${res?.cleared ?? 0} action${res?.cleared === 1 ? "" : "s"}. In Studio press Ctrl+Z to revert.` : "Nothing to undo yet.");
+                  await qc.invalidateQueries({ queryKey: ["actions", projectId] });
+                  await qc.invalidateQueries({ queryKey: ["messages", projectId] });
+                } catch (e: any) {
+                  setQueueNotice(`Couldn't undo: ${e?.message ?? "unknown error"}`);
+                }
+              }}
+              queueNotice={queueNotice}
               onSubmit={() => submit()}
               onStop={() => stop()}
               onAction={(p: string) => submit(p)}
