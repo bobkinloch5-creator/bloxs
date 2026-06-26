@@ -511,17 +511,15 @@ function Footer() {
 
 function FloatingDonate() {
   return (
-    <a
-      href="https://paypal.me/kinloch930"
-      target="_blank"
-      rel="noreferrer"
+    <Link
+      to="/donate"
       className="fixed bottom-5 right-5 z-50 inline-flex max-w-[220px] items-center gap-2 rounded-full border border-amber-400/40 bg-slate-950/90 px-4 py-3 text-xs font-semibold text-amber-300 shadow-2xl backdrop-blur-xl transition hover:scale-105 hover:bg-slate-900/95"
     >
       <Heart className="h-4 w-4 fill-amber-300 text-amber-300" />
       <span className="leading-tight">
-        Donate<br /><span className="font-normal text-amber-300/80">anything helps keep this going</span>
+        Donate<br /><span className="font-normal text-amber-300/80">get the Donator role</span>
       </span>
-    </a>
+    </Link>
   );
 }
 
