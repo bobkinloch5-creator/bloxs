@@ -1,9 +1,5 @@
-import { createFileRoute, Outlet, redirect, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
-import { getMyProfile } from "@/lib/profile.functions";
-import { useServerFn } from "@tanstack/react-start";
-import { Crown, Hammer, LayoutDashboard, Plug, Settings as SettingsIcon, LogOut, Sparkles } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -16,17 +12,7 @@ export const Route = createFileRoute("/_authenticated")({
 });
 
 function AuthedLayout() {
-  const navigate = useNavigate();
-  const profileFn = useServerFn(getMyProfile);
-  const { data: profile } = useQuery({
-    queryKey: ["profile"],
-    queryFn: () => profileFn(),
-  });
 
-  async function signOut() {
-    await supabase.auth.signOut();
-    navigate({ to: "/auth", replace: true });
-  }
 
   return (
     <div className="surface-grad min-h-screen text-foreground">
