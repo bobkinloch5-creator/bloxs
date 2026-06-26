@@ -37,6 +37,7 @@ function Landing() {
         <FinalCTA />
       </main>
       <Footer />
+      <FloatingDonate />
       <LandingCss />
     </div>
   );
