@@ -969,11 +969,10 @@ function Composer({
             }}
           >
             <MessageSquare className="h-3.5 w-3.5" />
-            <span>
-              <strong style={{ color: "var(--bs-fg)" }}>Chat mode:</strong> BloxSmith will brainstorm and plan with you — it won't create anything in Studio. Switch to <strong>Build</strong> when you're ready.
-            </span>
+            <span>{t("chat.chatBanner")}</span>
           </div>
         )}
+
         {attachment && (
           <div className="mb-2 flex items-center gap-3 rounded-xl border p-2"
                style={{ borderColor: "var(--bs-border)", background: "var(--bs-card-2)" }}>
