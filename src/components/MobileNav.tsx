@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import {
   Folder, MessageSquare, Lightbulb, LayoutDashboard, Users, Plug, Wand2,
   History as HistoryIcon, BookOpen, Settings as SettingsIcon, Crown, Box,
-  Menu, X,
+  Menu, X, Mic,
 } from "lucide-react";
 
 type Item = { label: string; to: string; icon: any };
@@ -11,6 +11,7 @@ type Item = { label: string; to: string; icon: any };
 const CORE: Item[] = [
   { label: "Projects",      to: "/dashboard",     icon: Folder },
   { label: "AI Chat",       to: "/chat",          icon: MessageSquare },
+  { label: "Voice Agent",   to: "/voice",         icon: Mic },
   { label: "Game Ideas",    to: "/ideas",         icon: Lightbulb },
   { label: "UI Generator",  to: "/ui-generator",  icon: LayoutDashboard },
   { label: "3D Models",     to: "/models",        icon: Box },
