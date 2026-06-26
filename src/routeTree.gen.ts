@@ -31,6 +31,7 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as AuthenticatedCollaboratorsRouteImport } from './routes/_authenticated/collaborators'
 import { Route as AuthenticatedChatRouteImport } from './routes/_authenticated/chat'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as AuthenticatedModelsIndexRouteImport } from './routes/_authenticated/models.index'
 import { Route as ApiPublicMcpRouteImport } from './routes/api/public/mcp'
 import { Route as AuthenticatedProjectProjectIdRouteImport } from './routes/_authenticated/project.$projectId'
 import { Route as AuthenticatedModelsProjectIdRouteImport } from './routes/_authenticated/models.$projectId'
@@ -153,6 +154,12 @@ const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedModelsIndexRoute =
+  AuthenticatedModelsIndexRouteImport.update({
+    id: '/models/',
+    path: '/models/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const ApiPublicMcpRoute = ApiPublicMcpRouteImport.update({
   id: '/api/public/mcp',
   path: '/api/public/mcp',
@@ -232,6 +239,7 @@ export interface FileRoutesByFullPath {
   '/models/$projectId': typeof AuthenticatedModelsProjectIdRoute
   '/project/$projectId': typeof AuthenticatedProjectProjectIdRoute
   '/api/public/mcp': typeof ApiPublicMcpRoute
+  '/models/': typeof AuthenticatedModelsIndexRoute
   '/api/public/plugin/clear': typeof ApiPublicPluginClearRoute
   '/api/public/plugin/complete': typeof ApiPublicPluginCompleteRoute
   '/api/public/plugin/error': typeof ApiPublicPluginErrorRoute
@@ -265,6 +273,7 @@ export interface FileRoutesByTo {
   '/models/$projectId': typeof AuthenticatedModelsProjectIdRoute
   '/project/$projectId': typeof AuthenticatedProjectProjectIdRoute
   '/api/public/mcp': typeof ApiPublicMcpRoute
+  '/models': typeof AuthenticatedModelsIndexRoute
   '/api/public/plugin/clear': typeof ApiPublicPluginClearRoute
   '/api/public/plugin/complete': typeof ApiPublicPluginCompleteRoute
   '/api/public/plugin/error': typeof ApiPublicPluginErrorRoute
@@ -300,6 +309,7 @@ export interface FileRoutesById {
   '/_authenticated/models/$projectId': typeof AuthenticatedModelsProjectIdRoute
   '/_authenticated/project/$projectId': typeof AuthenticatedProjectProjectIdRoute
   '/api/public/mcp': typeof ApiPublicMcpRoute
+  '/_authenticated/models/': typeof AuthenticatedModelsIndexRoute
   '/api/public/plugin/clear': typeof ApiPublicPluginClearRoute
   '/api/public/plugin/complete': typeof ApiPublicPluginCompleteRoute
   '/api/public/plugin/error': typeof ApiPublicPluginErrorRoute
@@ -335,6 +345,7 @@ export interface FileRouteTypes {
     | '/models/$projectId'
     | '/project/$projectId'
     | '/api/public/mcp'
+    | '/models/'
     | '/api/public/plugin/clear'
     | '/api/public/plugin/complete'
     | '/api/public/plugin/error'
@@ -368,6 +379,7 @@ export interface FileRouteTypes {
     | '/models/$projectId'
     | '/project/$projectId'
     | '/api/public/mcp'
+    | '/models'
     | '/api/public/plugin/clear'
     | '/api/public/plugin/complete'
     | '/api/public/plugin/error'
@@ -402,6 +414,7 @@ export interface FileRouteTypes {
     | '/_authenticated/models/$projectId'
     | '/_authenticated/project/$projectId'
     | '/api/public/mcp'
+    | '/_authenticated/models/'
     | '/api/public/plugin/clear'
     | '/api/public/plugin/complete'
     | '/api/public/plugin/error'
@@ -589,6 +602,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/models/': {
+      id: '/_authenticated/models/'
+      path: '/models'
+      fullPath: '/models/'
+      preLoaderRoute: typeof AuthenticatedModelsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/api/public/mcp': {
       id: '/api/public/mcp'
       path: '/api/public/mcp'
@@ -676,6 +696,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedUiGeneratorRoute: typeof AuthenticatedUiGeneratorRoute
   AuthenticatedModelsProjectIdRoute: typeof AuthenticatedModelsProjectIdRoute
   AuthenticatedProjectProjectIdRoute: typeof AuthenticatedProjectProjectIdRoute
+  AuthenticatedModelsIndexRoute: typeof AuthenticatedModelsIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -692,6 +713,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedUiGeneratorRoute: AuthenticatedUiGeneratorRoute,
   AuthenticatedModelsProjectIdRoute: AuthenticatedModelsProjectIdRoute,
   AuthenticatedProjectProjectIdRoute: AuthenticatedProjectProjectIdRoute,
+  AuthenticatedModelsIndexRoute: AuthenticatedModelsIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
