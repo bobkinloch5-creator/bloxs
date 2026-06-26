@@ -1,9 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
 import { convertToModelMessages, streamText, type UIMessage } from "ai";
-import { getProviderModel } from "@/lib/ai-gateway.server";
+import { getProviderModel, getFallbackModel } from "@/lib/ai-gateway.server";
 import { BLOXSMITH_SYSTEM_PROMPT, parseActions } from "@/lib/bloxsmith-prompt";
-import { DEFAULT_MODEL_ID } from "@/lib/models";
+import { DEFAULT_MODEL_ID, findModel, isSelectable } from "@/lib/models";
+
+function jsonError(message: string, status: number, code?: string) {
+  return new Response(JSON.stringify({ error: message, code }), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
 
 export const Route = createFileRoute("/api/chat")({
   server: {
@@ -12,17 +19,30 @@ export const Route = createFileRoute("/api/chat")({
         try {
           const auth = request.headers.get("authorization") ?? "";
           const token = auth.replace(/^Bearer\s+/i, "");
-          if (!token) return new Response("Please sign in again before sending a message.", { status: 401 });
+          if (!token) return jsonError("Please sign in again before sending a message.", 401, "no_auth");
 
-          const body = (await request.json()) as {
-            messages?: UIMessage[];
-            projectId?: string;
-            modelId?: string;
-          };
+          let body: { messages?: UIMessage[]; projectId?: string; modelId?: string; autoExecute?: boolean };
+          try {
+            body = (await request.json()) as typeof body;
+          } catch {
+            return jsonError("Invalid JSON in request body.", 400, "bad_json");
+          }
           const { messages, projectId } = body;
-          const modelId = body.modelId || DEFAULT_MODEL_ID;
-          if (!Array.isArray(messages) || !projectId) {
-            return new Response("Bad request", { status: 400 });
+          if (!Array.isArray(messages) || messages.length === 0) {
+            return jsonError("No messages were sent — type something and try again.", 400, "missing_messages");
+          }
+          if (!projectId || typeof projectId !== "string") {
+            return jsonError("Missing project id — open a project before chatting.", 400, "missing_project");
+          }
+
+          const requestedId = body.modelId || DEFAULT_MODEL_ID;
+          const requested = findModel(requestedId);
+          if (!isSelectable(requested)) {
+            return jsonError(
+              `Model "${requested.label}" is marked Coming Soon and isn't available yet. Pick a different model.`,
+              400,
+              "model_unavailable",
+            );
           }
 
           const supabase = createClient(
@@ -32,18 +52,16 @@ export const Route = createFileRoute("/api/chat")({
           );
 
           const { data: userData } = await supabase.auth.getUser();
-          if (!userData.user) return new Response("Your session expired. Please sign in again.", { status: 401 });
+          if (!userData.user) return jsonError("Your session expired. Please sign in again.", 401, "expired");
           const userId = userData.user.id;
 
-          // Verify project ownership (RLS would also block, but fail fast)
           const { data: project, error: projErr } = await supabase
             .from("projects")
             .select("id, user_id")
             .eq("id", projectId)
             .maybeSingle();
-          if (projErr || !project) return new Response("Project not found", { status: 404 });
+          if (projErr || !project) return jsonError("Project not found or you don't have access to it.", 404, "project_not_found");
 
-          // Persist the latest user message
           const lastUser = [...messages].reverse().find((m) => m.role === "user");
           const userText = lastUser?.parts.map((p) => (p.type === "text" ? p.text : "")).join("") ?? "";
           if (userText) {
@@ -56,36 +74,30 @@ export const Route = createFileRoute("/api/chat")({
             });
           }
 
-          // Pick model + provider (may throw if BYOK key missing)
           let modelChoice;
           try {
-            modelChoice = getProviderModel(modelId);
+            modelChoice = getProviderModel(requestedId);
           } catch (e) {
-            return Response.json(
-              { error: e instanceof Error ? e.message : "Model unavailable" },
-              { status: 400 },
-            );
+            return jsonError(e instanceof Error ? e.message : "Model unavailable", 500, "provider_init_failed");
           }
 
-          const result = streamText({
-            model: modelChoice.model,
-            system: BLOXSMITH_SYSTEM_PROMPT,
-            messages: await convertToModelMessages(messages),
-            onFinish: async ({ text }) => {
+          const convertedMessages = await convertToModelMessages(messages);
+
+          const persistFinish = (usedModelId: string, fallbackNotice: string | null) =>
+            async ({ text }: { text: string }) => {
               try {
-                const { cleanContent, actions } = parseActions(text);
-                // Save assistant message
+                const finalText = fallbackNotice ? `${fallbackNotice}\n\n${text}` : text;
+                const { cleanContent, actions } = parseActions(finalText);
                 const { data: msgRow } = await supabase.from("chat_messages").insert({
                   project_id: projectId,
                   user_id: userId,
                   role: "assistant",
                   content: cleanContent,
                   status: actions.length > 0 ? "sending" : "done",
-                  model: modelId,
+                  model: usedModelId,
                   actions,
                 }).select("id").single();
 
-                // Queue plugin actions
                 if (actions.length > 0) {
                   await supabase.from("plugin_actions").insert(
                     actions.map((a, i) => ({
@@ -101,7 +113,6 @@ export const Route = createFileRoute("/api/chat")({
                   );
                 }
 
-                // Bump build counter + last model
                 const { data: currentProject } = await supabase
                   .from("projects")
                   .select("build_count")
@@ -111,19 +122,18 @@ export const Route = createFileRoute("/api/chat")({
                 await supabase
                   .from("projects")
                   .update({
-                    last_model_used: modelId,
+                    last_model_used: usedModelId,
                     build_count: (currentProject?.build_count ?? 0) + (actions.length > 0 ? 1 : 0),
                     updated_at: new Date().toISOString(),
                   })
                   .eq("id", projectId);
 
-                // Build history
                 if (userText) {
                   await supabase.from("build_history").insert({
                     project_id: projectId,
                     user_id: userId,
                     prompt: userText,
-                    model: modelId,
+                    model: usedModelId,
                     files_count: actions.length,
                     plugin_status: "Disconnected",
                   });
@@ -131,16 +141,53 @@ export const Route = createFileRoute("/api/chat")({
               } catch (e) {
                 console.error("onFinish persist error", e);
               }
+            };
+
+          // Try the requested model. On upstream error, retry once with fallback.
+          const tryStream = (
+            model: typeof modelChoice.model,
+            usedModelId: string,
+            notice: string | null,
+          ) => streamText({
+            model,
+            system: BLOXSMITH_SYSTEM_PROMPT,
+            messages: convertedMessages,
+            onFinish: persistFinish(usedModelId, notice),
+            onError: ({ error }) => {
+              console.error(`[chat] upstream error on ${usedModelId}`, error);
             },
           });
 
-          return result.toUIMessageStreamResponse();
+          let result = tryStream(modelChoice.model, modelChoice.meta.id, modelChoice.usedFallback
+            ? `_Switched to ${modelChoice.meta.label} because the selected model isn't available._`
+            : null);
+
+          // Wrap in fallback: if the stream errors before any tokens, retry with fallback.
+          try {
+            return result.toUIMessageStreamResponse({
+              onError: (err) => {
+                console.error("[chat] stream error", err);
+                if (err instanceof Error) {
+                  if (/402|credit/i.test(err.message)) return "AI credits are exhausted. Add more credits in Settings → Plans.";
+                  if (/429|rate/i.test(err.message)) return "AI is rate-limited right now. Wait a few seconds and try again.";
+                  return `AI request failed: ${err.message}`;
+                }
+                return "AI request failed.";
+              },
+            });
+          } catch (streamErr) {
+            console.error("[chat] requested model failed, trying fallback", streamErr);
+            const fb = getFallbackModel();
+            result = tryStream(
+              fb.model,
+              fb.meta.id,
+              `_The selected model failed, so BloxSmith switched to ${fb.meta.label} (fallback)._`,
+            );
+            return result.toUIMessageStreamResponse();
+          }
         } catch (e) {
-          console.error(e);
-          return Response.json(
-            { error: e instanceof Error ? e.message : "Unknown error" },
-            { status: 500 },
-          );
+          console.error("[chat] fatal", e);
+          return jsonError(e instanceof Error ? e.message : "Unknown error", 500, "fatal");
         }
       },
     },
