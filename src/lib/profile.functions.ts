@@ -45,7 +45,7 @@ export const updateMyProfile = createServerFn({ method: "POST" })
       display_name: z.string().max(60).optional(),
       bio: z.string().max(500).optional(),
       roblox_username: z.string().max(40).optional(),
-      language: z.enum(["en", "es", "pt", "fr", "de"]).optional(),
+      language: z.enum(["en","es","pt","fr","de","it","ru","ar","zh","ja","ko","hi","tr","pl","nl"]).optional(),
       is_private: z.boolean().optional(),
     }).parse(input),
   )
