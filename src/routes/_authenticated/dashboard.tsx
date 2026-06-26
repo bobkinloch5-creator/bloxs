@@ -82,14 +82,13 @@ const IDEAS = [
 
 const SIDEBAR_NAV: { key: string; label: string; icon: typeof Box; to?: string; soon?: boolean; active?: boolean }[] = [
   { key: "proj",   label: "Projects",        icon: Folder,          to: "/dashboard", active: true },
-  { key: "chat",   label: "AI Chat",         icon: MessageSquare,   soon: true },
-  { key: "ideas",  label: "Game Ideas",      icon: Lightbulb,       soon: true },
-  { key: "ui",     label: "UI Generator",    icon: LayoutDashboard, soon: true },
-  
-  { key: "co",     label: "Collaborators",   icon: Users,           soon: true },
+  { key: "chat",   label: "AI Chat",         icon: MessageSquare,   to: "/admin" },
+  { key: "ideas",  label: "Game Ideas",      icon: Lightbulb,       to: "/admin" },
+  { key: "ui",     label: "UI Generator",    icon: LayoutDashboard, to: "/admin" },
+  { key: "co",     label: "Collaborators",   icon: Users,           to: "/admin" },
   { key: "plug",   label: "Studio Plugin",   icon: Plug,            to: "/plugin" },
-  { key: "mcp",    label: "MCP / Tools",     icon: Wand2,           soon: true },
-  { key: "hist",   label: "History",         icon: History,         soon: true },
+  { key: "mcp",    label: "MCP / Tools",     icon: Wand2,           to: "/admin" },
+  { key: "hist",   label: "History",         icon: History,         to: "/admin" },
   { key: "docs",   label: "Docs",            icon: BookOpen,        to: "/docs" },
   { key: "set",    label: "Settings",        icon: SettingsIcon,    to: "/settings" },
 ];
