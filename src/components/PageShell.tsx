@@ -1,10 +1,12 @@
 import { Link } from "@tanstack/react-router";
 import { ReactNode } from "react";
 import { RobloxBackdrop } from "./RobloxBackdrop";
+import { MobileNavTrigger } from "./MobileNav";
 import {
   Folder, MessageSquare, Lightbulb, LayoutDashboard, Users, Plug, Wand2,
   History as HistoryIcon, BookOpen, Settings as SettingsIcon, Crown, Box,
 } from "lucide-react";
+
 
 type Accent = "default" | "chat" | "ideas" | "ui" | "admin" | "mcp" | "history" | "plugin" | "settings" | "collaborators";
 
