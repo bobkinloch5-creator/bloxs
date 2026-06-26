@@ -3,17 +3,20 @@
 // the label uses the real public name. UI shows provider, best-for, speed, and
 // credit cost so creators know exactly what they're picking.
 
-export type Provider = "OpenAI" | "Google" | "Lovable AI";
+export type Provider = "OpenAI" | "Google" | "Anthropic" | "DeepSeek" | "Z.AI" | "Lovable AI";
 export type Speed = "Fast" | "Medium" | "Slow";
 export type Quality = "Good" | "Great" | "Best";
 export type Credits = "Low" | "Medium" | "High" | "Very High";
 export type Status = "Working" | "Coming Soon";
+export type Gateway = "lovable" | "quatarly" | "nvidia";
 
 export interface ModelOption {
-  id: string;          // also the upstream model id sent to Lovable Gateway
+  id: string;          // unique id used in UI
+  upstreamId: string;  // model id sent to the gateway
+  gateway: Gateway;    // which API to route through
   label: string;       // real public model name
   provider: Provider;  // who actually trained the model
-  via: string;         // routing path (always Lovable Gateway today)
+  via: string;         // routing path description
   tier: "fast" | "balanced" | "premium";
   speed: Speed;
   quality: Quality;
@@ -21,6 +24,8 @@ export interface ModelOption {
   status: Status;
   bestFor: string;     // Roblox use-case
   description: string;
+  /** Extra body fields to send to the provider (e.g. NVIDIA thinking flags). */
+  extraBody?: Record<string, unknown>;
 }
 
 // Every id below is a real Lovable AI Gateway model id (see ai-models-catalog).
