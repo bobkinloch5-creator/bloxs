@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getProject, listProjects } from "@/lib/projects.functions";
-import { listMessages, listProjectActions, getPluginSession, clearMessages } from "@/lib/chat.functions";
+import { listMessages, listProjectActions, getPluginSession, clearMessages, clearActionQueue, undoLastBuild } from "@/lib/chat.functions";
 import { getMyProfile } from "@/lib/profile.functions";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
