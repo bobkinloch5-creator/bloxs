@@ -395,7 +395,11 @@ function ProjectPage() {
               ttsEnabled={ttsEnabled}
               setTtsEnabled={setTtsEnabled}
               onVoiceTranscript={(t: string) => submit(t)}
+              attachment={attachment}
+              setAttachment={setAttachment}
+              onAttachFile={attachImageFile}
             />
+
           </div>
 
           {/* RIGHT SIDEBAR */}
