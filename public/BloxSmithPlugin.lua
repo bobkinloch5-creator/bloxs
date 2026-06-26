@@ -148,7 +148,7 @@ local clearLogBtn = miniBtn("Clear", -66)
 local verboseBtn  = miniBtn("Verbose", -132)
 
 local logFrame = Instance.new("ScrollingFrame")
-logFrame.Position = UDim2.new(0,12,0,314); logFrame.Size = UDim2.new(1,-24,1,-326)
+logFrame.Position = UDim2.new(0,12,0,348); logFrame.Size = UDim2.new(1,-24,1,-360)
 logFrame.BackgroundColor3 = Color3.fromRGB(14,16,22); logFrame.BorderSizePixel = 0
 logFrame.CanvasSize = UDim2.new(0,0,0,0); logFrame.ScrollBarThickness = 4
 logFrame.Parent = main
