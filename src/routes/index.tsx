@@ -285,16 +285,38 @@ function HowItWorks() {
   );
 }
 
-/* ---------------- Previews (chat + templates + plugin) ---------------- */
+/* ---------------- Previews (chat + templates + plugin + models) ---------------- */
 function Previews() {
   return (
     <section id="templates" className="mx-auto mt-16 max-w-7xl px-6">
-      <div className="grid gap-5 lg:grid-cols-3">
+      <div className="grid gap-5 lg:grid-cols-4">
         <ChatPreview />
         <TemplatesCard />
         <PluginPreview />
+        <ModelsCard />
       </div>
     </section>
+  );
+}
+
+function ModelsCard() {
+  return (
+    <div className="bs-panel relative overflow-hidden rounded-3xl border border-white/10 p-5">
+      <span className="absolute right-3 top-3 rounded-md bg-amber-400/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-300">Coming Soon</span>
+      <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">3D Model Generation</div>
+      <div className="mt-4 flex items-center justify-center">
+        <div className="grid h-20 w-20 place-items-center rounded-2xl bs-icon-grad">
+          <Box className="h-10 w-10 text-blue-300" />
+        </div>
+      </div>
+      <p className="mt-4 text-center text-sm font-bold text-white">AI-Generated 3D Assets</p>
+      <p className="mt-1.5 text-center text-xs leading-relaxed text-slate-400">
+        Describe any model and BloxSmith will generate it ready for your Roblox game.
+      </p>
+      <div className="mt-4 rounded-xl border border-white/10 bg-slate-950/40 px-3 py-2 text-center text-[11px] text-slate-300">
+        Join the waitlist — launching next.
+      </div>
+    </div>
   );
 }
 
