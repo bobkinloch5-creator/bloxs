@@ -14,6 +14,33 @@ import {
   Archive, Pencil, UserPlus, ExternalLink, LogOut,
 } from "lucide-react";
 import bloxLogo from "@/assets/bloxsmith-logo.png.asset.json";
+import thumbTycoon from "@/assets/thumbs/tycoon.jpg";
+import thumbObby from "@/assets/thumbs/obby.jpg";
+import thumbSimulator from "@/assets/thumbs/simulator.jpg";
+import thumbRpg from "@/assets/thumbs/rpg.jpg";
+import thumbHorror from "@/assets/thumbs/horror.jpg";
+import thumbRacing from "@/assets/thumbs/racing.jpg";
+import thumbTowerDefense from "@/assets/thumbs/tower-defense.jpg";
+import thumbFighting from "@/assets/thumbs/fighting.jpg";
+import thumbRoleplay from "@/assets/thumbs/roleplay.jpg";
+import thumbSurvival from "@/assets/thumbs/survival.jpg";
+import thumbRoundBased from "@/assets/thumbs/round-based.jpg";
+import thumbCustom from "@/assets/thumbs/custom.jpg";
+
+const THUMBS: Record<string, string> = {
+  tycoon: thumbTycoon,
+  obby: thumbObby,
+  simulator: thumbSimulator,
+  rpg: thumbRpg,
+  horror: thumbHorror,
+  racing: thumbRacing,
+  "tower-defense": thumbTowerDefense,
+  fighting: thumbFighting,
+  roleplay: thumbRoleplay,
+  survival: thumbSurvival,
+  "round-based": thumbRoundBased,
+  custom: thumbCustom,
+};
 import { OnboardingTour } from "@/components/OnboardingTour";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -58,7 +85,7 @@ const SIDEBAR_NAV: { key: string; label: string; icon: typeof Box; to?: string; 
   { key: "chat",   label: "AI Chat",         icon: MessageSquare,   soon: true },
   { key: "ideas",  label: "Game Ideas",      icon: Lightbulb,       soon: true },
   { key: "ui",     label: "UI Generator",    icon: LayoutDashboard, soon: true },
-  { key: "tb",     label: "Toolbox Search",  icon: Search,          soon: true },
+  
   { key: "co",     label: "Collaborators",   icon: Users,           soon: true },
   { key: "plug",   label: "Studio Plugin",   icon: Plug,            to: "/plugin" },
   { key: "mcp",    label: "MCP / Tools",     icon: Wand2,           soon: true },
@@ -834,49 +861,22 @@ function timeAgo(iso?: string | null) {
   return new Date(iso).toLocaleDateString();
 }
 
-/* ────────────────── GAME THUMBNAILS (generated SVG) ────────────────── */
+/* ────────────────── GAME THUMBNAILS (real Roblox-style art) ────────────────── */
 function GameThumb({ type, className }: { type: string; className?: string }) {
-  const palette: Record<string, [string, string, string]> = {
-    tycoon:          ["#f59e0b", "#16a34a", "#fbbf24"],
-    obby:            ["#22d3ee", "#a78bfa", "#f472b6"],
-    simulator:       ["#34d399", "#60a5fa", "#fbbf24"],
-    rpg:             ["#7c3aed", "#1e40af", "#facc15"],
-    horror:          ["#0f172a", "#7f1d1d", "#475569"],
-    racing:          ["#ef4444", "#1f2937", "#fbbf24"],
-    "tower-defense": ["#10b981", "#065f46", "#34d399"],
-    fighting:        ["#ef4444", "#7f1d1d", "#fde68a"],
-    roleplay:        ["#06b6d4", "#1d4ed8", "#f0abfc"],
-    survival:        ["#84cc16", "#365314", "#facc15"],
-    "round-based":   ["#8b5cf6", "#1e1b4b", "#22d3ee"],
-    custom:          ["#3b82f6", "#1e293b", "#a78bfa"],
-  };
-  const [c1, c2, c3] = palette[type] ?? palette.custom;
-  const id = `tg-${type}`;
+  const src = THUMBS[type] ?? THUMBS.custom;
+  const label = (type || "custom").replace("-", " ");
   return (
-    <svg viewBox="0 0 320 180" className={className} preserveAspectRatio="xMidYMid slice">
-      <defs>
-        <linearGradient id={id} x1="0" x2="1" y1="0" y2="1">
-          <stop offset="0" stopColor={c1} />
-          <stop offset="1" stopColor={c2} />
-        </linearGradient>
-      </defs>
-      <rect width="320" height="180" fill={`url(#${id})`} />
-      {/* skyline / scene */}
-      <g opacity="0.95">
-        <rect x="0" y="120" width="320" height="60" fill={c2} opacity="0.55" />
-        <polygon points="0,140 60,90 120,140" fill={c3} opacity="0.7" />
-        <polygon points="90,140 170,70 250,140" fill={c1} opacity="0.6" />
-        <polygon points="200,140 280,100 320,140" fill={c3} opacity="0.6" />
-        {/* sun */}
-        <circle cx="260" cy="50" r="22" fill={c3} opacity="0.85" />
-        {/* blocks */}
-        <rect x="40" y="125" width="22" height="22" fill="#fff" opacity="0.25" />
-        <rect x="70" y="118" width="18" height="29" fill="#fff" opacity="0.2" />
-        <rect x="240" y="120" width="26" height="27" fill="#fff" opacity="0.2" />
-      </g>
-      <text x="14" y="28" fontFamily="ui-sans-serif, system-ui" fontSize="11" fontWeight="800" fill="#fff" opacity="0.85" style={{ letterSpacing: 1.5 }}>
-        {type.toUpperCase()}
-      </text>
-    </svg>
+    <div className={`relative overflow-hidden ${className ?? ""}`} style={{ background: "var(--bs-card-2)" }}>
+      <img
+        src={src}
+        alt={`${label} game thumbnail`}
+        loading="lazy"
+        className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+      <div className="absolute bottom-2 left-2.5 text-[10px] font-extrabold uppercase tracking-wider text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)]">
+        {label}
+      </div>
+    </div>
   );
 }
