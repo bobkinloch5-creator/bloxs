@@ -33,9 +33,8 @@ export function RobloxBackdrop({ accent = "default" }: { accent?: Accent }) {
         className="absolute inset-0"
         style={{
           background:
-            "radial-gradient(1200px 700px at 15% 0%, color-mix(in oklab, var(--bs-primary, #3b82f6) 22%, transparent), transparent 60%)," +
-            "radial-gradient(900px 600px at 100% 100%, color-mix(in oklab, " + hue + " 22%, transparent), transparent 60%)," +
-            "linear-gradient(180deg, color-mix(in oklab, var(--bs-bg, #0a0f1e) 70%, transparent) 0%, var(--bs-bg, #0a0f1e) 100%)",
+            "radial-gradient(1200px 700px at 15% 0%, color-mix(in oklab, var(--bs-primary, #3b82f6) 18%, transparent), transparent 60%)," +
+            "radial-gradient(900px 600px at 100% 100%, color-mix(in oklab, " + hue + " 18%, transparent), transparent 60%)",
         }}
       />
 
