@@ -18,11 +18,17 @@ export function VoiceControls({
   setTtsEnabled,
   onTranscript,
   busy,
+  voiceSpeaking = false,
+  voiceLoading = false,
+  voiceError: externalVoiceError = null,
 }: {
   ttsEnabled: boolean;
   setTtsEnabled: (v: boolean) => void;
   onTranscript: (text: string, send: boolean) => void;
   busy: boolean;
+  voiceSpeaking?: boolean;
+  voiceLoading?: boolean;
+  voiceError?: string | null;
 }) {
   const [status, setStatus] = useState<Status>("idle");
   const [voiceError, setVoiceError] = useState<string | null>(null);
@@ -78,8 +84,11 @@ export function VoiceControls({
     setStatus("idle");
   }
 
+  const activeVoiceError = externalVoiceError || voiceError;
   const label =
     status === "listening" ? "Listening…" :
+    voiceLoading ? "Making voice…" :
+    voiceSpeaking ? "Speaking…" :
     status === "speaking" ? "Speaking…" :
     busy ? "Thinking…" : "";
 
@@ -109,7 +118,7 @@ export function VoiceControls({
         {ttsEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
       </button>
 
-      {(status === "speaking" || status === "loading") && (
+      {(voiceSpeaking || voiceLoading || status === "speaking" || status === "loading") && (
         <button
           type="button"
           className="bs-icon-btn"
@@ -120,9 +129,9 @@ export function VoiceControls({
         </button>
       )}
 
-      {(label || voiceError || ttsEnabled) && (
+      {(label || activeVoiceError || ttsEnabled) && (
         <span className="ml-1 text-[11px]" style={{ color: "var(--bs-muted-fg)" }}>
-          {voiceError || label || "Voice on"}
+          {activeVoiceError || label || "Voice on"}
         </span>
       )}
     </>
