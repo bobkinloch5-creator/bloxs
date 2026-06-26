@@ -18,7 +18,7 @@ local InsertService         = game:GetService("InsertService")
 
 local API_BASE       = "https://bloxsmith.pro"
 local POLL_INTERVAL  = 4
-local PLUGIN_VERSION = "1.3.1"
+local PLUGIN_VERSION = "1.4.0"
 
 ------------------------------------------------------------------- token helpers
 local TOKEN_KEY = "token"
@@ -478,6 +478,27 @@ Exec.delete = function(a, _)
     local name = inst:GetFullName()
     inst:Destroy()
     return { deleted = name }
+end
+
+-- run_lua: execute a Luau builder script INSIDE the plugin context.
+-- This is how complex builds (lobbies, obbies, tycoons, NPCs, full systems) are
+-- created — the AI emits one builder, we loadstring it, and it has full Studio
+-- access (Instance.new, InsertService, all services, ChangeHistoryService, etc.).
+Exec.run_lua = function(a, p)
+    local payload = a.payload or {}
+    local source = payload.source
+    if type(source) ~= "string" or source == "" then
+        error("run_lua missing payload.source")
+    end
+    -- Wrap so the builder gets a convenient `parent` arg (resolved parent_path or Workspace).
+    local wrapped = "return function(parent, plugin) " .. source .. "\nend"
+    local fn, parseErr = loadstring(wrapped, "=BloxSmith/" .. tostring(a.name or "builder"))
+    if not fn then error("compile error: " .. tostring(parseErr)) end
+    local builder = fn()
+    if type(builder) ~= "function" then error("builder did not return a function") end
+    local ok, runErr = pcall(builder, p, plugin)
+    if not ok then error("runtime error: " .. tostring(runErr)) end
+    return { ran = a.name }
 end
 
 local function describeAction(a)
