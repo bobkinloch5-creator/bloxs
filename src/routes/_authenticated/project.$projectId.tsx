@@ -494,7 +494,11 @@ function ProjectPage() {
               attachment={attachment}
               setAttachment={setAttachment}
               onAttachFile={attachImageFile}
+              autoExecute={autoExecute}
+              setAutoExecute={setAutoExecute}
+              onPushToStudio={pushToStudio}
             />
+
 
           </div>
 
