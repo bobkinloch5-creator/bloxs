@@ -8,9 +8,11 @@ import {
   getModelStatus,
   startModelGeneration,
   pollModelGeneration,
+  animateModel,
+  ANIMATION_PRESETS,
 } from "@/lib/models3d.functions";
 import { PageShell } from "@/components/PageShell";
-import { Box, Loader2, Sparkles, Image as ImageIcon, Type, Timer, Download, ExternalLink, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Box, Loader2, Sparkles, Image as ImageIcon, Type, Timer, Download, ExternalLink, AlertCircle, CheckCircle2, PlayCircle } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/models/$projectId")({
   head: () => ({ meta: [{ title: "3D Models — BloxSmith" }] }),
@@ -251,7 +253,7 @@ function ModelsPage() {
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {status.models.map((m: any) => (
-              <ModelCard key={m.id} m={m} />
+              <ModelCard key={m.id} m={m} projectId={projectId} onChange={() => qc.invalidateQueries({ queryKey: ["models3d", projectId] })} />
             ))}
           </div>
         )}
@@ -260,9 +262,29 @@ function ModelsPage() {
   );
 }
 
-function ModelCard({ m }: { m: any }) {
+function ModelCard({ m, projectId, onChange }: { m: any; projectId: string; onChange: () => void }) {
+  const animateFn = useServerFn(animateModel);
+  const [animBusy, setAnimBusy] = useState(false);
+  const [animErr, setAnimErr] = useState<string | null>(null);
+  const [picking, setPicking] = useState(false);
   const done = m.status === "SUCCEEDED" && m.model_url;
   const failed = m.status === "FAILED";
+  const isAnimation = m.mode === "animation";
+
+  async function runAnimate(anim: string) {
+    setAnimBusy(true);
+    setAnimErr(null);
+    try {
+      await animateFn({ data: { projectId, sourceId: m.id, animation: anim as any } });
+      setPicking(false);
+      onChange();
+    } catch (e) {
+      setAnimErr(e instanceof Error ? e.message : "Failed to start animation.");
+    } finally {
+      setAnimBusy(false);
+    }
+  }
+
   return (
     <div className="rounded-2xl border border-white/10 bg-white/[0.03] overflow-hidden">
       <div className="aspect-square bg-black/40 relative">
@@ -271,7 +293,8 @@ function ModelCard({ m }: { m: any }) {
           <model-viewer
             src={m.model_url}
             camera-controls
-            auto-rotate
+            auto-rotate={!isAnimation}
+            autoplay={isAnimation}
             ar
             style={{ width: "100%", height: "100%", background: "transparent" }}
           />
@@ -281,6 +304,11 @@ function ModelCard({ m }: { m: any }) {
           <div className="absolute inset-0 grid place-items-center text-muted-foreground">
             {failed ? <AlertCircle className="h-8 w-8 text-rose-400" /> : <Loader2 className="h-8 w-8 animate-spin" />}
           </div>
+        )}
+        {isAnimation && (
+          <span className="absolute top-2 left-2 inline-flex items-center gap-1 rounded-md bg-fuchsia-500/30 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-fuchsia-100 backdrop-blur">
+            <PlayCircle className="h-3 w-3" /> {m.animation_name ?? "animation"}
+          </span>
         )}
         {!done && !failed && (
           <div className="absolute bottom-0 left-0 right-0 bg-black/60 backdrop-blur-sm p-2">
@@ -298,17 +326,44 @@ function ModelCard({ m }: { m: any }) {
           {m.prompt || (m.mode === "image" ? "Image → 3D" : "Untitled")}
         </div>
         {failed && m.error && <div className="text-[11px] text-rose-300">{m.error}</div>}
+        {animErr && <div className="text-[11px] text-rose-300">{animErr}</div>}
         {done && (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <a href={m.model_url} target="_blank" rel="noopener noreferrer" download className="inline-flex items-center gap-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] px-2.5 py-1.5 text-[11px] font-semibold text-white">
               <Download className="h-3 w-3" /> GLB
             </a>
             <a href={m.model_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] px-2.5 py-1.5 text-[11px] font-semibold text-white">
               <ExternalLink className="h-3 w-3" /> Open
             </a>
+            {!isAnimation && (
+              <div className="relative">
+                <button
+                  onClick={() => setPicking((v) => !v)}
+                  disabled={animBusy}
+                  className="inline-flex items-center gap-1 rounded-lg bg-fuchsia-500/20 hover:bg-fuchsia-500/30 px-2.5 py-1.5 text-[11px] font-semibold text-fuchsia-200 disabled:opacity-50"
+                >
+                  {animBusy ? <Loader2 className="h-3 w-3 animate-spin" /> : <PlayCircle className="h-3 w-3" />}
+                  Animate
+                </button>
+                {picking && !animBusy && (
+                  <div className="absolute z-10 mt-1 right-0 w-36 rounded-lg border border-white/10 bg-black/90 backdrop-blur p-1 shadow-xl">
+                    {ANIMATION_PRESETS.map((a) => (
+                      <button
+                        key={a}
+                        onClick={() => runAnimate(a)}
+                        className="block w-full text-left rounded px-2 py-1.5 text-[11px] font-semibold text-white hover:bg-white/10 capitalize"
+                      >
+                        {a}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
     </div>
   );
 }
+

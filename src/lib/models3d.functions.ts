@@ -40,12 +40,14 @@ export const getModelStatus = createServerFn({ method: "GET" })
       .select("*")
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
-      .limit(20);
+      .limit(40);
 
     const projectRows = (rows || []).filter((r) => r.project_id === data.projectId);
-    const last = (rows || [])[0];
-    const lastTs = last ? new Date(last.created_at).getTime() : 0;
+    // 24h cooldown only counts NEW model generations, not animations of existing ones.
+    const lastNew = (rows || []).find((r) => r.mode === "text" || r.mode === "image");
+    const lastTs = lastNew ? new Date(lastNew.created_at).getTime() : 0;
     const remaining = Math.max(0, COOLDOWN_MS - (Date.now() - lastTs));
+
 
     return {
       cooldownMs: COOLDOWN_MS,
@@ -68,14 +70,16 @@ export const startModelGeneration = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
 
-    // 24h rate-limit (per user)
+    // 24h rate-limit (per user) — only counts text/image, not animations of existing models
     const { data: last } = await supabase
       .from("model_generations")
       .select("created_at")
       .eq("user_id", userId)
+      .in("mode", ["text", "image"])
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
+
 
     if (last) {
       const elapsed = Date.now() - new Date(last.created_at).getTime();
@@ -160,6 +164,8 @@ export const pollModelGeneration = createServerFn({ method: "POST" })
 
     const path = gen.mode === "image"
       ? `/v1/image-to-3d/${gen.task_id}`
+      : gen.mode === "animation"
+      ? `/v1/animations/${gen.task_id}`
       : `/v2/text-to-3d/${gen.task_id}`;
     let res: any;
     try {
@@ -187,6 +193,66 @@ export const pollModelGeneration = createServerFn({ method: "POST" })
       .select()
       .single();
     return updated ?? gen;
+  });
+
+export const ANIMATION_PRESETS = ["walking", "running", "dancing", "idle", "jumping"] as const;
+export type AnimationPreset = typeof ANIMATION_PRESETS[number];
+
+export const animateModel = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => z.object({
+    projectId: z.string().uuid(),
+    sourceId: z.string().uuid(),
+    animation: z.enum(ANIMATION_PRESETS),
+  }).parse(i))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: source } = await supabase
+      .from("model_generations")
+      .select("*")
+      .eq("id", data.sourceId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (!source) throw new Error("Source 3D model not found.");
+    if (source.status !== "SUCCEEDED" || !source.task_id) {
+      throw new Error("Source model must finish generating before it can be animated.");
+    }
+    if (source.mode === "animation") {
+      throw new Error("Pick an original 3D model to animate, not another animation.");
+    }
+
+    let taskId: string;
+    try {
+      const res = await meshyFetch("/v1/animations", {
+        method: "POST",
+        body: JSON.stringify({
+          input_task_id: source.task_id,
+          animation_name: data.animation,
+        }),
+      });
+      taskId = res.result;
+    } catch (e) {
+      throw new Error(`Meshy could not start the animation: ${e instanceof Error ? e.message : String(e)}`);
+    }
+
+    const promptLabel = `${data.animation.charAt(0).toUpperCase() + data.animation.slice(1)} — ${source.prompt ?? "model"}`;
+    const { data: row, error } = await supabase
+      .from("model_generations")
+      .insert({
+        user_id: userId,
+        project_id: data.projectId,
+        mode: "animation",
+        prompt: promptLabel,
+        task_id: taskId,
+        status: "PENDING",
+        progress: 0,
+        animation_name: data.animation,
+        parent_id: source.id,
+      })
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return row;
   });
 
 function formatRemaining(ms: number) {
