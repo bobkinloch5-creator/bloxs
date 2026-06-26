@@ -1,9 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { useState } from "react";
 import { getAdminOverview } from "@/lib/admin.functions";
+import { listPendingDonationClaims, decideDonationClaim } from "@/lib/donations.functions";
 import { ModelTestPanel } from "@/components/ModelTestPanel";
-import { Crown, ShieldCheck, Folder, MessageSquare, Plug, Settings, Sparkles, Loader2, AlertTriangle } from "lucide-react";
+import { Crown, ShieldCheck, Folder, MessageSquare, Plug, Settings, Sparkles, Loader2, AlertTriangle, Heart, Check, X } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({ meta: [{ title: "Owner Admin — BloxSmith" }] }),
