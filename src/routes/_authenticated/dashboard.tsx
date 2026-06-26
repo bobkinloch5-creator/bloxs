@@ -640,7 +640,7 @@ function ProjectCard({ p, onDelete }: { p: any; onDelete: (id: string) => void }
   const statusColor = needsFix ? "var(--bs-warning)" : isActive ? "var(--bs-success)" : "var(--bs-muted-fg)";
 
   return (
-    <div className="bs-card group relative overflow-hidden">
+    <div className="vapor-card group relative overflow-hidden">
       <div className="relative">
         <GameThumb type={p.game_type} className="h-44 w-full" />
         <span className="absolute left-3 top-3 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider backdrop-blur" style={{ background: "color-mix(in oklab, var(--bs-card) 70%, transparent)", color: statusColor, border: `1px solid ${statusColor}` }}>
