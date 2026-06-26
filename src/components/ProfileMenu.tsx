@@ -6,12 +6,14 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
   DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator,
+  DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent, DropdownMenuPortal,
 } from "@/components/ui/dropdown-menu";
 import {
   ChevronDown, Crown, Infinity as InfinityIcon, User, Settings, Folder,
-  Zap, LogOut, Timer, ExternalLink,
+  Zap, LogOut, Timer, ExternalLink, Languages, Check,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useLang, LANGUAGES } from "@/lib/i18n";
 
 function useResetTimer(resetAt?: string | null) {
   const [label, setLabel] = useState("");
