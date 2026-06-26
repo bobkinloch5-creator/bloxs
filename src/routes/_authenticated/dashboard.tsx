@@ -197,7 +197,7 @@ function Dashboard() {
   const [forceTour, setForceTour] = useState(false);
 
   return (
-    <div className={`${themeClass} min-h-screen w-full`} style={{ background: "var(--bs-bg)", color: "var(--bs-fg)" }}>
+    <div className={`${themeClass} min-h-screen w-full`} style={{ color: "var(--bs-fg)" }}>
       <OnboardingTour
         storageKey="bs-onboarding-dashboard"
         force={forceTour}

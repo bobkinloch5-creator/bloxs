@@ -19,7 +19,7 @@ function AdminPage() {
 
   if (isLoading) {
     return (
-      <div className="bloxchat-dark grid min-h-screen place-items-center" style={{ background: "var(--bs-bg)", color: "var(--bs-fg)" }}>
+      <div className="bloxchat-dark grid min-h-screen place-items-center" style={{ color: "var(--bs-fg)" }}>
         <div className="bs-card flex items-center gap-2 p-4 text-sm">
           <Loader2 className="h-4 w-4 animate-spin" style={{ color: "var(--bs-primary)" }} /> Checking owner access…
         </div>
@@ -29,7 +29,7 @@ function AdminPage() {
 
   if (error || !data) {
     return (
-      <div className="bloxchat-dark grid min-h-screen place-items-center px-4" style={{ background: "var(--bs-bg)", color: "var(--bs-fg)" }}>
+      <div className="bloxchat-dark grid min-h-screen place-items-center px-4" style={{ color: "var(--bs-fg)" }}>
         <div className="bs-card max-w-md p-6 text-center">
           <AlertTriangle className="mx-auto h-8 w-8" style={{ color: "var(--bs-warning)" }} />
           <h1 className="mt-3 text-xl font-extrabold">Admin panel unavailable</h1>
@@ -43,7 +43,7 @@ function AdminPage() {
   const name = data.profile?.display_name || data.profile?.username || "Owner";
 
   return (
-    <div className="bloxchat-dark min-h-screen" style={{ background: "var(--bs-bg)", color: "var(--bs-fg)" }}>
+    <div className="bloxchat-dark min-h-screen" style={{ color: "var(--bs-fg)" }}>
       <main className="mx-auto max-w-6xl space-y-6 px-4 py-6 sm:px-6">
         <section className="bs-card relative overflow-hidden p-6 sm:p-8">
           <div className="absolute inset-0 -z-10 opacity-60" style={{ background: "radial-gradient(800px 300px at 0% 0%, color-mix(in oklab, var(--bs-primary) 25%, transparent), transparent 60%)" }} />
