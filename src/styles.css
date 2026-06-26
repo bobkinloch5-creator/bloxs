@@ -139,53 +139,74 @@ body { font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
   background: var(--bs-bg);
 }
 .bloxchat-light {
-  --bs-bg: #f6f8fc;
-  --bs-fg: #0e1726;
-  --bs-muted-fg: #5b6779;
+  --bs-bg: #f6f7fc;
+  --bs-fg: #0a0a1a;
+  --bs-muted-fg: #5b6379;
   --bs-card: #ffffff;
-  --bs-card-2: #f1f4fa;
-  --bs-border: #e3e8f1;
-  --bs-border-strong: #cfd6e4;
-  --bs-primary: #2563eb;
+  --bs-card-2: #f1f2fa;
+  --bs-border: #e4e6f1;
+  --bs-border-strong: #cfd2e4;
+  --bs-primary: #4f46e5;
   --bs-primary-fg: #ffffff;
-  --bs-primary-soft: #e0ecff;
-  --bs-success: #16a34a;
-  --bs-warning: #d97706;
-  --bs-danger: #dc2626;
-  --bs-accent: #7c3aed;
-  --bs-ring: #93c5fd;
-  --bs-shadow: 0 1px 2px rgb(15 23 42 / 0.04), 0 8px 24px -12px rgb(15 23 42 / 0.10);
-  --bs-shadow-lg: 0 10px 40px -10px rgb(37 99 235 / 0.25);
-  --bs-grad: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
+  --bs-primary-soft: #e8e7ff;
+  --bs-success: #10b981;
+  --bs-warning: #f59e0b;
+  --bs-danger: #ef4444;
+  --bs-accent: #67e8f9;
+  --bs-ring: #a78bfa;
+  --bs-shadow: 0 1px 2px rgb(15 23 42 / 0.05), 0 8px 24px -12px rgb(79 70 229 / 0.20);
+  --bs-shadow-lg: 0 14px 48px -10px rgb(79 70 229 / 0.35);
+  --bs-grad: linear-gradient(135deg, #4f46e5 0%, #a78bfa 60%, #67e8f9 100%);
 }
 .bloxchat-grey {
-  --bs-bg: #0b0f17;
+  --bs-bg: #0a0a1a;
   --bs-fg: #f1f3f8;
-  --bs-muted-fg: #8a93a6;
-  --bs-card: #131826;
-  --bs-card-2: #0f1422;
-  --bs-border: #1f273a;
-  --bs-border-strong: #2b3550;
-  --bs-primary: #3b82f6;
+  --bs-muted-fg: #8a8fa6;
+  --bs-card: #111127;
+  --bs-card-2: #0d0d22;
+  --bs-border: rgba(79, 70, 229, 0.18);
+  --bs-border-strong: rgba(167, 139, 250, 0.35);
+  --bs-primary: #4f46e5;
   --bs-primary-fg: #ffffff;
-  --bs-primary-soft: #1c2e57;
+  --bs-primary-soft: rgba(79, 70, 229, 0.14);
   --bs-success: #34d399;
   --bs-warning: #fbbf24;
   --bs-danger: #f87171;
-  --bs-accent: #818cf8;
-  --bs-ring: #3b82f6;
-  --bs-shadow: 0 1px 2px rgb(0 0 0 / 0.5), 0 18px 40px -20px rgb(0 0 0 / 0.7);
-  --bs-shadow-lg: 0 14px 50px -12px rgb(59 130 246 / 0.45);
-  --bs-grad: linear-gradient(135deg, #3b82f6 0%, #6366f1 60%, #8b5cf6 100%);
+  --bs-accent: #67e8f9;
+  --bs-ring: #a78bfa;
+  --bs-shadow: 0 1px 2px rgb(0 0 0 / 0.6), 0 18px 48px -22px rgb(0 0 0 / 0.85);
+  --bs-shadow-lg: 0 18px 60px -10px rgb(79 70 229 / 0.55);
+  --bs-grad: linear-gradient(135deg, #4f46e5 0%, #a78bfa 55%, #67e8f9 100%);
 }
-.bloxchat-grey {
+.bloxchat-grey, .bloxchat-dark {
   background:
-    radial-gradient(1100px 600px at 20% -10%, rgba(59,130,246,0.20), transparent 60%),
-    radial-gradient(900px 500px at 100% 0%, rgba(139,92,246,0.14), transparent 55%),
-    radial-gradient(700px 500px at -10% 100%, rgba(56,189,248,0.10), transparent 55%),
-    var(--bs-bg);
+    radial-gradient(1100px 600px at 20% -10%, rgba(79,70,229,0.22), transparent 60%),
+    radial-gradient(900px 500px at 100% 0%, rgba(167,139,250,0.16), transparent 55%),
+    radial-gradient(700px 500px at -10% 100%, rgba(103,232,249,0.12), transparent 55%),
+    #0a0a1a;
   background-size: 200% 200%, 200% 200%, 200% 200%, auto;
   animation: bs-aurora 22s ease-in-out infinite alternate;
+}
+.bloxchat-dark {
+  --bs-bg: #0a0a1a;
+  --bs-fg: #f1f3f8;
+  --bs-muted-fg: #8a8fa6;
+  --bs-card: #111127;
+  --bs-card-2: #0d0d22;
+  --bs-border: rgba(79, 70, 229, 0.18);
+  --bs-border-strong: rgba(167, 139, 250, 0.35);
+  --bs-primary: #4f46e5;
+  --bs-primary-fg: #ffffff;
+  --bs-primary-soft: rgba(79, 70, 229, 0.14);
+  --bs-success: #34d399;
+  --bs-warning: #fbbf24;
+  --bs-danger: #f87171;
+  --bs-accent: #67e8f9;
+  --bs-ring: #a78bfa;
+  --bs-shadow: 0 1px 2px rgb(0 0 0 / 0.6), 0 18px 48px -22px rgb(0 0 0 / 0.85);
+  --bs-shadow-lg: 0 18px 60px -10px rgb(79 70 229 / 0.55);
+  --bs-grad: linear-gradient(135deg, #4f46e5 0%, #a78bfa 55%, #67e8f9 100%);
+  color: var(--bs-fg);
 }
 @keyframes bs-aurora {
   0%   { background-position: 0% 0%, 100% 0%, 0% 100%, 0 0; }
@@ -193,8 +214,8 @@ body { font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
 }
 .bloxchat-light {
   background:
-    radial-gradient(900px 500px at 10% -10%, rgba(59,130,246,0.08), transparent 60%),
-    radial-gradient(800px 500px at 100% 10%, rgba(99,102,241,0.06), transparent 60%),
+    radial-gradient(900px 500px at 10% -10%, rgba(79,70,229,0.08), transparent 60%),
+    radial-gradient(800px 500px at 100% 10%, rgba(167,139,250,0.06), transparent 60%),
     var(--bs-bg);
 }
 
