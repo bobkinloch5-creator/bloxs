@@ -8,7 +8,9 @@ export const Route = createFileRoute("/privacy")({
       { name: "description", content: "How BloxSmith collects, uses, and protects your data." },
       { property: "og:title", content: "Privacy Policy — BloxSmith" },
       { property: "og:description", content: "How we handle your data." },
+          { property: "og:url", content: "https://bloxsmith.pro/privacy" },
     ],
+    links: [{ rel: "canonical", href: "https://bloxsmith.pro/privacy" }],
   }),
   component: () => (
     <LegalShell title="Privacy Policy" updated="June 25, 2026">

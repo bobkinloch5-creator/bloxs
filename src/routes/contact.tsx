@@ -8,7 +8,9 @@ export const Route = createFileRoute("/contact")({
       { name: "description", content: "Get in touch with the BloxSmith team." },
       { property: "og:title", content: "Contact BloxSmith" },
       { property: "og:description", content: "Reach the BloxSmith team." },
+          { property: "og:url", content: "https://bloxsmith.pro/contact" },
     ],
+    links: [{ rel: "canonical", href: "https://bloxsmith.pro/contact" }],
   }),
   component: () => (
     <LegalShell title="Contact" updated="June 25, 2026">

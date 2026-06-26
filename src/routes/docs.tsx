@@ -8,7 +8,9 @@ export const Route = createFileRoute("/docs")({
       { name: "description", content: "Learn how to use BloxSmith: connect the Roblox Studio plugin, build with AI, and send actions to Studio." },
       { property: "og:title", content: "BloxSmith Docs" },
       { property: "og:description", content: "Plugin setup, AI chat, and project workflow." },
+          { property: "og:url", content: "https://bloxsmith.pro/docs" },
     ],
+    links: [{ rel: "canonical", href: "https://bloxsmith.pro/docs" }],
   }),
   component: () => (
     <LegalShell title="Docs" updated="June 25, 2026">

@@ -14,7 +14,11 @@ export const Route = createFileRoute("/")({
       { name: "description", content: "BloxSmith is the 100% free AI Roblox game builder. Describe your idea, AI builds scripts, maps, UI, and systems, and sends them straight to Roblox Studio." },
       { property: "og:title", content: "BloxSmith — AI Roblox Game Builder" },
       { property: "og:description", content: "Describe your idea. AI builds it. You play it." },
+      { property: "og:url", content: "https://bloxsmith.pro/" },
+      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/93711127-ddc1-4f97-b5db-0de4a83958ea" },
+      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/93711127-ddc1-4f97-b5db-0de4a83958ea" },
     ],
+    links: [{ rel: "canonical", href: "https://bloxsmith.pro/" }],
   }),
   component: Landing,
 });

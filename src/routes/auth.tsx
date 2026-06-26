@@ -5,7 +5,15 @@ import { lovable } from "@/integrations/lovable";
 import { Hammer, Loader2 } from "lucide-react";
 
 export const Route = createFileRoute("/auth")({
-  head: () => ({ meta: [{ title: "Sign in — BloxSmith" }] }),
+  head: () => ({
+    meta: [
+      { title: "Sign in — BloxSmith" },
+      { name: "description", content: "Sign in or create your free BloxSmith account to start building Roblox games with AI." },
+      { property: "og:title", content: "Sign in — BloxSmith" },
+      { property: "og:url", content: "https://bloxsmith.pro/auth" },
+    ],
+    links: [{ rel: "canonical", href: "https://bloxsmith.pro/auth" }],
+  }),
   component: AuthPage,
 });
 
