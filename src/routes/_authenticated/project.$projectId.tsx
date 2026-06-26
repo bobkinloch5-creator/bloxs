@@ -701,6 +701,7 @@ function BuildProgressCard({ stepIndex, onStop, onAction }: { stepIndex: number;
 function Composer({
   input, setInput, textareaRef, busy, token, autoExecute, setAutoExecute,
   onSubmit, onStop, onAction, modelId, setModelId,
+  ttsEnabled, setTtsEnabled, onVoiceTranscript,
 }: any) {
   return (
     <div
