@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getProject, listProjects } from "@/lib/projects.functions";
-import { listMessages, listProjectActions, getPluginSession } from "@/lib/chat.functions";
+import { listMessages, listProjectActions, getPluginSession, clearMessages } from "@/lib/chat.functions";
 import { getMyProfile } from "@/lib/profile.functions";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
@@ -77,6 +77,7 @@ function ProjectPage() {
   const actionsFn  = useServerFn(listProjectActions);
   const sessionFn  = useServerFn(getPluginSession);
   const profileFn  = useServerFn(getMyProfile);
+  const clearMessagesFn = useServerFn(clearMessages);
 
   const { data: project } = useQuery({ queryKey: ["project", projectId], queryFn: () => projectFn({ data: { id: projectId } }) });
   const { data: projects = [] } = useQuery({ queryKey: ["projects"], queryFn: () => projectsFn() });
@@ -323,6 +324,25 @@ function ProjectPage() {
               <div className="mx-auto flex max-w-3xl flex-col gap-5">
                 <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: "var(--bs-primary)" }}>
                   <Sparkles className="h-4 w-4" /> AI Chat
+                  <div className="flex-1" />
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!confirm("Clear this project's chat history and queued actions? This can't be undone.")) return;
+                      try {
+                        await clearMessagesFn({ data: { projectId } });
+                        await qc.invalidateQueries({ queryKey: ["messages", projectId] });
+                        await qc.invalidateQueries({ queryKey: ["actions", projectId] });
+                        window.location.reload();
+                      } catch (e) {
+                        alert("Failed to clear chat: " + (e instanceof Error ? e.message : String(e)));
+                      }
+                    }}
+                    className="bs-quick"
+                    title="Wipe chat memory and queued plugin actions for this project"
+                  >
+                    <RotateCcw className="h-3 w-3" /> Clear chat
+                  </button>
                 </div>
 
                 {messages.length === 0 && (

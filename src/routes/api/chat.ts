@@ -57,7 +57,7 @@ export const Route = createFileRoute("/api/chat")({
 
           const { data: project, error: projErr } = await supabase
             .from("projects")
-            .select("id, user_id")
+            .select("id, user_id, name, description, game_type, build_count")
             .eq("id", projectId)
             .maybeSingle();
           if (projErr || !project) return jsonError("Project not found or you don't have access to it.", 404, "project_not_found");
@@ -81,22 +81,60 @@ export const Route = createFileRoute("/api/chat")({
             return jsonError(e instanceof Error ? e.message : "Model unavailable", 500, "provider_init_failed");
           }
 
-          // Pull recent Studio context (latest game scan + unresolved errors) so the AI
-          // can fix what's broken and avoid duplicating what already exists.
+          // ── MEMORY + STUDIO CONTEXT ──
+          // Pull project metadata, recent builds, latest game scan, recent errors,
+          // and existing queued actions so the AI knows what already exists and
+          // doesn't rebuild or duplicate things across turns.
           let contextBlock = "";
           try {
-            const { data: session } = await supabase
-              .from("plugin_sessions")
-              .select("last_scan, last_scan_at, online")
-              .eq("user_id", userId)
-              .maybeSingle();
-            const { data: recentErrors } = await supabase
-              .from("studio_errors")
-              .select("level, source, message, created_at")
-              .eq("user_id", userId)
-              .order("created_at", { ascending: false })
-              .limit(15);
+            const [{ data: session }, { data: recentErrors }, { data: recentBuilds }, { data: existingActions }] = await Promise.all([
+              supabase
+                .from("plugin_sessions")
+                .select("last_scan, last_scan_at, online")
+                .eq("user_id", userId)
+                .maybeSingle(),
+              supabase
+                .from("studio_errors")
+                .select("level, source, message, created_at")
+                .eq("user_id", userId)
+                .order("created_at", { ascending: false })
+                .limit(15),
+              supabase
+                .from("build_history")
+                .select("prompt, files_count, created_at")
+                .eq("project_id", projectId)
+                .order("created_at", { ascending: false })
+                .limit(10),
+              supabase
+                .from("plugin_actions")
+                .select("kind, name, parent_path, status")
+                .eq("project_id", projectId)
+                .order("created_at", { ascending: false })
+                .limit(40),
+            ]);
+
             const parts: string[] = [];
+            parts.push(
+              `PROJECT MEMORY:\n- Name: ${project.name ?? "(unnamed)"}\n- Type: ${project.game_type ?? "(unspecified)"}\n- Description: ${project.description ?? "(none)"}\n- Total builds so far: ${project.build_count ?? 0}`,
+            );
+            if (recentBuilds && recentBuilds.length > 0) {
+              parts.push(
+                `RECENT USER REQUESTS in this project (newest first) — do NOT redo these unless asked, build ON TOP of them:\n${recentBuilds.map((b) => `• ${new Date(b.created_at).toISOString().slice(0, 10)} (${b.files_count} actions): ${String(b.prompt).slice(0, 200)}`).join("\n")}`,
+              );
+            }
+            if (existingActions && existingActions.length > 0) {
+              const byKind = existingActions.reduce<Record<string, string[]>>((acc, a) => {
+                const k = a.kind ?? "unknown";
+                (acc[k] ||= []).push(`${a.parent_path}.${a.name}`);
+                return acc;
+              }, {});
+              const summary = Object.entries(byKind)
+                .map(([k, names]) => `  ${k}: ${names.slice(0, 12).join(", ")}${names.length > 12 ? ` (+${names.length - 12} more)` : ""}`)
+                .join("\n");
+              parts.push(
+                `ALREADY-QUEUED/BUILT INSTANCES in this project (avoid duplicating — modify via set_properties / rename / delete instead):\n${summary}`,
+              );
+            }
             if (session?.last_scan) {
               const scanStr = JSON.stringify(session.last_scan);
               parts.push(
@@ -111,9 +149,7 @@ export const Route = createFileRoute("/api/chat")({
                 `RECENT ROBLOX STUDIO OUTPUT (newest first). If any of these were caused by your previous builds, emit corrected actions to fix them in this response:\n${errLines}`,
               );
             }
-            if (parts.length > 0) {
-              contextBlock = "\n\n---\nSTUDIO CONTEXT (injected automatically by the plugin):\n\n" + parts.join("\n\n---\n");
-            }
+            contextBlock = "\n\n---\nLIVE CONTEXT (auto-injected memory + Studio state):\n\n" + parts.join("\n\n---\n");
           } catch (e) {
             console.warn("[chat] failed to load studio context", e);
           }
