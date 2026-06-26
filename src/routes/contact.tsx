@@ -14,18 +14,10 @@ export const Route = createFileRoute("/contact")({
   }),
   component: () => (
     <LegalShell title="Contact" updated="June 25, 2026">
-      <p>We read every message. Choose the channel that fits.</p>
-
-      <h2>General questions & support</h2>
-      <p>Email: <a href="mailto:hello@bloxsmith.app" className="text-blue-400 hover:underline">hello@bloxsmith.app</a></p>
-
-      <h2>Privacy & account requests</h2>
-      <p>Email: <a href="mailto:privacy@bloxsmith.app" className="text-blue-400 hover:underline">privacy@bloxsmith.app</a></p>
+      <p>We read every message. The fastest way to reach us is our Discord community.</p>
 
       <h2>Community</h2>
       <p><a href="https://discord.gg/6QDYT3RUkv" target="_blank" rel="noreferrer" className="text-blue-400 hover:underline">Discord server</a> — ask other builders, share what you're working on.</p>
-
-      <p className="mt-8 text-xs text-slate-500">Email addresses above are placeholders that the project owner should replace before launch.</p>
     </LegalShell>
   ),
 });
