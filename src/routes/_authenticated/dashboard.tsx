@@ -42,7 +42,9 @@ const THUMBS: Record<string, string> = {
   custom: thumbCustom,
 };
 import { OnboardingTour } from "@/components/OnboardingTour";
+import { MobileNavTrigger } from "@/components/MobileNav";
 import { supabase } from "@/integrations/supabase/client";
+
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({ meta: [{ title: "Projects — BloxSmith" }] }),
