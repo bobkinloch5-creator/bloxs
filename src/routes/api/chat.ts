@@ -223,6 +223,7 @@ export const Route = createFileRoute("/api/chat")({
           const modeHeader = `\n\n[MODE: ${mode}]\n${mode === "chat"
             ? "The user is BRAINSTORMING — respond conversationally and DO NOT emit any bloxsmith-actions block. Help them think, plan, and explore ideas."
             : "The user wants you to BUILD — emit a bloxsmith-actions block at the end with ONLY what they explicitly asked for, polished to the premium quality bar."}\n`;
+          const languageHeader = `\n[LANGUAGE: ${languageCode} / ${languageName}]\nRespond ENTIRELY in ${languageName}. Translate every sentence, heading, button name, status message, error message, and explanation into natural, fluent, idiomatic ${languageName}. Keep code identifiers, Roblox API names (Instance class names, services, property names like Workspace, Part, ScreenGui, HumanoidRootPart), and the bloxsmith-actions block contents in English exactly as required by Roblox. Translate UI strings the player will see (TextLabel.Text, button text, GUI titles, error notifications shown to players) into ${languageName}. Markdown formatting stays the same.\n`;
           const tryStream = (
             model: typeof modelChoice.model,
             usedModelId: string,
