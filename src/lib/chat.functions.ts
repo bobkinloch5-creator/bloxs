@@ -39,3 +39,23 @@ export const getPluginSession = createServerFn({ method: "GET" })
       .maybeSingle();
     return data;
   });
+
+export const clearMessages = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ projectId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    // Wipe chat memory + queued/pending plugin actions for this project.
+    const { error: e1 } = await context.supabase
+      .from("chat_messages")
+      .delete()
+      .eq("project_id", data.projectId)
+      .eq("user_id", context.userId);
+    if (e1) throw new Error(e1.message);
+    const { error: e2 } = await context.supabase
+      .from("plugin_actions")
+      .delete()
+      .eq("project_id", data.projectId)
+      .eq("user_id", context.userId);
+    if (e2) throw new Error(e2.message);
+    return { ok: true };
+  });
