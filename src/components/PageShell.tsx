@@ -13,6 +13,7 @@ const NAV: { key: string; label: string; to: string; icon: typeof Folder; accent
   { key: "chat",  label: "AI Chat",       to: "/chat",           icon: MessageSquare,   accent: "chat" },
   { key: "ideas", label: "Game Ideas",    to: "/ideas",          icon: Lightbulb,       accent: "ideas" },
   { key: "ui",    label: "UI Generator",  to: "/ui-generator",   icon: LayoutDashboard, accent: "ui" },
+  { key: "models", label: "3D Models",    to: "/models",         icon: Box,             accent: "chat" },
   { key: "co",    label: "Collaborators", to: "/collaborators",  icon: Users,           accent: "collaborators" },
   { key: "plug",  label: "Studio Plugin", to: "/plugin",         icon: Plug,            accent: "plugin" },
   { key: "mcp",   label: "MCP / Tools",   to: "/mcp",            icon: Wand2,           accent: "mcp" },
