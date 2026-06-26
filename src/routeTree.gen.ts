@@ -20,6 +20,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
+import { Route as AuthenticatedVoiceRouteImport } from './routes/_authenticated/voice'
 import { Route as AuthenticatedUiGeneratorRouteImport } from './routes/_authenticated/ui-generator'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedPluginRouteImport } from './routes/_authenticated/plugin'
@@ -96,6 +97,11 @@ const ApiChatRoute = ApiChatRouteImport.update({
   id: '/api/chat',
   path: '/api/chat',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedVoiceRoute = AuthenticatedVoiceRouteImport.update({
+  id: '/voice',
+  path: '/voice',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedUiGeneratorRoute =
   AuthenticatedUiGeneratorRouteImport.update({
@@ -235,6 +241,7 @@ export interface FileRoutesByFullPath {
   '/plugin': typeof AuthenticatedPluginRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/ui-generator': typeof AuthenticatedUiGeneratorRoute
+  '/voice': typeof AuthenticatedVoiceRoute
   '/api/chat': typeof ApiChatRoute
   '/models/$projectId': typeof AuthenticatedModelsProjectIdRoute
   '/project/$projectId': typeof AuthenticatedProjectProjectIdRoute
@@ -269,6 +276,7 @@ export interface FileRoutesByTo {
   '/plugin': typeof AuthenticatedPluginRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/ui-generator': typeof AuthenticatedUiGeneratorRoute
+  '/voice': typeof AuthenticatedVoiceRoute
   '/api/chat': typeof ApiChatRoute
   '/models/$projectId': typeof AuthenticatedModelsProjectIdRoute
   '/project/$projectId': typeof AuthenticatedProjectProjectIdRoute
@@ -305,6 +313,7 @@ export interface FileRoutesById {
   '/_authenticated/plugin': typeof AuthenticatedPluginRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/ui-generator': typeof AuthenticatedUiGeneratorRoute
+  '/_authenticated/voice': typeof AuthenticatedVoiceRoute
   '/api/chat': typeof ApiChatRoute
   '/_authenticated/models/$projectId': typeof AuthenticatedModelsProjectIdRoute
   '/_authenticated/project/$projectId': typeof AuthenticatedProjectProjectIdRoute
@@ -341,6 +350,7 @@ export interface FileRouteTypes {
     | '/plugin'
     | '/settings'
     | '/ui-generator'
+    | '/voice'
     | '/api/chat'
     | '/models/$projectId'
     | '/project/$projectId'
@@ -375,6 +385,7 @@ export interface FileRouteTypes {
     | '/plugin'
     | '/settings'
     | '/ui-generator'
+    | '/voice'
     | '/api/chat'
     | '/models/$projectId'
     | '/project/$projectId'
@@ -410,6 +421,7 @@ export interface FileRouteTypes {
     | '/_authenticated/plugin'
     | '/_authenticated/settings'
     | '/_authenticated/ui-generator'
+    | '/_authenticated/voice'
     | '/api/chat'
     | '/_authenticated/models/$projectId'
     | '/_authenticated/project/$projectId'
@@ -523,6 +535,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/chat'
       preLoaderRoute: typeof ApiChatRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/voice': {
+      id: '/_authenticated/voice'
+      path: '/voice'
+      fullPath: '/voice'
+      preLoaderRoute: typeof AuthenticatedVoiceRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/ui-generator': {
       id: '/_authenticated/ui-generator'
@@ -705,6 +724,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedPluginRoute: typeof AuthenticatedPluginRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedUiGeneratorRoute: typeof AuthenticatedUiGeneratorRoute
+  AuthenticatedVoiceRoute: typeof AuthenticatedVoiceRoute
   AuthenticatedProjectProjectIdRoute: typeof AuthenticatedProjectProjectIdRoute
 }
 
@@ -721,6 +741,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedPluginRoute: AuthenticatedPluginRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedUiGeneratorRoute: AuthenticatedUiGeneratorRoute,
+  AuthenticatedVoiceRoute: AuthenticatedVoiceRoute,
   AuthenticatedProjectProjectIdRoute: AuthenticatedProjectProjectIdRoute,
 }
 
