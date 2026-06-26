@@ -564,7 +564,9 @@ function TopBar({
       className="flex items-center gap-2 border-b px-3 py-2.5 sm:px-5"
       style={{ borderColor: "var(--bs-border)", background: "var(--bs-card)" }}
     >
+      <MobileNavTrigger isAdmin={isAdmin} className="md:hidden" />
       {/* Project selector */}
+
       <div className="bs-soft flex min-w-0 items-center gap-2 px-2.5 py-1.5">
         <Folder className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--bs-muted-fg)" }} />
         <div className="hidden text-[10px] uppercase tracking-wider sm:block" style={{ color: "var(--bs-muted-fg)" }}>Project</div>
