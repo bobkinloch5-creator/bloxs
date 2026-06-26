@@ -93,9 +93,82 @@ function AdminPage() {
           </div>
         </section>
 
+        <DonationClaimsPanel />
+
         <ModelTestPanel />
       </main>
     </div>
+  );
+}
+
+function DonationClaimsPanel() {
+  const qc = useQueryClient();
+  const listFn = useServerFn(listPendingDonationClaims);
+  const decideFn = useServerFn(decideDonationClaim);
+  const { data, isLoading, error } = useQuery({ queryKey: ["pendingDonationClaims"], queryFn: () => listFn(), retry: false });
+  const [noteById, setNoteById] = useState<Record<string, string>>({});
+
+  const decide = useMutation({
+    mutationFn: (args: { id: string; approve: boolean }) => decideFn({ data: { id: args.id, approve: args.approve, note: noteById[args.id] || "" } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["pendingDonationClaims"] }),
+  });
+
+  const claims = data?.claims ?? [];
+  const pending = claims.filter((c: any) => c.status === "pending");
+
+  return (
+    <section className="bs-card p-5">
+      <h2 className="flex items-center gap-2 text-lg font-bold"><Heart className="h-4 w-4" style={{ color: "var(--bs-warning)" }} /> Donation claims {pending.length > 0 && <span className="bs-chip" style={{ color: "var(--bs-warning)" }}>{pending.length} pending</span>}</h2>
+      <p className="mt-1 text-xs" style={{ color: "var(--bs-muted-fg)" }}>Approve to grant the user the <strong>Donator</strong> role.</p>
+
+      {isLoading ? (
+        <div className="mt-4 flex items-center gap-2 text-xs"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading…</div>
+      ) : error ? (
+        <div className="mt-4 text-xs text-red-300">{(error as Error).message}</div>
+      ) : claims.length === 0 ? (
+        <div className="mt-4 text-xs" style={{ color: "var(--bs-muted-fg)" }}>No donation claims yet.</div>
+      ) : (
+        <ul className="mt-4 space-y-3">
+          {claims.map((c: any) => (
+            <li key={c.id} className="rounded-xl border p-3 text-sm" style={{ borderColor: "var(--bs-border)", background: "var(--bs-card-2)" }}>
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="font-semibold">{c.profile?.display_name || c.profile?.username || c.user_id}</div>
+                  <div className="font-mono text-xs" style={{ color: "var(--bs-muted-fg)" }}>{c.paypal_reference}</div>
+                  {c.amount_note && <div className="mt-1 text-xs" style={{ color: "var(--bs-muted-fg)" }}>{c.amount_note}</div>}
+                </div>
+                <span className="bs-chip" style={{ color: c.status === "approved" ? "var(--bs-success)" : c.status === "rejected" ? "var(--bs-danger)" : "var(--bs-warning)" }}>{c.status}</span>
+              </div>
+              {c.status === "pending" && (
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <input
+                    placeholder="Optional admin note"
+                    value={noteById[c.id] ?? ""}
+                    onChange={(e) => setNoteById((m) => ({ ...m, [c.id]: e.target.value }))}
+                    className="min-w-[180px] flex-1 rounded-lg border px-2 py-1 text-xs"
+                    style={{ borderColor: "var(--bs-border)", background: "var(--bs-card)" }}
+                  />
+                  <button
+                    onClick={() => decide.mutate({ id: c.id, approve: true })}
+                    disabled={decide.isPending}
+                    className="inline-flex items-center gap-1 rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-400 disabled:opacity-60"
+                  >
+                    <Check className="h-3.5 w-3.5" /> Approve
+                  </button>
+                  <button
+                    onClick={() => decide.mutate({ id: c.id, approve: false })}
+                    disabled={decide.isPending}
+                    className="inline-flex items-center gap-1 rounded-lg bg-red-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-400 disabled:opacity-60"
+                  >
+                    <X className="h-3.5 w-3.5" /> Reject
+                  </button>
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 
