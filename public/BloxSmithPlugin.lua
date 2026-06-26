@@ -18,7 +18,7 @@ local InsertService         = game:GetService("InsertService")
 
 local API_BASE       = "https://bloxsmith.pro"
 local POLL_INTERVAL  = 4
-local PLUGIN_VERSION = "1.4.0"
+local PLUGIN_VERSION = "1.5.0"
 
 ------------------------------------------------------------------- token helpers
 local TOKEN_KEY = "token"
@@ -94,7 +94,7 @@ linkBox.Parent = main
 
 -- control buttons grid (2 rows x 3 cols)
 local controls = Instance.new("Frame")
-controls.Position = UDim2.new(0,12,0,216); controls.Size = UDim2.new(1,-24,0,64)
+controls.Position = UDim2.new(0,12,0,216); controls.Size = UDim2.new(1,-24,0,98)
 controls.BackgroundTransparency = 1; controls.Parent = main
 local grid = Instance.new("UIGridLayout", controls)
 grid.CellPadding = UDim2.new(0,6,0,6)
@@ -117,10 +117,13 @@ local execBtn      = ctrlBtn("Run Queue", 3)
 local clearBtn     = ctrlBtn("Clear Queue", 4)
 local errorsBtn    = ctrlBtn("View Errors", 5)
 local openWebBtn   = ctrlBtn("Open Website", 6)
+local scanBtn      = ctrlBtn("Scan Game", 7)
+local sendErrBtn   = ctrlBtn("Send Errors", 8)
+local autoErrBtn   = ctrlBtn("Auto-Send: ON", 9)
 
 ------------------------------------------------------------------- log
 local logBar = Instance.new("Frame")
-logBar.Position = UDim2.new(0,12,0,288); logBar.Size = UDim2.new(1,-24,0,22)
+logBar.Position = UDim2.new(0,12,0,322); logBar.Size = UDim2.new(1,-24,0,22)
 logBar.BackgroundTransparency = 1; logBar.Parent = main
 
 local logTitle = Instance.new("TextLabel")
@@ -145,7 +148,7 @@ local clearLogBtn = miniBtn("Clear", -66)
 local verboseBtn  = miniBtn("Verbose", -132)
 
 local logFrame = Instance.new("ScrollingFrame")
-logFrame.Position = UDim2.new(0,12,0,314); logFrame.Size = UDim2.new(1,-24,1,-326)
+logFrame.Position = UDim2.new(0,12,0,348); logFrame.Size = UDim2.new(1,-24,1,-360)
 logFrame.BackgroundColor3 = Color3.fromRGB(14,16,22); logFrame.BorderSizePixel = 0
 logFrame.CanvasSize = UDim2.new(0,0,0,0); logFrame.ScrollBarThickness = 4
 logFrame.Parent = main
@@ -746,6 +749,110 @@ openWebBtn.MouseButton1Click:Connect(function()
         log("Copied " .. API_BASE .. "/plugin to clipboard — paste into your browser.", "info")
     else
         log("Open " .. API_BASE .. "/plugin in your browser.", "info")
+    end
+end)
+
+------------------------------------------------------------------- scan game tree
+local SCAN_ROOTS = {
+    "Workspace", "ServerScriptService", "ServerStorage", "ReplicatedStorage",
+    "ReplicatedFirst", "StarterGui", "StarterPack", "StarterPlayer",
+    "Lighting", "SoundService", "Teams",
+}
+local function scanInstance(inst, depth, maxDepth, budget)
+    if budget.count >= budget.max then return nil end
+    budget.count += 1
+    local node = { name = inst.Name, class = inst.ClassName }
+    if depth < maxDepth then
+        local kids = inst:GetChildren()
+        if #kids > 0 then
+            node.children = {}
+            for i, c in ipairs(kids) do
+                if i > 80 then node.truncated = true; break end
+                local child = scanInstance(c, depth + 1, maxDepth, budget)
+                if child then table.insert(node.children, child) end
+            end
+        end
+    end
+    return node
+end
+local function buildScan()
+    local budget = { count = 0, max = 2000 }
+    local roots = {}
+    for _, svcName in ipairs(SCAN_ROOTS) do
+        local ok, svc = pcall(function() return game:GetService(svcName) end)
+        if ok and svc then
+            local node = scanInstance(svc, 0, 4, budget)
+            if node then table.insert(roots, node) end
+        end
+    end
+    return { place_id = tostring(game.PlaceId or 0), built_at = os.time(), roots = roots, sampled = budget.count }
+end
+
+scanBtn.MouseButton1Click:Connect(function()
+    local token = validToken()
+    if not token then log("Not connected — click Connect first.", "warn"); return end
+    log("Scanning game tree…", "info")
+    local scan = buildScan()
+    log(("Scanned %d instance(s) across %d service(s)."):format(scan.sampled, #scan.roots), "debug")
+    local data, err = post("/api/public/plugin/scan", {
+        token = token, place_id = tostring(game.PlaceId or 0), scan = scan,
+    }, { verbose = true })
+    if err then log("Scan upload failed: " .. err, "error")
+    else log("✓ Scan uploaded. AI will see this on your next message.", "success") end
+end)
+
+------------------------------------------------------------------- error capture (LogService → API)
+local LogService = game:GetService("LogService")
+local AUTO_SEND_ERRORS = true
+local errorQueue, lastErrFlush = {}, 0
+
+local function classifyLevel(msgType)
+    if msgType == Enum.MessageType.MessageError then return "error"
+    elseif msgType == Enum.MessageType.MessageWarning then return "warn"
+    else return nil end
+end
+
+LogService.MessageOut:Connect(function(message, msgType)
+    local lvl = classifyLevel(msgType)
+    if not lvl then return end
+    -- skip our own plugin log lines to avoid feedback loops
+    if string.find(message, "[BloxSmith]", 1, true) then return end
+    table.insert(errorQueue, { source = "Roblox", level = lvl, message = message })
+    if #errorQueue > 50 then table.remove(errorQueue, 1) end
+end)
+
+local function flushErrors(manual)
+    local token = validToken()
+    if not token then if manual then log("Not connected.", "warn") end; return end
+    if #errorQueue == 0 then if manual then log("No errors to send.", "success") end; return end
+    local batch = {}
+    for _, e in ipairs(errorQueue) do table.insert(batch, e) end
+    table.clear(errorQueue)
+    local data, err = post("/api/public/plugin/error", { token = token, errors = batch }, { verbose = false })
+    if err then
+        log("Error upload failed: " .. err, "error")
+        -- requeue so we can retry
+        for _, e in ipairs(batch) do table.insert(errorQueue, e) end
+    else
+        log(("✓ Sent %d Studio error(s) — AI will use these to fix on next message."):format(#batch), "success")
+    end
+end
+
+sendErrBtn.MouseButton1Click:Connect(function() flushErrors(true) end)
+autoErrBtn.MouseButton1Click:Connect(function()
+    AUTO_SEND_ERRORS = not AUTO_SEND_ERRORS
+    autoErrBtn.Text = "Auto-Send: " .. (AUTO_SEND_ERRORS and "ON" or "OFF")
+    autoErrBtn.BackgroundColor3 = AUTO_SEND_ERRORS and Color3.fromRGB(45,48,58) or Color3.fromRGB(80,50,50)
+    log("Auto error upload " .. (AUTO_SEND_ERRORS and "enabled" or "disabled"), "debug")
+end)
+
+task.spawn(function()
+    while true do
+        task.wait(15)
+        if AUTO_SEND_ERRORS and connected and #errorQueue > 0 and os.clock() - lastErrFlush > 10 then
+            lastErrFlush = os.clock()
+            pcall(flushErrors, false)
+        end
     end
 end)
 
