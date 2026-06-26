@@ -241,7 +241,7 @@ export type AnimationPreset = typeof ANIMATION_PRESETS[number];
 export const animateModel = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => z.object({
-    projectId: z.string().uuid(),
+    projectId: z.string().uuid().optional(),
     sourceId: z.string().uuid(),
     animation: z.enum(ANIMATION_PRESETS),
   }).parse(i))
