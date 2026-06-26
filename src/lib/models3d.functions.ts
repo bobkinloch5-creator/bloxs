@@ -164,6 +164,8 @@ export const pollModelGeneration = createServerFn({ method: "POST" })
 
     const path = gen.mode === "image"
       ? `/v1/image-to-3d/${gen.task_id}`
+      : gen.mode === "animation"
+      ? `/v1/animations/${gen.task_id}`
       : `/v2/text-to-3d/${gen.task_id}`;
     let res: any;
     try {
