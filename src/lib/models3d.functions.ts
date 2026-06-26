@@ -262,5 +262,3 @@ function formatRemaining(ms: number) {
   if (m > 0) return `${m}m`;
   return `${Math.ceil(ms / 1000)}s`;
 }
-
-}
