@@ -515,6 +515,9 @@ function HeroCard({ onNewProject, onTemplate, onPrompt }: { onNewProject: () => 
           </div>
 
           <div className="mt-3 flex flex-wrap gap-2">
+            <Link to="/voice" className="bs-quick" style={{ borderColor: "color-mix(in oklab, var(--bs-primary) 60%, transparent)", color: "var(--bs-primary)", background: "var(--bs-primary-soft)" }}>
+              <Radio className="h-3 w-3" /> Talk to AI (Voice)
+            </Link>
             <button onClick={onTemplate} className="bs-quick"><LayoutDashboard className="h-3 w-3" /> Start From Template</button>
             <button onClick={onNewProject} className="bs-quick"><Plus className="h-3 w-3" /> New Project</button>
             <Link to="/plugin" className="bs-quick"><Play className="h-3 w-3" /> Open Studio Plugin</Link>
