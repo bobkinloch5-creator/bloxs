@@ -893,8 +893,15 @@ task.spawn(function()
     while true do
         task.wait(POLL_INTERVAL)
         if connected then
-            local ok, err = pcall(pollOnce)
-            if not ok then log("Poll loop crashed: " .. tostring(err), "error") end
+            -- Drain: keep polling immediately while the server has work queued.
+            for _ = 1, 8 do
+                local ok, errOrCount = pcall(pollOnce)
+                if not ok then
+                    log("Poll loop crashed: " .. tostring(errOrCount), "error")
+                    break
+                end
+                if (errOrCount or 0) == 0 then break end
+            end
         end
     end
 end)
