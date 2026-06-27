@@ -759,6 +759,20 @@ Exec.insert_asset = function(a, p)
             end
         end
     end
+    pcall(function()
+        inserted:SetAttribute("BloxSmithAssetId", usedId)
+        inserted:SetAttribute("BloxSmithRequestedAssetId", id)
+        inserted:SetAttribute("BloxSmithToolboxOnly", payload.toolbox_only == true or payload.free_only == true)
+        inserted:SetAttribute("BloxSmithProceduralFallbackDisabled", payload.disable_procedural_fallback ~= false)
+        if payload.asset_name then inserted:SetAttribute("BloxSmithAssetName", tostring(payload.asset_name)) end
+        if payload.creator_name then inserted:SetAttribute("BloxSmithCreatorName", tostring(payload.creator_name)) end
+        if payload.source_query then inserted:SetAttribute("BloxSmithSourceQuery", tostring(payload.source_query)) end
+        if payload.placement_role then inserted:SetAttribute("BloxSmithPlacementRole", tostring(payload.placement_role)) end
+        if payload.district then inserted:SetAttribute("BloxSmithDistrict", tostring(payload.district)) end
+        if payload.quality_tier then inserted:SetAttribute("BloxSmithQualityTier", tostring(payload.quality_tier)) end
+        if payload.safety_score then inserted:SetAttribute("BloxSmithSafetyScore", tonumber(payload.safety_score) or 0) end
+        if payload.relevance_score then inserted:SetAttribute("BloxSmithRelevanceScore", tonumber(payload.relevance_score) or 0) end
+    end)
     local noScripts = payload.no_scripts ~= false and payload.allow_scripts ~= true
     local safetyReport = inspectInsertedAsset(inserted, { no_scripts = noScripts })
     if safetyReport.quarantined > 0 then

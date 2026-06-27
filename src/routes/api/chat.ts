@@ -508,6 +508,64 @@ function isToolboxMapRequest(userText: string) {
   return /\b(map|world|city|town|village|lobby|hub|spawn|obby|parkour|race\s*track|racing|forest|island|beach|roleplay|rp|tycoon|horror|dungeon|rpg|street|road|neighborhood|theme\s*park|arena)\b/i.test(userText);
 }
 
+const CITY_VARIANTS = [
+  {
+    name: "modern downtown",
+    terms: [
+      ["road grid", "modular city road kit", true, 8],
+      ["downtown buildings", "modern city building pack", true, 8],
+      ["street props", "street light traffic sign sidewalk", false, 6],
+      ["city vehicles", "city car vehicle pack", false, 6],
+      ["park decor", "city park trees benches", false, 5],
+    ],
+  },
+  {
+    name: "roleplay neighborhood",
+    terms: [
+      ["neighborhood roads", "suburban road neighborhood", true, 8],
+      ["houses", "suburban house pack", true, 8],
+      ["shops", "roleplay shop storefront", false, 6],
+      ["vehicles", "roleplay car vehicle", false, 6],
+      ["decor", "street signs mailbox tree", false, 5],
+    ],
+  },
+  {
+    name: "small town",
+    terms: [
+      ["town roads", "small town road kit", true, 8],
+      ["town buildings", "small town building pack", true, 8],
+      ["shops", "town shop storefront", false, 6],
+      ["town props", "lamp post bench sign", false, 6],
+      ["town park", "park tree bench fountain", false, 5],
+    ],
+  },
+  {
+    name: "coastal city",
+    terms: [
+      ["coastal roads", "coastal city road", true, 8],
+      ["coastal buildings", "coastal city building", true, 8],
+      ["beach props", "beach palm tree boardwalk", false, 6],
+      ["cars", "city car vehicle", false, 6],
+      ["waterfront decor", "pier dock city", false, 5],
+    ],
+  },
+  {
+    name: "industrial district",
+    terms: [
+      ["industrial roads", "industrial road kit", true, 8],
+      ["industrial buildings", "warehouse factory building", true, 8],
+      ["props", "industrial crate barrel pallet", false, 6],
+      ["vehicles", "truck vehicle industrial", false, 6],
+      ["lights", "street light industrial", false, 5],
+    ],
+  },
+];
+
+function pickMapVariant(userText: string) {
+  const seed = Array.from(userText).reduce((acc, ch) => ((acc * 31) + ch.charCodeAt(0)) >>> 0, Date.now() & 0xffff);
+  return CITY_VARIANTS[seed % CITY_VARIANTS.length];
+}
+
 function toolboxMapRequests(userText: string): ToolboxSetRequest[] {
   const text = userText.toLowerCase();
   const requests: ToolboxSetRequest[] = [];
@@ -522,13 +580,14 @@ function toolboxMapRequests(userText: string): ToolboxSetRequest[] {
     return requests;
   }
 
-  add("complete map kit", `${userText.slice(0, 80)} map kit`, true, 6);
-
   if (/\b(city|town|roleplay|rp|neighborhood|street|road)\b/.test(text)) {
-    add("city map kit", "city map kit", true, 6);
-    add("road kit", "modular road kit", true, 6);
-    add("buildings", "city building pack", true, 6);
-    add("street props", "street light traffic sign sidewalk", false, 5);
+    const variant = pickMapVariant(userText);
+    add(`${variant.name} map kit`, `${variant.name} city map kit`, true, 8);
+    for (const [label, keyword, required, limit] of variant.terms) {
+      add(label, keyword, Boolean(required), Number(limit));
+    }
+  } else {
+    add("complete map kit", `${userText.slice(0, 80)} map kit`, true, 6);
   }
 
   if (/\b(lobby|hub|spawn)\b/.test(text)) {
@@ -594,13 +653,48 @@ async function toolboxMapStudioActions(userText: string) {
     const usedIds = new Set<number>();
     const actions = [];
     let slot = 0;
+    const placementSlots = [
+      { position: [0, 4, 0], yaw: 0, role: "map_core", district: "Core" },
+      { position: [0, 4, -130], yaw: 0, role: "road", district: "Roads" },
+      { position: [0, 4, 130], yaw: 90, role: "road", district: "Roads" },
+      { position: [-135, 4, -70], yaw: 0, role: "building", district: "WestBlock" },
+      { position: [135, 4, -70], yaw: 180, role: "building", district: "EastBlock" },
+      { position: [-135, 4, 95], yaw: 0, role: "shop", district: "WestBlock" },
+      { position: [135, 4, 95], yaw: 180, role: "building", district: "EastBlock" },
+      { position: [-42, 4, 205], yaw: 0, role: "park", district: "Park" },
+      { position: [42, 4, 205], yaw: 0, role: "decor", district: "Park" },
+      { position: [-80, 4, -205], yaw: 90, role: "vehicle", district: "Roads" },
+      { position: [80, 4, -205], yaw: 270, role: "vehicle", district: "Roads" },
+      { position: [205, 4, 25], yaw: 90, role: "decor", district: "StreetProps" },
+    ];
+
+    const roleFor = (label: string) => {
+      const s = label.toLowerCase();
+      if (/road|street|track/.test(s)) return "road";
+      if (/vehicle|car|truck/.test(s)) return "vehicle";
+      if (/prop|light|sign|decor|bench|tree|park|beach|camp/.test(s)) return "decor";
+      if (/shop|store|mall/.test(s)) return "shop";
+      if (/house|building|tower|warehouse|factory|town|city|village|map/.test(s)) return "building";
+      return "map_core";
+    };
+
+    const nextSlotFor = (role: string) => {
+      const preferred = placementSlots.find((s, i) => i >= slot && (s.role === role || (role === "building" && ["shop", "map_core"].includes(s.role))));
+      if (preferred) {
+        slot = placementSlots.indexOf(preferred) + 1;
+        return preferred;
+      }
+      const fallback = placementSlots[slot % placementSlots.length];
+      slot += 1;
+      return fallback;
+    };
 
     for (const request of set.requests) {
       const picked = request.results.find((r) => !usedIds.has(r.id));
       if (!picked) continue;
       usedIds.add(picked.id);
-      const row = slot % 3;
-      const col = Math.floor(slot / 3);
+      const role = roleFor(request.label);
+      const placement = nextSlotFor(role);
       actions.push({
         kind: "insert_asset",
         parent_path: "Workspace",
@@ -612,10 +706,14 @@ async function toolboxMapStudioActions(userText: string) {
           no_scripts: true,
           allow_scripts: false,
           folder_name: "BloxSmith_ToolboxAssets",
-          position: [row * 75 - 75, 3, col * 75],
-          yaw: (slot % 4) * 90,
+          position: placement.position,
+          yaw: placement.yaw,
           scale: 1,
-          tags: ["bloxsmith", "toolbox-map", request.label],
+          placement_role: role,
+          district: placement.district,
+          toolbox_only: true,
+          disable_procedural_fallback: true,
+          tags: ["bloxsmith", "toolbox-map", "real-toolbox-asset", request.label, role, placement.district],
           asset_name: picked.name,
           creator_name: picked.creatorName,
           thumbnail: picked.thumbnail,
@@ -637,40 +735,133 @@ async function toolboxMapStudioActions(userText: string) {
           },
         },
       });
-      slot += 1;
     }
 
     if (actions.length > 0) {
+      actions.unshift({
+        kind: "run_lua",
+        parent_path: "Workspace",
+        name: "BloxSmith_Remove_Procedural_Map_Fallbacks",
+        payload: {
+          source: `
+local Workspace = game:GetService("Workspace")
+local protected = {
+  Baseplate = true,
+  Terrain = true,
+  Camera = true,
+  BloxSmith_ToolboxAssets = true,
+  BloxSmith_Imported_Models = true,
+}
+local badName = {
+  "procedural", "placeholder", "fake", "blockhouse", "block_house",
+  "generatedcity", "generated_city", "cityblock", "city_block",
+  "randomblock", "random_block", "visibility_guard", "visible_ground",
+}
+local function shouldRemove(inst)
+  if protected[inst.Name] then return false end
+  local lower = inst.Name:lower():gsub("%s+", "_")
+  for _, token in ipairs(badName) do
+    if lower:find(token, 1, true) then return true end
+  end
+  if inst:IsA("Folder") and (#inst:GetChildren() == 0) and lower:find("bloxsmith") then
+    return true
+  end
+  return false
+end
+for _, inst in ipairs(Workspace:GetChildren()) do
+  if shouldRemove(inst) then
+    inst:Destroy()
+  end
+end
+`,
+        },
+      });
       actions.push({
         kind: "run_lua",
         parent_path: "Workspace",
-        name: "BloxSmith_Arrange_Toolbox_Map_Assets",
+        name: "BloxSmith_Arrange_Real_Toolbox_Map",
         payload: {
           source: `
 local Workspace = game:GetService("Workspace")
 local folder = Workspace:FindFirstChild("BloxSmith_ToolboxAssets") or Workspace:FindFirstChild("BloxSmith_Toolbox_Map_Assets")
 if folder then
-  for _, model in ipairs(folder:GetChildren()) do
-    if model:IsA("Model") then
-      local ok, cf, size = pcall(function() return model:GetBoundingBox() end)
-      if ok and size then
-        local yOffset = math.max(0, size.Y / 2)
-        model:PivotTo(CFrame.new(cf.Position.X, yOffset, cf.Position.Z))
-      end
-      for _, inst in ipairs(model:GetDescendants()) do
-        if inst:IsA("BasePart") then
-          inst.Anchored = true
-          inst.CanCollide = true
-        end
-      end
-    elseif model:IsA("BasePart") then
-      model.Anchored = true
-      model.CanCollide = true
+  local districts = {"Roads", "WestBlock", "EastBlock", "StreetProps", "Vehicles", "Park", "Core"}
+  for _, name in ipairs(districts) do
+    if not folder:FindFirstChild(name) then
+      local f = Instance.new("Folder")
+      f.Name = name
+      f.Parent = folder
     end
   end
+  local function classify(inst)
+    local role = tostring(inst:GetAttribute("BloxSmithPlacementRole") or inst:GetAttribute("PlacementRole") or ""):lower()
+    local n = inst.Name:lower()
+    if role:find("road") or n:find("road") or n:find("street") then return "Roads" end
+    if role:find("vehicle") or n:find("car") or n:find("truck") then return "Vehicles" end
+    if role:find("decor") or n:find("light") or n:find("sign") or n:find("bench") or n:find("tree") then return "StreetProps" end
+    if role:find("park") then return "Park" end
+    if role:find("building") or role:find("shop") or n:find("building") or n:find("house") or n:find("shop") then
+      local x = 0
+      pcall(function()
+        local cf = inst:IsA("Model") and select(1, inst:GetBoundingBox()) or inst.CFrame
+        x = cf.Position.X
+      end)
+      return x < 0 and "WestBlock" or "EastBlock"
+    end
+    return "Core"
+  end
+  local function groundSnap(inst)
+    if inst:IsA("Model") then
+      local ok, cf, size = pcall(function() return inst:GetBoundingBox() end)
+      if ok and size then
+        local _, yaw = inst:GetPivot():ToOrientation()
+        inst:PivotTo(CFrame.new(cf.Position.X, math.max(0, size.Y / 2), cf.Position.Z) * CFrame.Angles(0, yaw, 0))
+      end
+    elseif inst:IsA("BasePart") then
+      inst.CFrame = CFrame.new(inst.Position.X, math.max(0, inst.Size.Y / 2), inst.Position.Z) * inst.CFrame.Rotation
+    end
+  end
+  for _, model in ipairs(folder:GetChildren()) do
+    if model:IsA("Folder") then continue end
+    groundSnap(model)
+    for _, inst in ipairs(model:GetDescendants()) do
+      if inst:IsA("BasePart") then
+        inst.Anchored = true
+        inst.CanCollide = true
+      elseif inst:IsA("Script") or inst:IsA("LocalScript") or inst:IsA("ModuleScript") then
+        inst.Disabled = true
+      end
+    end
+    local district = folder:FindFirstChild(classify(model))
+    if district then model.Parent = district end
+  end
+  for _, district in ipairs(folder:GetChildren()) do
+    if district:IsA("Folder") and #district:GetChildren() == 0 then
+      district:Destroy()
+    end
+  end
+  local spawn = Workspace:FindFirstChildOfClass("SpawnLocation")
+  if not spawn then
+    spawn = Instance.new("SpawnLocation")
+    spawn.Name = "BloxSmith_CitySpawn"
+    spawn.Size = Vector3.new(8, 1, 8)
+    spawn.Anchored = true
+    spawn.Neutral = true
+    spawn.Parent = Workspace
+  end
+  spawn.CFrame = CFrame.new(0, 2, -260)
+  Workspace:SetAttribute("BloxSmithToolboxOnlyMap", true)
+  Workspace:SetAttribute("BloxSmithProceduralFallbackDisabled", true)
+  Workspace.StreamingEnabled = true
 end
 `,
         },
+      });
+      actions.push({
+        kind: "scan_project",
+        parent_path: "Workspace",
+        name: "BloxSmith_Scan_Real_Toolbox_Map",
+        payload: { reason: "verify_real_toolbox_assets_no_procedural_fallback" },
       });
     }
 
@@ -1501,16 +1692,31 @@ export const Route = createFileRoute("/api/chat")({
                 if (mode === "build" && isToolboxMapRequest(userText)) {
                   const toolboxActions = (await toolboxMapStudioActions(userText)).map(normalizePluginAction);
                   if (toolboxActions.length > 0) {
+                    const allowedToolboxMapAction = (a: any) => {
+                      if (["part", "model", "terrain"].includes(a.kind)) return false;
+                      if (a.kind === "run_lua") {
+                        return /^BloxSmith_(Remove_Procedural_Map_Fallbacks|Arrange_Real_Toolbox_Map)$/i.test(String(a.name || ""));
+                      }
+                      if (a.kind === "insert_asset") {
+                        return String(a.payload?.folder_name || "").includes("BloxSmith_ToolboxAssets");
+                      }
+                      return !["insert_asset"].includes(a.kind);
+                    };
                     actions = [
                       ...toolboxActions,
                       ...actions.filter((a) => {
                         const folderName = String(a.payload?.folder_name ?? "");
-                        return !folderName.includes("BloxSmith_Toolbox_Map_Assets") && !folderName.includes("BloxSmith_ToolboxAssets");
+                        return !folderName.includes("BloxSmith_Toolbox_Map_Assets") &&
+                          !folderName.includes("BloxSmith_ToolboxAssets") &&
+                          allowedToolboxMapAction(a);
                       }),
                     ];
                     if (!/toolbox map assets/i.test(cleanContent)) {
-                      cleanContent = `${cleanContent.trim()}\n\n_Toolbox map seeding queued: BloxSmith searched safe free Creator Store assets and will insert matching map kits/props before final setup._`;
+                      cleanContent = `${cleanContent.trim()}\n\n_Toolbox-only map build queued: BloxSmith searched safe free Creator Store assets, disabled procedural fallback, inserted real matching assets, and will organize/ground-snap them into districts._`;
                     }
+                  } else if (assetMode === "toolbox_only") {
+                    actions = actions.filter((a) => !["part", "model", "terrain", "insert_asset", "run_lua"].includes(a.kind));
+                    cleanContent = `${cleanContent.trim()}\n\n_No safe free Toolbox map assets were found for this request. Toolbox-only mode is enabled, so BloxSmith did not create procedural placeholder geometry._`;
                   }
                 }
 
@@ -1643,7 +1849,6 @@ export const Route = createFileRoute("/api/chat")({
           const assetModeRule = mode === "chat" ? "" : (() => {
             switch (assetMode) {
               case "toolbox_only":
-                return `\n[ASSET MODE: TOOLBOX ONLY]\nThe user has chosen Toolbox Assets Only. Hard rules for this turn:\n- For every visual model (trees, buildings, vehicles, NPCs, pets, weapons, props, decor, furniture, roads, shops, cities, forests, maps, worlds, and environment kits) you MUST call the search_toolbox tool and emit insert_asset actions with safe returned ids.\n- Do a WIDE Creator Store search: split broad prompts into categories and call search_toolbox separately for each needed category. Example city = road/street, building/skyscraper/shop, street light, car/vehicle, sign/decor. Example forest = tree, rock, bush, cabin, animal/NPC if needed.\n- DO NOT build trees, houses, roads, cars, NPCs, weapons, decorations, maps, or random scenery from primitives in run_lua. DO NOT emit raw "part" actions to fake real-world objects.\n- Only use run_lua for placement/scaling/rotation of inserted assets, clean organization, service setup, scripts, UI wiring, and non-visual support logic.\n- If search_toolbox returns source "none" for a required category, tell the user plainly that no safe free Toolbox asset was found and ASK whether to fall back to generated geometry.\n- Briefly list which assets you inserted (name + creatorName + id) in your explanation.\n`;
                 return `\n[ASSET MODE: TOOLBOX ONLY]\nThe user has chosen Toolbox Assets Only. Hard rules for this turn:\n- Think of Roblox Toolbox / Creator Store as a live searchable asset universe. You do not rely on memory or invented IDs; you search it.\n- For full games, maps, screenshots, cities, worlds, lobbies, or multi-prop scenes, call search_toolbox_set FIRST with every visual category needed. Example city = road/street, building/skyscraper/shop, street light, sidewalk, car/vehicle, sign/decor, NPC if needed. Example forest = tree, rock, bush, cabin, campfire, animal/NPC if needed.\n- For one-off visual assets, call search_toolbox. For follow-up gaps after search_toolbox_set, call search_toolbox with narrower keywords.\n- For every visual model (trees, buildings, vehicles, NPCs, pets, weapons, props, decor, furniture, roads, shops, cities, forests, maps, worlds, and environment kits) emit insert_asset actions with safe returned ids and fallback_ids.\n- DO NOT build trees, houses, roads, cars, NPCs, weapons, decorations, maps, or random scenery from primitives in run_lua. DO NOT emit raw "part" actions to fake real-world objects.\n- Only use run_lua for placement/scaling/rotation of inserted assets, clean organization, service setup, scripts, UI wiring, and non-visual support logic.\n- If a required search_toolbox_set request returns status "missing" or search_toolbox returns source "none", tell the user plainly that no safe free Toolbox asset was found and ASK whether to fall back to generated geometry.\n- Briefly list which assets you inserted (name + creatorName + id) in your explanation.\n`;
               case "both":
                 return `\n[ASSET MODE: TOOLBOX + SCRIPTED SYSTEMS]\nUse Toolbox assets via search_toolbox_set/search_toolbox + insert_asset for all visual models and environment content. For full scenes or game templates, call search_toolbox_set with each needed category before building. Use run_lua for placement, scaling, rotation, scripted systems, UI, remotes, storage organization, and light terrain/support edits only. If no safe relevant Toolbox asset exists, ask before generating fallback geometry.\n`;
