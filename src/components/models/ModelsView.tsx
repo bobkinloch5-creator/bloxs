@@ -333,6 +333,11 @@ function ModelCard({ m, projectId, onChange }: { m: any; projectId?: string; onC
             {isAnimation ? <><PlayCircle className="h-3 w-3" /> {m.animation_name ?? "animation"}</> : isTexture ? <><Palette className="h-3 w-3" /> retexture</> : <><Sparkles className="h-3 w-3" /> refined</>}
           </span>
         )}
+        {done && (
+          <button onClick={goFullscreen} title="Fullscreen 3D preview" className="absolute top-2 right-2 inline-flex items-center gap-1 rounded-md bg-black/60 hover:bg-black/80 backdrop-blur px-2 py-1 text-[10px] font-bold text-white">
+            <Maximize2 className="h-3 w-3" /> Fullscreen
+          </button>
+        )}
         {!done && !failed && (
           <div className="absolute bottom-0 left-0 right-0 bg-black/60 backdrop-blur-sm p-2">
             <div className="flex items-center justify-between text-[10px] font-semibold text-white">
