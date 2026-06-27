@@ -71,7 +71,6 @@ export type Database = {
           created_at: string
           error: string | null
           id: string
-          image_url: string | null
           model: string | null
           project_id: string
           role: string
@@ -85,7 +84,6 @@ export type Database = {
           created_at?: string
           error?: string | null
           id?: string
-          image_url?: string | null
           model?: string | null
           project_id: string
           role: string
@@ -99,7 +97,6 @@ export type Database = {
           created_at?: string
           error?: string | null
           id?: string
-          image_url?: string | null
           model?: string | null
           project_id?: string
           role?: string
@@ -195,6 +192,7 @@ export type Database = {
       model_generations: {
         Row: {
           animation_name: string | null
+          art_style: string | null
           completed_at: string | null
           created_at: string
           error: string | null
@@ -215,6 +213,7 @@ export type Database = {
         }
         Insert: {
           animation_name?: string | null
+          art_style?: string | null
           completed_at?: string | null
           created_at?: string
           error?: string | null
@@ -235,6 +234,7 @@ export type Database = {
         }
         Update: {
           animation_name?: string | null
+          art_style?: string | null
           completed_at?: string | null
           created_at?: string
           error?: string | null
