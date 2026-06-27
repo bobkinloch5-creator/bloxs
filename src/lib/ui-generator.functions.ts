@@ -6,6 +6,8 @@ import { getProviderModel } from "./ai-gateway.server";
 import { DEFAULT_MODEL_ID } from "./models";
 import { generateUiConceptImage } from "./ui-concept-image.server";
 
+const uiGenerationSelect = "id, prompt, style, code, concept_image_url, created_at, project_id";
+
 // ---------------------------------------------------------------------------
 // System prompt — governs ALL UI generations.
 // The key requirement: EVERY prompt must produce a UNIQUE design.
@@ -150,6 +152,22 @@ export const generateRobloxUi = createServerFn({ method: "POST" })
       .replace(/^\s*(?:lua|luau)\s*\n/i, "")
       .trim();
 
+    const sb = context.supabase as any;
+    const { data: savedRow, error: saveError } = await sb.from("ui_generations").insert({
+      user_id: context.userId,
+      project_id: data.projectId ?? null,
+      prompt: data.prompt,
+      style: data.style,
+      code: cleaned,
+      concept_image_url: conceptImageUrl,
+      model: DEFAULT_MODEL_ID,
+      metadata: {
+        generator: "ui-generator",
+        savedBy: "generateRobloxUi",
+      },
+    }).select("id, created_at").single();
+    if (saveError) throw new Error(`Generated UI, but saving failed: ${saveError.message}`);
+
     if (data.projectId) {
       await context.supabase.from("chat_messages").insert({
         project_id: data.projectId,
@@ -162,5 +180,52 @@ export const generateRobloxUi = createServerFn({ method: "POST" })
       });
     }
 
-    return { code: cleaned, conceptImageUrl };
+    return { id: savedRow?.id as string | undefined, code: cleaned, conceptImageUrl, createdAt: savedRow?.created_at as string | undefined };
+  });
+
+export const listSavedRobloxUis = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({
+    projectId: z.string().uuid().optional(),
+    limit: z.number().int().min(1).max(50).default(24),
+  }).parse(input ?? {}))
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase as any;
+    let query = sb
+      .from("ui_generations")
+      .select(uiGenerationSelect)
+      .eq("user_id", context.userId)
+      .order("created_at", { ascending: false })
+      .limit(data.limit);
+
+    if (data.projectId) query = query.eq("project_id", data.projectId);
+
+    const { data: rows, error } = await query;
+    if (error) throw new Error(error.message);
+
+    return (rows || []).map((row: any) => ({
+      id: row.id,
+      prompt: row.prompt,
+      style: row.style,
+      code: row.code,
+      conceptImageUrl: row.concept_image_url,
+      createdAt: row.created_at,
+      projectId: row.project_id,
+    }));
+  });
+
+export const deleteSavedRobloxUi = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({
+    id: z.string().uuid(),
+  }).parse(input))
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase as any;
+    const { error } = await sb
+      .from("ui_generations")
+      .delete()
+      .eq("id", data.id)
+      .eq("user_id", context.userId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });

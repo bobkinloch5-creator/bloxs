@@ -2,10 +2,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getMyProfile } from "@/lib/profile.functions";
-import { generateRobloxUi } from "@/lib/ui-generator.functions";
+import { deleteSavedRobloxUi, generateRobloxUi, listSavedRobloxUis } from "@/lib/ui-generator.functions";
 import { PageShell, EmptyState } from "@/components/PageShell";
-import { LayoutDashboard, Send, Loader2, Copy, Check, AlertTriangle, Sparkles, Shuffle, Download, ExternalLink } from "lucide-react";
-import { useState } from "react";
+import { LayoutDashboard, Send, Loader2, Copy, Check, AlertTriangle, Sparkles, Shuffle, Download, ExternalLink, Trash2, RefreshCw } from "lucide-react";
+import { useEffect, useState } from "react";
 
 export const Route = createFileRoute("/_authenticated/ui-generator")({
   head: () => ({ meta: [
@@ -28,7 +28,7 @@ const EXAMPLES = [
   "Inventory grid 4x5 with item rarity borders, count badges, and equip/unequip buttons",
 ];
 
-type Generated = { id: string; prompt: string; style: string; code: string; conceptImageUrl?: string; createdAt: number };
+type Generated = { id: string; prompt: string; style: string; code: string; conceptImageUrl?: string | null; createdAt: number | string; projectId?: string | null };
 
 function safeFileName(input: string, ext: string) {
   const base = input.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "").slice(0, 42) || "bloxsmith-ui";
@@ -50,7 +50,13 @@ function downloadText(content: string, filename: string) {
 function UiGenerator() {
   const profFn = useServerFn(getMyProfile);
   const genFn = useServerFn(generateRobloxUi);
+  const listFn = useServerFn(listSavedRobloxUis);
+  const delFn = useServerFn(deleteSavedRobloxUi);
   const { data: profile } = useQuery({ queryKey: ["profile"], queryFn: () => profFn() });
+  const savedQuery = useQuery({
+    queryKey: ["saved-roblox-uis"],
+    queryFn: () => listFn({ data: { limit: 30 } }),
+  });
 
   const [prompt, setPrompt] = useState("");
   const [style, setStyle] = useState("Modern");
@@ -68,14 +74,29 @@ function UiGenerator() {
     },
     onSuccess: (out, vars) => {
       setGenerated((g) => [
-        { id: crypto.randomUUID(), prompt: vars.prompt, style: vars.style, code: out.code, conceptImageUrl: out.conceptImageUrl, createdAt: Date.now() },
+        { id: out.id || crypto.randomUUID(), prompt: vars.prompt, style: vars.style, code: out.code, conceptImageUrl: out.conceptImageUrl, createdAt: out.createdAt || Date.now() },
         ...g,
       ]);
       setPrompt("");
       setErr(null);
+      savedQuery.refetch();
     },
     onError: (e: any) => setErr(e?.message || "Generation failed. Try a different prompt or model."),
   });
+
+  const del = useMutation({
+    mutationFn: async (id: string) => delFn({ data: { id } }),
+    onSuccess: (_out, id) => {
+      setGenerated((rows) => rows.filter((row) => row.id !== id));
+      savedQuery.refetch();
+    },
+    onError: (e: any) => setErr(e?.message || "Could not delete saved UI."),
+  });
+
+  useEffect(() => {
+    if (!savedQuery.data) return;
+    setGenerated(savedQuery.data as Generated[]);
+  }, [savedQuery.data]);
 
   function generate(p?: string) {
     const value = (p ?? prompt).trim();
@@ -183,12 +204,25 @@ function UiGenerator() {
         <EmptyState
           icon={LayoutDashboard}
           title="No UI generated yet"
-          description="Describe a Roblox screen above and hit Generate. The full Luau script appears here, ready to paste into a LocalScript."
+          description={savedQuery.isLoading ? "Loading your saved UI generations..." : "Describe a Roblox screen above and hit Generate. Saved UI scripts and previews appear here so you can reuse them later."}
         />
       ) : (
         <div className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-black uppercase tracking-wider text-slate-200">Saved UI Library</h2>
+              <p className="mt-1 text-xs text-muted-foreground">These are saved to your account and stay available after refresh.</p>
+            </div>
+            <button
+              onClick={() => savedQuery.refetch()}
+              disabled={savedQuery.isFetching}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.05] px-3 py-2 text-xs font-bold text-white hover:bg-white/[0.1] disabled:opacity-50"
+            >
+              {savedQuery.isFetching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />} Refresh
+            </button>
+          </div>
           {generated.map((g) => (
-            <ResultCard key={g.id} result={g} />
+            <ResultCard key={g.id} result={g} onDelete={(id) => del.mutate(id)} deleting={del.isPending} />
           ))}
         </div>
       )}
@@ -196,15 +230,18 @@ function UiGenerator() {
   );
 }
 
-function ResultCard({ result }: { result: Generated }) {
+function ResultCard({ result, onDelete, deleting }: { result: Generated; onDelete: (id: string) => void; deleting?: boolean }) {
   const [copied, setCopied] = useState(false);
+  const createdLabel = typeof result.createdAt === "number"
+    ? new Date(result.createdAt).toLocaleString()
+    : new Date(result.createdAt).toLocaleString();
   return (
     <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 backdrop-blur-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="truncate text-sm font-bold text-slate-100">{result.prompt}</div>
           <div className="mt-0.5 text-[11px] text-muted-foreground">
-            {result.style} · saved concept · {new Date(result.createdAt).toLocaleTimeString()}
+            {result.style} · saved concept · {createdLabel}
           </div>
         </div>
         <div className="flex flex-wrap gap-1.5">
@@ -222,6 +259,15 @@ function ResultCard({ result }: { result: Generated }) {
             className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-emerald-500/15 px-2.5 py-1.5 text-[11px] font-bold text-emerald-100 hover:bg-emerald-500/25"
           >
             <Download className="h-3.5 w-3.5" /> Download
+          </button>
+          <button
+            onClick={() => {
+              if (confirm("Delete this saved UI generation?")) onDelete(result.id);
+            }}
+            disabled={deleting}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-rose-400/20 bg-rose-500/10 px-2.5 py-1.5 text-[11px] font-bold text-rose-100 hover:bg-rose-500/20 disabled:opacity-50"
+          >
+            {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />} Delete
           </button>
         </div>
       </div>
