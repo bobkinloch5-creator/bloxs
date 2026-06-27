@@ -284,15 +284,27 @@ export const registerTripoBridgeModel = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => z.object({
     projectId: z.string().uuid().optional(),
     prompt: z.string().trim().min(2).max(200).default("Tripo DCC Bridge model"),
-    modelUrl: z.string().trim().url().max(2000),
+    modelUrl: z.string().trim().max(2000).optional(),
     thumbnailUrl: z.string().trim().url().max(2000).optional(),
     format: z.enum(SUPPORTED_BRIDGE_FORMATS).optional(),
     robloxAssetId: z.string().trim().max(80).optional(),
     source: z.enum(["tripo_api", "tripo_bridge", "external_model"]).default("tripo_bridge"),
   }).parse(i))
   .handler(async ({ data, context }) => {
-    const format = inferFormat(data.modelUrl, data.format);
+    const modelUrl = data.modelUrl?.trim() || "";
     const robloxAssetId = normalizeRobloxAssetId(data.robloxAssetId);
+    if (!modelUrl && !robloxAssetId) {
+      throw new Error("Paste a direct GLB/FBX/RBXM/RBXMX URL, or paste a Roblox model asset ID if it is already uploaded.");
+    }
+    if (modelUrl) {
+      try {
+        const parsed = new URL(modelUrl);
+        if (!["http:", "https:"].includes(parsed.protocol)) throw new Error("bad_protocol");
+      } catch {
+        throw new Error("Invalid model URL. Use a full http:// or https:// link to a GLB, FBX, glTF, RBXM, or RBXMX file. Local Windows paths like C:\\... cannot preview in the browser.");
+      }
+    }
+    const format = modelUrl ? inferFormat(modelUrl, data.format) : (data.format ?? "glb");
     const { data: row, error } = await context.supabase
       .from("model_generations")
       .insert({
@@ -300,8 +312,8 @@ export const registerTripoBridgeModel = createServerFn({ method: "POST" })
         project_id: data.projectId ?? null,
         mode: data.source,
         prompt: data.prompt,
-        model_url: data.modelUrl,
-        model_urls: { [format]: data.modelUrl },
+        model_url: modelUrl || null,
+        model_urls: modelUrl ? { [format]: modelUrl } : {},
         thumbnail_url: data.thumbnailUrl ?? null,
         status: "SUCCEEDED",
         progress: 100,

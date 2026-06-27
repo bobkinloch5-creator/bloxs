@@ -132,6 +132,21 @@ function previewFileLabel(m: any, urls: Record<string, string>) {
   return first.toUpperCase();
 }
 
+function friendlyErrorMessage(error: unknown) {
+  const raw = error instanceof Error ? error.message : String(error || "Something went wrong.");
+  try {
+    const parsed = JSON.parse(raw);
+    const first = Array.isArray(parsed) ? parsed[0] : null;
+    if (first?.path?.includes?.("modelUrl") && first?.validation === "url") {
+      return "Invalid model URL. Paste a full http:// or https:// link to a GLB, FBX, glTF, RBXM, or RBXMX file. Local Windows paths cannot preview in the browser.";
+    }
+    if (first?.message) return String(first.message);
+  } catch {
+    // Keep the original message.
+  }
+  return raw;
+}
+
 export function ModelsView({ projectId }: { projectId?: string }) {
   useModelViewerScript();
   const qc = useQueryClient();
@@ -227,6 +242,14 @@ export function ModelsView({ projectId }: { projectId?: string }) {
 
   async function onRegisterBridgeModel() {
     setBridgeErr(null);
+    if (!bridgeUrl.trim() && !bridgeAssetId.trim()) {
+      setBridgeErr("Paste a model file URL for preview, or paste a Roblox model asset ID if it is already uploaded.");
+      return;
+    }
+    if (bridgeUrl.trim() && !/^https?:\/\//i.test(bridgeUrl.trim())) {
+      setBridgeErr("Invalid model URL. Use a full http:// or https:// link. Local files like C:\\Downloads\\model.glb cannot be previewed by the website.");
+      return;
+    }
     setBridgeBusy(true);
     try {
       await registerBridgeFn({ data: {
@@ -242,7 +265,7 @@ export function ModelsView({ projectId }: { projectId?: string }) {
       setBridgeAssetId("");
       await refetchStatus();
     } catch (e) {
-      setBridgeErr(e instanceof Error ? e.message : "Could not register Tripo bridge model.");
+      setBridgeErr(friendlyErrorMessage(e));
     } finally {
       setBridgeBusy(false);
     }
@@ -325,7 +348,7 @@ export function ModelsView({ projectId }: { projectId?: string }) {
             </div>
             <input value={bridgeAssetId} onChange={(e) => setBridgeAssetId(e.target.value)} placeholder="Optional Roblox model asset ID if already uploaded" className="w-full rounded-xl border border-white/10 bg-black/30 p-2.5 text-sm text-white placeholder:text-muted-foreground outline-none focus:border-cyan-300/60" maxLength={80} />
             {bridgeErr && <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-200 inline-flex items-center gap-2"><AlertCircle className="h-4 w-4" /> {bridgeErr}</div>}
-            <button disabled={bridgeBusy || !bridgeUrl.trim()} onClick={onRegisterBridgeModel} className="inline-flex items-center gap-2 rounded-lg bg-cyan-500 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-40 disabled:cursor-not-allowed">
+            <button disabled={bridgeBusy || (!bridgeUrl.trim() && !bridgeAssetId.trim())} onClick={onRegisterBridgeModel} className="inline-flex items-center gap-2 rounded-lg bg-cyan-500 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-40 disabled:cursor-not-allowed">
               {bridgeBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <LinkIcon className="h-4 w-4" />} Add Tripo model to preview
             </button>
           </div>
@@ -466,8 +489,10 @@ function ModelCard({ m, projectId, onChange }: { m: any; projectId?: string; onC
   const urls: Record<string, string> = m.model_urls || {};
   const previewUrl = bestPreviewUrl(m, urls);
   const title = modelTitle(m);
-  const done = m.status === "SUCCEEDED" && !!m.model_url;
+  const complete = m.status === "SUCCEEDED";
+  const done = complete && !!m.model_url;
   const canPreview = done && !!previewUrl;
+  const assetOnly = complete && !m.model_url && !!m.roblox_asset_id;
   const failed = m.status === "FAILED";
   const isAnimation = m.mode === "animation";
   const isTexture = m.mode === "texture";
@@ -559,7 +584,7 @@ function ModelCard({ m, projectId, onChange }: { m: any; projectId?: string; onC
           <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[10px] font-semibold text-white/65">
             <span>{m.mode === "image" ? "Image → 3D" : m.mode === "text" ? "Text → 3D" : titleCase(String(m.mode || "model").replace(/_/g, " "))}</span>
             <span>·</span>
-            <span>{done ? `Preview: ${canPreview ? previewFileLabel(m, urls) : "not available"}` : failed ? "Failed" : "Model still processing"}</span>
+            <span>{assetOnly ? "Roblox asset ID ready" : done ? `Preview: ${canPreview ? previewFileLabel(m, urls) : "not available"}` : failed ? "Failed" : "Model still processing"}</span>
           </div>
         </div>
         {canPreview ? (
@@ -620,7 +645,13 @@ function ModelCard({ m, projectId, onChange }: { m: any; projectId?: string; onC
             <div className="mt-1 opacity-85">This model has {previewFileLabel(m, urls)} available, but the browser preview supports GLB/glTF. Download or upload it to Roblox, or add a GLB URL.</div>
           </div>
         )}
-        {!done && !failed && (
+        {assetOnly && (
+          <div className="absolute inset-x-3 bottom-3 z-20 rounded-xl border border-emerald-300/25 bg-emerald-500/15 p-3 text-xs text-emerald-100 backdrop-blur">
+            <div className="font-bold">Roblox asset ID ready</div>
+            <div className="mt-1 opacity-85">This model can be sent to Roblox Studio now. Add a GLB/glTF URL later if you want a website preview.</div>
+          </div>
+        )}
+        {!done && !assetOnly && !failed && (
           <div className="absolute inset-x-3 bottom-14 z-20 rounded-xl border border-white/10 bg-black/55 p-3 text-xs text-white/80 backdrop-blur">
             <div className="font-bold text-white">Model still processing</div>
             <div className="mt-1">The generated file is not ready yet. BloxSmith will refresh and show the preview when the GLB is available.</div>
@@ -651,7 +682,7 @@ function ModelCard({ m, projectId, onChange }: { m: any; projectId?: string; onC
             <Trash2 className="h-3.5 w-3.5" />
           </button>
         )}
-        {!done && !failed && (
+        {!done && !assetOnly && !failed && (
           <div className="absolute bottom-0 left-0 right-0 bg-black/60 backdrop-blur-sm p-2">
             <div className="flex items-center justify-between text-[10px] font-semibold text-white">
               <span>{m.status}</span><span>{m.progress ?? 0}%</span>
@@ -698,6 +729,13 @@ function ModelCard({ m, projectId, onChange }: { m: any; projectId?: string; onC
           </div>
         )}
         {actionErr && <div className="text-[11px] text-rose-300">{actionErr}</div>}
+        {isBridgeModel && assetOnly && (
+          <div className="flex flex-wrap items-center gap-1.5 border-t border-white/10 pt-2">
+            <button onClick={sendToStudio} disabled={robloxBusy || !projectId} title={!projectId ? "Open a project to send this model to Studio." : "Queue this model for the Studio plugin."} className="inline-flex items-center gap-1 rounded-md bg-emerald-500/20 hover:bg-emerald-500/30 px-2 py-1 text-[10px] font-bold text-emerald-100 disabled:opacity-40">
+              {robloxBusy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plug className="h-3 w-3" />} Send to Studio
+            </button>
+          </div>
+        )}
         {done && (
           <>
             <div className="flex flex-wrap items-center gap-1.5">
