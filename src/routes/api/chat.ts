@@ -638,6 +638,424 @@ end
   }
 }
 
+function isRobloxSystemRequest(userText: string) {
+  return /\b(script|scripting|code|system|gui|ui|screen|loading|load\s*screen|main\s*menu|menu|hud|button|shop|inventory|settings|gamepass|quest|health|cash|coins|leaderstats|remote|event|datastore|save|checkpoint|timer|round|notification|mobile\s*controls?)\b/i.test(userText);
+}
+
+function robloxSystemStudioActions(userText: string, languageName: string) {
+  if (!isRobloxSystemRequest(userText)) return [];
+  const requested = {
+    loading: /\b(loading|load\s*screen)\b/i.test(userText),
+    menu: /\b(main\s*menu|menu|play\s*button|start\s*button)\b/i.test(userText),
+    hud: /\b(hud|health|cash|coins|xp|level|timer|round|objective)\b/i.test(userText),
+    shop: /\b(shop|store|gamepass|purchase)\b/i.test(userText),
+    inventory: /\b(inventory|items|backpack)\b/i.test(userText),
+    settings: /\b(settings|options|volume|music)\b/i.test(userText),
+    save: /\b(save|datastore|data\s*store|leaderstats|cash|coins|xp|level)\b/i.test(userText),
+  };
+  const safePrompt = userText.trim().slice(0, 260) || "Roblox UI and scripted systems";
+  const source = `
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local StarterGui = game:GetService("StarterGui")
+local ServerScriptService = game:GetService("ServerScriptService")
+
+local requested = ${JSON.stringify(requested)}
+
+local remotes = ReplicatedStorage:FindFirstChild("BloxSmith_Remotes")
+if not remotes then
+  remotes = Instance.new("Folder")
+  remotes.Name = "BloxSmith_Remotes"
+  remotes.Parent = ReplicatedStorage
+end
+
+local function remote(name)
+  local r = remotes:FindFirstChild(name)
+  if not r then
+    r = Instance.new("RemoteEvent")
+    r.Name = name
+    r.Parent = remotes
+  end
+  return r
+end
+
+remote("MenuAction")
+remote("RequestShop")
+remote("RequestInventory")
+remote("SaveSettings")
+remote("NotifyPlayer")
+
+local gui = StarterGui:FindFirstChild("BloxSmith_Game_UI")
+if gui then gui:Destroy() end
+gui = Instance.new("ScreenGui")
+gui.Name = "BloxSmith_Game_UI"
+gui.ResetOnSpawn = false
+gui.IgnoreGuiInset = true
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+gui.Parent = StarterGui
+
+local function make(className, props, parent)
+  local inst = Instance.new(className)
+  for key, value in pairs(props or {}) do
+    inst[key] = value
+  end
+  inst.Parent = parent
+  return inst
+end
+
+local function corner(parent, radius)
+  return make("UICorner", { CornerRadius = UDim.new(0, radius or 10) }, parent)
+end
+
+local function stroke(parent, color, thickness)
+  return make("UIStroke", { Color = color or Color3.fromRGB(82, 93, 135), Thickness = thickness or 1, Transparency = 0.25 }, parent)
+end
+
+local function gradient(parent, a, b)
+  return make("UIGradient", { Color = ColorSequence.new(a, b), Rotation = 28 }, parent)
+end
+
+local loading = make("Frame", {
+  Name = "LoadingScreen",
+  BackgroundColor3 = Color3.fromRGB(7, 10, 22),
+  BorderSizePixel = 0,
+  Size = UDim2.fromScale(1, 1),
+  Visible = true,
+  ZIndex = 50,
+}, gui)
+gradient(loading, Color3.fromRGB(10, 14, 34), Color3.fromRGB(38, 32, 92))
+
+local loadingTitle = make("TextLabel", {
+  Name = "Title",
+  BackgroundTransparency = 1,
+  Position = UDim2.fromScale(0.12, 0.34),
+  Size = UDim2.fromScale(0.76, 0.12),
+  Font = Enum.Font.GothamBlack,
+  Text = "BloxSmith",
+  TextColor3 = Color3.fromRGB(255, 255, 255),
+  TextScaled = true,
+  TextWrapped = true,
+  ZIndex = 51,
+}, loading)
+
+local loadingSub = make("TextLabel", {
+  Name = "Subtitle",
+  BackgroundTransparency = 1,
+  Position = UDim2.fromScale(0.18, 0.47),
+  Size = UDim2.fromScale(0.64, 0.055),
+  Font = Enum.Font.GothamMedium,
+  Text = "Preparing your Roblox experience...",
+  TextColor3 = Color3.fromRGB(190, 200, 230),
+  TextScaled = true,
+  TextWrapped = true,
+  ZIndex = 51,
+}, loading)
+
+local barBack = make("Frame", {
+  Name = "ProgressBack",
+  BackgroundColor3 = Color3.fromRGB(28, 32, 50),
+  Position = UDim2.fromScale(0.28, 0.58),
+  Size = UDim2.fromScale(0.44, 0.022),
+  ZIndex = 51,
+}, loading)
+corner(barBack, 999)
+local barFill = make("Frame", {
+  Name = "ProgressFill",
+  BackgroundColor3 = Color3.fromRGB(90, 100, 255),
+  Size = UDim2.fromScale(0, 1),
+  ZIndex = 52,
+}, barBack)
+corner(barFill, 999)
+gradient(barFill, Color3.fromRGB(80, 255, 180), Color3.fromRGB(100, 95, 255))
+
+local menu = make("Frame", {
+  Name = "MainMenu",
+  AnchorPoint = Vector2.new(0.5, 0.5),
+  BackgroundColor3 = Color3.fromRGB(13, 17, 31),
+  Position = UDim2.fromScale(0.5, 0.5),
+  Size = UDim2.fromOffset(460, 430),
+  Visible = false,
+}, gui)
+corner(menu, 14)
+stroke(menu, Color3.fromRGB(92, 100, 155), 1)
+gradient(menu, Color3.fromRGB(18, 22, 42), Color3.fromRGB(36, 28, 80))
+
+make("TextLabel", {
+  Name = "GameTitle",
+  BackgroundTransparency = 1,
+  Position = UDim2.fromOffset(28, 24),
+  Size = UDim2.new(1, -56, 0, 78),
+  Font = Enum.Font.GothamBlack,
+  Text = "MAIN MENU",
+  TextColor3 = Color3.fromRGB(255, 255, 255),
+  TextScaled = true,
+  TextWrapped = true,
+}, menu)
+
+make("TextLabel", {
+  Name = "RequestNote",
+  BackgroundTransparency = 1,
+  Position = UDim2.fromOffset(40, 100),
+  Size = UDim2.new(1, -80, 0, 42),
+  Font = Enum.Font.Gotham,
+  Text = ${JSON.stringify(safePrompt)},
+  TextColor3 = Color3.fromRGB(185, 195, 225),
+  TextScaled = true,
+  TextWrapped = true,
+}, menu)
+
+local buttonNames = { "Play", "Shop", "Inventory", "Settings" }
+for i, label in ipairs(buttonNames) do
+  local btn = make("TextButton", {
+    Name = label .. "Button",
+    BackgroundColor3 = i == 1 and Color3.fromRGB(86, 96, 255) or Color3.fromRGB(32, 38, 62),
+    Position = UDim2.fromOffset(54, 152 + (i - 1) * 62),
+    Size = UDim2.new(1, -108, 0, 48),
+    Font = Enum.Font.GothamBold,
+    Text = label,
+    TextColor3 = Color3.fromRGB(255, 255, 255),
+    TextScaled = true,
+    AutoButtonColor = true,
+  }, menu)
+  corner(btn, 10)
+  stroke(btn, i == 1 and Color3.fromRGB(128, 255, 210) or Color3.fromRGB(80, 88, 132), 1)
+end
+
+local hud = make("Frame", {
+  Name = "HUD",
+  BackgroundTransparency = 1,
+  Size = UDim2.fromScale(1, 1),
+  Visible = false,
+}, gui)
+
+local hudPanel = make("Frame", {
+  Name = "TopStats",
+  BackgroundColor3 = Color3.fromRGB(13, 17, 31),
+  Position = UDim2.fromOffset(18, 18),
+  Size = UDim2.fromOffset(420, 58),
+}, hud)
+corner(hudPanel, 10)
+stroke(hudPanel, Color3.fromRGB(85, 94, 145), 1)
+
+local stats = { "Health: 100", "Coins: 0", "Level: 1" }
+for i, value in ipairs(stats) do
+  make("TextLabel", {
+    Name = "Stat" .. i,
+    BackgroundTransparency = 1,
+    Position = UDim2.fromOffset(14 + (i - 1) * 132, 9),
+    Size = UDim2.fromOffset(126, 40),
+    Font = Enum.Font.GothamBold,
+    Text = value,
+    TextColor3 = Color3.fromRGB(245, 248, 255),
+    TextScaled = true,
+    TextWrapped = true,
+  }, hudPanel)
+end
+
+local modal = make("Frame", {
+  Name = "Modal",
+  AnchorPoint = Vector2.new(0.5, 0.5),
+  BackgroundColor3 = Color3.fromRGB(16, 20, 35),
+  Position = UDim2.fromScale(0.5, 0.55),
+  Size = UDim2.fromOffset(420, 260),
+  Visible = false,
+}, gui)
+corner(modal, 12)
+stroke(modal, Color3.fromRGB(105, 112, 165), 1)
+make("TextLabel", {
+  Name = "ModalTitle",
+  BackgroundTransparency = 1,
+  Position = UDim2.fromOffset(24, 22),
+  Size = UDim2.new(1, -48, 0, 48),
+  Font = Enum.Font.GothamBlack,
+  Text = "Panel",
+  TextColor3 = Color3.fromRGB(255, 255, 255),
+  TextScaled = true,
+}, modal)
+make("TextLabel", {
+  Name = "ModalBody",
+  BackgroundTransparency = 1,
+  Position = UDim2.fromOffset(28, 86),
+  Size = UDim2.new(1, -56, 0, 90),
+  Font = Enum.Font.Gotham,
+  Text = "This panel is wired and ready for your game logic.",
+  TextColor3 = Color3.fromRGB(190, 200, 230),
+  TextScaled = true,
+  TextWrapped = true,
+}, modal)
+local close = make("TextButton", {
+  Name = "CloseButton",
+  BackgroundColor3 = Color3.fromRGB(86, 96, 255),
+  Position = UDim2.fromOffset(110, 194),
+  Size = UDim2.new(1, -220, 0, 42),
+  Font = Enum.Font.GothamBold,
+  Text = "Close",
+  TextColor3 = Color3.fromRGB(255, 255, 255),
+  TextScaled = true,
+}, modal)
+corner(close, 8)
+
+local localScript = make("LocalScript", { Name = "BloxSmith_UI_Controller" }, gui)
+localScript.Source = [==[
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+local Players = game:GetService("Players")
+
+local player = Players.LocalPlayer
+local gui = script.Parent
+local remotes = ReplicatedStorage:WaitForChild("BloxSmith_Remotes", 10)
+local menuAction = remotes and remotes:WaitForChild("MenuAction", 10)
+
+local loading = gui:WaitForChild("LoadingScreen")
+local menu = gui:WaitForChild("MainMenu")
+local hud = gui:WaitForChild("HUD")
+local modal = gui:WaitForChild("Modal")
+local bar = loading.ProgressBack.ProgressFill
+
+local function tween(inst, props, time)
+  local t = TweenService:Create(inst, TweenInfo.new(time or 0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), props)
+  t:Play()
+  return t
+end
+
+local function showModal(title, body)
+  modal.ModalTitle.Text = title
+  modal.ModalBody.Text = body
+  modal.Visible = true
+end
+
+for i = 1, 100 do
+  bar.Size = UDim2.fromScale(i / 100, 1)
+  task.wait(0.012)
+end
+tween(loading, { BackgroundTransparency = 1 }, 0.35)
+task.wait(0.35)
+loading.Visible = false
+menu.Visible = true
+
+menu.PlayButton.MouseButton1Click:Connect(function()
+  menu.Visible = false
+  hud.Visible = true
+  if menuAction then menuAction:FireServer("Play") end
+end)
+
+menu.ShopButton.MouseButton1Click:Connect(function()
+  showModal("Shop", "Add products, boosts, gamepasses, and upgrades here.")
+  if menuAction then menuAction:FireServer("Shop") end
+end)
+
+menu.InventoryButton.MouseButton1Click:Connect(function()
+  showModal("Inventory", "Player items and rewards can appear here.")
+  if menuAction then menuAction:FireServer("Inventory") end
+end)
+
+menu.SettingsButton.MouseButton1Click:Connect(function()
+  showModal("Settings", "Volume, graphics, and gameplay options are ready to wire.")
+  if menuAction then menuAction:FireServer("Settings") end
+end)
+
+modal.CloseButton.MouseButton1Click:Connect(function()
+  modal.Visible = false
+end)
+
+local function syncStats()
+  local stats = player:FindFirstChild("leaderstats")
+  if not stats then return end
+  local coins = stats:FindFirstChild("Coins")
+  local level = stats:FindFirstChild("Level")
+  if coins then hud.TopStats.Stat2.Text = "Coins: " .. tostring(coins.Value) end
+  if level then hud.TopStats.Stat3.Text = "Level: " .. tostring(level.Value) end
+end
+
+player.ChildAdded:Connect(syncStats)
+task.spawn(function()
+  while gui.Parent do
+    syncStats()
+    task.wait(1)
+  end
+end)
+]==]
+
+local serverScript = ServerScriptService:FindFirstChild("BloxSmith_Game_Systems")
+if serverScript then serverScript:Destroy() end
+serverScript = Instance.new("Script")
+serverScript.Name = "BloxSmith_Game_Systems"
+serverScript.Parent = ServerScriptService
+serverScript.Source = [==[
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local remotes = ReplicatedStorage:FindFirstChild("BloxSmith_Remotes") or Instance.new("Folder")
+remotes.Name = "BloxSmith_Remotes"
+remotes.Parent = ReplicatedStorage
+
+local function remote(name)
+  local r = remotes:FindFirstChild(name)
+  if not r then
+    r = Instance.new("RemoteEvent")
+    r.Name = name
+    r.Parent = remotes
+  end
+  return r
+end
+
+local menuAction = remote("MenuAction")
+remote("RequestShop")
+remote("RequestInventory")
+remote("SaveSettings")
+remote("NotifyPlayer")
+
+local function setupPlayer(player)
+  local leaderstats = player:FindFirstChild("leaderstats") or Instance.new("Folder")
+  leaderstats.Name = "leaderstats"
+  leaderstats.Parent = player
+
+  local coins = leaderstats:FindFirstChild("Coins") or Instance.new("IntValue")
+  coins.Name = "Coins"
+  coins.Value = coins.Value
+  coins.Parent = leaderstats
+
+  local level = leaderstats:FindFirstChild("Level") or Instance.new("IntValue")
+  level.Name = "Level"
+  if level.Value <= 0 then level.Value = 1 end
+  level.Parent = leaderstats
+end
+
+Players.PlayerAdded:Connect(setupPlayer)
+for _, player in ipairs(Players:GetPlayers()) do
+  setupPlayer(player)
+end
+
+menuAction.OnServerEvent:Connect(function(player, action)
+  if typeof(action) ~= "string" then return end
+  print("[BloxSmith]", player.Name, "clicked", action)
+  local stats = player:FindFirstChild("leaderstats")
+  local coins = stats and stats:FindFirstChild("Coins")
+  if action == "Play" and coins then
+    coins.Value += 10
+  end
+end)
+]==]
+
+gui:SetAttribute("BloxSmithSystemRequest", ${JSON.stringify(safePrompt)})
+gui:SetAttribute("Language", ${JSON.stringify(languageName)})
+`;
+
+  return [
+    {
+      kind: "run_lua",
+      parent_path: "Workspace",
+      name: "BloxSmith_Build_UI_And_Systems",
+      payload: { source },
+    },
+    {
+      kind: "scan_project",
+      parent_path: "Workspace",
+      name: "BloxSmith_Scan_UI_And_Systems",
+      payload: { reason: "verify_ui_scripts_remotes_and_server_systems" },
+    },
+  ];
+}
+
 export const Route = createFileRoute("/api/chat")({
   server: {
     handlers: {
@@ -898,6 +1316,19 @@ export const Route = createFileRoute("/api/chat")({
                     ];
                     if (!/toolbox map assets/i.test(cleanContent)) {
                       cleanContent = `${cleanContent.trim()}\n\n_Toolbox map seeding queued: BloxSmith searched safe free Creator Store assets and will insert matching map kits/props before final setup._`;
+                    }
+                  }
+                }
+
+                if (mode === "build" && isRobloxSystemRequest(userText)) {
+                  const systemActions = robloxSystemStudioActions(userText, languageName).map(normalizePluginAction);
+                  if (systemActions.length > 0) {
+                    actions = [
+                      ...actions.filter((a) => a.name !== "BloxSmith_Build_UI_And_Systems" && a.name !== "BloxSmith_Scan_UI_And_Systems"),
+                      ...systemActions,
+                    ];
+                    if (!/UI and systems guard/i.test(cleanContent)) {
+                      cleanContent = `${cleanContent.trim()}\n\n_UI and systems guard queued: BloxSmith will create real StarterGui screens, LocalScript wiring, RemoteEvents, leaderstats, and a server script in Roblox Studio._`;
                     }
                   }
                 }
