@@ -19,7 +19,7 @@ local CollectionService     = game:GetService("CollectionService")
 
 local API_BASE       = "https://bloxsmith.pro"
 local POLL_INTERVAL  = 1
-local PLUGIN_VERSION = "1.7.0"
+local PLUGIN_VERSION = "1.8.0"
 
 ------------------------------------------------------------------- token helpers
 local TOKEN_KEY = "token"
@@ -402,14 +402,70 @@ local function pruneEmptyFolders()
     return removed
 end
 
+local function mergeDuplicateFolders()
+    local merged = {}
+    local cleanupRootNames = {
+        "Workspace",
+        "ReplicatedStorage",
+        "ReplicatedFirst",
+        "ServerScriptService",
+        "ServerStorage",
+        "StarterGui",
+        "StarterPack",
+        "StarterPlayer",
+        "Lighting",
+        "SoundService",
+        "Teams",
+    }
+    local function walk(parent)
+        local firstByName = {}
+        for _, child in ipairs(parent:GetChildren()) do
+            if child:IsA("Folder") then
+                local key = string.lower(child.Name)
+                local keeper = firstByName[key]
+                if keeper and keeper.Parent == parent then
+                    local from = fullPath(child)
+                    for _, grandchild in ipairs(child:GetChildren()) do
+                        grandchild.Parent = keeper
+                    end
+                    child:Destroy()
+                    table.insert(merged, from .. " -> " .. fullPath(keeper))
+                else
+                    firstByName[key] = child
+                    walk(child)
+                end
+            end
+        end
+    end
+    for _, rootName in ipairs(cleanupRootNames) do
+        local ok, root = pcall(function() return game:GetService(rootName) end)
+        if ok and root then
+            walk(root)
+        end
+    end
+    return merged
+end
+
 local SUSPICIOUS_SOURCE_PATTERNS = {
     "require%s*%(",
+    "require%s*%d",
     "loadstring%s*%(",
     "getfenv%s*%(",
     "setfenv%s*%(",
+    "string%.reverse%s*%(",
+    "string%.char%s*%(",
+    "debug%.",
     "HttpService%s*:",
+    "HttpService%.",
+    "game%s*:%s*GetService%s*%(%s*[\"']HttpService[\"']%s*%)",
     "InsertService%s*:%s*LoadAsset",
+    "game%s*:%s*GetObjects",
     "MarketplaceService%s*:%s*PromptPurchase",
+    "Players%.LocalPlayer%.Kick",
+    ":Kick%s*%(",
+    "TeleportService%s*:",
+    "load%s*%(",
+    "module%s*%.require",
 }
 
 local function sourceLooksSuspicious(source)
@@ -432,15 +488,48 @@ local function quarantineInstance(inst, reason)
 end
 
 local function inspectInsertedAsset(root)
-    local report = { scanned = 0, scripts = 0, quarantined = 0, warnings = {} }
+    local report = {
+        status = "Working",
+        scanned = 0,
+        scripts = 0,
+        quarantined = 0,
+        warnings = {},
+        counts = {
+            parts = 0,
+            mesh_parts = 0,
+            models = 0,
+            folders = 0,
+            tools = 0,
+            humanoids = 0,
+            guis = 0,
+            sounds = 0,
+            constraints = 0,
+        },
+    }
     local descendants = root:GetDescendants()
     table.insert(descendants, 1, root)
     for _, inst in ipairs(descendants) do
         report.scanned += 1
         if inst:IsA("BasePart") then
+            report.counts.parts += 1
+            if inst:IsA("MeshPart") then report.counts.mesh_parts += 1 end
             if inst.Anchored == false and not inst:FindFirstAncestorOfClass("Tool") and not inst:FindFirstAncestorWhichIsA("Humanoid") then
                 table.insert(report.warnings, "loose_unanchored_part:" .. fullPath(inst))
             end
+        elseif inst:IsA("Model") then
+            report.counts.models += 1
+        elseif inst:IsA("Folder") then
+            report.counts.folders += 1
+        elseif inst:IsA("Tool") then
+            report.counts.tools += 1
+        elseif inst:IsA("Humanoid") then
+            report.counts.humanoids += 1
+        elseif inst:IsA("LayerCollector") or inst:IsA("GuiObject") then
+            report.counts.guis += 1
+        elseif inst:IsA("Sound") then
+            report.counts.sounds += 1
+        elseif inst:IsA("Constraint") or inst:IsA("JointInstance") then
+            report.counts.constraints += 1
         elseif inst:IsA("Script") or inst:IsA("LocalScript") or inst:IsA("ModuleScript") then
             report.scripts += 1
             local source = ""
@@ -461,12 +550,27 @@ local function inspectInsertedAsset(root)
             break
         end
     end
+    report.has_content = (report.counts.parts + report.counts.models + report.counts.tools + report.counts.guis + report.counts.sounds + report.counts.humanoids) > 0
+    report.has_visual_content = (report.counts.parts + report.counts.models + report.counts.tools + report.counts.guis + report.counts.humanoids) > 0
+    if report.scanned <= 1 or not report.has_content then
+        report.status = "Rejected"
+        table.insert(report.warnings, "empty_or_no_usable_content")
+    elseif report.quarantined > 0 then
+        report.status = "Needs Review"
+    elseif report.scripts >= 20 then
+        report.status = "Needs Review"
+        table.insert(report.warnings, "many_scripts:" .. tostring(report.scripts))
+    elseif report.scanned >= 3500 then
+        report.status = "Needs Review"
+        table.insert(report.warnings, "large_asset_instance_count:" .. tostring(report.scanned))
+    end
     return report
 end
 
 local function organizeProject()
     ensureProjectFolders()
     local moved = {}
+    local merged = mergeDuplicateFolders()
     local workspaceFolders = {}
     local function workspaceTarget(name)
         workspaceFolders[name] = workspaceFolders[name] or ensureFolder(Workspace, name)
@@ -523,7 +627,14 @@ local function organizeProject()
         end
     end
     local removed = pruneEmptyFolders()
-    return { moved = moved, moved_count = #moved, removed_empty_folders = removed, removed_empty_count = #removed }
+    return {
+        moved = moved,
+        moved_count = #moved,
+        merged_duplicate_folders = merged,
+        merged_duplicate_count = #merged,
+        removed_empty_folders = removed,
+        removed_empty_count = #removed,
+    }
 end
 
 local function autoFixProject()
@@ -721,13 +832,13 @@ end
 
 Exec.organize_project = function(_, _)
     local result = organizeProject()
-    log(("Organized project — moved %d item(s), removed %d empty folder(s)."):format(result.moved_count or 0, result.removed_empty_count or 0), "success")
+    log(("Organized project — moved %d item(s), merged %d duplicate folder(s), removed %d empty folder(s)."):format(result.moved_count or 0, result.merged_duplicate_count or 0, result.removed_empty_count or 0), "success")
     return result
 end
 
 Exec.autofix_project = function(_, _)
     local result = autoFixProject()
-    log(("Auto-fix complete — %d moved, %d fixed, %d empty folder(s) removed."):format(result.moved_count or 0, result.fixed_count or 0, result.removed_empty_count or 0), "success")
+    log(("Auto-fix complete — %d moved, %d duplicate folder(s) merged, %d fixed, %d empty folder(s) removed."):format(result.moved_count or 0, result.merged_duplicate_count or 0, result.fixed_count or 0, result.removed_empty_count or 0), "success")
     return result
 end
 
@@ -786,13 +897,43 @@ Exec.insert_asset = function(a, p)
         end
     end
     local safetyReport = inspectInsertedAsset(inserted)
+    if safetyReport.status == "Rejected" then
+        local reason = table.concat(safetyReport.warnings or {}, "; ")
+        inserted:Destroy()
+        pruneEmptyFolders()
+        error(("Asset %d failed safety/import verification: %s"):format(id, reason ~= "" and reason or "no usable content"))
+    end
+    pcall(function()
+        inserted:SetAttribute("BloxSmithAssetId", id)
+        inserted:SetAttribute("BloxSmithVerified", safetyReport.status == "Working")
+        inserted:SetAttribute("BloxSmithSafetyStatus", safetyReport.status)
+        inserted:SetAttribute("BloxSmithScannedInstances", safetyReport.scanned)
+        inserted:SetAttribute("BloxSmithQuarantinedScripts", safetyReport.quarantined)
+    end)
+    pcall(function() CollectionService:AddTag(inserted, "BloxSmithAsset") end)
     if safetyReport.quarantined > 0 then
         log(("Asset safety scan quarantined %d suspicious script(s) from id=%d."):format(safetyReport.quarantined, id), "warn")
     elseif safetyReport.scripts > 0 then
         log(("Asset safety scan checked %d script(s) in id=%d."):format(safetyReport.scripts, id), "debug")
     end
-    log(("✓ inserted asset id=%d as '%s' under %s"):format(id, inserted.Name, p:GetFullName()), "success")
-    return { asset_id = id, name = inserted.Name, path = inserted:GetFullName(), class = inserted.ClassName, safety = safetyReport }
+    log(("✓ inserted asset id=%d as '%s' under %s — safety=%s, instances=%d, parts=%d, scripts=%d"):format(
+        id,
+        inserted.Name,
+        p:GetFullName(),
+        tostring(safetyReport.status),
+        tonumber(safetyReport.scanned) or 0,
+        tonumber(safetyReport.counts and safetyReport.counts.parts) or 0,
+        tonumber(safetyReport.scripts) or 0
+    ), "success")
+    return {
+        asset_id = id,
+        name = inserted.Name,
+        path = inserted:GetFullName(),
+        class = inserted.ClassName,
+        verified = safetyReport.status == "Working",
+        safety_status = safetyReport.status,
+        safety = safetyReport,
+    }
 end
 
 Exec.set_properties = function(a, _)
@@ -1047,10 +1188,11 @@ local function pollOnce(force)
     local fixOk, fixResult = pcall(autoFixProject)
     if fixOk and fixResult then
         local moved = fixResult.moved_count or 0
+        local merged = fixResult.merged_duplicate_count or 0
         local fixed = fixResult.fixed_count or 0
         local removed = fixResult.removed_empty_count or 0
-        if moved > 0 or fixed > 0 or removed > 0 then
-            log(("Auto-cleanup after batch — %d moved, %d fixed, %d empty folder(s) removed."):format(moved, fixed, removed), "success")
+        if moved > 0 or merged > 0 or fixed > 0 or removed > 0 then
+            log(("Auto-cleanup after batch — %d moved, %d duplicate folder(s) merged, %d fixed, %d empty folder(s) removed."):format(moved, merged, fixed, removed), "success")
         end
     elseif not fixOk then
         log("Auto-cleanup skipped: " .. tostring(fixResult), "warn")
@@ -1361,7 +1503,7 @@ organizeBtn.MouseButton1Click:Connect(function()
     local ok, result = pcall(organizeProject)
     ChangeHistoryService:SetWaypoint("BloxSmith organize done")
     if ok then
-        log(("Organized project — moved %d item(s)."):format((result and result.moved_count) or 0), "success")
+        log(("Organized project — moved %d item(s), merged %d duplicate folder(s), removed %d empty folder(s)."):format((result and result.moved_count) or 0, (result and result.merged_duplicate_count) or 0, (result and result.removed_empty_count) or 0), "success")
     else
         log("Organize failed: " .. tostring(result), "error")
     end
@@ -1372,7 +1514,7 @@ autoFixBtn.MouseButton1Click:Connect(function()
     local ok, result = pcall(autoFixProject)
     ChangeHistoryService:SetWaypoint("BloxSmith auto-fix done")
     if ok then
-        log(("Auto-fix complete — %d moved, %d fixed."):format((result and result.moved_count) or 0, (result and result.fixed_count) or 0), "success")
+        log(("Auto-fix complete — %d moved, %d duplicate folder(s) merged, %d fixed, %d empty folder(s) removed."):format((result and result.moved_count) or 0, (result and result.merged_duplicate_count) or 0, (result and result.fixed_count) or 0, (result and result.removed_empty_count) or 0), "success")
     else
         log("Auto-fix failed: " .. tostring(result), "error")
     end
