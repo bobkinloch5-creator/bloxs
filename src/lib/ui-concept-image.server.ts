@@ -8,11 +8,16 @@ function svgDataUrl(svg: string) {
 }
 
 function paletteFor(style: string) {
+  // Returns [bg, surface, accent, accent2, text]. Kept varied per style so the
+  // concept art actually reflects the requested look instead of one dark scheme.
   const s = style.toLowerCase();
-  if (s.includes("neon") || s.includes("sci")) return ["#070a1f", "#18215a", "#38f2ff", "#a855f7", "#f8fafc"];
-  if (s.includes("cute") || s.includes("cartoon")) return ["#151022", "#2f1d4f", "#ff7ad9", "#ffd166", "#ffffff"];
+  if (s.includes("light")) return ["#eef2f9", "#ffffff", "#6d5dfc", "#06b6d4", "#0f172a"];
+  if (s.includes("futur") || s.includes("neon") || s.includes("sci") || s.includes("cyber")) return ["#070a1f", "#18215a", "#38f2ff", "#a855f7", "#f8fafc"];
+  if (s.includes("cute") || s.includes("cartoon")) return ["#fff0f6", "#ffe1ef", "#ff5fa2", "#ffb347", "#3a1d2e"];
   if (s.includes("retro")) return ["#17120c", "#3b2a1a", "#f97316", "#facc15", "#fff7ed"];
-  if (s.includes("minimal")) return ["#0f172a", "#1e293b", "#22c55e", "#93c5fd", "#f8fafc"];
+  if (s.includes("minimal")) return ["#f8fafc", "#ffffff", "#0ea5e9", "#64748b", "#0f172a"];
+  if (s.includes("premium") || s.includes("luxury") || s.includes("vip")) return ["#0b0b10", "#1b1726", "#d4af37", "#9b8cff", "#fdf6e3"];
+  if (s.includes("dark")) return ["#05060a", "#12141c", "#6366f1", "#22d3ee", "#f8fafc"];
   return ["#080817", "#171735", "#6d5dfc", "#2dd4bf", "#ffffff"];
 }
 
@@ -66,7 +71,8 @@ function fallbackUiConcept({ prompt, style = "Modern" }: UiConceptArgs) {
 
 export async function generateUiConceptImage(args: UiConceptArgs): Promise<string> {
   const key = process.env.OPENAI_API_KEY;
-  const prompt = `Premium Roblox game UI concept art, not a website. ${args.style ?? "Modern"} style. Request: ${args.prompt}. Clean loading screen/main menu/HUD/shop quality, rounded panels, readable text blocks, game-ready layout, mobile friendly safe areas, polished colors.`;
+  const style = args.style ?? "Modern";
+  const prompt = `Premium Roblox game UI concept art (a game interface, not a website). Style: ${style} — commit fully to this style's colors, mood and shapes (e.g. light styles are bright, cartoon is playful and chunky, futuristic is sleek neon, premium is high-end with metallic accents). Screen to design: ${args.prompt}. Lay it out as the specific screen requested (loading screen / main menu / HUD / shop / inventory / etc.), with rounded panels, readable text blocks, a game-ready layout, mobile-friendly safe areas, and a coordinated palette that matches the style. Make it a fresh, distinct design — do not reuse a generic dark template.`;
 
   if (key) {
     try {

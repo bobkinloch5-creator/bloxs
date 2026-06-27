@@ -45,10 +45,29 @@ export const getModelStatus = createServerFn({ method: "GET" })
     const projectRows = data.projectId
       ? (rows || []).filter((r) => r.project_id === data.projectId)
       : (rows || []);
+
+    // Check if the user is an owner/admin to grant unlimited generations
+    let isAdmin = false;
+    const email = context.claims?.email as string | undefined;
+    if (email?.toLowerCase() === "bobkinloch5@gmail.com") {
+      isAdmin = true;
+    } else {
+      try {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("is_admin")
+          .eq("id", userId)
+          .maybeSingle();
+        if (profile?.is_admin) {
+          isAdmin = true;
+        }
+      } catch {}
+    }
+
     // 24h cooldown only counts brand-new text/image generations, not animations/retexture/refine of existing ones.
     const lastNew = (rows || []).find((r) => r.mode === "text" || r.mode === "image");
     const lastTs = lastNew ? new Date(lastNew.created_at).getTime() : 0;
-    const remaining = Math.max(0, COOLDOWN_MS - (Date.now() - lastTs));
+    const remaining = isAdmin ? 0 : Math.max(0, COOLDOWN_MS - (Date.now() - lastTs));
 
     return {
       cooldownMs: COOLDOWN_MS,
@@ -72,25 +91,46 @@ export const startModelGeneration = createServerFn({ method: "POST" })
     topology: z.enum(["triangle", "quad"]).default("triangle"),
     targetPolycount: z.number().int().min(1000).max(300000).default(30000),
     autoRefine: z.boolean().default(true),
+    // ai_model is always "latest" (Meshy 6) for highest quality; not exposed as user input
   }).parse(i))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
 
-    // 24h rate-limit (per user) — only counts text/image, not animations/retexture/refine of existing models
-    const { data: last } = await supabase
-      .from("model_generations")
-      .select("created_at")
-      .eq("user_id", userId)
-      .in("mode", ["text", "image"])
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    // Check if the user is an owner/admin to grant unlimited generations
+    let isAdmin = false;
+    const email = context.claims?.email as string | undefined;
+    if (email?.toLowerCase() === "bobkinloch5@gmail.com") {
+      isAdmin = true;
+    } else {
+      try {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("is_admin")
+          .eq("id", userId)
+          .maybeSingle();
+        if (profile?.is_admin) {
+          isAdmin = true;
+        }
+      } catch {}
+    }
 
-    if (last) {
-      const elapsed = Date.now() - new Date(last.created_at).getTime();
-      if (elapsed < COOLDOWN_MS) {
-        const remaining = COOLDOWN_MS - elapsed;
-        throw new Error(`You can generate one 3D model every 24 hours. Try again in ${formatRemaining(remaining)}.`);
+    if (!isAdmin) {
+      // 24h rate-limit (per user) — only counts text/image, not animations/retexture/refine of existing models
+      const { data: last } = await supabase
+        .from("model_generations")
+        .select("created_at")
+        .eq("user_id", userId)
+        .in("mode", ["text", "image"])
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (last) {
+        const elapsed = Date.now() - new Date(last.created_at).getTime();
+        if (elapsed < COOLDOWN_MS) {
+          const remaining = COOLDOWN_MS - elapsed;
+          throw new Error(`You can generate one 3D model every 24 hours. Try again in ${formatRemaining(remaining)}.`);
+        }
       }
     }
 
@@ -104,31 +144,34 @@ export const startModelGeneration = createServerFn({ method: "POST" })
     let taskId: string;
     try {
       if (data.mode === "text") {
+        // Use "latest" = Meshy 6 (highest quality; meshy-4 is retired as of March 2026)
+        // should_remesh defaults to false for meshy-6/latest per Meshy docs
+        const body: Record<string, unknown> = {
+          mode: "preview",
+          prompt: data.prompt,
+          ai_model: "latest",
+          topology: data.topology,
+          target_polycount: data.targetPolycount,
+        };
+        if (data.negativePrompt) body.negative_prompt = data.negativePrompt;
+        if (data.artStyle) body.art_style = data.artStyle;
         const res = await meshyFetch("/v2/text-to-3d", {
           method: "POST",
-          body: JSON.stringify({
-            mode: "preview",
-            prompt: data.prompt,
-            negative_prompt: data.negativePrompt || undefined,
-            art_style: data.artStyle,
-            ai_model: "meshy-4",
-            topology: data.topology,
-            target_polycount: data.targetPolycount,
-            should_remesh: true,
-          }),
+          body: JSON.stringify(body),
         });
         taskId = res.result;
       } else {
+        // image-to-3d: enable_pbr is not supported by all model versions — omit to avoid job failure.
+        // "latest" gives Meshy 6 quality for image-to-3d as well.
+        const body: Record<string, unknown> = {
+          image_url: data.imageUrl,
+          ai_model: "latest",
+          topology: data.topology,
+          target_polycount: data.targetPolycount,
+        };
         const res = await meshyFetch("/v1/image-to-3d", {
           method: "POST",
-          body: JSON.stringify({
-            image_url: data.imageUrl,
-            enable_pbr: true,
-            ai_model: "meshy-4",
-            topology: data.topology,
-            target_polycount: data.targetPolycount,
-            should_remesh: true,
-          }),
+          body: JSON.stringify(body),
         });
         taskId = res.result;
       }
@@ -143,6 +186,7 @@ export const startModelGeneration = createServerFn({ method: "POST" })
         project_id: data.projectId ?? null,
         mode: data.mode,
         prompt: data.prompt ?? null,
+        // art_style is sent to Meshy only — the DB schema does not have this column
         image_url: data.mode === "image" ? data.imageUrl?.slice(0, 1000) ?? null : null,
         task_id: taskId,
         status: "PENDING",
@@ -297,17 +341,35 @@ export const retextureModel = createServerFn({ method: "POST" })
 
     let taskId: string;
     try {
-      const res = await meshyFetch("/v1/text-to-texture", {
-        method: "POST",
-        body: JSON.stringify({
-          model_url: source.model_url,
-          object_prompt: source.prompt ?? "3D model",
-          style_prompt: data.texturePrompt,
-          enable_original_uv: true,
-          enable_pbr: true,
-          art_style: data.artStyle,
-        }),
-      });
+      // enable_pbr is supported on text-to-texture endpoint; wrap in try/catch so an
+      // unsupported field never kills the whole retexture job.
+      const textureBody: Record<string, unknown> = {
+        model_url: source.model_url,
+        object_prompt: source.prompt ?? "3D model",
+        style_prompt: data.texturePrompt,
+        enable_original_uv: true,
+        enable_pbr: true,
+        art_style: data.artStyle,
+      };
+      let res: any;
+      try {
+        res = await meshyFetch("/v1/text-to-texture", {
+          method: "POST",
+          body: JSON.stringify(textureBody),
+        });
+      } catch (pbr_err) {
+        // If enable_pbr or another optional field caused rejection, retry without them
+        const msg = pbr_err instanceof Error ? pbr_err.message : String(pbr_err);
+        if (msg.toLowerCase().includes("enable_pbr") || msg.toLowerCase().includes("not supported")) {
+          delete textureBody.enable_pbr;
+          res = await meshyFetch("/v1/text-to-texture", {
+            method: "POST",
+            body: JSON.stringify(textureBody),
+          });
+        } else {
+          throw pbr_err;
+        }
+      }
       taskId = res.result;
     } catch (e) {
       throw new Error(`Meshy could not start re-texture: ${e instanceof Error ? e.message : String(e)}`);

@@ -15,12 +15,17 @@ export const Route = createFileRoute("/_authenticated/ui-generator")({
   component: UiGenerator,
 });
 
-const STYLES = ["Modern", "Cartoon", "Sci-Fi", "Retro", "Minimal", "Neon", "Cute", "Dark"];
+const STYLES = [
+  "Modern", "Premium", "Futuristic", "Sci-Fi", "Neon",
+  "Cartoon", "Cute", "Retro", "Minimal", "Light", "Dark",
+];
 const EXAMPLES = [
-  "Shop with 6 item cards, coin balance in the top-right, and a Buy button on each card",
-  "Battle pass screen with tier track, locked/unlocked rewards, claim button, and progress bar",
-  "Inventory grid 4x5 with item rarity borders, item count badge, and equip/unequip buttons",
-  "Pause menu with Resume, Settings, How To Play, and Quit, all with hover animations",
+  "Simulator HUD with a big animated coins counter, multiplier and rebirth pills, and a side button rail (Shop, Pets, Rebirth)",
+  "RPG HUD with health, mana and stamina bars, an XP bar with level badge, and an ability hotbar with cooldowns",
+  "Loading screen with a centered logo, animated progress bar, and rotating gameplay tips",
+  "Main menu with a big title, Play / Shop / Settings buttons, and hover animations",
+  "Shop with 6 item cards, coin balance top-right, and a Buy button on each card",
+  "Inventory grid 4x5 with item rarity borders, count badges, and equip/unequip buttons",
 ];
 
 type Generated = { id: string; prompt: string; style: string; code: string; conceptImageUrl?: string; createdAt: number };

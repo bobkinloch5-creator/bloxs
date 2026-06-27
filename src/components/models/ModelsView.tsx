@@ -13,8 +13,7 @@ import {
   ANIMATION_PRESETS,
 } from "@/lib/models3d.functions";
 import { PageShell } from "@/components/PageShell";
-import bridgeAsset from "@/assets/MeshyRobloxBridge.exe.asset.json";
-import { Box, Loader2, Sparkles, Image as ImageIcon, Type, Timer, Download, ExternalLink, AlertCircle, CheckCircle2, PlayCircle, Palette, Zap } from "lucide-react";
+import { Box, Loader2, Sparkles, Image as ImageIcon, Type, Timer, Download, ExternalLink, AlertCircle, CheckCircle2, PlayCircle, Palette, Maximize2 } from "lucide-react";
 
 function useModelViewerScript() {
   useEffect(() => {
@@ -43,6 +42,21 @@ const EXPORT_FORMATS: { key: string; label: string; ext: string }[] = [
   { key: "stl", label: "STL", ext: "stl" },
   { key: "blend", label: "BLEND", ext: "blend" },
   { key: "mtl", label: "MTL", ext: "mtl" },
+];
+
+const STYLE_PRESETS: { key: string; label: string; modifier: string }[] = [
+  { key: "roblox", label: "Roblox-style", modifier: "stylized blocky Roblox-style low-poly game asset, flat shading, clean topology" },
+  { key: "lowpoly", label: "Low-poly", modifier: "low-poly geometric, faceted surfaces, minimal triangles, stylized game-ready" },
+  { key: "cartoon", label: "Cartoon", modifier: "cartoon, exaggerated proportions, bold colors, hand-painted textures" },
+  { key: "cute", label: "Cute / Chibi", modifier: "cute chibi style, soft rounded shapes, pastel colors, oversized head" },
+  { key: "realistic", label: "Realistic", modifier: "photorealistic, PBR materials, fine surface detail, studio lighting" },
+  { key: "fantasy", label: "Fantasy", modifier: "high-fantasy ornate, glowing runes, intricate filigree, magical aura" },
+  { key: "medieval", label: "Medieval", modifier: "medieval craftsmanship, worn metal and stone, leather straps, rustic" },
+  { key: "scifi", label: "Sci-Fi", modifier: "sci-fi futuristic, brushed metal panels, glowing accents, hi-tech greebles" },
+  { key: "modern", label: "Modern", modifier: "modern minimalist, clean surfaces, matte finish, neutral palette" },
+  { key: "horror", label: "Horror", modifier: "horror, decayed, blood-stained, eerie, desaturated, distressed surfaces" },
+  { key: "simulator", label: "Simulator", modifier: "bright candy-colored simulator game asset, smooth surfaces, oversized appeal" },
+  { key: "rpg", label: "RPG", modifier: "RPG hero-grade prop, ornate detail, rich materials, level-3-rarity look" },
 ];
 
 async function forceDownload(url: string, filename: string) {
@@ -94,6 +108,7 @@ export function ModelsView({ projectId }: { projectId?: string }) {
   const [negativePrompt, setNegativePrompt] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [artStyle, setArtStyle] = useState<"realistic" | "sculpture">("realistic");
+  const [stylePreset, setStylePreset] = useState<string>("");
   const [topology, setTopology] = useState<"triangle" | "quad">("triangle");
   const [poly, setPoly] = useState(30000);
   const [busy, setBusy] = useState(false);
@@ -133,9 +148,13 @@ export function ModelsView({ projectId }: { projectId?: string }) {
     setErr(null);
     setBusy(true);
     try {
+      const basePrompt = prompt.trim();
+      const styledPrompt = stylePreset && basePrompt
+        ? `${basePrompt}, ${STYLE_PRESETS.find(s => s.key === stylePreset)?.modifier ?? ""}`
+        : basePrompt;
       await startFn({ data: {
         projectId, mode,
-        prompt: prompt.trim() || undefined,
+        prompt: styledPrompt || undefined,
         negativePrompt: negativePrompt.trim() || undefined,
         imageUrl: imageUrl || undefined,
         artStyle, topology, targetPolycount: poly, autoRefine: true,
@@ -164,23 +183,6 @@ export function ModelsView({ projectId }: { projectId?: string }) {
         </Link>
       ) : undefined}
     >
-      {/* Roblox Bridge banner */}
-      <section className="rounded-2xl border border-emerald-400/20 bg-gradient-to-br from-emerald-500/10 via-transparent to-cyan-500/10 p-5 backdrop-blur-sm">
-        <div className="flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-3">
-            <div className="grid h-11 w-11 place-items-center rounded-xl bg-emerald-500/15 text-emerald-300">
-              <Zap className="h-5 w-5" />
-            </div>
-            <div>
-              <div className="text-xs font-semibold uppercase tracking-wider text-emerald-300">Auto-import into Roblox Studio</div>
-              <div className="text-sm text-muted-foreground">Run the Roblox Bridge once and finished 3D models auto-insert into your open Studio place.</div>
-            </div>
-          </div>
-          <a href={bridgeAsset.url} download="BloxSmithRobloxBridge.exe" className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/40 px-3 py-2 text-xs font-bold text-emerald-100">
-            <Download className="h-3.5 w-3.5" /> Download Bridge (.exe)
-          </a>
-        </div>
-      </section>
 
       {/* Cooldown banner */}
       <section className="rounded-2xl border border-white/10 bg-gradient-to-br from-violet-500/10 via-transparent to-blue-500/10 p-5 backdrop-blur-sm">
@@ -214,6 +216,15 @@ export function ModelsView({ projectId }: { projectId?: string }) {
         {mode === "text" ? (
           <div className="space-y-3">
             <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="A low-poly stylized treasure chest with gold trim" className="w-full min-h-[100px] resize-y rounded-xl border border-white/10 bg-black/30 p-3 text-sm text-white placeholder:text-muted-foreground outline-none focus:border-violet-400/60" maxLength={600} />
+            <div>
+              <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Style preset (optional — appended to prompt)</div>
+              <div className="flex flex-wrap gap-1.5">
+                <button onClick={() => setStylePreset("")} className={`rounded-full px-3 py-1 text-[11px] font-semibold transition ${stylePreset === "" ? "bg-violet-500/25 text-violet-200 border border-violet-400/40" : "bg-white/5 text-muted-foreground border border-white/10 hover:bg-white/10"}`}>No preset</button>
+                {STYLE_PRESETS.map((s) => (
+                  <button key={s.key} onClick={() => setStylePreset(s.key)} title={s.modifier} className={`rounded-full px-3 py-1 text-[11px] font-semibold transition ${stylePreset === s.key ? "bg-violet-500/25 text-violet-200 border border-violet-400/40" : "bg-white/5 text-muted-foreground border border-white/10 hover:bg-white/10"}`}>{s.label}</button>
+                ))}
+              </div>
+            </div>
             <input value={negativePrompt} onChange={(e) => setNegativePrompt(e.target.value)} placeholder="Negative prompt (optional) — e.g. low quality, blurry" className="w-full rounded-xl border border-white/10 bg-black/30 p-2.5 text-xs text-white placeholder:text-muted-foreground outline-none focus:border-violet-400/60" maxLength={300} />
           </div>
         ) : (
@@ -305,7 +316,13 @@ function ModelCard({ m, projectId, onChange }: { m: any; projectId?: string; onC
   const isTexture = m.mode === "texture";
   const isRefine = m.mode === "refine";
   const urls: Record<string, string> = m.model_urls || {};
+  const viewerRef = useRef<HTMLElement | null>(null);
 
+  async function goFullscreen() {
+    const el = viewerRef.current as (HTMLElement & { requestFullscreen?: () => Promise<void> }) | null;
+    if (!el) return;
+    try { await el.requestFullscreen?.(); } catch { /* ignore */ }
+  }
   async function runAnimate(anim: string) {
     setAnimBusy(true); setActionErr(null);
     try {
@@ -332,7 +349,7 @@ function ModelCard({ m, projectId, onChange }: { m: any; projectId?: string; onC
       <div className="aspect-square bg-black/40 relative">
         {done ? (
           // @ts-expect-error - web component
-          <model-viewer src={m.model_url} camera-controls auto-rotate={!isAnimation} autoplay={isAnimation} ar style={{ width: "100%", height: "100%", background: "transparent" }} />
+          <model-viewer ref={viewerRef} src={m.model_url} camera-controls auto-rotate={!isAnimation} autoplay={isAnimation} ar touch-action="pan-y" interaction-prompt="none" shadow-intensity="1" exposure="1" style={{ width: "100%", height: "100%", background: "transparent" }} />
         ) : m.thumbnail_url ? (
           <img src={m.thumbnail_url} alt="" className="w-full h-full object-cover opacity-70" />
         ) : (
@@ -344,6 +361,11 @@ function ModelCard({ m, projectId, onChange }: { m: any; projectId?: string; onC
           <span className={`absolute top-2 left-2 inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider backdrop-blur ${isAnimation ? "bg-fuchsia-500/30 text-fuchsia-100" : isTexture ? "bg-amber-500/30 text-amber-100" : "bg-cyan-500/30 text-cyan-100"}`}>
             {isAnimation ? <><PlayCircle className="h-3 w-3" /> {m.animation_name ?? "animation"}</> : isTexture ? <><Palette className="h-3 w-3" /> retexture</> : <><Sparkles className="h-3 w-3" /> refined</>}
           </span>
+        )}
+        {done && (
+          <button onClick={goFullscreen} title="Fullscreen 3D preview" className="absolute top-2 right-2 inline-flex items-center gap-1 rounded-md bg-black/60 hover:bg-black/80 backdrop-blur px-2 py-1 text-[10px] font-bold text-white">
+            <Maximize2 className="h-3 w-3" /> Fullscreen
+          </button>
         )}
         {!done && !failed && (
           <div className="absolute bottom-0 left-0 right-0 bg-black/60 backdrop-blur-sm p-2">
