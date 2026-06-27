@@ -289,9 +289,9 @@ function ProjectPage() {
 
     if (att) {
       const modeHeader = att.build
-        ? "[IMAGE-TO-GAME MODE: BUILD] The user attached a reference image. Identify the Roblox map theme, colors, buildings, terrain, lighting, props, UI style, mood, camera/gameplay clues, and required systems. Recreate a Roblox version using safe free Toolbox assets first, clean placement, polished UI, organize_project, and scan_project. Do not create procedural placeholder maps."
+        ? "[SCREENSHOT-TO-GAME MODE: BUILD] The user attached a screenshot/reference image. Analyze it like a Roblox art director and systems designer: identify the game genre, map theme, terrain, buildings, rooms, roads/paths, props, lighting, colors, camera angle, UI style, mood, player objective, NPC/enemy/vehicle/tool clues, and the minimum playable gameplay loop. Recreate a Roblox version using safe free Toolbox / Creator Store assets first. Do a wide Toolbox search for every visual asset category you infer from the screenshot, insert real relevant free assets, place/scale/rotate them cleanly, build the matching UI/scripts/remotes/game systems, and finish with organize_project, autofix_project, and scan_project. Never make procedural placeholder scenery, fake models, empty folders, or unfinished buttons. If the screenshot is UI-focused, convert it into real Roblox ScreenGui objects and scripts; if it is map/gameplay-focused, build the map plus playable systems."
         : "[SCREENSHOT MODE: ANALYZE ONLY] The user attached a reference screenshot. Describe what it shows, what Roblox systems would recreate it, and outline a build plan. Do NOT queue or execute build actions for this message.";
-      const promptText = value || (att.build ? "Build a Roblox game/UI that matches this screenshot." : "Analyze this screenshot.");
+      const promptText = value || (att.build ? "Build a complete Roblox game/UI that matches this screenshot." : "Analyze this screenshot.");
       sendMessage(
         {
           role: "user",
@@ -1245,10 +1245,26 @@ function Composer({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { t } = useLang();
   const canSend = !!token && !busy && (input.trim().length > 0 || !!attachment);
+  const openScreenshotToGame = () => {
+    setMode("build");
+    fileInputRef.current?.click();
+  };
   return (
     <div
       className="border-t px-3 pb-4 pt-3 sm:px-6"
       style={{ borderColor: "var(--bs-border)", background: "var(--bs-card)" }}
+      onDragOver={(e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "copy";
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        const file = Array.from(e.dataTransfer.files || []).find((f) => f.type?.startsWith("image/"));
+        if (file) {
+          setMode("build");
+          onAttachFile?.(file);
+        }
+      }}
     >
       <div className="mx-auto w-full max-w-3xl">
         {queueNotice && (
@@ -1285,6 +1301,11 @@ function Composer({
             <div className="min-w-0 flex-1">
               <div className="truncate text-xs font-semibold" style={{ color: "var(--bs-fg)" }}>
                 {attachment.name}
+              </div>
+              <div className="mt-0.5 text-[11px]" style={{ color: "var(--bs-muted-fg)" }}>
+                {attachment.build
+                  ? "Screenshot to Game: BloxSmith will rebuild this as real Roblox assets, UI, and systems."
+                  : "Analyze only: BloxSmith will describe the screenshot and plan the build."}
               </div>
               <div className="mt-1 inline-flex overflow-hidden rounded-lg border" style={{ borderColor: "var(--bs-border)" }}>
                 <button
@@ -1356,11 +1377,22 @@ function Composer({
             />
             <button
               className="bs-icon-btn"
-              title="Attach screenshot (AI will analyze or build from it)"
+              title="Attach screenshot"
               type="button"
               onClick={() => fileInputRef.current?.click()}
             >
               <Paperclip className="h-4 w-4" />
+            </button>
+            <button
+              className="bs-quick"
+              title="Screenshot to Game: upload a reference image and build it in Roblox Studio"
+              type="button"
+              disabled={busy}
+              onClick={openScreenshotToGame}
+              style={{ color: "var(--bs-primary)" }}
+            >
+              <ImageIcon className="h-3.5 w-3.5" />
+              <span className="hidden md:inline">Screenshot to Game</span>
             </button>
 
             <ImprovePromptButton input={input} setInput={setInput} disabled={busy} />
