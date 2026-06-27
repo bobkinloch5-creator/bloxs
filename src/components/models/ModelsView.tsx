@@ -50,6 +50,21 @@ const EXPORT_FORMATS: { key: string; label: string; ext: string }[] = [
 ];
 
 const BRIDGE_FORMATS = ["glb", "gltf", "fbx", "rbxm", "rbxmx"] as const;
+const TEXTURE_LABELS: Record<string, string> = {
+  albedo: "Albedo",
+  base_color: "Base Color",
+  basecolor: "Base Color",
+  diffuse: "Diffuse",
+  normal: "Normal",
+  roughness: "Roughness",
+  metallic: "Metallic",
+  metalness: "Metalness",
+  ao: "AO",
+  ambient_occlusion: "AO",
+  orm: "ORM",
+  displacement: "Displacement",
+  opacity: "Opacity",
+};
 
 const STYLE_PRESETS: { key: string; label: string; modifier: string }[] = [
   { key: "roblox", label: "Roblox-style", modifier: "stylized blocky Roblox-style low-poly game asset, flat shading, clean topology" },
@@ -130,6 +145,42 @@ function previewFileLabel(m: any, urls: Record<string, string>) {
   if (urls.gltf || /\.gltf(\?|#|$)/i.test(String(m.model_url || ""))) return "glTF";
   const first = Object.keys(urls)[0] || String(m.source_format || "").toUpperCase() || "model file";
   return first.toUpperCase();
+}
+
+function textureMapEntries(value: unknown) {
+  const entries: { key: string; label: string; url: string; ext: string }[] = [];
+  const seen = new Set<string>();
+
+  const add = (key: string, url: string) => {
+    if (!/^https?:\/\//i.test(url) || seen.has(url)) return;
+    seen.add(url);
+    const cleanKey = key.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "") || "texture";
+    const ext = url.split("?")[0].split("#")[0].split(".").pop()?.toLowerCase();
+    entries.push({
+      key: cleanKey,
+      label: TEXTURE_LABELS[cleanKey] || titleCase(cleanKey.replace(/_/g, " ")),
+      url,
+      ext: ext && ext.length <= 5 ? ext : "png",
+    });
+  };
+
+  const visit = (node: unknown, key = "texture") => {
+    if (!node) return;
+    if (typeof node === "string") {
+      add(key, node);
+      return;
+    }
+    if (Array.isArray(node)) {
+      node.forEach((item, index) => visit(item, `${key}_${index + 1}`));
+      return;
+    }
+    if (typeof node === "object") {
+      Object.entries(node as Record<string, unknown>).forEach(([childKey, childValue]) => visit(childValue, childKey));
+    }
+  };
+
+  visit(value);
+  return entries;
 }
 
 function friendlyErrorMessage(error: unknown) {
@@ -498,6 +549,7 @@ function ModelCard({ m, projectId, onChange }: { m: any; projectId?: string; onC
   const [texBusy, setTexBusy] = useState(false);
 
   const urls: Record<string, string> = m.model_urls || {};
+  const textureFiles = textureMapEntries(m.texture_urls);
   const previewUrl = bestPreviewUrl(m, urls);
   const title = modelTitle(m);
   const complete = m.status === "SUCCEEDED";
@@ -670,6 +722,12 @@ function ModelCard({ m, projectId, onChange }: { m: any; projectId?: string; onC
             <span>{m.mode === "image" ? "Image → 3D" : m.mode === "text" ? "Text → 3D" : titleCase(String(m.mode || "model").replace(/_/g, " "))}</span>
             <span>·</span>
             <span>{assetOnly ? "Roblox asset ID ready" : done ? `Preview: ${canPreview ? previewFileLabel(m, urls) : "not available"}` : failed ? "Failed" : "Model still processing"}</span>
+            {done && (textureFiles.length > 0 || urls.glb || urls.gltf) && (
+              <>
+                <span>·</span>
+                <span>{textureFiles.length > 0 ? `${textureFiles.length} texture map${textureFiles.length === 1 ? "" : "s"}` : "embedded materials"}</span>
+              </>
+            )}
           </div>
         </div>
         {canPreview ? (
@@ -862,6 +920,9 @@ function ModelCard({ m, projectId, onChange }: { m: any; projectId?: string; onC
                     const u = urls[f.key] || m.model_url;
                     if (u) await forceDownload(u, safeName(m, f.ext));
                   }
+                  for (const texture of textureFiles) {
+                    await forceDownload(texture.url, safeName(m, texture.ext).replace(/\.[^.]+$/, `-${texture.key}.${texture.ext}`));
+                  }
                 }}
                 className="inline-flex items-center gap-1 rounded-md bg-emerald-500/20 hover:bg-emerald-500/30 px-2 py-1 text-[10px] font-bold text-emerald-200"
               >
@@ -878,6 +939,28 @@ function ModelCard({ m, projectId, onChange }: { m: any; projectId?: string; onC
                 </Link>
               )}
             </div>
+            {textureFiles.length > 0 ? (
+              <div className="rounded-lg border border-emerald-300/15 bg-emerald-400/10 p-2 text-[11px] text-emerald-100">
+                <div className="flex items-center gap-1 font-bold">
+                  <Palette className="h-3.5 w-3.5" /> Texture maps saved
+                </div>
+                <div className="mt-1 flex flex-wrap gap-1.5">
+                  {textureFiles.map((texture) => (
+                    <button
+                      key={`${texture.key}-${texture.url}`}
+                      onClick={() => forceDownload(texture.url, safeName(m, texture.ext).replace(/\.[^.]+$/, `-${texture.key}.${texture.ext}`))}
+                      className="inline-flex items-center gap-1 rounded-md bg-emerald-500/20 px-2 py-1 text-[10px] font-bold text-emerald-50 hover:bg-emerald-500/30"
+                    >
+                      <Download className="h-3 w-3" /> {texture.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (urls.glb || urls.gltf) && (
+              <div className="rounded-lg border border-white/10 bg-white/[0.04] p-2 text-[11px] text-white/65">
+                <span className="font-bold text-white/80">Materials:</span> GLB/glTF files can include embedded textures. Separate texture map downloads appear here when the model provider returns them.
+              </div>
+            )}
             {isBridgeModel && (
               <div className="flex flex-wrap items-center gap-1.5 border-t border-white/10 pt-2">
                 {!m.roblox_asset_id && (

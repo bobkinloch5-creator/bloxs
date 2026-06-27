@@ -33,6 +33,39 @@ async function meshyFetch(path: string, init?: RequestInit) {
   return json;
 }
 
+function looksLikeUnsupportedOptionalField(error: unknown) {
+  const msg = error instanceof Error ? error.message : String(error || "");
+  return /enable_pbr|pbr|unknown field|unsupported|not supported|invalid parameter|unrecognized/i.test(msg);
+}
+
+function materialRichPrompt(prompt?: string | null) {
+  const base = String(prompt || "").trim();
+  const textureHint = "game-ready 3D asset with visible material textures, clean UVs, albedo/base color, roughness, metalness, and normal-map style surface detail, Roblox-friendly PBR materials";
+  if (!base) return textureHint;
+  if (/\b(texture|textured|material|pbr|uv|normal map|roughness|metalness|albedo)\b/i.test(base)) {
+    return base;
+  }
+  return `${base}, ${textureHint}`;
+}
+
+async function startTextTo3dJob(body: Record<string, unknown>) {
+  const richBody = { ...body, enable_pbr: true };
+  try {
+    return await meshyFetch("/v2/text-to-3d", {
+      method: "POST",
+      body: JSON.stringify(richBody),
+    });
+  } catch (error) {
+    if (!looksLikeUnsupportedOptionalField(error)) throw error;
+    const fallbackBody = { ...richBody };
+    delete fallbackBody.enable_pbr;
+    return meshyFetch("/v2/text-to-3d", {
+      method: "POST",
+      body: JSON.stringify(fallbackBody),
+    });
+  }
+}
+
 function robloxOpenCloudKey() {
   const k = process.env.ROBLOX_OPEN_CLOUD_API_KEY || process.env.ROBLOX_API_KEY;
   if (!k) throw new Error("Roblox Open Cloud key is missing. Set ROBLOX_OPEN_CLOUD_API_KEY before uploading GLB/FBX models.");
@@ -234,21 +267,18 @@ export const startModelGeneration = createServerFn({ method: "POST" })
         // should_remesh defaults to false for meshy-6/latest per Meshy docs
         const body: Record<string, unknown> = {
           mode: "preview",
-          prompt: data.prompt,
+          prompt: materialRichPrompt(data.prompt),
           ai_model: "latest",
           topology: data.topology,
           target_polycount: data.targetPolycount,
         };
         if (data.negativePrompt) body.negative_prompt = data.negativePrompt;
         if (data.artStyle) body.art_style = data.artStyle;
-        const res = await meshyFetch("/v2/text-to-3d", {
-          method: "POST",
-          body: JSON.stringify(body),
-        });
+        const res = await startTextTo3dJob(body);
         taskId = res.result;
       } else {
-        // image-to-3d: enable_pbr is not supported by all model versions — omit to avoid job failure.
-        // "latest" gives Meshy 6 quality for image-to-3d as well.
+        // image-to-3d does not consistently accept enable_pbr, so request latest quality and
+        // keep any returned embedded materials / texture maps during polling.
         const body: Record<string, unknown> = {
           image_url: data.imageUrl,
           ai_model: "latest",
@@ -560,10 +590,7 @@ export const pollModelGeneration = createServerFn({ method: "POST" })
         .maybeSingle();
       if (!already) {
         try {
-          const refine = await meshyFetch("/v2/text-to-3d", {
-            method: "POST",
-            body: JSON.stringify({ mode: "refine", preview_task_id: gen.task_id }),
-          });
+          const refine = await startTextTo3dJob({ mode: "refine", preview_task_id: gen.task_id });
           await supabase.from("model_generations").insert({
             user_id: userId,
             project_id: gen.project_id,
