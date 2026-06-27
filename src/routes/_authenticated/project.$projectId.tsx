@@ -151,12 +151,12 @@ function ProjectPage() {
   const { data: actions = [] } = useQuery({
     queryKey: ["actions", projectId],
     queryFn: () => actionsFn({ data: { projectId } }),
-    refetchInterval: 4000,
+    refetchInterval: 1000,
   });
   const { data: pluginSession } = useQuery({
     queryKey: ["pluginSession"],
     queryFn: () => sessionFn(),
-    refetchInterval: 6000,
+    refetchInterval: 2000,
   });
   const { data: profile } = useQuery({ queryKey: ["profile"], queryFn: () => profileFn(), refetchInterval: 30000 });
 
@@ -365,6 +365,13 @@ function ProjectPage() {
     }
     return map;
   }, [actions]);
+  const latestActionRows = useMemo(() => {
+    return [...(actions ?? [])].sort((a, b) => {
+      const at = new Date(a.created_at ?? 0).getTime();
+      const bt = new Date(b.created_at ?? 0).getTime();
+      return bt - at;
+    });
+  }, [actions]);
 
   const isAdmin = !!profile?.is_admin;
   const credits = profile?.credits ?? 0;
@@ -527,6 +534,7 @@ function ProjectPage() {
                         imageUrl={imageUrl}
                         pluginOnline={pluginOnline}
                         actionRows={actionRows}
+                        latestActionRows={latestActionRows}
                         isLatest={isLatest}
                       />
                     );
@@ -938,12 +946,14 @@ function AssistantCard({
   imageUrl,
   pluginOnline,
   actionRows = [],
+  latestActionRows = [],
   isLatest = false,
 }: {
   text: string;
   imageUrl?: string | null;
   pluginOnline?: boolean;
   actionRows?: any[];
+  latestActionRows?: any[];
   isLatest?: boolean;
 }) {
   // Strip the trailing bloxsmith-actions JSON block — it's executed by the
@@ -964,13 +974,22 @@ function AssistantCard({
     }
   }
   const [showRaw, setShowRaw] = useState(false);
-  const queued = actionRows.filter((a) => a.status === "pending").length;
-  const executing = actionRows.filter((a) => a.status === "sent").length;
-  const done = actionRows.filter((a) => a.status === "done").length;
-  const failed = actionRows.filter((a) => a.status === "failed").length;
-  const firstError = actionRows.find((a) => a.status === "failed" && a.error)?.error;
-  const confirmed = actionRows.length > 0 && failed === 0 && queued === 0 && executing === 0 && done === actionRows.length;
-  const waitingForRows = actionCount > 0 && actionRows.length === 0 && isLatest;
+  const visibleActionRows = useMemo(() => {
+    if (actionRows.length > 0 || !isLatest || actionCount <= 0) return actionRows;
+    const recentCutoff = Date.now() - 2 * 60_000;
+    const recent = latestActionRows.filter((a) => {
+      const createdAt = new Date(a.created_at ?? 0).getTime();
+      return Number.isFinite(createdAt) && createdAt >= recentCutoff;
+    });
+    return recent.slice(0, actionCount);
+  }, [actionRows, latestActionRows, isLatest, actionCount]);
+  const queued = visibleActionRows.filter((a) => a.status === "pending").length;
+  const executing = visibleActionRows.filter((a) => a.status === "sent").length;
+  const done = visibleActionRows.filter((a) => a.status === "done").length;
+  const failed = visibleActionRows.filter((a) => a.status === "failed").length;
+  const firstError = visibleActionRows.find((a) => a.status === "failed" && a.error)?.error;
+  const confirmed = visibleActionRows.length > 0 && failed === 0 && queued === 0 && executing === 0 && done === visibleActionRows.length;
+  const waitingForRows = actionCount > 0 && visibleActionRows.length === 0 && isLatest;
   return (
     <div className="bs-msg-in flex gap-2.5">
       <div className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-xl ring-1 ring-[var(--bs-border)]" style={{ background: "var(--bs-card-2)" }}>
@@ -1027,7 +1046,7 @@ function AssistantCard({
               ) : queued > 0 ? (
                 <>
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Queued {queued} of {actionRows.length || actionCount} {actionCount === 1 ? "action" : "actions"} for the Roblox plugin.
+                  Queued {queued} of {visibleActionRows.length || actionCount} {actionCount === 1 ? "action" : "actions"} for the Roblox plugin.
                 </>
               ) : waitingForRows ? (
                 <>
