@@ -779,21 +779,6 @@ Exec.insert_asset = function(a, p)
     }
 end
 
--- Known-good free public Roblox assets (verified accessible by any account).
--- Used as automatic fallbacks when the server sends an unauthorized asset ID.
-local FALLBACK_ASSETS = {
-    { id = 93333433,  name = "Wooden House"      },
-    { id = 95530073,  name = "Small Cottage"     },
-    { id = 130805359, name = "Medieval House"    },
-    { id = 35305065,  name = "Barrel"            },
-    { id = 93318396,  name = "Street Lamp"       },
-    { id = 93330621,  name = "Market Stall"      },
-    { id = 35306185,  name = "Fence Post"        },
-    { id = 93321311,  name = "Stone Wall"        },
-    { id = 130658906, name = "Dirt Road"         },
-    { id = 93314825,  name = "Wooden Cart"       },
-}
-
 -- Try to load a single asset id. Returns (placed_instance, nil) on success
 -- or (nil, reason_string) on failure. Never throws.
 local function tryLoadAsset(id, name, parent)
@@ -804,8 +789,8 @@ local function tryLoadAsset(id, name, parent)
 end
 
 -- toolbox_assets: server-resolved batch of free Roblox Toolbox assets.
--- Now with auto-skip of unauthorized assets and automatic fallback to
--- verified free public assets so builds never leave empty folders.
+-- Auto-skips unauthorized assets. It does not substitute hardcoded fallback
+-- models because Toolbox mode must only insert assets selected by live search.
 Exec.toolbox_assets = function(a, p)
     local payload = a.payload or {}
     local assets = payload.assets
@@ -834,28 +819,13 @@ Exec.toolbox_assets = function(a, p)
                 })
                 log(("✓ asset id=%d '%s'"):format(id, placed.Name), "success")
             else
-                -- Auto-skip unauthorized/missing asset, try a fallback instead
                 skipped += 1
-                log(("⚠ asset id=%d unauthorized or missing (%s) — using fallback"):format(id, tostring(err)), "warn")
-                local fbIndex = ((skipped - 1) % #FALLBACK_ASSETS) + 1
-                local fb = FALLBACK_ASSETS[fbIndex]
-                local fbPlaced, fbErr = tryLoadAsset(fb.id, fb.name, folder)
-                if fbPlaced then
-                    local safety = inspectInsertedAsset(fbPlaced)
-                    table.insert(inserted, {
-                        id = fb.id, name = fbPlaced.Name,
-                        path = fbPlaced:GetFullName(), class = fbPlaced.ClassName,
-                        creator = "Roblox", safety = safety, fallback = true,
-                    })
-                    log(("✓ fallback '%s' (id=%d) inserted instead"):format(fb.name, fb.id), "success")
-                else
-                    table.insert(failed, { id = id, name = asset.name, reason = err, fallback_err = fbErr })
-                    log(("✗ fallback id=%d also failed: %s"):format(fb.id, tostring(fbErr)), "error")
-                end
+                table.insert(failed, { id = id, name = asset.name, reason = err })
+                log(("⚠ asset id=%d unauthorized or missing (%s) — skipped; no hardcoded fallback inserted"):format(id, tostring(err)), "warn")
             end
         end
     end
-    log(("Toolbox batch — %d inserted (%d via fallback), %d failed."):format(
+    log(("Toolbox batch — %d inserted, %d skipped, %d failed."):format(
         #inserted, skipped, #failed), #failed > 0 and "warn" or "success")
     return { inserted = inserted, failed = failed, skipped = skipped, source = payload.source or "live" }
 end

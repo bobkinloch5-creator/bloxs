@@ -1,8 +1,9 @@
 // Server-only helper: search Roblox's public toolbox/marketplace for free assets
 // matching a keyword. Returns a small list of { id, name, creatorName, creatorType,
 // thumbnail, relevance, safety }.
-// Best-effort — Roblox occasionally changes these endpoints; we try a few and
-// only fall back to a curated allowlist of verified free Roblox assets.
+// Best-effort — Roblox occasionally changes these endpoints; we try the public
+// Creator Store/Toolbox search paths and return "none" when no safe live result
+// is available. We do not invent or silently substitute hardcoded model ids.
 
 export interface ToolboxResult {
   id: number;
@@ -53,46 +54,12 @@ const CATEGORY_ID: Record<ToolboxCategory, number> = {
   Mesh: 13,
 };
 
-// Curated, verified-free Roblox-creator fallbacks (creator "Roblox", price 0).
-const FALLBACK: Record<string, ToolboxResult[]> = {
-  tree: [
-    { id: 1577043523, name: "Pine Tree", creatorName: "Roblox", creatorType: "User", assetType: "Model" },
-    { id: 162039248, name: "Tree Pack", creatorName: "Roblox", creatorType: "User", assetType: "Model" },
-  ],
-  forest: [
-    { id: 1577043523, name: "Pine Tree", creatorName: "Roblox", creatorType: "User", assetType: "Model" },
-    { id: 162039248, name: "Tree Pack", creatorName: "Roblox", creatorType: "User", assetType: "Model" },
-  ],
-  npc: [
-    { id: 1664543044, name: "Classic Noob NPC", creatorName: "Roblox", creatorType: "User", assetType: "Model" },
-    { id: 27112438, name: "R6 Dummy", creatorName: "Roblox", creatorType: "User", assetType: "Model" },
-  ],
-  dummy: [{ id: 27112438, name: "R6 Dummy", creatorName: "Roblox", creatorType: "User", assetType: "Model" }],
-  sword: [{ id: 12221720, name: "Classic Sword", creatorName: "Roblox", creatorType: "User", assetType: "Gear" }],
-  weapon: [
-    { id: 12221720, name: "Classic Sword", creatorName: "Roblox", creatorType: "User", assetType: "Gear" },
-    { id: 32356064, name: "Rocket Launcher", creatorName: "Roblox", creatorType: "User", assetType: "Gear" },
-    { id: 130113146, name: "Paintball Gun", creatorName: "Roblox", creatorType: "User", assetType: "Gear" },
-    { id: 16895215, name: "Slingshot", creatorName: "Roblox", creatorType: "User", assetType: "Gear" },
-  ],
-  gun: [
-    { id: 32356064, name: "Rocket Launcher", creatorName: "Roblox", creatorType: "User", assetType: "Gear" },
-    { id: 130113146, name: "Paintball Gun", creatorName: "Roblox", creatorType: "User", assetType: "Gear" },
-  ],
-  coil: [
-    { id: 17042957, name: "Speed Coil", creatorName: "Roblox", creatorType: "User", assetType: "Gear" },
-    { id: 16688968, name: "Gravity Coil", creatorName: "Roblox", creatorType: "User", assetType: "Gear" },
-  ],
-  click: [{ id: 9117517011, name: "UI Click", creatorName: "Roblox", creatorType: "User", assetType: "Audio" }],
+const V2_SEARCH_CATEGORY: Record<ToolboxCategory, string> = {
+  Model: "Model",
+  Audio: "Audio",
+  Decal: "Image",
+  Mesh: "Mesh",
 };
-
-function pickFallback(keyword: string): ToolboxResult[] {
-  const k = keyword.toLowerCase();
-  for (const [key, list] of Object.entries(FALLBACK)) {
-    if (k.includes(key)) return list;
-  }
-  return [];
-}
 
 const QUERY_ALIASES: Array<{ test: RegExp; terms: string[] }> = [
   { test: /\b(obby|parkour)\b/i, terms: ["obby kit", "parkour kit", "obstacle course", "checkpoint obby"] },
@@ -372,10 +339,76 @@ export async function searchRobloxToolbox(
         };
       });
 
-  // 1. toolbox-service marketplace endpoint used by Creator Store/Toolbox.
+  // 1. Current Creator Store / Toolbox search endpoint observed on
+  // create.roblox.com/store/category/3d. It works as an unauthenticated GET
+  // when searchCategoryType is present.
   const liveRows = new Map<number, ToolboxResult>();
   const idsNeedingDetails: number[] = [];
   const sourceQueryById = new Map<number, string>();
+  for (const term of activeTerms) {
+    const params = new URLSearchParams({
+      keyword: term,
+      searchCategoryType: V2_SEARCH_CATEGORY[category],
+      limit: String(perPage),
+      sortCategory: "Relevance",
+      sortDirection: "Desc",
+    });
+    let pageToken: string | undefined;
+    for (let page = 0; page < maxPagesPerTerm; page += 1) {
+      if (pageToken) params.set("pageToken", pageToken);
+      else params.delete("pageToken");
+      const v2Url = `https://apis.roblox.com/toolbox-service/v2/assets:search?${params.toString()}`;
+      const v2 = (await tryFetch(v2Url)) as
+        | {
+            nextPageToken?: string;
+            creatorStoreAssets?: Array<{
+              voting?: { upVotePercent?: number };
+              creator?: { creator?: string; name?: string; verified?: boolean };
+              creatorStoreProduct?: {
+                purchasable?: boolean;
+                purchasePrice?: { quantity?: { significand?: number; exponent?: number } };
+              };
+              asset?: {
+                id?: number;
+                name?: string;
+                assetTypeId?: number;
+                hasScripts?: boolean;
+                scriptCount?: number;
+                instanceCounts?: { script?: number };
+                capabilities?: { shouldSandbox?: boolean };
+              };
+            }>;
+          }
+        | null;
+      if (!v2?.creatorStoreAssets || !Array.isArray(v2.creatorStoreAssets)) break;
+      for (const row of v2.creatorStoreAssets) {
+        const id = row.asset?.id;
+        const name = row.asset?.name;
+        if (typeof id !== "number" || !name || liveRows.has(id)) continue;
+        const quantity = row.creatorStoreProduct?.purchasePrice?.quantity;
+        const isFree = quantity == null || quantity.significand === 0;
+        const creatorRef = row.creator?.creator ?? "";
+        sourceQueryById.set(id, term);
+        liveRows.set(id, {
+          id,
+          name,
+          creatorName: row.creator?.name ?? "",
+          creatorType: creatorRef.startsWith("group/") ? "Group" : "User",
+          assetType: category,
+          free: isFree && row.creatorStoreProduct?.purchasable !== false,
+          sourceQuery: term,
+          verifiedCreator: row.creator?.verified,
+          hasScripts: row.asset?.hasScripts ?? ((row.asset?.instanceCounts?.script ?? 0) > 0),
+          scriptCount: row.asset?.scriptCount ?? row.asset?.instanceCounts?.script,
+          upVotePercent: row.voting?.upVotePercent,
+        });
+      }
+      pageToken = v2.nextPageToken;
+      if (!pageToken) break;
+    }
+  }
+
+  // 2. Older toolbox-service marketplace endpoint.
   for (const term of activeTerms) {
     const q = encodeURIComponent(term);
     let cursor: string | undefined;
@@ -426,8 +459,8 @@ export async function searchRobloxToolbox(
     liveRows.set(detail.id, { ...existing, ...detail, sourceQuery: existing?.sourceQuery ?? detail.sourceQuery });
   }
 
-  // 2. legacy public catalog endpoint as a wider backup. Roblox can change this
-  // without notice, so failures are ignored and the curated fallback still works.
+  // 3. Legacy public catalog endpoint as a wider backup. Roblox can change this
+  // without notice, so failures are ignored.
   const legacyCategory = category === "Audio" ? 9 : category === "Decal" ? 8 : category === "Mesh" ? 4 : 6;
   for (const term of activeTerms) {
     const q = encodeURIComponent(term);
@@ -457,17 +490,6 @@ export async function searchRobloxToolbox(
     if (ranked.length > 0) return { source: "live", results: ranked, searchedTerms: activeTerms, scanned: liveRows.size };
   }
 
-  // 2. curated allowlist.
-  const seenFallback = new Set<number>();
-  const fb = terms
-    .flatMap(pickFallback)
-    .filter((r) => {
-      if (seenFallback.has(r.id)) return false;
-      seenFallback.add(r.id);
-      return true;
-    })
-    .map(enrich);
-  if (fb.length > 0) return { source: "fallback", results: fb.slice(0, safeLimit), searchedTerms: activeTerms, scanned: liveRows.size };
   return { source: "none", results: [], searchedTerms: activeTerms, scanned: liveRows.size };
 }
 

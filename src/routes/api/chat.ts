@@ -1654,7 +1654,7 @@ export const Route = createFileRoute("/api/chat")({
 
           const toolboxTool = tool({
             description:
-              "Search the full public Roblox Toolbox/Creator Store for FREE public assets matching a keyword. Use this whenever the user asks for trees, buildings, cars, vehicles, roads, furniture, weapons, NPCs, pets, props, environment kits, sounds, or anything that should be a real Roblox model instead of generated primitives. The backend does a wide multi-query, multi-page free model search, enriches details, filters unsafe/junk/broken/script-heavy rows, and returns ranked rows with insertPayload { asset_id, fallback_ids }. Call once per distinct asset type you need.",
+              "Search the public Roblox Toolbox/Creator Store for FREE public assets matching a keyword. Use this whenever the user asks for trees, buildings, cars, vehicles, roads, furniture, weapons, NPCs, pets, props, environment kits, sounds, or anything that should be a real Roblox model instead of generated primitives. The backend uses live Creator Store/Toolbox search, enriches details, filters unsafe/junk/broken/script-heavy rows, and returns ranked rows with insertPayload { asset_id, fallback_ids }. Call once per distinct asset type you need.",
             inputSchema: z.object({
               keyword: z.string().describe("What to search for, e.g. 'oak tree', 'sports car', 'medieval house', 'zombie npc'."),
               category: z.enum(["Model", "Audio", "Decal", "Mesh"]).optional().describe("Asset category, defaults to Model."),
@@ -1674,9 +1674,7 @@ export const Route = createFileRoute("/api/chat")({
                 results: final,
                 insertionRule:
                   "For each chosen row, emit insert_asset with payload.asset_id from row.id and payload.fallback_ids from row.fallbackIds. Use position/rotation/scale/folder_name/tags yourself. Prefer qualityTier 'excellent', then 'good'. Do not invent IDs.",
-                note: out.source === "fallback"
-                  ? "Live search unavailable; these are curated verified-free Roblox-owned assets."
-                  : out.source === "none"
+                note: out.source === "none"
                   ? "No safe free assets matched. Tell the user no Toolbox match was found and ASK before falling back to generated geometry."
                   : "Live results from Roblox public Toolbox/Creator Store. Use only safe, free, relevant rows, prefer higher score/safety/relevance, include fallback_ids, and list inserted asset names, creators, and ids for the user.",
               };
@@ -1685,7 +1683,7 @@ export const Route = createFileRoute("/api/chat")({
 
           const toolboxSetTool = tool({
             description:
-              "Search the whole public Roblox Toolbox/Creator Store for a SET of needed visual asset categories in one call. Use this before building full maps, worlds, screenshots, lobbies, cities, tycoons, obbies, simulators, RPGs, racing maps, roleplay cities, or any scene needing multiple asset types. Provide one request per category, e.g. road, building, street light, vehicle, tree, rock, NPC. Returns per-category ranked safe/free rows with fallbackIds and insertPayload.",
+              "Search the public Roblox Toolbox/Creator Store for a SET of needed visual asset categories in one call. Use this before building full maps, worlds, screenshots, lobbies, cities, tycoons, obbies, simulators, RPGs, racing maps, roleplay cities, or any scene needing multiple asset types. Provide one request per category, e.g. road, building, street light, vehicle, tree, rock, NPC. Returns per-category ranked safe/free rows with fallbackIds and insertPayload.",
             inputSchema: z.object({
               requests: z.array(z.object({
                 label: z.string().describe("Short category label, e.g. 'city roads', 'shop buildings', 'street lights'."),
