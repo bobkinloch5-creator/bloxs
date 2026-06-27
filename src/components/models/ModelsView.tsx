@@ -88,6 +88,50 @@ function safeName(m: any, ext: string) {
   return `${base}-${String(m.id).slice(0, 6)}.${ext}`;
 }
 
+function titleCase(value: string) {
+  return value
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+function modelTitle(m: any) {
+  const prompt = String(m.prompt || "").trim();
+  const cleaned = prompt
+    .replace(/^Refined\s*[—-]\s*/i, "")
+    .replace(/^Retexture:\s*/i, "")
+    .split(",")[0]
+    .replace(/\b(low[- ]poly|geometric|faceted|minimal triangles|stylized|game[- ]ready|roblox[- ]style|pbr|realistic)\b/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  const fallback = m.mode === "image" ? "Image to 3D Model"
+    : m.mode === "animation" ? `${m.animation_name || "Animated"} Model`
+    : m.mode === "tripo_bridge" ? "Tripo Bridge Model"
+    : m.mode === "tripo_api" ? "Tripo API Model"
+    : "3D Model";
+  const base = cleaned || fallback;
+  if (m.mode === "refine") return `Refined ${titleCase(base)}`;
+  if (m.mode === "texture") return `Retextured ${titleCase(base)}`;
+  if (m.mode === "animation") return titleCase(base);
+  return titleCase(base);
+}
+
+function bestPreviewUrl(m: any, urls: Record<string, string>) {
+  const direct = String(m.model_url || "");
+  if (urls.glb) return urls.glb;
+  if (urls.gltf) return urls.gltf;
+  if (/\.(glb|gltf)(\?|#|$)/i.test(direct)) return direct;
+  return "";
+}
+
+function previewFileLabel(m: any, urls: Record<string, string>) {
+  if (urls.glb || /\.glb(\?|#|$)/i.test(String(m.model_url || ""))) return "GLB";
+  if (urls.gltf || /\.gltf(\?|#|$)/i.test(String(m.model_url || ""))) return "glTF";
+  const first = Object.keys(urls)[0] || String(m.source_format || "").toUpperCase() || "model file";
+  return first.toUpperCase();
+}
+
 export function ModelsView({ projectId }: { projectId?: string }) {
   useModelViewerScript();
   const qc = useQueryClient();
@@ -419,17 +463,28 @@ function ModelCard({ m, projectId, onChange }: { m: any; projectId?: string; onC
   const [texPrompt, setTexPrompt] = useState("");
   const [texBusy, setTexBusy] = useState(false);
 
-  const done = m.status === "SUCCEEDED" && m.model_url;
+  const urls: Record<string, string> = m.model_urls || {};
+  const previewUrl = bestPreviewUrl(m, urls);
+  const title = modelTitle(m);
+  const done = m.status === "SUCCEEDED" && !!m.model_url;
+  const canPreview = done && !!previewUrl;
   const failed = m.status === "FAILED";
   const isAnimation = m.mode === "animation";
   const isTexture = m.mode === "texture";
   const isRefine = m.mode === "refine";
   const isBridgeModel = m.mode === "tripo_bridge" || m.mode === "tripo_api" || m.mode === "external_model" || !!m.source;
-  const urls: Record<string, string> = m.model_urls || {};
   const viewerRef = useRef<HTMLElement | null>(null);
+  const previewShellRef = useRef<HTMLDivElement | null>(null);
+  const [viewerLoaded, setViewerLoaded] = useState(false);
+  const [viewerError, setViewerError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setViewerLoaded(false);
+    setViewerError(null);
+  }, [previewUrl]);
 
   async function goFullscreen() {
-    const el = viewerRef.current as (HTMLElement & { requestFullscreen?: () => Promise<void> }) | null;
+    const el = (viewerRef.current || previewShellRef.current) as (HTMLElement & { requestFullscreen?: () => Promise<void> }) | null;
     if (!el) return;
     try { await el.requestFullscreen?.(); } catch { /* ignore */ }
   }
@@ -498,10 +553,43 @@ function ModelCard({ m, projectId, onChange }: { m: any; projectId?: string; onC
 
   return (
     <div className="rounded-2xl border border-white/10 bg-white/[0.03] overflow-hidden">
-      <div className="aspect-square bg-black/40 relative">
-        {done ? (
+      <div ref={previewShellRef} className="aspect-square bg-black/40 relative overflow-hidden">
+        <div className="absolute left-3 right-14 top-3 z-20 rounded-xl border border-white/10 bg-black/55 px-3 py-2 backdrop-blur">
+          <div className="truncate text-sm font-extrabold text-white" title={title}>{title}</div>
+          <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[10px] font-semibold text-white/65">
+            <span>{m.mode === "image" ? "Image → 3D" : m.mode === "text" ? "Text → 3D" : titleCase(String(m.mode || "model").replace(/_/g, " "))}</span>
+            <span>·</span>
+            <span>{done ? `Preview: ${canPreview ? previewFileLabel(m, urls) : "not available"}` : failed ? "Failed" : "Model still processing"}</span>
+          </div>
+        </div>
+        {canPreview ? (
           // @ts-expect-error - web component
-          <model-viewer ref={viewerRef} src={m.model_url} camera-controls auto-rotate={!isAnimation} autoplay={isAnimation} ar touch-action="pan-y" interaction-prompt="none" shadow-intensity="1" exposure="1" style={{ width: "100%", height: "100%", background: "transparent" }} />
+          <model-viewer
+            ref={viewerRef}
+            key={previewUrl}
+            src={previewUrl}
+            camera-controls
+            auto-rotate={!isAnimation}
+            autoplay={isAnimation}
+            touch-action="pan-y"
+            interaction-prompt="auto"
+            interaction-prompt-style="wiggle"
+            shadow-intensity="1.2"
+            exposure="1.05"
+            environment-image="neutral"
+            bounds="tight"
+            camera-orbit="45deg 65deg auto"
+            field-of-view="30deg"
+            min-camera-orbit="auto auto 5%"
+            max-camera-orbit="auto auto 500%"
+            style={{ width: "100%", height: "100%", minHeight: "280px", background: "radial-gradient(circle at 50% 55%, rgba(99,102,241,.18), transparent 45%)" }}
+            onLoad={() => { setViewerLoaded(true); setViewerError(null); }}
+            onError={(event: any) => {
+              const detail = event?.detail?.sourceError?.message || event?.detail?.message || "The preview file could not be loaded by the 3D viewer.";
+              setViewerError(String(detail));
+              setViewerLoaded(false);
+            }}
+          />
         ) : m.thumbnail_url ? (
           <img src={m.thumbnail_url} alt="" className="w-full h-full object-cover opacity-70" />
         ) : (
@@ -509,13 +597,42 @@ function ModelCard({ m, projectId, onChange }: { m: any; projectId?: string; onC
             {failed ? <AlertCircle className="h-8 w-8 text-rose-400" /> : <Loader2 className="h-8 w-8 animate-spin" />}
           </div>
         )}
+        {canPreview && !viewerLoaded && !viewerError && (
+          <div className="pointer-events-none absolute inset-0 z-10 grid place-items-center bg-black/25 backdrop-blur-[1px]">
+            <div className="rounded-xl border border-white/10 bg-black/65 px-4 py-3 text-center text-xs font-semibold text-white shadow-xl">
+              <Loader2 className="mx-auto mb-2 h-5 w-5 animate-spin text-violet-200" />
+              Preparing 3D preview…
+            </div>
+          </div>
+        )}
+        {viewerError && (
+          <div className="absolute inset-x-3 bottom-3 z-20 rounded-xl border border-rose-400/30 bg-rose-500/15 p-3 text-xs text-rose-100 backdrop-blur">
+            <div className="font-bold">Preview failed to load</div>
+            <div className="mt-1 opacity-85">{viewerError}</div>
+            <a href={previewUrl || m.model_url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1 text-[11px] font-bold underline">
+              <ExternalLink className="h-3 w-3" /> Open preview file
+            </a>
+          </div>
+        )}
+        {done && !canPreview && !failed && (
+          <div className="absolute inset-x-3 bottom-3 z-20 rounded-xl border border-amber-300/25 bg-amber-500/15 p-3 text-xs text-amber-100 backdrop-blur">
+            <div className="font-bold">Website preview needs GLB or glTF</div>
+            <div className="mt-1 opacity-85">This model has {previewFileLabel(m, urls)} available, but the browser preview supports GLB/glTF. Download or upload it to Roblox, or add a GLB URL.</div>
+          </div>
+        )}
+        {!done && !failed && (
+          <div className="absolute inset-x-3 bottom-14 z-20 rounded-xl border border-white/10 bg-black/55 p-3 text-xs text-white/80 backdrop-blur">
+            <div className="font-bold text-white">Model still processing</div>
+            <div className="mt-1">The generated file is not ready yet. BloxSmith will refresh and show the preview when the GLB is available.</div>
+          </div>
+        )}
         {(isAnimation || isTexture || isRefine) && (
-          <span className={`absolute top-2 left-2 inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider backdrop-blur ${isAnimation ? "bg-fuchsia-500/30 text-fuchsia-100" : isTexture ? "bg-amber-500/30 text-amber-100" : "bg-cyan-500/30 text-cyan-100"}`}>
+          <span className={`absolute left-3 top-20 z-20 inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider backdrop-blur ${isAnimation ? "bg-fuchsia-500/30 text-fuchsia-100" : isTexture ? "bg-amber-500/30 text-amber-100" : "bg-cyan-500/30 text-cyan-100"}`}>
             {isAnimation ? <><PlayCircle className="h-3 w-3" /> {m.animation_name ?? "animation"}</> : isTexture ? <><Palette className="h-3 w-3" /> retexture</> : <><Sparkles className="h-3 w-3" /> refined</>}
           </span>
         )}
         {isBridgeModel && (
-          <span className="absolute top-2 left-2 inline-flex items-center gap-1 rounded-md bg-cyan-500/30 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-cyan-100 backdrop-blur">
+          <span className="absolute left-3 top-20 z-20 inline-flex items-center gap-1 rounded-md bg-cyan-500/30 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-cyan-100 backdrop-blur">
             <Plug className="h-3 w-3" /> {m.source === "tripo_api" ? "Tripo API" : m.source === "tripo_bridge" ? "DCC Bridge" : "Bridge"}
           </span>
         )}
@@ -546,8 +663,11 @@ function ModelCard({ m, projectId, onChange }: { m: any; projectId?: string; onC
         )}
       </div>
       <div className="p-3 space-y-2">
-        <div className="text-xs text-muted-foreground line-clamp-2 min-h-[2.5em]">
-          {m.prompt || (m.mode === "image" ? "Image → 3D" : "Untitled")}
+        <div>
+          <div className="truncate text-sm font-bold text-white" title={title}>{title}</div>
+          <div className="mt-0.5 text-xs text-muted-foreground line-clamp-2 min-h-[2.5em]">
+            {m.prompt || (m.mode === "image" ? "Image → 3D" : "Untitled")}
+          </div>
         </div>
         {failed && m.error && <div className="text-[11px] text-rose-300">{m.error}</div>}
         {confirmDelete && (
