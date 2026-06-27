@@ -18,6 +18,14 @@ function jsonError(message: string, status: number, code?: string) {
   });
 }
 
+function luaBooleanTable(values: Record<string, boolean>) {
+  const rows = Object.entries(values).map(([key, value]) => {
+    const safeKey = key.replace(/[^a-zA-Z0-9_]/g, "_");
+    return `  ${safeKey} = ${value ? "true" : "false"}`;
+  });
+  return `{\n${rows.join(",\n")}\n}`;
+}
+
 async function compileMissingStudioActions(params: {
   userText: string;
   assistantText: string;
@@ -273,7 +281,7 @@ local Workspace = game:GetService("Workspace")
 local Lighting = game:GetService("Lighting")
 local StarterGui = game:GetService("StarterGui")
 local ServerScriptService = game:GetService("ServerScriptService")
-local wants = ${JSON.stringify(wants)}
+local wants = ${luaBooleanTable(wants)}
 
 local root = Workspace:FindFirstChild("BloxSmith_Visible_Result_Guard")
 if not root then
@@ -583,6 +591,9 @@ async function toolboxMapStudioActions(userText: string) {
         payload: {
           asset_id: picked.id,
           fallback_ids: picked.fallbackIds ?? [],
+          free_only: true,
+          no_scripts: true,
+          allow_scripts: false,
           folder_name: "BloxSmith_Toolbox_Map_Assets",
           position: [row * 75 - 75, 3, col * 75],
           yaw: (slot % 4) * 90,
@@ -674,7 +685,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local StarterGui = game:GetService("StarterGui")
 local ServerScriptService = game:GetService("ServerScriptService")
 
-local requested = ${JSON.stringify(requested)}
+local requested = ${luaBooleanTable(requested)}
 
 local remotes = ReplicatedStorage:FindFirstChild("BloxSmith_Remotes")
 if not remotes then

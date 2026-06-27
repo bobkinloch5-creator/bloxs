@@ -346,7 +346,8 @@ local function quarantineInstance(inst, reason)
     return fullPath(inst)
 end
 
-local function inspectInsertedAsset(root)
+local function inspectInsertedAsset(root, options)
+    options = options or {}
     local report = { scanned = 0, scripts = 0, quarantined = 0, warnings = {} }
     local descendants = root:GetDescendants()
     table.insert(descendants, 1, root)
@@ -361,13 +362,13 @@ local function inspectInsertedAsset(root)
             local source = ""
             pcall(function() source = inst.Source end)
             local suspicious, pattern = sourceLooksSuspicious(source)
-            if suspicious then
+            if options.no_scripts or suspicious then
                 report.quarantined += 1
                 pcall(function()
                     if inst:IsA("Script") or inst:IsA("LocalScript") then inst.Disabled = true end
                 end)
                 local before = fullPath(inst)
-                quarantineInstance(inst, "Suspicious source pattern: " .. tostring(pattern))
+                quarantineInstance(inst, options.no_scripts and "Toolbox scripts disabled by safety setting" or ("Suspicious source pattern: " .. tostring(pattern)))
                 table.insert(report.warnings, "quarantined_script:" .. before)
             end
         end
@@ -501,13 +502,32 @@ end
 ------------------------------------------------------------------- action executors
 local Exec = {}
 
+local function validateLuaSource(source, scriptName)
+    if type(source) ~= "string" or source:match("^%s*$") then
+        return false, "empty script source"
+    end
+    if source:find("{%s*[%w_]+%s*:") then
+        return false, "JSON-style table syntax found; use key = value in Luau tables"
+    end
+    local fn, err = loadstring(source, "=BloxSmithScript/" .. tostring(scriptName or "Script"))
+    if not fn then
+        return false, tostring(err)
+    end
+    return true, nil
+end
+
 local function makeScript(className, action, parent)
     local payload = action.payload or {}
+    local source = payload.source or ""
+    local ok, err = validateLuaSource(source, action.name)
+    if not ok then
+        error("script validation failed for " .. tostring(action.name) .. ": " .. tostring(err))
+    end
     local existing = parent:FindFirstChild(action.name)
     if existing and existing:IsA(className) then existing:Destroy() end
     local s = Instance.new(className)
     s.Name = action.name
-    s.Source = payload.source or "-- empty"
+    s.Source = source
     s.Parent = parent; return s
 end
 
@@ -638,9 +658,15 @@ Exec.autofix_project = function(_, _)
     return result
 end
 
+local failedAssetIds = {}
+
 local function loadAssetCandidate(id, name, parent)
+    if failedAssetIds[id] then
+        return nil, "blacklisted_failed_asset"
+    end
     local ok, container = pcall(function() return InsertService:LoadAsset(id) end)
     if not ok or not container then
+        failedAssetIds[id] = true
         return nil, "LoadAsset failed: " .. tostring(container)
     end
     local kids = container:GetChildren()
@@ -695,10 +721,16 @@ Exec.insert_asset = function(a, p)
             end
             break
         end
-        log(("Asset id=%d unavailable: %s"):format(candidateId, tostring(loadErr)), "warn")
+        log(("Skipped locked/private asset id=%d: %s. Trying another free model."):format(candidateId, tostring(loadErr)), "warn")
     end
     if not inserted then
-        error("LoadAsset failed for " .. tostring(id) .. " and fallbacks: " .. tostring(loadErr))
+        return {
+            skipped = true,
+            reason = "all_asset_candidates_unavailable",
+            requested_asset_id = id,
+            attempted_asset_ids = attempted,
+            error = tostring(loadErr),
+        }
     end
 
     -- Optional placement: payload.position {x,y,z}, payload.rotation {x,y,z}
@@ -727,7 +759,8 @@ Exec.insert_asset = function(a, p)
             end
         end
     end
-    local safetyReport = inspectInsertedAsset(inserted)
+    local noScripts = payload.no_scripts ~= false and payload.allow_scripts ~= true
+    local safetyReport = inspectInsertedAsset(inserted, { no_scripts = noScripts })
     if safetyReport.quarantined > 0 then
         log(("Asset safety scan quarantined %d suspicious script(s) from id=%d."):format(safetyReport.quarantined, usedId), "warn")
     elseif safetyReport.scripts > 0 then
