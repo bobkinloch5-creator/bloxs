@@ -102,6 +102,263 @@ const MOTION_HINTS = [
 
 function pick<T>(arr: readonly T[], seed: number): T { return arr[seed % arr.length]; }
 
+function luaString(value: string) {
+  return JSON.stringify(value);
+}
+
+function looksLikeUsableLuau(code: string) {
+  const text = code.trim();
+  if (text.length < 400) return false;
+  if (/^--\s*(todo|placeholder|blank)/i.test(text)) return false;
+  return /game:GetService\(["']Players["']\)/.test(text)
+    && /Instance\.new\(["']ScreenGui["']\)/.test(text)
+    && /Instance\.new\(["']TextButton["']\)/.test(text)
+    && /TweenService/.test(text);
+}
+
+function fallbackRobloxUiCode(prompt: string, style: string) {
+  const title = prompt.replace(/\s+/g, " ").trim().slice(0, 54) || "BloxSmith UI";
+  const subtitle = `${style || "Modern"} Roblox interface`;
+  const isLight = /light|cartoon|cute/i.test(style);
+  const bg = isLight ? "Color3.fromRGB(245, 248, 255)" : "Color3.fromRGB(8, 11, 24)";
+  const panel = isLight ? "Color3.fromRGB(255, 255, 255)" : "Color3.fromRGB(20, 27, 52)";
+  const text = isLight ? "Color3.fromRGB(18, 24, 38)" : "Color3.fromRGB(245, 248, 255)";
+  const muted = isLight ? "Color3.fromRGB(85, 94, 115)" : "Color3.fromRGB(170, 181, 210)";
+  return `-- BloxSmith generated Roblox UI fallback
+-- Paste this into StarterPlayer > StarterPlayerScripts as a LocalScript.
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+local existing = playerGui:FindFirstChild("BloxSmithGeneratedUI")
+if existing then existing:Destroy() end
+
+local function make(className, props, parent)
+  local inst = Instance.new(className)
+  for key, value in pairs(props or {}) do
+    inst[key] = value
+  end
+  inst.Parent = parent
+  return inst
+end
+
+local function addCorner(parent, radius)
+  return make("UICorner", { CornerRadius = UDim.new(0, radius or 12) }, parent)
+end
+
+local function addStroke(parent, color, transparency, thickness)
+  return make("UIStroke", {
+    Color = color or Color3.fromRGB(120, 140, 255),
+    Transparency = transparency or 0.35,
+    Thickness = thickness or 1,
+  }, parent)
+end
+
+local function addButtonMotion(button)
+  local scale = make("UIScale", { Scale = 1 }, button)
+  local base = button.BackgroundColor3
+  button.MouseEnter:Connect(function()
+    TweenService:Create(scale, TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Scale = 1.045 }):Play()
+    TweenService:Create(button, TweenInfo.new(0.14), { BackgroundColor3 = base:Lerp(Color3.new(1, 1, 1), 0.12) }):Play()
+  end)
+  button.MouseLeave:Connect(function()
+    TweenService:Create(scale, TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+    TweenService:Create(button, TweenInfo.new(0.14), { BackgroundColor3 = base }):Play()
+  end)
+  button.MouseButton1Down:Connect(function()
+    TweenService:Create(scale, TweenInfo.new(0.08), { Scale = 0.98 }):Play()
+  end)
+  button.MouseButton1Up:Connect(function()
+    TweenService:Create(scale, TweenInfo.new(0.1), { Scale = 1.045 }):Play()
+  end)
+end
+
+local gui = make("ScreenGui", {
+  Name = "BloxSmithGeneratedUI",
+  ResetOnSpawn = false,
+  IgnoreGuiInset = true,
+  ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+}, playerGui)
+
+local root = make("Frame", {
+  Name = "Root",
+  BackgroundColor3 = ${bg},
+  Size = UDim2.fromScale(1, 1),
+}, gui)
+
+local glow = make("Frame", {
+  Name = "AccentGlow",
+  AnchorPoint = Vector2.new(1, 0),
+  BackgroundColor3 = Color3.fromRGB(91, 141, 255),
+  BackgroundTransparency = 0.72,
+  Position = UDim2.fromScale(1.04, -0.08),
+  Size = UDim2.fromScale(0.36, 0.46),
+  Rotation = 18,
+}, root)
+addCorner(glow, 999)
+
+local shell = make("Frame", {
+  Name = "MainPanel",
+  AnchorPoint = Vector2.new(0.5, 0.5),
+  BackgroundColor3 = ${panel},
+  Position = UDim2.fromScale(0.5, 0.5),
+  Size = UDim2.fromScale(0.72, 0.66),
+}, root)
+addCorner(shell, 18)
+addStroke(shell, Color3.fromRGB(111, 137, 255), 0.28, 1.5)
+make("UISizeConstraint", { MinSize = Vector2.new(320, 300), MaxSize = Vector2.new(820, 620) }, shell)
+make("UIPadding", {
+  PaddingTop = UDim.new(0, 24),
+  PaddingBottom = UDim.new(0, 24),
+  PaddingLeft = UDim.new(0, 24),
+  PaddingRight = UDim.new(0, 24),
+}, shell)
+
+local header = make("Frame", {
+  Name = "Header",
+  BackgroundTransparency = 1,
+  Size = UDim2.new(1, 0, 0, 82),
+}, shell)
+
+make("TextLabel", {
+  Name = "Title",
+  BackgroundTransparency = 1,
+  Font = Enum.Font.GothamBlack,
+  Text = ${luaString(title)},
+  TextColor3 = ${text},
+  TextScaled = true,
+  TextXAlignment = Enum.TextXAlignment.Left,
+  TextYAlignment = Enum.TextYAlignment.Top,
+  Size = UDim2.new(0.74, 0, 0, 42),
+}, header)
+
+make("TextLabel", {
+  Name = "Subtitle",
+  BackgroundTransparency = 1,
+  Font = Enum.Font.Gotham,
+  Text = ${luaString(subtitle)},
+  TextColor3 = ${muted},
+  TextScaled = true,
+  TextXAlignment = Enum.TextXAlignment.Left,
+  Position = UDim2.new(0, 0, 0, 48),
+  Size = UDim2.new(0.72, 0, 0, 20),
+}, header)
+
+local primary = make("TextButton", {
+  Name = "PrimaryAction",
+  AnchorPoint = Vector2.new(1, 0),
+  AutoButtonColor = false,
+  BackgroundColor3 = Color3.fromRGB(94, 99, 255),
+  Font = Enum.Font.GothamBold,
+  Text = "PLAY",
+  TextColor3 = Color3.fromRGB(255, 255, 255),
+  TextScaled = true,
+  Position = UDim2.new(1, 0, 0, 4),
+  Size = UDim2.new(0.2, 0, 0, 46),
+}, header)
+addCorner(primary, 12)
+addStroke(primary, Color3.fromRGB(180, 220, 255), 0.35, 1)
+make("UIGradient", {
+  Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(76, 210, 255)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(156, 91, 255)),
+  }),
+}, primary)
+addButtonMotion(primary)
+
+local body = make("Frame", {
+  Name = "Body",
+  BackgroundTransparency = 1,
+  Position = UDim2.new(0, 0, 0, 98),
+  Size = UDim2.new(1, 0, 1, -98),
+}, shell)
+make("UIGridLayout", {
+  CellPadding = UDim2.fromScale(0.025, 0.04),
+  CellSize = UDim2.fromScale(0.31, 0.42),
+  FillDirectionMaxCells = 3,
+  SortOrder = Enum.SortOrder.LayoutOrder,
+}, body)
+
+local cards = {
+  { "Shop", "Open item store", Color3.fromRGB(33, 198, 255) },
+  { "Inventory", "View collected items", Color3.fromRGB(74, 222, 128) },
+  { "Settings", "Audio and controls", Color3.fromRGB(250, 204, 21) },
+  { "Quests", "Track objectives", Color3.fromRGB(248, 113, 113) },
+  { "Rewards", "Claim bonuses", Color3.fromRGB(192, 132, 252) },
+  { "Stats", "Player progress", Color3.fromRGB(45, 212, 191) },
+}
+
+for index, card in ipairs(cards) do
+  local tile = make("TextButton", {
+    Name = card[1] .. "Card",
+    AutoButtonColor = false,
+    BackgroundColor3 = card[3]:Lerp(${panel}, 0.72),
+    LayoutOrder = index,
+    Text = "",
+  }, body)
+  addCorner(tile, 14)
+  addStroke(tile, card[3], 0.18, 1.25)
+  make("UIPadding", {
+    PaddingTop = UDim.new(0, 14),
+    PaddingBottom = UDim.new(0, 14),
+    PaddingLeft = UDim.new(0, 14),
+    PaddingRight = UDim.new(0, 14),
+  }, tile)
+  addButtonMotion(tile)
+
+  local icon = make("Frame", {
+    Name = "Icon",
+    BackgroundColor3 = card[3],
+    Size = UDim2.fromScale(0.22, 0.28),
+  }, tile)
+  addCorner(icon, 999)
+  make("UIAspectRatioConstraint", { AspectRatio = 1 }, icon)
+
+  make("TextLabel", {
+    Name = "CardTitle",
+    BackgroundTransparency = 1,
+    Font = Enum.Font.GothamBlack,
+    Text = card[1],
+    TextColor3 = ${text},
+    TextScaled = true,
+    TextXAlignment = Enum.TextXAlignment.Left,
+    Position = UDim2.fromScale(0, 0.36),
+    Size = UDim2.fromScale(1, 0.22),
+  }, tile)
+
+  make("TextLabel", {
+    Name = "CardDescription",
+    BackgroundTransparency = 1,
+    Font = Enum.Font.Gotham,
+    Text = card[2],
+    TextColor3 = ${muted},
+    TextScaled = true,
+    TextWrapped = true,
+    TextXAlignment = Enum.TextXAlignment.Left,
+    Position = UDim2.fromScale(0, 0.62),
+    Size = UDim2.fromScale(1, 0.3),
+  }, tile)
+
+  tile.MouseButton1Click:Connect(function()
+    print("[BloxSmith UI] " .. card[1] .. " clicked")
+  end)
+end
+
+primary.MouseButton1Click:Connect(function()
+  print("[BloxSmith UI] Play clicked")
+end)
+
+shell.Position = UDim2.fromScale(0.5, 0.54)
+shell.BackgroundTransparency = 1
+TweenService:Create(shell, TweenInfo.new(0.35, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+  Position = UDim2.fromScale(0.5, 0.5),
+  BackgroundTransparency = 0,
+}):Play()
+`;
+}
+
 function buildUserPrompt(prompt: string, style: string): string {
   const seed = Math.floor(Math.random() * 1_000_000);
   const layout = pick(LAYOUT_HINTS, seed);
@@ -137,13 +394,19 @@ export const generateRobloxUi = createServerFn({ method: "POST" })
 
     const conceptImageUrl = await generateUiConceptImage({ prompt: data.prompt, style: data.style });
 
-    const { text } = await generateText({
-      model,
-      system: SYS,
-      prompt: buildUserPrompt(data.prompt, data.style),
-      temperature: 1.0,
-      maxOutputTokens: 4096,
-    });
+    let text = "";
+    try {
+      const generated = await generateText({
+        model,
+        system: SYS,
+        prompt: buildUserPrompt(data.prompt, data.style),
+        temperature: 1.0,
+        maxOutputTokens: 8192,
+      });
+      text = generated.text;
+    } catch (err) {
+      console.warn("[ui-generator] model generation failed; using fallback Luau", err);
+    }
 
     // Strip accidental code fences and bare language tags the model sometimes prepends.
     const cleaned = text
@@ -151,6 +414,7 @@ export const generateRobloxUi = createServerFn({ method: "POST" })
       .replace(/\n?```\s*$/i, "")
       .replace(/^\s*(?:lua|luau)\s*\n/i, "")
       .trim();
+    const finalCode = looksLikeUsableLuau(cleaned) ? cleaned : fallbackRobloxUiCode(data.prompt, data.style);
 
     const sb = context.supabase as any;
     const { data: savedRow, error: saveError } = await sb.from("ui_generations").insert({
@@ -158,12 +422,13 @@ export const generateRobloxUi = createServerFn({ method: "POST" })
       project_id: data.projectId ?? null,
       prompt: data.prompt,
       style: data.style,
-      code: cleaned,
+      code: finalCode,
       concept_image_url: conceptImageUrl,
       model: DEFAULT_MODEL_ID,
       metadata: {
         generator: "ui-generator",
         savedBy: "generateRobloxUi",
+        fallbackUsed: !looksLikeUsableLuau(cleaned),
       },
     }).select("id, created_at").single();
     if (saveError) throw new Error(`Generated UI, but saving failed: ${saveError.message}`);
@@ -180,7 +445,7 @@ export const generateRobloxUi = createServerFn({ method: "POST" })
       });
     }
 
-    return { id: savedRow?.id as string | undefined, code: cleaned, conceptImageUrl, createdAt: savedRow?.created_at as string | undefined };
+    return { id: savedRow?.id as string | undefined, code: finalCode, conceptImageUrl, createdAt: savedRow?.created_at as string | undefined };
   });
 
 export const listSavedRobloxUis = createServerFn({ method: "GET" })
@@ -207,7 +472,7 @@ export const listSavedRobloxUis = createServerFn({ method: "GET" })
       id: row.id,
       prompt: row.prompt,
       style: row.style,
-      code: row.code,
+      code: looksLikeUsableLuau(String(row.code ?? "")) ? row.code : fallbackRobloxUiCode(row.prompt ?? "BloxSmith UI", row.style ?? "Modern"),
       conceptImageUrl: row.concept_image_url,
       createdAt: row.created_at,
       projectId: row.project_id,

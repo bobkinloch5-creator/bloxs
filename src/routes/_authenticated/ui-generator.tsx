@@ -47,6 +47,27 @@ function downloadText(content: string, filename: string) {
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+async function copyText(content: string) {
+  const value = String(content ?? "");
+  if (!value.trim()) throw new Error("No Luau code was generated for this UI.");
+  if (navigator.clipboard?.writeText && window.isSecureContext) {
+    await navigator.clipboard.writeText(value);
+    return;
+  }
+  const textArea = document.createElement("textarea");
+  textArea.value = value;
+  textArea.setAttribute("readonly", "true");
+  textArea.style.position = "fixed";
+  textArea.style.left = "-9999px";
+  textArea.style.top = "0";
+  document.body.appendChild(textArea);
+  textArea.focus();
+  textArea.select();
+  const ok = document.execCommand("copy");
+  textArea.remove();
+  if (!ok) throw new Error("Clipboard copy was blocked by the browser.");
+}
+
 function UiGenerator() {
   const profFn = useServerFn(getMyProfile);
   const genFn = useServerFn(generateRobloxUi);
@@ -232,6 +253,7 @@ function UiGenerator() {
 
 function ResultCard({ result, onDelete, deleting }: { result: Generated; onDelete: (id: string) => void; deleting?: boolean }) {
   const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState<string | null>(null);
   const createdLabel = typeof result.createdAt === "number"
     ? new Date(result.createdAt).toLocaleString()
     : new Date(result.createdAt).toLocaleString();
@@ -247,7 +269,15 @@ function ResultCard({ result, onDelete, deleting }: { result: Generated; onDelet
         <div className="flex flex-wrap gap-1.5">
           <button
             onClick={async () => {
-              try { await navigator.clipboard.writeText(result.code); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch { /* ignore */ }
+              try {
+                await copyText(result.code);
+                setCopyError(null);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 1500);
+              } catch (err: any) {
+                setCopied(false);
+                setCopyError(err?.message || "Copy failed. Use Download instead.");
+              }
             }}
             className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-[11px] font-semibold text-slate-200 hover:bg-white/10"
           >
@@ -294,6 +324,11 @@ function ResultCard({ result, onDelete, deleting }: { result: Generated; onDelet
       <pre className="mt-3 max-h-[400px] overflow-auto rounded-xl border border-white/10 bg-black/60 p-3 text-[11px] leading-relaxed text-slate-200">
         <code>{result.code}</code>
       </pre>
+      {copyError && (
+        <div className="mt-2 rounded-lg border border-amber-300/25 bg-amber-400/10 px-3 py-2 text-[11px] font-semibold text-amber-100">
+          {copyError}
+        </div>
+      )}
       <p className="mt-2 text-[11px] text-muted-foreground">
         Paste into <span className="font-mono text-violet-300">StarterPlayer › StarterPlayerScripts</span> as a LocalScript and press Play.
       </p>
