@@ -1488,7 +1488,7 @@ function Composer({
                   cursor: "pointer",
                 }}
                 title={autoExecute
-                  ? "Auto-execute ON — builds run in Roblox Studio immediately. Uncheck to plan first and push manually."
+                  ? "Auto-execute ON ï¿½ builds run in Roblox Studio immediately. Uncheck to plan first and push manually."
                   : t("chat.autoExecuteHint")}
               >
                 <input
