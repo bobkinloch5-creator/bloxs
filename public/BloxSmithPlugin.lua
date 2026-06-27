@@ -363,21 +363,24 @@ local function ensureProjectFolders()
     return folders
 end
 
-local EMPTY_FOLDER_CLEANUP_ROOTS = {
-    Workspace,
-    ReplicatedStorage,
-    ReplicatedFirst,
-    ServerScriptService,
-    ServerStorage,
-    StarterGui,
-    StarterPack,
-    StarterPlayer,
-    Lighting,
-    SoundService,
-}
-
 local function pruneEmptyFolders()
     local removed = {}
+    local cleanupRootNames = {
+        "Workspace",
+        "ReplicatedStorage",
+        "ReplicatedFirst",
+        "ServerScriptService",
+        "ServerStorage",
+        "StarterGui",
+        "StarterPack",
+        "StarterPlayer",
+        "Lighting",
+        "SoundService",
+        "Teams",
+        "TextChatService",
+        "Chat",
+        "MaterialService",
+    }
     local function walk(inst)
         for _, child in ipairs(inst:GetChildren()) do
             walk(child)
@@ -388,9 +391,12 @@ local function pruneEmptyFolders()
             table.insert(removed, path)
         end
     end
-    for _, root in ipairs(EMPTY_FOLDER_CLEANUP_ROOTS) do
-        for _, child in ipairs(root:GetChildren()) do
-            walk(child)
+    for _, rootName in ipairs(cleanupRootNames) do
+        local ok, root = pcall(function() return game:GetService(rootName) end)
+        if ok and root then
+            for _, child in ipairs(root:GetChildren()) do
+                walk(child)
+            end
         end
     end
     return removed

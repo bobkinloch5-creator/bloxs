@@ -68,16 +68,9 @@ export const queueTestInsert = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const actions = [
       {
-        kind: "folder",
-        parent_path: "Workspace",
-        name: "BloxSmith_Test",
-        payload: {},
-        position: 0,
-      },
-      {
         kind: "part",
-        parent_path: "Workspace.BloxSmith_Test",
-        name: "TestPart",
+        parent_path: "Workspace",
+        name: "BloxSmith_TestPart",
         payload: {
           size: [4, 1, 4],
           position: [0, 6, 0],
@@ -85,14 +78,14 @@ export const queueTestInsert = createServerFn({ method: "POST" })
           anchored: true,
           material: "Neon",
         },
-        position: 1,
+        position: 0,
       },
       {
         kind: "screengui",
         parent_path: "StarterGui",
         name: "BloxSmith_TestGui",
         payload: { reset_on_spawn: true },
-        position: 2,
+        position: 1,
       },
       {
         kind: "script",
@@ -104,7 +97,7 @@ export const queueTestInsert = createServerFn({ method: "POST" })
             "print(\"BloxSmith test insert executed\", RunService:IsStudio())",
           ].join("\n"),
         },
-        position: 3,
+        position: 2,
       },
     ];
 

@@ -8,7 +8,6 @@ export const PLUGIN_ACTION_KINDS = [
   "textlabel",
   "textbutton",
   "imagelabel",
-  "folder",
   "part",
   "model",
   "terrain",
@@ -48,7 +47,8 @@ const ALIASES: Record<string, PluginActionKind> = {
   create_gui: "screengui",
   screen_gui: "screengui",
   create_screen_gui: "screengui",
-  create_folder: "folder",
+  folder: "organize_project",
+  create_folder: "organize_project",
   create_part: "part",
   create_model: "model",
   insert_model: "model",
@@ -82,6 +82,17 @@ export function normalizePluginActionKind(kind: unknown): PluginActionKind {
 
 export function normalizePluginAction(action: any) {
   const kind = normalizePluginActionKind(action?.kind);
+  if (kind === "organize_project" && /^(folder|create[_\s-]*folder)$/i.test(String(action?.kind ?? "").trim())) {
+    return {
+      kind,
+      parent_path: "Workspace",
+      name: "BloxSmith_NoEmptyFolders_Cleanup",
+      payload: {
+        reason: "folder_only_actions_are_forbidden",
+        requested_name: String(action?.name || ""),
+      },
+    };
+  }
   return {
     kind,
     parent_path: normalizeParentPath(kind, action),
