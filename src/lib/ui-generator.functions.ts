@@ -62,18 +62,45 @@ STEP 3 — WRITE THE CODE following these non-negotiable rules:
 // Build a rich, unique user prompt from the style + user request.
 // Explicitly tells the model NOT to reuse the same frosted-glass template.
 // ---------------------------------------------------------------------------
+const LAYOUT_HINTS = [
+  "asymmetric split with a tall left column and stacked right cards",
+  "centered modal with a large hero image at the top and action buttons under it",
+  "edge-anchored HUD with corner pills and a bottom-center action bar",
+  "scroll-driven catalog with sticky header and floating filter bar",
+  "diagonal hero banner with overlapping cards beneath",
+  "three-column dashboard with a wide center panel and skinny side rails",
+  "bento-grid of mixed-size tiles, each tile a different color block",
+  "tabbed shell with a top nav and a swipeable content area",
+];
+const ACCENT_HINTS = [
+  "neon glow outlines and animated UIGradient sweeps on primary buttons",
+  "thick rounded UICorner (16px) with double-layer UIStroke for chunky cartoon vibe",
+  "thin 1px UIStroke borders, flat fills, no gradients — clean minimal",
+  "frosted glass only on the header; solid color blocks everywhere else",
+  "tilted/rotated badge accents and emoji-like icon glyphs",
+  "deep drop-shadow ImageLabel beneath each card for depth",
+];
+
+function pick<T>(arr: readonly T[], seed: number): T { return arr[seed % arr.length]; }
+
 function buildUserPrompt(prompt: string, style: string): string {
+  const seed = Math.floor(Math.random() * 1_000_000);
+  const layout = pick(LAYOUT_HINTS, seed);
+  const accent = pick(ACCENT_HINTS, seed >> 3);
   return `STYLE: ${style}
 REQUESTED UI: ${prompt}
+VARIANT SEED: ${seed}
+LAYOUT DIRECTION: ${layout}
+ACCENT DIRECTION: ${accent}
 
 Instructions:
-1. Identify the UI category from the prompt (loading screen, shop, inventory, HUD, main menu, RPG, simulator, etc.) and use the matching layout from the system guidelines.
-2. Choose the palette from the system guidelines that fits the style tag above. DO NOT default to a plain dark frosted-glass look unless "Dark Mode" was explicitly requested.
-3. Build the FULL UI — every frame, every button, every list, every scroll — all wired with TweenService hover/press animations.
-4. Every button must have a real action (open/close panel, print stub, or BindableEvent).
-5. Include a mobile-friendly layout (scale-based sizing, UIAspectRatioConstraint on icons).
-6. Add comments above each section.
-7. This must be completely DIFFERENT from a generic frosted-glass template. Make it unique to: "${prompt}".`;
+1. Identify the UI category from the prompt and use the matching layout from the system guidelines, BUT bias toward the LAYOUT DIRECTION above so this build is visually distinct from previous generations.
+2. Choose the palette from the system guidelines that fits the style tag. DO NOT default to a generic dark frosted-glass look unless "Dark Mode" was explicitly requested.
+3. Apply the ACCENT DIRECTION above to corners, strokes, gradients, and shadows.
+4. Build the FULL UI — every frame, button, list, scroll — all wired with TweenService hover/press animations. Every button MUST have a real action (open/close panel, print stub, or BindableEvent).
+5. Mobile-friendly (scale sizing, UIAspectRatioConstraint on icons, UISizeConstraint on modals).
+6. Output ONLY valid Luau code — no markdown fences, no English prose, no leading "lua" keyword. Code must paste into a LocalScript and run as-is.
+7. This must be completely DIFFERENT from prior generations. Make it uniquely tied to: "${prompt}".`;
 }
 
 export const generateRobloxUi = createServerFn({ method: "POST" })
@@ -86,15 +113,13 @@ export const generateRobloxUi = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { model } = getProviderModel(DEFAULT_MODEL_ID);
 
-    // Generate concept image in parallel with the code generation prompt build
     const conceptImageUrl = await generateUiConceptImage({ prompt: data.prompt, style: data.style });
 
     const { text } = await generateText({
       model,
       system: SYS,
       prompt: buildUserPrompt(data.prompt, data.style),
-      // Higher temperature = more creative variance between prompts
-      temperature: 0.85,
+      temperature: 1.0,
       maxOutputTokens: 4096,
     });
 
