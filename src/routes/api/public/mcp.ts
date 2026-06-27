@@ -3,6 +3,7 @@
 // Spec: https://modelcontextprotocol.io/specification/2025-06-18/basic/transports
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
+import { normalizePluginActionKind } from "@/lib/plugin-actions";
 
 function admin() {
   return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
@@ -108,7 +109,7 @@ async function callTool(name: string, args: any, sb: ReturnType<typeof admin>, u
       const { data, error } = await sb.from("plugin_actions").insert({
         user_id: userId,
         project_id: args.project_id,
-        kind: args.kind,
+        kind: normalizePluginActionKind(args.kind),
         parent_path: args.parent_path,
         name: args.name,
         payload: { source: args.source },

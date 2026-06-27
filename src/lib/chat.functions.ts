@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { normalizePluginAction } from "@/lib/plugin-actions";
 
 export const listMessages = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -130,6 +131,7 @@ export const queuePreparedStudioActions = createServerFn({ method: "POST" })
     })).min(1).max(80),
   }).parse(input))
   .handler(async ({ data, context }) => {
+    const normalizedActions = data.actions.map(normalizePluginAction);
     const { data: recent } = await context.supabase
       .from("plugin_actions")
       .select("id, created_at")
@@ -137,14 +139,14 @@ export const queuePreparedStudioActions = createServerFn({ method: "POST" })
       .eq("user_id", context.userId)
       .in("status", ["pending", "sent"])
       .order("created_at", { ascending: false })
-      .limit(data.actions.length);
+      .limit(normalizedActions.length);
     const newest = recent?.[0]?.created_at ? new Date(recent[0].created_at).getTime() : 0;
-    if ((recent?.length ?? 0) >= data.actions.length && Date.now() - newest < 30_000) {
+    if ((recent?.length ?? 0) >= normalizedActions.length && Date.now() - newest < 30_000) {
       return { ok: true, count: recent?.length ?? 0, alreadyQueued: true };
     }
 
     const { error } = await context.supabase.from("plugin_actions").insert(
-      data.actions.map((action, i) => ({
+      normalizedActions.map((action, i) => ({
         project_id: data.projectId,
         user_id: context.userId,
         kind: action.kind,
@@ -155,7 +157,7 @@ export const queuePreparedStudioActions = createServerFn({ method: "POST" })
       })),
     );
     if (error) throw new Error(error.message);
-    return { ok: true, count: data.actions.length };
+    return { ok: true, count: normalizedActions.length };
   });
 
 export const clearMessages = createServerFn({ method: "POST" })

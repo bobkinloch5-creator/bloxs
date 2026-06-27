@@ -9,6 +9,7 @@ import { searchRobloxToolbox, type ToolboxCategory } from "@/lib/roblox-toolbox.
 import { chargeCredits, creditCostForTier, BUILD_ACTIONS_BONUS } from "@/lib/credits.server";
 import { describeImageWithNvidiaPaliGemma } from "@/lib/nvidia-vision.server";
 import { generateUiConceptImage } from "@/lib/ui-concept-image.server";
+import { normalizePluginAction } from "@/lib/plugin-actions";
 
 function jsonError(message: string, status: number, code?: string) {
   return new Response(JSON.stringify({ error: message, code }), {
@@ -234,7 +235,7 @@ export const Route = createFileRoute("/api/chat")({
                 // In chat mode, hard-strip any actions block the model accidentally emitted
                 // so it never gets shown to the user or queued for Studio.
                 const cleanContent = parsed.cleanContent;
-                const actions = mode === "chat" ? [] : parsed.actions;
+                const actions = mode === "chat" ? [] : parsed.actions.map(normalizePluginAction);
                 const { data: msgRow } = await supabase.from("chat_messages").insert({
                   project_id: projectId,
                   user_id: userId,
