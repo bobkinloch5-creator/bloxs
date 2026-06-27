@@ -34,6 +34,7 @@ export const Route = createFileRoute("/_authenticated/project/$projectId")({
 });
 
 type Theme = "default" | "grey" | "light";
+type ExecutionMode = "safe" | "fast" | "owner";
 
 const QUICK_PROMPTS = [
   { label: "Zombie survival", icon: Sparkles, prompt: "Build a zombie survival map with waves, shop, guns, safe zone, health UI, leaderboard, DataStore saving, and a scan_project check at the end." },
@@ -169,15 +170,17 @@ function ProjectPage() {
     return (localStorage.getItem("bs-chat-mode") as "chat" | "build") || "build";
   });
   useEffect(() => { localStorage.setItem("bs-chat-mode", mode); }, [mode]);
-  // Auto-execute: when true (default), Build-mode messages run in Studio immediately.
-  // When false, BloxSmith drafts a plan and waits for the user to click Push to Studio.
-  const [autoExecute, setAutoExecute] = useState<boolean>(() => {
-    if (typeof window === "undefined") return true;
-    return localStorage.getItem("bs-auto-execute") !== "0";
+  const [executionMode, setExecutionMode] = useState<ExecutionMode>(() => {
+    if (typeof window === "undefined") return "fast";
+    const stored = localStorage.getItem("bs-execution-mode") as ExecutionMode | null;
+    if (stored === "safe" || stored === "fast" || stored === "owner") return stored;
+    return localStorage.getItem("bs-auto-execute") === "0" ? "safe" : "fast";
   });
+  const autoExecute = executionMode !== "safe";
   useEffect(() => {
+    localStorage.setItem("bs-execution-mode", executionMode);
     localStorage.setItem("bs-auto-execute", autoExecute ? "1" : "0");
-  }, [autoExecute]);
+  }, [executionMode, autoExecute]);
   const { lang: uiLang, t: tr } = useLang();
   const aiLanguageName = LANGUAGES.find((l) => l.code === uiLang)?.aiName ?? "English";
   const clearQueueFn = useServerFn(clearActionQueue);
@@ -300,12 +303,12 @@ function ProjectPage() {
             { type: "file", mediaType: att.mediaType, url: att.dataUrl } as any,
           ],
         } as any,
-        { body: { projectId, modelId, mode: att.build ? effectiveMode : "chat", language: uiLang, languageName: aiLanguageName } },
+        { body: { projectId, modelId, mode: att.build ? effectiveMode : "chat", executionMode, language: uiLang, languageName: aiLanguageName } },
       );
     } else {
       sendMessage(
         { text: value },
-        { body: { projectId, modelId, mode: effectiveMode, language: uiLang, languageName: aiLanguageName } },
+        { body: { projectId, modelId, mode: effectiveMode, executionMode, language: uiLang, languageName: aiLanguageName } },
       );
     }
     setInput("");
@@ -318,7 +321,7 @@ function ProjectPage() {
     if (busy) return;
     sendMessage(
       { text: "Push the plan you just described to Roblox Studio now — emit the bloxsmith-actions block and execute it." },
-      { body: { projectId, modelId, mode: "build" as const, language: uiLang, languageName: aiLanguageName } },
+      { body: { projectId, modelId, mode: "build" as const, executionMode: executionMode === "safe" ? "fast" : executionMode, language: uiLang, languageName: aiLanguageName } },
     );
   }
 
@@ -549,6 +552,8 @@ function ProjectPage() {
                         actionRows={actionRows}
                         latestActionRows={latestActionRows}
                         isLatest={isLatest}
+                        autoExecute={autoExecute}
+                        executionMode={executionMode}
                       />
                     );
                   });
@@ -635,8 +640,9 @@ function ProjectPage() {
               attachment={attachment}
               setAttachment={setAttachment}
               onAttachFile={attachImageFile}
+              executionMode={executionMode}
+              setExecutionMode={setExecutionMode}
               autoExecute={autoExecute}
-              setAutoExecute={setAutoExecute}
               onPushToStudio={pushToStudio}
             />
 
@@ -963,6 +969,7 @@ function AssistantCard({
   latestActionRows = [],
   isLatest = false,
   autoExecute = true,
+  executionMode = "fast",
 }: {
   text: string;
   imageUrl?: string | null;
@@ -972,6 +979,7 @@ function AssistantCard({
   latestActionRows?: any[];
   isLatest?: boolean;
   autoExecute?: boolean;
+  executionMode?: ExecutionMode;
 }) {
   const qc = useQueryClient();
   const queuePreparedFn = useServerFn(queuePreparedStudioActions);
@@ -1029,6 +1037,7 @@ function AssistantCard({
       const res: any = await queuePreparedFn({
         data: {
           projectId,
+          executionMode: executionMode === "safe" ? "fast" : executionMode,
           actions: parsedActions.map((a) => ({
             kind: String(a?.kind || "script").trim() || "script",
             parent_path: String(a?.parent_path || a?.target_parent_path || "").trim() || "Workspace",
@@ -1252,7 +1261,7 @@ function Composer({
   onSubmit, onStop, onAction, modelId, setModelId,
   ttsEnabled, setTtsEnabled, voiceSpeaking, voiceLoading, voiceError, onVoiceTranscript,
   attachment, setAttachment, onAttachFile,
-  autoExecute, setAutoExecute, onPushToStudio,
+  executionMode, setExecutionMode, autoExecute, onPushToStudio,
 }: any) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { t } = useLang();
@@ -1477,29 +1486,33 @@ function Composer({
               </button>
             </div>
 
-            {/* Auto-execute toggle — when off, Build mode drafts a plan instead of running */}
+            {/* Execution mode: Safe previews, Fast runs, Owner runs with owner metadata. */}
             {mode === "build" && (
-              <label
-                className="ml-1 inline-flex select-none items-center gap-1.5 rounded-lg border px-2 py-1.5 text-[11px] font-bold"
-                style={{
-                  borderColor: autoExecute ? "color-mix(in oklab, var(--bs-primary) 50%, transparent)" : "var(--bs-border)",
-                  background: autoExecute ? "color-mix(in oklab, var(--bs-primary) 10%, transparent)" : "transparent",
-                  color: autoExecute ? "var(--bs-primary)" : "var(--bs-muted-fg)",
-                  cursor: "pointer",
-                }}
-                title={autoExecute
-                  ? "Auto-execute ON � builds run in Roblox Studio immediately. Uncheck to plan first and push manually."
-                  : t("chat.autoExecuteHint")}
-              >
-                <input
-                  type="checkbox"
-                  checked={!!autoExecute}
-                  onChange={(e) => setAutoExecute(e.target.checked)}
-                  className="h-3 w-3 accent-indigo-500"
-                />
-                <Zap className="h-3 w-3" style={{ color: autoExecute ? "var(--bs-primary)" : "var(--bs-muted-fg)" }} />
-                <span className="hidden md:inline">{t("chat.autoExecute")}</span>
-              </label>
+              <div className="ml-1 inline-flex overflow-hidden rounded-lg border text-[11px] font-bold" style={{ borderColor: "var(--bs-border)" }} title="Safe previews actions first. Fast auto-executes. Owner executes instantly for owner/admin accounts.">
+                {([
+                  ["safe", ShieldCheck, "Safe"],
+                  ["fast", Zap, "Fast"],
+                  ["owner", Crown, "Owner"],
+                ] as const).map(([key, Icon, label]) => {
+                  const active = executionMode === key;
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setExecutionMode(key)}
+                      className="inline-flex items-center gap-1 px-2 py-1.5"
+                      style={{
+                        background: active ? "color-mix(in oklab, var(--bs-primary) 18%, transparent)" : "transparent",
+                        color: active ? "var(--bs-primary)" : "var(--bs-muted-fg)",
+                        borderRight: key === "owner" ? "0" : "1px solid var(--bs-border)",
+                      }}
+                    >
+                      <Icon className="h-3 w-3" />
+                      <span className="hidden lg:inline">{label}</span>
+                    </button>
+                  );
+                })}
+              </div>
             )}
 
             {/* Push to Studio — runs the last drafted plan as real Roblox actions */}

@@ -590,8 +590,23 @@ async function toolboxMapStudioActions(userText: string) {
           tags: ["bloxsmith", "toolbox-map", request.label],
           asset_name: picked.name,
           creator_name: picked.creatorName,
+          thumbnail: picked.thumbnail,
           source_query: picked.sourceQuery ?? request.keyword,
           quality_tier: picked.qualityTier ?? "usable",
+          safety_score: picked.safety,
+          relevance_score: picked.relevance,
+          has_scripts: picked.hasScripts,
+          script_count: picked.scriptCount ?? 0,
+          preview: {
+            id: picked.id,
+            name: picked.name,
+            creatorName: picked.creatorName,
+            thumbnail: picked.thumbnail,
+            safety: picked.safety,
+            relevance: picked.relevance,
+            hasScripts: picked.hasScripts,
+            scriptCount: picked.scriptCount ?? 0,
+          },
         },
       });
       slot += 1;
@@ -1065,13 +1080,15 @@ export const Route = createFileRoute("/api/chat")({
           const token = auth.replace(/^Bearer\s+/i, "");
           if (!token) return jsonError("Please sign in again before sending a message.", 401, "no_auth");
 
-          let body: { messages?: UIMessage[]; projectId?: string; modelId?: string; autoExecute?: boolean; mode?: "chat" | "build"; language?: string; languageName?: string };
+          let body: { messages?: UIMessage[]; projectId?: string; modelId?: string; autoExecute?: boolean; executionMode?: "safe" | "fast" | "owner"; mode?: "chat" | "build"; language?: string; languageName?: string };
           try {
             body = (await request.json()) as typeof body;
           } catch {
             return jsonError("Invalid JSON in request body.", 400, "bad_json");
           }
           const mode: "chat" | "build" = body.mode === "chat" ? "chat" : "build";
+          let executionMode: "safe" | "fast" | "owner" =
+            body.executionMode === "safe" || body.executionMode === "owner" ? body.executionMode : "fast";
           const languageName = (body.languageName || "English").toString().slice(0, 60);
           const languageCode = (body.language || "en").toString().slice(0, 8);
           const { messages, projectId } = body;
@@ -1101,6 +1118,23 @@ export const Route = createFileRoute("/api/chat")({
           const { data: userData } = await supabase.auth.getUser();
           if (!userData.user) return jsonError("Your session expired. Please sign in again.", 401, "expired");
           const userId = userData.user.id;
+
+          if (executionMode === "owner") {
+            try {
+              const adminClient = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
+                auth: { persistSession: false },
+              });
+              const { data: roles } = await adminClient
+                .from("user_roles")
+                .select("role")
+                .eq("user_id", userId)
+                .in("role", ["owner", "admin"]);
+              const isOwner = (roles ?? []).some((r: any) => r.role === "owner" || r.role === "admin");
+              if (!isOwner) executionMode = "fast";
+            } catch {
+              executionMode = "fast";
+            }
+          }
 
           const { data: project, error: projErr } = await supabase
             .from("projects")
@@ -1265,6 +1299,23 @@ export const Route = createFileRoute("/api/chat")({
 
           const convertedMessages = await convertToModelMessages(messages);
 
+          const withExecutionMetadata = (action: any) => ({
+            ...action,
+            payload: {
+              ...(action.payload ?? {}),
+              _bloxsmith: {
+                execution_mode: executionMode,
+                structured: true,
+                safe_mode_preview: executionMode === "safe",
+                owner_mode: executionMode === "owner",
+                no_empty_folders: true,
+                no_fake_assets: true,
+                retry_failed_insertions: true,
+                scan_inserted_scripts: true,
+              },
+            },
+          });
+
           const persistFinish = (usedModelId: string, fallbackNotice: string | null) =>
             async ({ text }: { text: string }) => {
               try {
@@ -1345,6 +1396,8 @@ export const Route = createFileRoute("/api/chat")({
                     }
                   }
                 }
+
+                actions = actions.map(withExecutionMetadata);
 
                 const { data: msgRow } = await supabase.from("chat_messages").insert({
                   project_id: projectId,

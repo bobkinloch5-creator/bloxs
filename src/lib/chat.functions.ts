@@ -138,6 +138,7 @@ export const queuePreparedStudioActions = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({
     projectId: z.string().uuid(),
+    executionMode: z.enum(["safe", "fast", "owner"]).optional().default("fast"),
     actions: z.array(z.object({
       kind: z.preprocess(
         (v) => (typeof v === "string" && v.trim() === "" ? "script" : v),
@@ -176,7 +177,19 @@ export const queuePreparedStudioActions = createServerFn({ method: "POST" })
         kind: action.kind,
         parent_path: action.parent_path,
         name: action.name,
-        payload: action.payload ?? {},
+        payload: {
+          ...(action.payload ?? {}),
+          _bloxsmith: {
+            execution_mode: data.executionMode,
+            structured: true,
+            safe_mode_preview: data.executionMode === "safe",
+            owner_mode: data.executionMode === "owner",
+            no_empty_folders: true,
+            no_fake_assets: true,
+            retry_failed_insertions: true,
+            scan_inserted_scripts: true,
+          },
+        },
         position: i,
       })),
     );

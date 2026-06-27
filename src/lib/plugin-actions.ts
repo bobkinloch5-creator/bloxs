@@ -105,8 +105,19 @@ export function normalizePluginActionKind(kind: unknown): PluginActionKind {
 }
 
 export function normalizePluginAction(action: any) {
-  const kind = normalizePluginActionKind(action?.kind);
-  if (kind === "organize_project" && /^(folder|create[_\s-]*folder)$/i.test(String(action?.kind ?? "").trim())) {
+  const rawKind = action?.kind ?? action?.action ?? action?.type;
+  const kind = normalizePluginActionKind(rawKind);
+  const payload = action?.payload && typeof action.payload === "object" ? { ...action.payload } : {};
+  if (action?.source && (kind === "script" || kind === "localscript" || kind === "modulescript" || kind === "run_lua")) {
+    payload.source = action.source;
+  }
+  if (action?.target_path && !payload.target_path) payload.target_path = action.target_path;
+  if (action?.target && !payload.parent_path) payload.parent_path = action.target;
+  if (action?.properties && !payload.properties) payload.properties = action.properties;
+  if (action?.asset_id && !payload.asset_id) payload.asset_id = action.asset_id;
+  if (action?.fallback_ids && !payload.fallback_ids) payload.fallback_ids = action.fallback_ids;
+
+  if (kind === "organize_project" && /^(folder|create[_\s-]*folder)$/i.test(String(rawKind ?? "").trim())) {
     return {
       kind,
       parent_path: "Workspace",
@@ -121,13 +132,13 @@ export function normalizePluginAction(action: any) {
     kind,
     parent_path: normalizeParentPath(kind, action),
     name: String(action?.name || action?.target_path || "BloxSmithAction"),
-    payload: action?.payload && typeof action.payload === "object" ? action.payload : {},
+    payload,
   };
 }
 
 export function normalizeParentPath(kind: PluginActionKind, action: any): string {
   const payload = action?.payload && typeof action.payload === "object" ? action.payload : {};
-  const raw = String(action?.parent_path || action?.target_parent_path || payload.parent_path || "").trim();
+  const raw = String(action?.parent_path || action?.target_parent_path || action?.target || payload.parent_path || "").trim();
   const path = raw.replace(/\//g, ".");
 
   if (kind === "script" || kind === "leaderstats") return serviceOr(path, "ServerScriptService");

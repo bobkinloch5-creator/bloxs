@@ -914,6 +914,7 @@ end
 
 local function describeAction(a)
     local payload = a.payload or {}
+    local meta = payload._bloxsmith or {}
     local extra = ""
     if a.kind == "script" or a.kind == "localscript" or a.kind == "modulescript" then
         extra = (" (%d chars)"):format(#(payload.source or ""))
@@ -921,9 +922,17 @@ local function describeAction(a)
         local sz = payload.size or {}
         extra = (" %sx%sx%s"):format(tostring(sz[1] or "?"), tostring(sz[2] or "?"), tostring(sz[3] or "?"))
     elseif a.kind == "insert_asset" then
-        extra = (" id=%s"):format(tostring(payload.asset_id))
+        local assetName = payload.asset_name or (payload.preview and payload.preview.name)
+        local safety = payload.safety_score or (payload.preview and payload.preview.safety)
+        local safetyNum = tonumber(safety)
+        extra = (" id=%s%s%s"):format(
+            tostring(payload.asset_id),
+            assetName and (" · " .. tostring(assetName)) or "",
+            safetyNum and (" · safety " .. tostring(math.floor(safetyNum * 100))) or ""
+        )
     end
-    return ("%s '%s' → %s%s"):format(a.kind, tostring(a.name), tostring(a.parent_path or "auto"), extra)
+    local mode = meta.execution_mode and (" [" .. tostring(meta.execution_mode) .. "]") or ""
+    return ("%s%s '%s' → %s%s"):format(a.kind, mode, tostring(a.name), tostring(a.parent_path or "auto"), extra)
 end
 
 local function executeAction(action)
