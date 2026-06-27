@@ -81,10 +81,57 @@ export function normalizePluginActionKind(kind: unknown): PluginActionKind {
 }
 
 export function normalizePluginAction(action: any) {
+  const kind = normalizePluginActionKind(action?.kind);
   return {
-    kind: normalizePluginActionKind(action?.kind),
-    parent_path: String(action?.parent_path || action?.target_parent_path || "Workspace"),
+    kind,
+    parent_path: normalizeParentPath(kind, action),
     name: String(action?.name || action?.target_path || "BloxSmithAction"),
     payload: action?.payload && typeof action.payload === "object" ? action.payload : {},
   };
+}
+
+export function normalizeParentPath(kind: PluginActionKind, action: any): string {
+  const payload = action?.payload && typeof action.payload === "object" ? action.payload : {};
+  const raw = String(action?.parent_path || action?.target_parent_path || payload.parent_path || "").trim();
+  const path = raw.replace(/\//g, ".");
+
+  if (kind === "script" || kind === "leaderstats") return serviceOr(path, "ServerScriptService");
+  if (kind === "localscript") {
+    if (/StarterGui|ScreenGui|TextButton|ImageButton|Frame/i.test(path)) return path;
+    if (/StarterCharacterScripts/i.test(path)) return "StarterPlayer.StarterCharacterScripts";
+    return "StarterPlayer.StarterPlayerScripts";
+  }
+  if (kind === "modulescript") {
+    if (/^ReplicatedStorage\.Modules(\.|$)/i.test(path)) return path;
+    return "ReplicatedStorage.Modules";
+  }
+  if (kind === "remoteevent" || kind === "remotefunction" || kind === "bindableevent") {
+    if (/^ReplicatedStorage\.Remotes(\.|$)/i.test(path)) return path;
+    return "ReplicatedStorage.Remotes";
+  }
+  if (kind === "screengui" || kind === "gui") return serviceOr(path, "StarterGui");
+  if (kind === "frame" || kind === "textlabel" || kind === "textbutton" || kind === "imagelabel") {
+    return serviceOr(path, "StarterGui");
+  }
+  if (kind === "tool") return serviceOr(path, "StarterPack");
+  if (kind === "sound") return serviceOr(path, "SoundService");
+  if (kind === "team") return "Teams";
+  if (kind === "insert_asset") {
+    if (String(payload.folder_name || "").includes("Imported") || /import/i.test(String(action?.name || ""))) {
+      return "Workspace.BloxSmith_Imported_Models";
+    }
+    return serviceOr(path, "Workspace");
+  }
+  if (kind === "part" || kind === "model" || kind === "terrain") return serviceOr(path, "Workspace");
+  return serviceOr(path, "Workspace");
+}
+
+function serviceOr(path: string, fallback: string): string {
+  if (!path) return fallback;
+  if (/^StarterPlayerScripts$/i.test(path)) return "StarterPlayer.StarterPlayerScripts";
+  if (/^StarterCharacterScripts$/i.test(path)) return "StarterPlayer.StarterCharacterScripts";
+  if (/^(Workspace|ReplicatedStorage|ReplicatedFirst|ServerScriptService|ServerStorage|StarterGui|StarterPack|StarterPlayer|Lighting|SoundService|Teams)(\.|$)/i.test(path)) {
+    return path;
+  }
+  return fallback;
 }

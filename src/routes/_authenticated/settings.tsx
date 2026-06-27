@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getMyProfile, updateMyProfile } from "@/lib/profile.functions";
 import { useEffect, useState } from "react";
-import { Loader2, Save } from "lucide-react";
+import { Loader2, Save, ShieldCheck, UserRound } from "lucide-react";
 import { LANGUAGES, useLang, type LangCode } from "@/lib/i18n";
 
 export const Route = createFileRoute("/_authenticated/settings")({
@@ -50,20 +50,34 @@ function SettingsPage() {
   });
 
   return (
-    <div className="mx-auto max-w-2xl px-6 py-10">
-      <h1 className="font-display text-3xl font-bold">{t("settings.title")}</h1>
-      <div className="glass mt-6 space-y-4 rounded-2xl p-6">
+    <div className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6 sm:py-10">
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-bold text-violet-200">
+            <UserRound className="h-3.5 w-3.5" /> Account
+          </div>
+          <h1 className="mt-3 font-display text-3xl font-bold text-white">{t("settings.title")}</h1>
+          <p className="mt-1 max-w-xl text-sm text-muted-foreground">Keep your Roblox identity, language, privacy, and asset safety preferences cleanly synced across BloxSmith.</p>
+        </div>
+        <div className="rounded-2xl border border-emerald-300/20 bg-emerald-400/10 px-4 py-3 text-xs text-emerald-100">
+          <div className="flex items-center gap-2 font-bold"><ShieldCheck className="h-4 w-4" /> Toolbox safety mode</div>
+          <div className="mt-1 text-emerald-100/75">Visual builds prefer safe free Creator Store assets.</div>
+        </div>
+      </div>
+
+      <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-4 shadow-2xl shadow-black/20 backdrop-blur sm:p-6">
+        <div className="grid gap-4 md:grid-cols-2">
         <Field label={t("settings.displayName")}>
           <input value={form.display_name} onChange={(e) => setForm({ ...form, display_name: e.target.value })}
-            className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm" />
+            className="w-full rounded-xl border border-white/10 bg-black/25 px-3 py-2.5 text-sm text-white outline-none transition focus:border-violet-300/60" placeholder="Your creator name" />
         </Field>
         <Field label={t("settings.robloxUser")}>
           <input value={form.roblox_username} onChange={(e) => setForm({ ...form, roblox_username: e.target.value })}
-            className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm" />
+            className="w-full rounded-xl border border-white/10 bg-black/25 px-3 py-2.5 text-sm text-white outline-none transition focus:border-violet-300/60" placeholder="Roblox username" />
         </Field>
-        <Field label={t("settings.bio")}>
+        <Field label={t("settings.bio")} wide>
           <textarea rows={3} value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })}
-            className="w-full resize-none rounded-lg border border-border bg-input px-3 py-2 text-sm" />
+            className="w-full resize-none rounded-xl border border-white/10 bg-black/25 px-3 py-2.5 text-sm text-white outline-none transition focus:border-violet-300/60" placeholder="Short profile bio" />
         </Field>
         <Field label={t("common.language")}>
           <select
@@ -73,7 +87,7 @@ function SettingsPage() {
               setForm({ ...form, language: next });
               setLang(next); // preview the language immediately
             }}
-            className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm"
+            className="w-full rounded-xl border border-white/10 bg-black/25 px-3 py-2.5 text-sm text-white outline-none transition focus:border-violet-300/60"
           >
             {LANGUAGES.map((l) => (
               <option key={l.code} value={l.code}>
@@ -87,7 +101,7 @@ function SettingsPage() {
           <select
             value={form.asset_mode}
             onChange={(e) => setForm({ ...form, asset_mode: e.target.value as typeof form.asset_mode })}
-            className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm"
+            className="w-full rounded-xl border border-white/10 bg-black/25 px-3 py-2.5 text-sm text-white outline-none transition focus:border-violet-300/60"
           >
             <option value="toolbox_only">Toolbox assets only — ask before fallback</option>
             <option value="both">Toolbox assets + scripted systems</option>
@@ -96,24 +110,27 @@ function SettingsPage() {
             BloxSmith uses safe, free Roblox Creator Store assets for visual objects and asks before using any generated fallback.
           </div>
         </Field>
-        <label className="flex items-center gap-2 text-sm">
+        <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/20 p-3 text-sm text-white md:col-span-2">
           <input type="checkbox" checked={form.is_private} onChange={(e) => setForm({ ...form, is_private: e.target.checked })} />
           {t("settings.private")}
         </label>
+        </div>
+        <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-white/10 pt-5">
         <button onClick={() => save.mutate()} disabled={save.isPending}
-          className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50">
+          className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground hover:opacity-90 disabled:opacity-50">
           {save.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} {t("common.save")}
         </button>
         {save.isSuccess && <p className="text-xs text-success">{t("common.saved")}</p>}
+        </div>
       </div>
     </div>
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children, wide = false }: { label: string; children: React.ReactNode; wide?: boolean }) {
   return (
-    <label className="block">
-      <div className="mb-1 text-xs font-medium text-muted-foreground">{label}</div>
+    <label className={wide ? "block md:col-span-2" : "block"}>
+      <div className="mb-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">{label}</div>
       {children}
     </label>
   );

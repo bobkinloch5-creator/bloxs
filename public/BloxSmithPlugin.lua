@@ -232,15 +232,15 @@ toggleButton.Click:Connect(function() widget.Enabled = not widget.Enabled end)
 local DEFAULT_PARENT = {
     script         = ServerScriptService,
     localscript    = StarterPlayer:WaitForChild("StarterPlayerScripts"),
-    modulescript   = ReplicatedStorage,
+    modulescript   = ReplicatedStorage:FindFirstChild("Modules") or ReplicatedStorage,
     screengui      = StarterGui,
     frame          = StarterGui,
     textlabel      = StarterGui,
     textbutton     = StarterGui,
     imagelabel     = StarterGui,
-    remoteevent    = ReplicatedStorage,
-    remotefunction = ReplicatedStorage,
-    bindableevent  = ReplicatedStorage,
+    remoteevent    = ReplicatedStorage:FindFirstChild("Remotes") or ReplicatedStorage,
+    remotefunction = ReplicatedStorage:FindFirstChild("Remotes") or ReplicatedStorage,
+    bindableevent  = ReplicatedStorage:FindFirstChild("Remotes") or ReplicatedStorage,
     folder         = ReplicatedStorage,
     part           = Workspace,
     model          = Workspace,
@@ -251,9 +251,53 @@ local DEFAULT_PARENT = {
     insert_asset   = Workspace,
 }
 
-local function defaultParentFor(kind) return DEFAULT_PARENT[kind] or Workspace end
+local function defaultParentFor(kind)
+    if kind == "modulescript" then return ReplicatedStorage:FindFirstChild("Modules") or ReplicatedStorage end
+    if kind == "remoteevent" or kind == "remotefunction" or kind == "bindableevent" then
+        return ReplicatedStorage:FindFirstChild("Remotes") or ReplicatedStorage
+    end
+    if kind == "localscript" then return StarterPlayer:WaitForChild("StarterPlayerScripts") end
+    return DEFAULT_PARENT[kind] or Workspace
+end
+
+local SERVICE_ALIASES = {
+    workspace = "Workspace",
+    replicatedstorage = "ReplicatedStorage",
+    replicatedfirst = "ReplicatedFirst",
+    serverscriptservice = "ServerScriptService",
+    serverstorage = "ServerStorage",
+    startergui = "StarterGui",
+    starterpack = "StarterPack",
+    starterplayer = "StarterPlayer",
+    starterplayerscripts = "StarterPlayer.StarterPlayerScripts",
+    startercharacterscripts = "StarterPlayer.StarterCharacterScripts",
+    lighting = "Lighting",
+    soundservice = "SoundService",
+    teams = "Teams",
+}
+
+local function normalizePath(path, kind)
+    if not path or path == "" then return nil end
+    path = tostring(path):gsub("/", ".")
+    local lower = string.lower(path)
+    if SERVICE_ALIASES[lower] then path = SERVICE_ALIASES[lower] end
+    if path == "ReplicatedStorage" and (kind == "remoteevent" or kind == "remotefunction" or kind == "bindableevent") then
+        return "ReplicatedStorage.Remotes"
+    end
+    if path == "ReplicatedStorage" and kind == "modulescript" then
+        return "ReplicatedStorage.Modules"
+    end
+    if path == "StarterPlayerScripts" then
+        return "StarterPlayer.StarterPlayerScripts"
+    end
+    if path == "StarterCharacterScripts" then
+        return "StarterPlayer.StarterCharacterScripts"
+    end
+    return path
+end
 
 local function resolveParent(path, kind)
+    path = normalizePath(path, kind)
     if not path or path == "" then return defaultParentFor(kind) end
     local parts = string.split(path, ".")
     local first = parts[1]
@@ -262,15 +306,32 @@ local function resolveParent(path, kind)
     for i = 2, #parts do
         local child = parent:FindFirstChild(parts[i])
         if not child then
-            child = Instance.new("Folder"); child.Name = parts[i]; child.Parent = parent
+            if parent == StarterPlayer and (parts[i] == "StarterPlayerScripts" or parts[i] == "StarterCharacterScripts") then
+                child = parent:WaitForChild(parts[i])
+            else
+                child = Instance.new("Folder"); child.Name = parts[i]; child.Parent = parent
+            end
         end
         parent = child
     end
     return parent
 end
 
+local rawResolveParent = resolveParent
+local function safeResolveParent(path, kind)
+    local ok, result = pcall(function() return rawResolveParent(path, kind) end)
+    if ok and result then return result end
+    log(("Parent '%s' was invalid for %s; using safe default. %s"):format(tostring(path), tostring(kind), tostring(result)), "warn")
+    return defaultParentFor(kind)
+end
+
+resolveParent = function(path, kind)
+    return safeResolveParent(path, kind)
+end
+
 local function findByPath(path)
     if not path or path == "" then return nil end
+    path = normalizePath(path, nil) or path
     local parts = string.split(path, ".")
     local ok, svc = pcall(function() return game:GetService(parts[1]) end)
     local node = (ok and svc) or game:FindFirstChild(parts[1])
@@ -308,9 +369,7 @@ local function ensureProjectFolders()
         ensureFolder(ServerScriptService, "Systems"),
         ensureFolder(ServerStorage, "BloxSmith_Quarantine"),
     }
-    local starterScripts = StarterPlayer:FindFirstChild("StarterPlayerScripts") or Instance.new("StarterPlayerScripts")
-    starterScripts.Name = "StarterPlayerScripts"
-    starterScripts.Parent = StarterPlayer
+    local starterScripts = StarterPlayer:WaitForChild("StarterPlayerScripts")
     table.insert(folders, starterScripts)
     return folders
 end

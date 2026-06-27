@@ -478,11 +478,10 @@ export const queueBridgeModelToStudio = createServerFn({ method: "POST" })
       project_id: data.projectId,
       user_id: context.userId,
       kind: "insert_asset",
-      parent_path: "Workspace",
+      parent_path: "Workspace.BloxSmith_Imported_Models",
       name: safeName,
       payload: {
         asset_id: Number(assetId),
-        folder_name: "BloxSmith_Imported_Models",
         position: [0, 5, 0],
         scale: data.scale,
         tags: ["BloxSmithAsset", "BloxSmithImportedModel", "TripoBridge"],

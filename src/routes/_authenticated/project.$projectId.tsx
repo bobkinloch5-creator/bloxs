@@ -1017,7 +1017,7 @@ function AssistantCard({
           projectId,
           actions: parsedActions.map((a) => ({
             kind: String(a?.kind || "script"),
-            parent_path: String(a?.parent_path || a?.target_path || "Workspace"),
+            parent_path: String(a?.parent_path || a?.target_parent_path || ""),
             name: String(a?.name || a?.target_path || "BloxSmithAction"),
             payload: a?.payload ?? {},
           })),

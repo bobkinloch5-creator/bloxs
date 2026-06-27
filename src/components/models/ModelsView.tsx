@@ -757,11 +757,12 @@ function ModelCard({ m, projectId, onChange }: { m: any; projectId?: string; onC
         )}
         {isBridgeModel && (
           <div className="rounded-lg border border-cyan-300/15 bg-cyan-400/10 p-2 text-[11px] text-cyan-100">
-            <div className="font-bold">Bridge status: {m.bridge_status || (m.roblox_asset_id ? "Asset ID Ready" : "Preview Ready")}</div>
+            <div className="font-bold">Bridge status: {m.bridge_status || (m.roblox_asset_id ? "Asset ID Ready" : canPreview ? "Preview Ready" : failed ? "Failed" : "Model still processing")}</div>
             <div className="mt-0.5 text-cyan-100/75">
               Format: {(m.source_format || "glb").toUpperCase()}
               {m.roblox_asset_id ? ` · Roblox asset ${m.roblox_asset_id}` : ""}
               {m.roblox_upload_status ? ` · Upload ${m.roblox_upload_status}` : ""}
+              {!canPreview && !m.roblox_asset_id ? " · Waiting for GLB/glTF preview file" : ""}
             </div>
             {m.roblox_upload_error && <div className="mt-1 text-rose-200">{m.roblox_upload_error}</div>}
           </div>
@@ -806,7 +807,7 @@ function ModelCard({ m, projectId, onChange }: { m: any; projectId?: string; onC
             {isBridgeModel && (
               <div className="flex flex-wrap items-center gap-1.5 border-t border-white/10 pt-2">
                 {!m.roblox_asset_id && (
-                  <button onClick={uploadToRoblox} disabled={robloxBusy} className="inline-flex items-center gap-1 rounded-md bg-blue-500/20 hover:bg-blue-500/30 px-2 py-1 text-[10px] font-bold text-blue-100 disabled:opacity-50">
+                  <button onClick={uploadToRoblox} disabled={robloxBusy || !canPreview} title={!canPreview ? "Wait until the website 3D preview loads before uploading/importing this model." : "Upload this previewed model to Roblox Open Cloud."} className="inline-flex items-center gap-1 rounded-md bg-blue-500/20 hover:bg-blue-500/30 px-2 py-1 text-[10px] font-bold text-blue-100 disabled:opacity-50">
                     {robloxBusy ? <Loader2 className="h-3 w-3 animate-spin" /> : <UploadCloud className="h-3 w-3" />} Upload to Roblox
                   </button>
                 )}
