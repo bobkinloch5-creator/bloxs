@@ -10,8 +10,8 @@ import {
   LayoutDashboard, Plug, Users, History, Settings as SettingsIcon,
   MessageSquare, Box, Radio, BookOpen, HelpCircle, Bell, ChevronDown,
   Upload, ArrowRight, Crown, Infinity as InfinityIcon, Zap, Timer,
-  Play, MoreHorizontal, LayoutGrid, List, Wand2, Download, Copy,
-  Archive, Pencil, UserPlus, ExternalLink, LogOut,
+  Play, MoreHorizontal, LayoutGrid, List, Wand2, Download,
+  ExternalLink, LogOut,
 } from "lucide-react";
 import bloxLogo from "@/assets/bloxsmith-logo.png.asset.json";
 import thumbTycoon from "@/assets/thumbs/tycoon.jpg";
@@ -671,10 +671,6 @@ function ProjectCard({ p, onDelete }: { p: any; onDelete: (id: string) => void }
             {menu && (
               <div className="absolute right-0 z-20 mt-1 w-48 overflow-hidden rounded-xl border text-sm shadow-xl" style={{ background: "var(--bs-card)", borderColor: "var(--bs-border)" }}>
                 <Link to="/project/$projectId" params={{ projectId: p.id }} className="flex w-full items-center gap-2 px-3 py-2 hover:bg-[var(--bs-card-2)]"><ExternalLink className="h-3.5 w-3.5" /> Open</Link>
-                <button className="flex w-full items-center gap-2 px-3 py-2 text-left opacity-60" disabled><Pencil className="h-3.5 w-3.5" /> Rename <span className="ml-auto text-[10px]">soon</span></button>
-                <button className="flex w-full items-center gap-2 px-3 py-2 text-left opacity-60" disabled><Copy className="h-3.5 w-3.5" /> Duplicate <span className="ml-auto text-[10px]">soon</span></button>
-                <button className="flex w-full items-center gap-2 px-3 py-2 text-left opacity-60" disabled><Archive className="h-3.5 w-3.5" /> Archive <span className="ml-auto text-[10px]">soon</span></button>
-                <button className="flex w-full items-center gap-2 px-3 py-2 text-left opacity-60" disabled><UserPlus className="h-3.5 w-3.5" /> Invite <span className="ml-auto text-[10px]">soon</span></button>
                 <button onClick={() => { setMenu(false); onDelete(p.id); }} className="flex w-full items-center gap-2 border-t px-3 py-2 text-left" style={{ color: "var(--bs-danger)", borderColor: "var(--bs-border)" }}><Trash2 className="h-3.5 w-3.5" /> Delete</button>
               </div>
             )}
