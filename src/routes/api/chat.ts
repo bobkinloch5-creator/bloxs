@@ -322,10 +322,10 @@ export const Route = createFileRoute("/api/chat")({
             inputSchema: z.object({
               keyword: z.string().describe("What to search for, e.g. 'oak tree', 'sports car', 'medieval house', 'zombie npc'."),
               category: z.enum(["Model", "Audio", "Decal", "Mesh"]).optional().describe("Asset category, defaults to Model."),
-              limit: z.number().int().min(1).max(50).optional().describe("Max safe free results, default 12."),
+              limit: z.number().int().min(1).max(50).optional().describe("Max safe free results, default 18."),
             }),
             execute: async ({ keyword, category, limit }: { keyword: string; category?: ToolboxCategory; limit?: number }) => {
-              const out = await searchRobloxToolbox(keyword, category ?? "Model", limit ?? 12);
+              const out = await searchRobloxToolbox(keyword, category ?? "Model", limit ?? 18);
               // Hide low-quality rows from the AI while allowing safe public Creator Store assets,
               // not only Roblox-owned assets. The helper has already removed junk and paid rows.
               const filtered = out.results.filter((r) => r.free !== false && (r.safety ?? 0) >= 0.62 && (r.relevance ?? 0) >= 0.18);

@@ -892,17 +892,48 @@ end
 
 Exec.insert_asset = function(a, p)
     local payload = a.payload or {}
-    local id = tonumber(payload.asset_id)
-    if not id or id <= 0 then error("insert_asset missing asset_id") end
-    local ok, container = pcall(function() return InsertService:LoadAsset(id) end)
-    if not ok or not container then
-        error("LoadAsset failed for " .. tostring(id) .. ": " .. tostring(container))
+    local primaryId = tonumber(payload.asset_id)
+    if not primaryId or primaryId <= 0 then error("insert_asset missing asset_id") end
+
+    -- Build the ordered list of candidate ids to try: the primary id first,
+    -- then any fallback_ids supplied (e.g. other safe/free results from the
+    -- same search_toolbox call). Some "free" assets still reject LoadAsset
+    -- (creator-restricted, off-sale, region-locked); rather than failing the
+    -- whole build, fall through to the next candidate.
+    local candidates = { primaryId }
+    if type(payload.fallback_ids) == "table" then
+        for _, fid in ipairs(payload.fallback_ids) do
+            local n = tonumber(fid)
+            if n and n > 0 then table.insert(candidates, n) end
+        end
     end
+
+    local id, container
+    local attempts = {}
+    for _, candidateId in ipairs(candidates) do
+        local ok, result = pcall(function() return InsertService:LoadAsset(candidateId) end)
+        if ok and result then
+            local kids = result:GetChildren()
+            if #kids == 0 then
+                result:Destroy()
+                table.insert(attempts, tostring(candidateId) .. ": loaded but empty")
+            else
+                id, container = candidateId, result
+                break
+            end
+        else
+            table.insert(attempts, tostring(candidateId) .. ": " .. tostring(result))
+        end
+    end
+
+    if not id or not container then
+        error("insert_asset failed for all candidates (" .. table.concat(candidates, ", ") .. "): " .. table.concat(attempts, " | "))
+    end
+    if id ~= primaryId then
+        log(("insert_asset: primary id %d was rejected, used fallback id %d instead."):format(primaryId, id), "warn")
+    end
+
     local kids = container:GetChildren()
-    if #kids == 0 then
-        container:Destroy()
-        error("Asset " .. tostring(id) .. " loaded but was empty — skipping.")
-    end
     if payload.folder_name and type(payload.folder_name) == "string" and payload.folder_name ~= "" then
         p = ensureFolder(p, payload.folder_name)
     end

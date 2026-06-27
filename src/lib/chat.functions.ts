@@ -139,9 +139,18 @@ export const queuePreparedStudioActions = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => z.object({
     projectId: z.string().uuid(),
     actions: z.array(z.object({
-      kind: z.string().trim().min(1).max(80),
-      parent_path: z.string().trim().min(1).max(400).default("Workspace"),
-      name: z.string().trim().min(1).max(160).default("BloxSmithAction"),
+      kind: z.preprocess(
+        (v) => (typeof v === "string" && v.trim() === "" ? "script" : v),
+        z.string().trim().min(1).max(80),
+      ).default("script"),
+      parent_path: z.preprocess(
+        (v) => (typeof v === "string" && v.trim() === "" ? "Workspace" : v),
+        z.string().trim().min(1).max(400),
+      ).default("Workspace"),
+      name: z.preprocess(
+        (v) => (typeof v === "string" && v.trim() === "" ? "BloxSmithAction" : v),
+        z.string().trim().min(1).max(160),
+      ).default("BloxSmithAction"),
       payload: z.any().optional(),
     })).min(1).max(80),
   }).parse(input))

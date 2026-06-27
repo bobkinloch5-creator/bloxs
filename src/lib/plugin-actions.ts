@@ -38,11 +38,21 @@ const ALIASES: Record<string, PluginActionKind> = {
   update_script: "script",
   server_script: "script",
   create_server_script: "script",
+  serverscript: "script",
+  update_serverscript: "script",
   create_local_script: "localscript",
   local_script: "localscript",
   local_script_create: "localscript",
+  create_localscript: "localscript",
+  update_localscript: "localscript",
+  client_script: "localscript",
+  clientscript: "localscript",
+  create_client_script: "localscript",
   create_module_script: "modulescript",
   module_script: "modulescript",
+  create_modulescript: "modulescript",
+  update_modulescript: "modulescript",
+  module: "modulescript",
   create_ui: "screengui",
   create_gui: "screengui",
   screen_gui: "screengui",
@@ -70,6 +80,17 @@ const ALIASES: Record<string, PluginActionKind> = {
   search_toolbox: "insert_asset",
 };
 
+// Any kind name containing one of these tokens (after underscore-stripping)
+// but not already matched above is almost certainly a script the model meant
+// to write — route it to the right script type instead of throwing and
+// silently dropping the whole action. Order matters: check localscript /
+// modulescript signals before the generic "script" fallback.
+const SCRIPT_KIND_HINTS: Array<{ test: RegExp; kind: PluginActionKind }> = [
+  { test: /local|client/, kind: "localscript" },
+  { test: /module/, kind: "modulescript" },
+  { test: /script/, kind: "script" },
+];
+
 export function normalizePluginActionKind(kind: unknown): PluginActionKind {
   const raw = String(kind ?? "").trim().toLowerCase().replace(/[\s-]+/g, "_");
   const canonical = raw.replace(/_/g, "");
@@ -77,6 +98,9 @@ export function normalizePluginActionKind(kind: unknown): PluginActionKind {
   if (direct) return direct;
   const alias = ALIASES[raw] || ALIASES[canonical];
   if (alias) return alias;
+  for (const hint of SCRIPT_KIND_HINTS) {
+    if (hint.test.test(raw)) return hint.kind;
+  }
   throw new Error(`Unsupported Studio action kind "${String(kind ?? "")}". Use one of: ${PLUGIN_ACTION_KINDS.join(", ")}.`);
 }
 

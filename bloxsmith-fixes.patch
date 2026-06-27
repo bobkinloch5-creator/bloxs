@@ -1,0 +1,203 @@
+diff -ruN a/public/BloxSmithPlugin.lua b/public/BloxSmithPlugin.lua
+--- a/public/BloxSmithPlugin.lua	2026-06-27 14:17:03.378256701 +0000
++++ b/public/BloxSmithPlugin.lua	2026-06-27 14:17:03.403415336 +0000
+@@ -892,17 +892,48 @@
+ 
+ Exec.insert_asset = function(a, p)
+     local payload = a.payload or {}
+-    local id = tonumber(payload.asset_id)
+-    if not id or id <= 0 then error("insert_asset missing asset_id") end
+-    local ok, container = pcall(function() return InsertService:LoadAsset(id) end)
+-    if not ok or not container then
+-        error("LoadAsset failed for " .. tostring(id) .. ": " .. tostring(container))
++    local primaryId = tonumber(payload.asset_id)
++    if not primaryId or primaryId <= 0 then error("insert_asset missing asset_id") end
++
++    -- Build the ordered list of candidate ids to try: the primary id first,
++    -- then any fallback_ids supplied (e.g. other safe/free results from the
++    -- same search_toolbox call). Some "free" assets still reject LoadAsset
++    -- (creator-restricted, off-sale, region-locked); rather than failing the
++    -- whole build, fall through to the next candidate.
++    local candidates = { primaryId }
++    if type(payload.fallback_ids) == "table" then
++        for _, fid in ipairs(payload.fallback_ids) do
++            local n = tonumber(fid)
++            if n and n > 0 then table.insert(candidates, n) end
++        end
+     end
+-    local kids = container:GetChildren()
+-    if #kids == 0 then
+-        container:Destroy()
+-        error("Asset " .. tostring(id) .. " loaded but was empty — skipping.")
++
++    local id, container
++    local attempts = {}
++    for _, candidateId in ipairs(candidates) do
++        local ok, result = pcall(function() return InsertService:LoadAsset(candidateId) end)
++        if ok and result then
++            local kids = result:GetChildren()
++            if #kids == 0 then
++                result:Destroy()
++                table.insert(attempts, tostring(candidateId) .. ": loaded but empty")
++            else
++                id, container = candidateId, result
++                break
++            end
++        else
++            table.insert(attempts, tostring(candidateId) .. ": " .. tostring(result))
++        end
++    end
++
++    if not id or not container then
++        error("insert_asset failed for all candidates (" .. table.concat(candidates, ", ") .. "): " .. table.concat(attempts, " | "))
++    end
++    if id ~= primaryId then
++        log(("insert_asset: primary id %d was rejected, used fallback id %d instead."):format(primaryId, id), "warn")
+     end
++
++    local kids = container:GetChildren()
+     if payload.folder_name and type(payload.folder_name) == "string" and payload.folder_name ~= "" then
+         p = ensureFolder(p, payload.folder_name)
+     end
+diff -ruN a/src/lib/bloxsmith-prompt.ts b/src/lib/bloxsmith-prompt.ts
+--- a/src/lib/bloxsmith-prompt.ts	2026-06-27 14:17:03.389785176 +0000
++++ b/src/lib/bloxsmith-prompt.ts	2026-06-27 14:17:03.408953706 +0000
+@@ -55,6 +55,11 @@
+ 
+ [MODE: build] → EXECUTE FULLY. Build the COMPLETE, WORKING version of what the user asked for — every script, every UI, every RemoteEvent, every DataStore, every placement needed for the system to actually function end-to-end inside Roblox Studio. Do NOT ship a stub, a half-built scaffold, or "the first piece". If the user says "make a shop", you build: the shop ScreenGui (frames, buttons, item grid), the catalog ModuleScript, the RemoteFunction, the server purchase script that validates and debits currency, the leaderstats currency stat if missing, and a DataStore save/load — all wired together. If the user says "make a tycoon", you build the full tycoon: per-player tycoon model, droppers, conveyors, collectors, upgrade button pads, economy server loop, leaderstats, shop UI, DataStore — all working. Stay ON-TOPIC (don't add a horror map when they asked for a shop) but inside the requested topic, build EVERYTHING that system needs. Quality AND completeness. A typical full-system build is 10-30 actions. Never stop short and ask "want me to add the server script too?" — add it.
+ 
++SCOPE DISCIPLINE — single-item requests stay single-item: "build the full X system" and "add one Y to the existing project" are different requests and must produce different sized responses.
++- If the user asks for ONE narrow, scoped thing — "add a tree near spawn", "insert one NPC", "fix this script", "add a button to the shop", "change the color of X" — emit ONLY the action(s) needed for that exact thing. Do not also rebuild, restructure, or add unrelated systems/scripts/UI in the same response, even if the surrounding project looks incomplete.
++- Only expand into a full end-to-end system (the 10-30 action behavior above) when the user's request itself names a whole system ("make a shop", "build a tycoon", "create an obby") or when they explicitly ask you to finish/complete/wire up an existing partial system.
++- When in doubt about which scope applies, default to the narrower one and mention in your reply that you can extend it further if they want more.
++
+ EXECUTION MODEL — READ CAREFULLY
+ You are wired to a Roblox Studio plugin that EXECUTES whatever you emit in [MODE: build]. You are not describing — you are BUILDING. In Build Mode, when the user says "make a lobby", "add a shop UI", "create an obby", etc., you MUST end your message with a \`bloxsmith-actions\` JSON block. NEVER tell the user to copy code manually — the plugin does it. If you skip the actions block on a build request while in Build Mode, nothing happens.
+ 
+@@ -106,7 +111,7 @@
+ - "sound"           payload: { "sound_id":"rbxassetid://...", "volume":0.5, "looped": false }
+ - "team"            payload: { "color":[r,g,b], "auto_assignable": true }
+ - "leaderstats"     payload: { "stats":[ {"name":"Cash","value":0,"kind":"IntValue"} ] }
+-- "insert_asset"    payload: { "asset_id": 1234567, "position":[0,5,0], "rotation":[0,90,0], "yaw":90, "scale":1, "folder_name":"MapAssets", "tags":["BloxSmithAsset"] }
++- "insert_asset"    payload: { "asset_id": 1234567, "fallback_ids":[2345678, 3456789], "position":[0,5,0], "rotation":[0,90,0], "yaw":90, "scale":1, "folder_name":"MapAssets", "tags":["BloxSmithAsset"] }
+ - "set_properties"  payload: { "target_path":"Workspace.MyPart", "properties":{"Anchored":true} }
+ - "rename" / "move" / "delete"   payload: { "target_path":"...", "new_name":"...", "new_parent_path":"..." }
+ - "organize_project" payload: {} — lazily creates folders only when moving real content, then removes empty folders
+@@ -447,6 +452,7 @@
+ - Never invent fake ids. If you didn't get an id from search_toolbox or the curated list below, ask the user before generating any fallback geometry.
+ - Use \`folder_name\` to organize inserted world assets under folders like "MapAssets", "Buildings", "Roads", "Vehicles", "NPCs", "Props", "Decorations", or "Tools" instead of dumping them at the Workspace root. Only create a folder when you insert at least one asset into it in the same batch.
+ - Use \`position\`, \`rotation\` / \`yaw\`, and \`scale\` on \`insert_asset\` so assets appear in clean, intentional locations.
++- IMPORTANT: Roblox sometimes reports an asset as free/public in search but still rejects InsertService:LoadAsset for it (creator-restricted, off-sale, region-locked). To avoid a failed build, set \`fallback_ids\` to 1-3 other safe/relevant ids from the SAME search_toolbox result set (same category, next-best relevance/safety) whenever more than one good candidate exists. The plugin will automatically try the primary id first, then fall back through \`fallback_ids\` in order, and only fails the action if every candidate is rejected.
+ Curated, pre-verified free Roblox-creator asset ids (safe fallbacks if search_toolbox fails):
+ - Classic Sword (→ StarterPack): 12221720
+ - Slingshot (→ StarterPack): 16895215
+diff -ruN a/src/lib/chat.functions.ts b/src/lib/chat.functions.ts
+--- a/src/lib/chat.functions.ts	2026-06-27 14:17:03.389895813 +0000
++++ b/src/lib/chat.functions.ts	2026-06-27 14:17:03.408994445 +0000
+@@ -139,9 +139,18 @@
+   .inputValidator((input: unknown) => z.object({
+     projectId: z.string().uuid(),
+     actions: z.array(z.object({
+-      kind: z.string().trim().min(1).max(80),
+-      parent_path: z.string().trim().min(1).max(400).default("Workspace"),
+-      name: z.string().trim().min(1).max(160).default("BloxSmithAction"),
++      kind: z.preprocess(
++        (v) => (typeof v === "string" && v.trim() === "" ? "script" : v),
++        z.string().trim().min(1).max(80),
++      ).default("script"),
++      parent_path: z.preprocess(
++        (v) => (typeof v === "string" && v.trim() === "" ? "Workspace" : v),
++        z.string().trim().min(1).max(400),
++      ).default("Workspace"),
++      name: z.preprocess(
++        (v) => (typeof v === "string" && v.trim() === "" ? "BloxSmithAction" : v),
++        z.string().trim().min(1).max(160),
++      ).default("BloxSmithAction"),
+       payload: z.any().optional(),
+     })).min(1).max(80),
+   }).parse(input))
+diff -ruN a/src/lib/plugin-actions.ts b/src/lib/plugin-actions.ts
+--- a/src/lib/plugin-actions.ts	2026-06-27 14:17:03.390538304 +0000
++++ b/src/lib/plugin-actions.ts	2026-06-27 14:17:03.409854779 +0000
+@@ -38,11 +38,21 @@
+   update_script: "script",
+   server_script: "script",
+   create_server_script: "script",
++  serverscript: "script",
++  update_serverscript: "script",
+   create_local_script: "localscript",
+   local_script: "localscript",
+   local_script_create: "localscript",
++  create_localscript: "localscript",
++  update_localscript: "localscript",
++  client_script: "localscript",
++  clientscript: "localscript",
++  create_client_script: "localscript",
+   create_module_script: "modulescript",
+   module_script: "modulescript",
++  create_modulescript: "modulescript",
++  update_modulescript: "modulescript",
++  module: "modulescript",
+   create_ui: "screengui",
+   create_gui: "screengui",
+   screen_gui: "screengui",
+@@ -70,6 +80,17 @@
+   search_toolbox: "insert_asset",
+ };
+ 
++// Any kind name containing one of these tokens (after underscore-stripping)
++// but not already matched above is almost certainly a script the model meant
++// to write — route it to the right script type instead of throwing and
++// silently dropping the whole action. Order matters: check localscript /
++// modulescript signals before the generic "script" fallback.
++const SCRIPT_KIND_HINTS: Array<{ test: RegExp; kind: PluginActionKind }> = [
++  { test: /local|client/, kind: "localscript" },
++  { test: /module/, kind: "modulescript" },
++  { test: /script/, kind: "script" },
++];
++
+ export function normalizePluginActionKind(kind: unknown): PluginActionKind {
+   const raw = String(kind ?? "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+   const canonical = raw.replace(/_/g, "");
+@@ -77,6 +98,9 @@
+   if (direct) return direct;
+   const alias = ALIASES[raw] || ALIASES[canonical];
+   if (alias) return alias;
++  for (const hint of SCRIPT_KIND_HINTS) {
++    if (hint.test.test(raw)) return hint.kind;
++  }
+   throw new Error(`Unsupported Studio action kind "${String(kind ?? "")}". Use one of: ${PLUGIN_ACTION_KINDS.join(", ")}.`);
+ }
+ 
+diff -ruN a/src/routes/_authenticated/project.$projectId.tsx b/src/routes/_authenticated/project.$projectId.tsx
+--- a/src/routes/_authenticated/project.$projectId.tsx	2026-06-27 14:17:03.391494036 +0000
++++ b/src/routes/_authenticated/project.$projectId.tsx	2026-06-27 14:17:03.411008083 +0000
+@@ -1028,9 +1028,9 @@
+         data: {
+           projectId,
+           actions: parsedActions.map((a) => ({
+-            kind: String(a?.kind || "script"),
+-            parent_path: String(a?.parent_path || a?.target_parent_path || ""),
+-            name: String(a?.name || a?.target_path || "BloxSmithAction"),
++            kind: String(a?.kind || "script").trim() || "script",
++            parent_path: String(a?.parent_path || a?.target_parent_path || "").trim() || "Workspace",
++            name: String(a?.name || a?.target_path || "").trim() || "BloxSmithAction",
+             payload: a?.payload ?? {},
+           })),
+         },
+diff -ruN a/src/routes/api/chat.ts b/src/routes/api/chat.ts
+--- a/src/routes/api/chat.ts	2026-06-27 14:17:03.391927927 +0000
++++ b/src/routes/api/chat.ts	2026-06-27 14:17:03.411415949 +0000
+@@ -322,10 +322,10 @@
+             inputSchema: z.object({
+               keyword: z.string().describe("What to search for, e.g. 'oak tree', 'sports car', 'medieval house', 'zombie npc'."),
+               category: z.enum(["Model", "Audio", "Decal", "Mesh"]).optional().describe("Asset category, defaults to Model."),
+-              limit: z.number().int().min(1).max(50).optional().describe("Max safe free results, default 12."),
++              limit: z.number().int().min(1).max(50).optional().describe("Max safe free results, default 18."),
+             }),
+             execute: async ({ keyword, category, limit }: { keyword: string; category?: ToolboxCategory; limit?: number }) => {
+-              const out = await searchRobloxToolbox(keyword, category ?? "Model", limit ?? 12);
++              const out = await searchRobloxToolbox(keyword, category ?? "Model", limit ?? 18);
+               // Hide low-quality rows from the AI while allowing safe public Creator Store assets,
+               // not only Roblox-owned assets. The helper has already removed junk and paid rows.
+               const filtered = out.results.filter((r) => r.free !== false && (r.safety ?? 0) >= 0.62 && (r.relevance ?? 0) >= 0.18);
