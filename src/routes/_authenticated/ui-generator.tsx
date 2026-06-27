@@ -83,7 +83,6 @@ function UiGenerator() {
   const [style, setStyle] = useState("Modern");
   const [generated, setGenerated] = useState<Generated[]>([]);
   const [err, setErr] = useState<string | null>(null);
-  const [shuffleSeed, setShuffleSeed] = useState(0);
 
   const gen = useMutation({
     mutationFn: async (vars: { prompt: string; style: string; modelPrompt?: string }) => {
@@ -122,15 +121,13 @@ function UiGenerator() {
   function generate(p?: string) {
     const value = (p ?? prompt).trim();
     if (!value || gen.isPending) return;
-    const variantPrompt = `${value}\nUnique visual variant #${shuffleSeed + 1}: make the composition, colors, panel shapes, and button style noticeably different from the last generation.`;
-    setShuffleSeed((n) => n + 1);
-    gen.mutate({ prompt: value, modelPrompt: variantPrompt, style });
+    gen.mutate({ prompt: value, style });
   }
 
   return (
     <PageShell
       title="UI Generator"
-      description="Describe a Roblox screen. BloxSmith creates a premium concept image and a real responsive Roblox ScreenGui script."
+      description="Describe a Roblox screen. BloxSmith creates an exact animated Roblox ScreenGui preview and matching Luau script."
       accent="ui"
       activeKey="ui"
       isAdmin={!!profile?.is_admin}
@@ -139,11 +136,11 @@ function UiGenerator() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-violet-300/20 bg-violet-300/10 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-violet-200">
-              <Sparkles className="h-3.5 w-3.5" /> Premium randomized Roblox UI
+              <Sparkles className="h-3.5 w-3.5" /> Exact animated Roblox UI
             </div>
             <h2 className="mt-3 text-xl font-black text-white">Generate a real Roblox interface</h2>
             <p className="mt-1 max-w-2xl text-sm text-slate-300">
-              BloxSmith creates a fresh concept image, then returns a full responsive Luau ScreenGui script with animations and working buttons.
+              BloxSmith renders the preview and the Luau from the same Roblox UI blueprint, with animated buttons, bars, gradients, and game-ready layout.
             </p>
           </div>
           <button

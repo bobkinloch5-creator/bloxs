@@ -2,12 +2,17 @@ type UiKind = "main-menu" | "hud" | "shop" | "inventory" | "loading" | "settings
 
 type Palette = {
   bg: string;
+  bg2: string;
   panel: string;
   panel2: string;
+  card: string;
   accent: string;
   accent2: string;
   text: string;
   muted: string;
+  good: string;
+  warn: string;
+  danger: string;
 };
 
 type UiBox = {
@@ -25,6 +30,10 @@ type UiBox = {
   radius?: number;
   opacity?: number;
   progress?: number;
+  stroke?: string;
+  strokeOpacity?: number;
+  gradient?: boolean;
+  z?: number;
 };
 
 type UiBlueprint = {
@@ -89,40 +98,40 @@ function inferKind(prompt: string): UiKind {
 function paletteFor(style: string): Palette {
   const s = style.toLowerCase();
   if (s.includes("light") || s.includes("minimal")) {
-    return { bg: "#f3f7ff", panel: "#ffffff", panel2: "#e6edf8", accent: "#3b82f6", accent2: "#06b6d4", text: "#0f172a", muted: "#516075" };
+    return { bg: "#f3f7ff", bg2: "#dbeafe", panel: "#ffffff", panel2: "#e6edf8", card: "#f8fbff", accent: "#3b82f6", accent2: "#06b6d4", text: "#0f172a", muted: "#516075", good: "#16a34a", warn: "#f59e0b", danger: "#ef4444" };
   }
   if (s.includes("cartoon") || s.includes("cute")) {
-    return { bg: "#fff1f7", panel: "#ffe0ef", panel2: "#ffffff", accent: "#ff5fa2", accent2: "#ffb347", text: "#36172b", muted: "#73475f" };
+    return { bg: "#fff1f7", bg2: "#fff7cc", panel: "#ffe0ef", panel2: "#ffffff", card: "#fff8fb", accent: "#ff5fa2", accent2: "#ffb347", text: "#36172b", muted: "#73475f", good: "#38d9a9", warn: "#ffb347", danger: "#ff4f4f" };
   }
   if (s.includes("premium") || s.includes("vip")) {
-    return { bg: "#07070b", panel: "#17131d", panel2: "#231a2d", accent: "#d4af37", accent2: "#8b5cf6", text: "#fff7df", muted: "#c7b98a" };
+    return { bg: "#07070b", bg2: "#17131d", panel: "#121018", panel2: "#231a2d", card: "#1b1726", accent: "#d4af37", accent2: "#8b5cf6", text: "#fff7df", muted: "#c7b98a", good: "#22c55e", warn: "#d4af37", danger: "#ef4444" };
   }
   if (s.includes("horror")) {
-    return { bg: "#070707", panel: "#151515", panel2: "#202020", accent: "#cc0000", accent2: "#737373", text: "#f5f5f5", muted: "#b8b8b8" };
+    return { bg: "#070707", bg2: "#170808", panel: "#151515", panel2: "#202020", card: "#111111", accent: "#cc0000", accent2: "#737373", text: "#f5f5f5", muted: "#b8b8b8", good: "#16a34a", warn: "#b45309", danger: "#cc0000" };
   }
   if (s.includes("rpg") || s.includes("fantasy")) {
-    return { bg: "#15082e", panel: "#251047", panel2: "#34185d", accent: "#c084fc", accent2: "#facc15", text: "#fff7ed", muted: "#d8c8ff" };
+    return { bg: "#15082e", bg2: "#241047", panel: "#21103d", panel2: "#34185d", card: "#2c1650", accent: "#c084fc", accent2: "#facc15", text: "#fff7ed", muted: "#d8c8ff", good: "#34d399", warn: "#facc15", danger: "#fb7185" };
   }
   if (s.includes("sci") || s.includes("futur") || s.includes("neon")) {
-    return { bg: "#050a1d", panel: "#111b48", panel2: "#1c2a62", accent: "#38f2ff", accent2: "#a855f7", text: "#f8fafc", muted: "#a9c6ff" };
+    return { bg: "#050a1d", bg2: "#0a1640", panel: "#0f1a46", panel2: "#1c2a62", card: "#13215a", accent: "#38f2ff", accent2: "#a855f7", text: "#f8fafc", muted: "#a9c6ff", good: "#2dd4bf", warn: "#facc15", danger: "#fb7185" };
   }
-  return { bg: "#080817", panel: "#171735", panel2: "#22244f", accent: "#6d5dfc", accent2: "#2dd4bf", text: "#ffffff", muted: "#b7c2e8" };
+  return { bg: "#080817", bg2: "#11142b", panel: "#151735", panel2: "#22244f", card: "#1c2048", accent: "#6d5dfc", accent2: "#2dd4bf", text: "#ffffff", muted: "#b7c2e8", good: "#2dd4bf", warn: "#facc15", danger: "#fb7185" };
 }
 
-function frame(name: string, x: number, y: number, w: number, h: number, fill: string, radius = 22, opacity = 1): UiBox {
-  return { kind: "frame", name, x, y, w, h, fill, radius, opacity };
+function frame(name: string, x: number, y: number, w: number, h: number, fill: string, radius = 22, opacity = 1, extra: Partial<UiBox> = {}): UiBox {
+  return { kind: "frame", name, x, y, w, h, fill, radius, opacity, ...extra };
 }
 
-function text(name: string, value: string, x: number, y: number, w: number, h: number, color: string, fontSize = 28, bold = false): UiBox {
-  return { kind: "text", name, text: value, x, y, w, h, textColor: color, fontSize, bold };
+function text(name: string, value: string, x: number, y: number, w: number, h: number, color: string, fontSize = 28, bold = false, extra: Partial<UiBox> = {}): UiBox {
+  return { kind: "text", name, text: value, x, y, w, h, textColor: color, fontSize, bold, ...extra };
 }
 
-function button(name: string, value: string, x: number, y: number, w: number, h: number, fill: string, radius = 16): UiBox {
-  return { kind: "button", name, text: value, x, y, w, h, fill, radius, textColor: "#ffffff", bold: true, fontSize: 20 };
+function button(name: string, value: string, x: number, y: number, w: number, h: number, fill: string, radius = 16, extra: Partial<UiBox> = {}): UiBox {
+  return { kind: "button", name, text: value, x, y, w, h, fill, radius, textColor: "#ffffff", bold: true, fontSize: 20, stroke: "#ffffff", strokeOpacity: 0.78, ...extra };
 }
 
-function bar(name: string, label: string, x: number, y: number, w: number, h: number, progress: number, fill: string): UiBox {
-  return { kind: "bar", name, text: label, x, y, w, h, progress, fill, radius: h / 2 };
+function bar(name: string, label: string, x: number, y: number, w: number, h: number, progress: number, fill: string, extra: Partial<UiBox> = {}): UiBox {
+  return { kind: "bar", name, text: label, x, y, w, h, progress, fill, radius: h / 2, gradient: true, ...extra };
 }
 
 export function createRobloxUiBlueprint(prompt: string, style: string): UiBlueprint {
@@ -133,41 +142,54 @@ export function createRobloxUiBlueprint(prompt: string, style: string): UiBluepr
   const boxes: UiBox[] = [];
 
   boxes.push(frame("Background", 0, 0, WIDTH, HEIGHT, palette.bg, 0));
-  boxes.push(frame("MainPanel", 150, 96, 1236, 780, palette.panel, 34, 0.96));
-  boxes.push(frame("AccentOrbA", 1040, 70, 330, 330, palette.accent, 999, 0.2));
-  boxes.push(frame("AccentOrbB", 180, 660, 260, 260, palette.accent2, 999, 0.16));
-  boxes.push(frame("Header", 250, 155, 1036, 112, palette.panel2, 24, 0.92));
-  boxes.push(text("Title", title, 290, 184, 720, 44, palette.text, 34, true));
-  boxes.push(text("Subtitle", subtitle, 292, 230, 610, 28, palette.muted, 19));
+  boxes.push(frame("BackGlowTop", 1010, -110, 440, 440, palette.accent, 999, 0.16));
+  boxes.push(frame("BackGlowBottom", -90, 710, 360, 360, palette.accent2, 999, 0.12));
+  boxes.push(frame("MainPanel", 136, 84, 1264, 812, palette.panel, 30, 0.96, { stroke: palette.accent, strokeOpacity: 0.62 }));
+  boxes.push(frame("TopRail", 184, 126, 1168, 86, palette.panel2, 22, 0.9, { stroke: "#ffffff", strokeOpacity: 0.84 }));
+  boxes.push(frame("LogoMark", 224, 150, 38, 38, palette.accent, 12, 1, { gradient: true }));
+  boxes.push(text("Title", title, 282, 142, 720, 40, palette.text, 31, true));
+  boxes.push(text("Subtitle", subtitle, 284, 181, 610, 26, palette.muted, 17));
+  boxes.push(frame("StatusPill", 1066, 148, 120, 40, palette.card, 18, 0.94, { stroke: palette.good, strokeOpacity: 0.65 }));
+  boxes.push(text("StatusText", "READY", 1095, 156, 80, 22, palette.good, 14, true));
 
   if (kind === "loading") {
-    boxes.push(text("LoadingTitle", "Loading World", 468, 378, 600, 70, palette.text, 54, true));
-    boxes.push(text("Tip", "Preparing scripts, UI, assets, and Roblox systems", 406, 456, 730, 34, palette.muted, 24));
+    boxes.push(frame("LoadingCard", 330, 318, 876, 368, palette.panel2, 28, 0.9, { stroke: palette.accent, strokeOpacity: 0.6 }));
+    boxes.push(frame("LoadingIcon", 700, 244, 136, 136, palette.accent, 28, 1, { gradient: true }));
+    boxes.push(text("LoadingTitle", "Loading World", 468, 390, 600, 62, palette.text, 52, true));
+    boxes.push(text("Tip", "Preparing scripts, UI, assets, and Roblox systems", 416, 462, 704, 34, palette.muted, 23));
     boxes.push(frame("ProgressBack", 400, 548, 736, 34, "#000000", 18, 0.32));
     boxes.push(bar("Progress", "78%", 400, 548, 736, 34, 0.78, palette.accent));
-    boxes.push(button("SkipButton", "SKIP", 646, 640, 244, 58, palette.accent2));
+    boxes.push(button("SkipButton", "SKIP", 646, 626, 244, 58, palette.accent2, 18, { gradient: true }));
+    boxes.push(text("LoadingSmall", "Streaming assets safely...", 612, 712, 310, 26, palette.muted, 17));
   } else if (kind === "hud") {
-    boxes.push(button("PlayButton", "PLAY", 1070, 184, 150, 52, palette.accent));
-    boxes.push(frame("Sidebar", 250, 335, 270, 360, palette.panel2, 22, 0.86));
-    boxes.push(text("MenuLabel", "Menu", 292, 370, 160, 34, palette.text, 25, true));
+    boxes.push(button("PlayButton", "PLAY", 1210, 144, 110, 48, palette.accent, 16, { gradient: true }));
+    boxes.push(frame("CoinPill", 222, 248, 230, 58, palette.card, 20, 0.94, { stroke: palette.warn, strokeOpacity: 0.55 }));
+    boxes.push(text("CoinText", "Coins  12,450", 252, 263, 170, 26, palette.warn, 20, true));
+    boxes.push(frame("Sidebar", 228, 346, 270, 354, palette.panel2, 22, 0.86, { stroke: "#ffffff", strokeOpacity: 0.86 }));
+    boxes.push(text("MenuLabel", "Quick Menu", 270, 376, 180, 32, palette.text, 24, true));
     ["Overview", "Play", "Settings", "Inventory"].forEach((label, i) => {
-      boxes.push(button(`${label}Button`, label, 292, 432 + i * 68, 180, 42, i === 0 ? palette.accent : palette.panel, 13));
+      boxes.push(button(`${label}Button`, label, 270, 430 + i * 62, 184, 42, i === 0 ? palette.accent : palette.card, 13, { gradient: i === 0 }));
     });
-    boxes.push(frame("StatsPanel", 560, 332, 650, 364, palette.panel2, 22, 0.82));
-    [["HEALTH", 0.68], ["MANA", 0.84], ["STAMINA", 0.78], ["XP", 0.58]].forEach(([label, amount], i) => {
-      boxes.push(bar(`${label}Bar`, String(label), 610, 380 + i * 72, 500, 28, Number(amount), i === 3 ? palette.accent2 : palette.accent));
+    boxes.push(frame("StatsPanel", 558, 308, 700, 390, palette.panel2, 24, 0.84, { stroke: palette.accent, strokeOpacity: 0.72 }));
+    [["HEALTH", 0.68, palette.danger], ["MANA", 0.84, palette.accent], ["STAMINA", 0.78, palette.good], ["XP", 0.58, palette.accent2]].forEach(([label, amount, color], i) => {
+      boxes.push(bar(`${label}Bar`, String(label), 620, 374 + i * 72, 520, 28, Number(amount), String(color)));
     });
-    boxes.push(frame("Hotbar", 604, 735, 440, 68, palette.panel2, 18, 0.86));
-    ["1", "2", "3", "4", "5"].forEach((label, i) => boxes.push(button(`Slot${label}`, label, 626 + i * 82, 748, 54, 42, palette.panel)));
+    boxes.push(frame("Hotbar", 540, 738, 560, 80, palette.panel2, 22, 0.9, { stroke: "#ffffff", strokeOpacity: 0.86 }));
+    ["1", "2", "3", "4", "5", "6"].forEach((label, i) => boxes.push(button(`Slot${label}`, label, 568 + i * 86, 754, 58, 48, i === 0 ? palette.accent : palette.card, 14, { gradient: i === 0 })));
   } else {
     const primary = kind === "shop" ? "BUY" : kind === "inventory" ? "EQUIP" : kind === "settings" ? "SAVE" : "PLAY";
-    boxes.push(button("PrimaryButton", primary, 1070, 184, 150, 52, palette.accent));
-    boxes.push(frame("LeftNav", 250, 330, 250, 420, palette.panel2, 22, 0.86));
-    boxes.push(text("NavTitle", kind === "shop" ? "Store" : kind === "inventory" ? "Bag" : kind === "settings" ? "Settings" : "Menu", 292, 370, 170, 34, palette.text, 25, true));
+    boxes.push(button("PrimaryButton", primary, 1210, 144, 110, 48, palette.accent, 16, { gradient: true }));
+    boxes.push(frame("LeftNav", 222, 286, 268, 482, palette.panel2, 24, 0.9, { stroke: "#ffffff", strokeOpacity: 0.86 }));
+    boxes.push(text("NavTitle", kind === "shop" ? "Creator Store" : kind === "inventory" ? "Inventory" : kind === "settings" ? "Settings" : "Main Menu", 262, 324, 190, 34, palette.text, 25, true));
     ["Overview", kind === "shop" ? "Featured" : "Play", "Settings", kind === "inventory" ? "Equip" : "Inventory"].forEach((label, i) => {
-      boxes.push(button(`${label}Button`, label, 292, 432 + i * 68, 170, 42, i === 0 ? palette.accent : palette.panel, 13));
+      boxes.push(button(`${label}Button`, label, 262, 390 + i * 70, 180, 46, i === 0 ? palette.accent : palette.card, 14, { gradient: i === 0 }));
     });
-    boxes.push(frame("ContentPanel", 542, 330, 700, 420, palette.panel2, 24, 0.82));
+    boxes.push(frame("ContentPanel", 528, 286, 774, 482, palette.panel2, 26, 0.86, { stroke: palette.accent, strokeOpacity: 0.74 }));
+    boxes.push(text("ContentTitle", kind === "shop" ? "Featured Items" : kind === "inventory" ? "Equipped Loadout" : kind === "settings" ? "Game Preferences" : "Choose Mode", 570, 326, 420, 34, palette.text, 25, true));
+    if (kind === "shop") {
+      boxes.push(frame("CurrencyPill", 1054, 322, 184, 42, palette.card, 16, 0.94, { stroke: palette.warn, strokeOpacity: 0.58 }));
+      boxes.push(text("CurrencyText", "Coins 12,450", 1080, 332, 134, 20, palette.warn, 16, true));
+    }
     const labels = kind === "shop"
       ? ["VIP Pass", "2x Coins", "Pet Egg", "Speed", "Magic", "Boost"]
       : kind === "inventory"
@@ -178,11 +200,12 @@ export function createRobloxUiBlueprint(prompt: string, style: string): UiBluepr
     labels.forEach((label, i) => {
       const col = i % 3;
       const row = Math.floor(i / 3);
-      const x = 590 + col * 205;
-      const y = 378 + row * 160;
-      boxes.push(frame(`${label}Card`, x, y, 160, 126, palette.panel, 18, 0.9));
-      boxes.push(frame(`${label}Icon`, x + 18, y + 18, 48, 48, i % 2 === 0 ? palette.accent : palette.accent2, 14, 1));
-      boxes.push(text(`${label}Text`, label, x + 18, y + 82, 128, 26, palette.text, 18, true));
+      const x = 578 + col * 220;
+      const y = 392 + row * 164;
+      boxes.push(frame(`${label}Card`, x, y, 178, 132, palette.card, 20, 0.94, { stroke: i % 2 === 0 ? palette.accent : palette.accent2, strokeOpacity: 0.66 }));
+      boxes.push(frame(`${label}Icon`, x + 18, y + 18, 52, 52, i % 2 === 0 ? palette.accent : palette.accent2, 15, 1, { gradient: true }));
+      boxes.push(text(`${label}Text`, label, x + 18, y + 84, 138, 25, palette.text, 18, true));
+      boxes.push(text(`${label}Meta`, kind === "settings" ? "Tap to edit" : kind === "shop" ? "Robux-ready" : "Owned", x + 18, y + 108, 134, 18, palette.muted, 13));
     });
   }
 
@@ -198,18 +221,25 @@ export function renderRobloxUiBlueprintSvg(blueprint: UiBlueprint) {
     }
     if (box.kind === "bar") {
       const fillWidth = Math.max(0, Math.min(1, box.progress || 0)) * box.w;
-      return `<g><text x="${box.x}" y="${box.y - 10}" font-family="Gotham, Inter, Arial" font-size="20" font-weight="900" fill="${p.text}">${safeText(box.text || "", 24)}</text><rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" rx="${box.radius}" fill="#000" opacity=".34"/><rect x="${box.x}" y="${box.y}" width="${fillWidth}" height="${box.h}" rx="${box.radius}" fill="url(#accent)"/></g>`;
+      return `<g><text x="${box.x}" y="${box.y - 10}" font-family="Gotham, Inter, Arial" font-size="20" font-weight="900" fill="${p.text}">${safeText(box.text || "", 24)}</text><rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" rx="${box.radius}" fill="#000" opacity=".34"/><rect x="${box.x}" y="${box.y}" width="${fillWidth}" height="${box.h}" rx="${box.radius}" fill="${box.gradient ? "url(#accent)" : box.fill || p.accent}"/></g>`;
     }
     const opacity = box.opacity ?? 1;
-    return `<rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" rx="${box.radius || 0}" fill="${box.fill || p.panel}" opacity="${opacity}" stroke="#ffffff" stroke-opacity="${box.name === "Background" ? 0 : 0.12}"/>${box.kind === "button" ? `<text x="${box.x + box.w / 2}" y="${box.y + box.h / 2 + 7}" text-anchor="middle" font-family="Gotham, Inter, Arial" font-size="${box.fontSize || 18}" font-weight="900" fill="${box.textColor || "#fff"}">${safeText(box.text || "", 20)}</text>` : ""}`;
+    const stroke = box.stroke || "#ffffff";
+    const strokeOpacity = box.name === "Background" ? 0 : (box.strokeOpacity ?? 0.82);
+    const fill = box.gradient ? "url(#accent)" : box.fill || p.panel;
+    return `<rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" rx="${box.radius || 0}" fill="${fill}" opacity="${opacity}" stroke="${stroke}" stroke-opacity="${strokeOpacity}" filter="${box.name === "Background" ? "" : "url(#softShadow)"}"/>${box.kind === "button" ? `<text x="${box.x + box.w / 2}" y="${box.y + box.h / 2 + 7}" text-anchor="middle" font-family="Gotham, Inter, Arial" font-size="${box.fontSize || 18}" font-weight="900" fill="${box.textColor || "#fff"}">${safeText(box.text || "", 20)}</text>` : ""}`;
   }).join("");
 
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${HEIGHT}" viewBox="0 0 ${WIDTH} ${HEIGHT}">
   <defs>
+    <linearGradient id="bgGradient" x1="0" x2="1" y1="0" y2="1"><stop stop-color="${p.bg}"/><stop offset="1" stop-color="${p.bg2}"/></linearGradient>
     <linearGradient id="accent" x1="0" x2="1"><stop stop-color="${p.accent}"/><stop offset="1" stop-color="${p.accent2}"/></linearGradient>
+    <pattern id="grid" width="64" height="64" patternUnits="userSpaceOnUse"><path d="M 64 0 L 0 0 0 64" fill="none" stroke="#ffffff" stroke-opacity=".04" stroke-width="1"/></pattern>
     <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="24" stdDeviation="30" flood-color="#000" flood-opacity=".35"/></filter>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="#000" flood-opacity=".18"/></filter>
   </defs>
-  <rect width="${WIDTH}" height="${HEIGHT}" fill="${p.bg}"/>
+  <rect width="${WIDTH}" height="${HEIGHT}" fill="url(#bgGradient)"/>
+  <rect width="${WIDTH}" height="${HEIGHT}" fill="url(#grid)"/>
   <g filter="url(#shadow)">${elements}</g>
 </svg>`;
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
@@ -231,12 +261,17 @@ if existing then existing:Destroy() end
 local W, H = ${WIDTH}, ${HEIGHT}
 local palette = {
   bg = ${luaColor(p.bg)},
+  bg2 = ${luaColor(p.bg2)},
   panel = ${luaColor(p.panel)},
   panel2 = ${luaColor(p.panel2)},
+  card = ${luaColor(p.card)},
   accent = ${luaColor(p.accent)},
   accent2 = ${luaColor(p.accent2)},
   text = ${luaColor(p.text)},
   muted = ${luaColor(p.muted)},
+  good = ${luaColor(p.good)},
+  warn = ${luaColor(p.warn)},
+  danger = ${luaColor(p.danger)},
 }
 local boxes = ${luaValue(blueprint.boxes)}
 
@@ -260,17 +295,33 @@ local function addCorner(parent, radius)
   return make("UICorner", { CornerRadius = UDim.new(0, radius or 12) }, parent)
 end
 
-local function addStroke(parent)
-  return make("UIStroke", { Color = Color3.fromRGB(255, 255, 255), Transparency = 0.88, Thickness = 1 }, parent)
+local function addStroke(parent, color, opacity, thickness)
+  return make("UIStroke", {
+    Color = color or Color3.fromRGB(255, 255, 255),
+    Transparency = math.max(0, math.min(1, opacity or 0.82)),
+    Thickness = thickness or 1,
+  }, parent)
+end
+
+local function addGradient(parent)
+  local gradient = make("UIGradient", {
+    Color = ColorSequence.new(palette.accent, palette.accent2),
+    Rotation = 0,
+  }, parent)
+  TweenService:Create(gradient, TweenInfo.new(3.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), { Rotation = 18 }):Play()
+  return gradient
 end
 
 local function addButtonMotion(button)
   local scale = make("UIScale", { Scale = 1 }, button)
+  local base = button.BackgroundColor3
   button.MouseEnter:Connect(function()
     TweenService:Create(scale, TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Scale = 1.045 }):Play()
+    TweenService:Create(button, TweenInfo.new(0.14), { BackgroundColor3 = base:Lerp(Color3.new(1, 1, 1), 0.1) }):Play()
   end)
   button.MouseLeave:Connect(function()
     TweenService:Create(scale, TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+    TweenService:Create(button, TweenInfo.new(0.14), { BackgroundColor3 = base }):Play()
   end)
   button.MouseButton1Down:Connect(function()
     TweenService:Create(scale, TweenInfo.new(0.08), { Scale = 0.97 }):Play()
@@ -298,6 +349,12 @@ local root = make("Frame", {
 }, gui)
 
 make("UIScale", { Scale = 1 }, root)
+make("UIGradient", {
+  Color = ColorSequence.new(palette.bg, palette.bg2),
+  Rotation = 35,
+}, root)
+
+local built = {}
 
 for _, box in ipairs(boxes) do
   if box.name ~= "Background" then
@@ -337,36 +394,43 @@ for _, box in ipairs(boxes) do
         Size = size,
       }, root)
       addCorner(back, box.radius or 14)
+      local fillSize = UDim2.fromScale((box.w * (box.progress or 0.5)) / W, box.h / H)
       local fill = make("Frame", {
         Name = box.name,
         BackgroundColor3 = box.fill and hexColor(box.fill) or palette.accent,
         BorderSizePixel = 0,
         Position = pos,
-        Size = UDim2.fromScale((box.w * (box.progress or 0.5)) / W, box.h / H),
+        Size = UDim2.fromScale(0, box.h / H),
       }, root)
       addCorner(fill, box.radius or 14)
-      make("UIGradient", { Color = ColorSequence.new(palette.accent, palette.accent2) }, fill)
+      if box.gradient then addGradient(fill) end
+      TweenService:Create(fill, TweenInfo.new(0.75, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), { Size = fillSize }):Play()
     else
-      local inst = make(box.kind == "button" and "TextButton" or "Frame", {
+      local props = {
         Name = box.name,
-        AutoButtonColor = false,
         BackgroundColor3 = box.fill and hexColor(box.fill) or palette.panel,
         BackgroundTransparency = math.max(0, math.min(1, 1 - (box.opacity or 1))),
         BorderSizePixel = 0,
-        Font = Enum.Font.GothamBlack,
         Position = pos,
         Size = size,
-        Text = box.kind == "button" and (box.text or box.name) or "",
-        TextColor3 = Color3.fromRGB(255, 255, 255),
-        TextScaled = box.kind == "button",
-      }, root)
+      }
+      if box.kind == "button" then
+        props.AutoButtonColor = false
+        props.Font = Enum.Font.GothamBlack
+        props.Text = box.text or box.name
+        props.TextColor3 = Color3.fromRGB(255, 255, 255)
+        props.TextScaled = true
+      end
+      local inst = make(box.kind == "button" and "TextButton" or "Frame", props, root)
       addCorner(inst, box.radius or 12)
-      addStroke(inst)
+      addStroke(inst, box.stroke and hexColor(box.stroke) or Color3.fromRGB(255, 255, 255), box.strokeOpacity or 0.86, box.kind == "button" and 1.5 or 1)
+      if box.gradient then addGradient(inst) end
+      local finalTransparency = inst.BackgroundTransparency
+      table.insert(built, { inst = inst, finalPosition = pos, finalTransparency = finalTransparency })
+      inst.Position = UDim2.fromScale(box.x / W, (box.y + 28) / H)
+      inst.BackgroundTransparency = math.min(1, finalTransparency + 0.2)
       if box.kind == "button" then
         addButtonMotion(inst)
-        if box.name == "PrimaryButton" or box.name == "PlayButton" then
-          make("UIGradient", { Color = ColorSequence.new(palette.accent, palette.accent2) }, inst)
-        end
       end
     end
   end
@@ -374,5 +438,15 @@ end
 
 root.BackgroundTransparency = 1
 TweenService:Create(root, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { BackgroundTransparency = 0 }):Play()
+for index, item in ipairs(built) do
+  task.delay(index * 0.018, function()
+    if item.inst and item.inst.Parent then
+      TweenService:Create(item.inst, TweenInfo.new(0.34, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+        Position = item.finalPosition,
+        BackgroundTransparency = item.finalTransparency,
+      }):Play()
+    end
+  end)
+end
 `;
 }
