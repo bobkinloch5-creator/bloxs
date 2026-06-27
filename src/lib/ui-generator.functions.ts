@@ -14,6 +14,13 @@ import { generateUiConceptImage } from "./ui-concept-image.server";
 // ---------------------------------------------------------------------------
 const SYS = `You are a senior Roblox UI engineer. Given a style tag and a prompt, produce ONE complete, self-contained Luau LocalScript that builds a premium, UNIQUE ScreenGui entirely at runtime.
 
+QUALITY BAR:
+- This must look like a finished Roblox game UI, not a tutorial sample.
+- Use layered panels, real visual hierarchy, clean spacing, color contrast, animated feedback, and responsive constraints.
+- Never make one flat grey frame with a few buttons. Never reuse the same dark-purple/frosted layout for every prompt.
+- Every generation must feel different: vary layout, panel shape, accent treatment, card density, navigation style, button style, and motion.
+- Tie labels, sections, counters, cards, and button actions to the user's exact game genre/request.
+
 STEP 1 — READ THE PROMPT. Choose the layout type that fits:
   Loading Screen  → full-screen overlay, progress bar, tip rotator, fade-out on game.Loaded
   Main Menu       → hero bg + logo + vertical Play/Shop/Settings button stack + footer
@@ -79,6 +86,16 @@ const ACCENT_HINTS = [
   "frosted glass only on the header; solid color blocks everywhere else",
   "tilted/rotated badge accents and emoji-like icon glyphs",
   "deep drop-shadow ImageLabel beneath each card for depth",
+  "large left hero panel with compact right-side cards and a sticky bottom action bar",
+  "premium black-and-gold composition with restrained glow and thin dividers",
+  "bright simulator style with coin/gem pills, item rarity colors, and chunky buttons",
+];
+const MOTION_HINTS = [
+  "intro fade + upward slide on main panels",
+  "stagger cards in one-by-one with small scale bounce",
+  "pulse only the primary action and keep the rest calm",
+  "slide drawers from the side and dim the background when opened",
+  "animate progress bars from 0 to their target width",
 ];
 
 function pick<T>(arr: readonly T[], seed: number): T { return arr[seed % arr.length]; }
@@ -87,20 +104,23 @@ function buildUserPrompt(prompt: string, style: string): string {
   const seed = Math.floor(Math.random() * 1_000_000);
   const layout = pick(LAYOUT_HINTS, seed);
   const accent = pick(ACCENT_HINTS, seed >> 3);
+  const motion = pick(MOTION_HINTS, seed >> 5);
   return `STYLE: ${style}
 REQUESTED UI: ${prompt}
 VARIANT SEED: ${seed}
 LAYOUT DIRECTION: ${layout}
 ACCENT DIRECTION: ${accent}
+MOTION DIRECTION: ${motion}
 
 Instructions:
 1. Identify the UI category from the prompt and use the matching layout from the system guidelines, BUT bias toward the LAYOUT DIRECTION above so this build is visually distinct from previous generations.
 2. Choose the palette from the system guidelines that fits the style tag. DO NOT default to a generic dark frosted-glass look unless "Dark Mode" was explicitly requested.
 3. Apply the ACCENT DIRECTION above to corners, strokes, gradients, and shadows.
-4. Build the FULL UI — every frame, button, list, scroll — all wired with TweenService hover/press animations. Every button MUST have a real action (open/close panel, print stub, or BindableEvent).
+4. Build the FULL UI — every frame, button, list, scroll, close button, tab, progress bar, and status chip — all wired with TweenService hover/press animations. Every button MUST have a real action (open/close panel, print stub, or BindableEvent).
 5. Mobile-friendly (scale sizing, UIAspectRatioConstraint on icons, UISizeConstraint on modals).
-6. Output ONLY valid Luau code — no markdown fences, no English prose, no leading "lua" keyword. Code must paste into a LocalScript and run as-is.
-7. This must be completely DIFFERENT from prior generations. Make it uniquely tied to: "${prompt}".`;
+6. Use the MOTION DIRECTION for intro/open/close transitions.
+7. Output ONLY valid Luau code — no markdown fences, no English prose, no leading "lua" keyword. Code must paste into a LocalScript and run as-is.
+8. This must be completely DIFFERENT from prior generations. Make it uniquely tied to: "${prompt}".`;
 }
 
 export const generateRobloxUi = createServerFn({ method: "POST" })

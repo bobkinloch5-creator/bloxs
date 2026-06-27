@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { getMyProfile } from "@/lib/profile.functions";
 import { generateRobloxUi } from "@/lib/ui-generator.functions";
 import { PageShell, EmptyState } from "@/components/PageShell";
-import { LayoutDashboard, Send, Loader2, Copy, Check, AlertTriangle } from "lucide-react";
+import { LayoutDashboard, Send, Loader2, Copy, Check, AlertTriangle, Sparkles, Shuffle } from "lucide-react";
 import { useState } from "react";
 
 export const Route = createFileRoute("/_authenticated/ui-generator")({
@@ -17,7 +17,7 @@ export const Route = createFileRoute("/_authenticated/ui-generator")({
 
 const STYLES = [
   "Modern", "Premium", "Futuristic", "Sci-Fi", "Neon",
-  "Cartoon", "Cute", "Retro", "Minimal", "Light", "Dark",
+  "Cartoon", "Cute", "Fantasy", "RPG", "Horror", "Retro", "Minimal", "Light", "Dark",
 ];
 const EXAMPLES = [
   "Simulator HUD with a big animated coins counter, multiplier and rebirth pills, and a side button rail (Shop, Pets, Rebirth)",
@@ -39,10 +39,11 @@ function UiGenerator() {
   const [style, setStyle] = useState("Modern");
   const [generated, setGenerated] = useState<Generated[]>([]);
   const [err, setErr] = useState<string | null>(null);
+  const [shuffleSeed, setShuffleSeed] = useState(0);
 
   const gen = useMutation({
-    mutationFn: async (vars: { prompt: string; style: string }) =>
-      genFn({ data: vars }),
+    mutationFn: async (vars: { prompt: string; style: string; modelPrompt?: string }) =>
+      genFn({ data: { prompt: vars.modelPrompt || vars.prompt, style: vars.style } }),
     onSuccess: (out, vars) => {
       setGenerated((g) => [
         { id: crypto.randomUUID(), prompt: vars.prompt, style: vars.style, code: out.code, conceptImageUrl: out.conceptImageUrl, createdAt: Date.now() },
@@ -57,7 +58,9 @@ function UiGenerator() {
   function generate(p?: string) {
     const value = (p ?? prompt).trim();
     if (!value || gen.isPending) return;
-    gen.mutate({ prompt: value, style });
+    const variantPrompt = `${value}\nUnique visual variant #${shuffleSeed + 1}: make the composition, colors, panel shapes, and button style noticeably different from the last generation.`;
+    setShuffleSeed((n) => n + 1);
+    gen.mutate({ prompt: value, modelPrompt: variantPrompt, style });
   }
 
   return (
@@ -68,9 +71,33 @@ function UiGenerator() {
       activeKey="ui"
       isAdmin={!!profile?.is_admin}
     >
-      <section className="rounded-2xl border border-white/10 bg-gradient-to-br from-violet-500/10 to-fuchsia-500/5 p-6 backdrop-blur-sm">
-        <label className="text-xs font-semibold uppercase tracking-wider text-violet-300">Describe the UI</label>
-        <div className="mt-2 flex gap-2 rounded-2xl border border-white/10 bg-black/30 p-2">
+      <section className="rounded-2xl border border-violet-300/20 bg-[radial-gradient(circle_at_top_left,rgba(139,92,246,.22),transparent_34%),linear-gradient(135deg,rgba(15,23,42,.88),rgba(5,5,12,.96))] p-6 shadow-2xl shadow-violet-950/30 backdrop-blur-sm">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-violet-300/20 bg-violet-300/10 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-violet-200">
+              <Sparkles className="h-3.5 w-3.5" /> Premium randomized Roblox UI
+            </div>
+            <h2 className="mt-3 text-xl font-black text-white">Generate a real Roblox interface</h2>
+            <p className="mt-1 max-w-2xl text-sm text-slate-300">
+              BloxSmith creates a fresh concept image, then returns a full responsive Luau ScreenGui script with animations and working buttons.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              const ex = EXAMPLES[Math.floor(Math.random() * EXAMPLES.length)];
+              const st = STYLES[Math.floor(Math.random() * STYLES.length)];
+              setPrompt(ex);
+              setStyle(st);
+            }}
+            className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2 text-xs font-bold text-white hover:bg-white/[0.1]"
+          >
+            <Shuffle className="h-3.5 w-3.5" /> Random idea
+          </button>
+        </div>
+
+        <label className="mt-5 block text-xs font-semibold uppercase tracking-wider text-violet-300">Describe the UI</label>
+        <div className="mt-2 flex gap-2 rounded-2xl border border-white/10 bg-black/35 p-2 ring-1 ring-violet-300/10">
           <input
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
@@ -81,20 +108,21 @@ function UiGenerator() {
           <button
             onClick={() => generate()}
             disabled={gen.isPending || !prompt.trim()}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-4 py-2 text-xs font-bold text-white disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-violet-500 via-fuchsia-500 to-cyan-400 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-violet-900/30 disabled:opacity-50"
           >
             {gen.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />} Generate
           </button>
         </div>
-        <div className="mt-3 flex flex-wrap gap-1.5">
+        <div className="mt-4 flex flex-wrap gap-2">
           {STYLES.map((s) => (
             <button
               key={s}
               onClick={() => setStyle(s)}
-              className={`rounded-full px-3 py-1 text-[11px] font-semibold transition ${
-                style === s ? "bg-violet-500/25 text-violet-200" : "bg-white/5 text-muted-foreground hover:bg-white/10"
+              className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-[11px] font-bold transition ${
+                style === s ? "border-violet-300/45 bg-violet-500/25 text-violet-100" : "border-white/10 bg-white/5 text-slate-300 hover:bg-white/10"
               }`}
             >
+              <span className={`h-2.5 w-2.5 rounded-full ${style === s ? "bg-cyan-300" : "bg-violet-300/50"}`} />
               {s}
             </button>
           ))}
@@ -105,7 +133,7 @@ function UiGenerator() {
             <button
               key={ex}
               onClick={() => { setPrompt(ex); }}
-              className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[11px] text-slate-300 hover:bg-white/[0.07]"
+              className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] text-slate-300 hover:bg-white/[0.08]"
             >
               {ex.length > 60 ? ex.slice(0, 58) + "…" : ex}
             </button>
