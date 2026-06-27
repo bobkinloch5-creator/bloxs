@@ -166,6 +166,90 @@ end
   ];
 }
 
+function isGrassRequest(userText: string) {
+  return /\b(grass|grassy|lawn|turf|field|ground\s+cover|realistic\s+ground)\b/i.test(userText);
+}
+
+function visibleGrassStudioActions(userText: string) {
+  const safePrompt = userText.trim().slice(0, 220) || "add realistic grass";
+  const source = `
+local Workspace = game:GetService("Workspace")
+local Terrain = Workspace.Terrain
+local Lighting = game:GetService("Lighting")
+
+local function safeSet(inst, prop, value)
+  pcall(function()
+    inst[prop] = value
+  end)
+end
+
+pcall(function()
+  Terrain:SetMaterialColor(Enum.Material.Grass, Color3.fromRGB(70, 150, 66))
+end)
+safeSet(Terrain, "Decoration", true)
+
+local changedLargeGround = 0
+for _, inst in ipairs(Workspace:GetDescendants()) do
+  if inst:IsA("BasePart") then
+    local n = inst.Name:lower()
+    local flatLarge = inst.Size.X >= 40 and inst.Size.Z >= 40 and inst.Size.Y <= 8
+    if n:find("baseplate") or n:find("ground") or n:find("floor") or flatLarge then
+      inst.Material = Enum.Material.Grass
+      inst.Color = Color3.fromRGB(75, 155, 70)
+      safeSet(inst, "TopSurface", Enum.SurfaceType.Smooth)
+      changedLargeGround += 1
+    end
+  end
+end
+
+local surface = Workspace:FindFirstChild("BloxSmith_Visible_Grass_Surface")
+if not surface then
+  surface = Instance.new("Part")
+  surface.Name = "BloxSmith_Visible_Grass_Surface"
+  surface.Anchored = true
+  surface.CanCollide = true
+  surface.TopSurface = Enum.SurfaceType.Smooth
+  surface.BottomSurface = Enum.SurfaceType.Smooth
+  surface.Parent = Workspace
+end
+surface.Size = Vector3.new(260, 0.5, 260)
+surface.Position = Vector3.new(0, 0.25, 0)
+surface.Material = Enum.Material.Grass
+surface.Color = Color3.fromRGB(68, 158, 72)
+
+pcall(function()
+  Terrain:FillBlock(CFrame.new(0, -2, 0), Vector3.new(260, 4, 260), Enum.Material.Grass)
+end)
+
+local marker = Workspace:FindFirstChild("BloxSmith_Grass_Confirmation")
+if not marker then
+  marker = Instance.new("Part")
+  marker.Name = "BloxSmith_Grass_Confirmation"
+  marker.Anchored = true
+  marker.CanCollide = false
+  marker.Transparency = 1
+  marker.Size = Vector3.new(2, 2, 2)
+  marker.Position = Vector3.new(0, 6, 0)
+  marker.Parent = Workspace
+end
+marker:SetAttribute("BloxSmithRequest", ${JSON.stringify(safePrompt)})
+marker:SetAttribute("LargeGroundPartsChanged", changedLargeGround)
+marker:SetAttribute("GrassSurfaceCreated", true)
+
+Lighting.ClockTime = math.max(Lighting.ClockTime, 12)
+Lighting.Brightness = math.max(Lighting.Brightness, 2)
+`;
+
+  return [
+    {
+      kind: "run_lua",
+      parent_path: "Workspace",
+      name: "BloxSmith_Apply_Visible_Grass",
+      payload: { source },
+    },
+  ];
+}
+
 export const Route = createFileRoute("/api/chat")({
   server: {
     handlers: {
@@ -404,6 +488,16 @@ export const Route = createFileRoute("/api/chat")({
                   if (actions.length === 0) {
                     actions = recoveryStudioActions(userText).map(normalizePluginAction);
                     cleanContent = `${cleanContent.trim()}\n\n_Auto-execute recovery queued a safe starter build because the selected model did not produce valid Studio actions._`;
+                  }
+                }
+
+                if (mode === "build" && isGrassRequest(userText)) {
+                  actions = [
+                    ...visibleGrassStudioActions(userText).map(normalizePluginAction),
+                    ...actions.filter((a) => a.name !== "BloxSmith_Apply_Visible_Grass"),
+                  ];
+                  if (!/visible grass/i.test(cleanContent)) {
+                    cleanContent = `${cleanContent.trim()}\n\n_Visible grass enforcement queued: large flat ground parts are recolored to Grass material, a grass surface is created, and Terrain grass decoration is enabled._`;
                   }
                 }
 
