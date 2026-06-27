@@ -1049,7 +1049,7 @@ function AssistantCard({
 
   useEffect(() => {
     // Plan Mode guard: if auto-execute is off, never fire automatically.
-    if (!autoExecute || !waitingForRows || !pluginOnline || parsedActions.length === 0 || hasDangerousAction) return;
+    if (!autoExecute || !waitingForRows || parsedActions.length === 0 || hasDangerousAction) return;
     if (autoQueueKeyRef.current === rawActions) return;
     const id = setTimeout(() => {
       if (autoQueueKeyRef.current !== rawActions) void forceExecuteNow(true);

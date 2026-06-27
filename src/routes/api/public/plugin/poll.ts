@@ -43,7 +43,10 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
             online: true,
           }, { onConflict: "user_id" });
 
-          // Pull pending actions (across user's projects unless project_id given)
+          // Pull pending actions (across user's projects unless project_id given).
+          // If Studio executed a batch but the completion POST was lost, rows can
+          // stay "sent" forever. Re-offer stale sent rows so the plugin can retry
+          // them automatically instead of requiring the user to click Send again.
           let q = sb.from("plugin_actions")
             .select("id, project_id, kind, parent_path, name, payload, position")
             .eq("user_id", profile.id)
@@ -51,8 +54,23 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
             .order("created_at", { ascending: true })
             .limit(100);
           if (body.project_id) q = q.eq("project_id", body.project_id);
-          const { data: actions, error } = await q;
+          let { data: actions, error } = await q;
           if (error) return json({ error: error.message }, 500);
+
+          if (!actions || actions.length === 0) {
+            const staleSentCutoff = new Date(Date.now() - 45_000).toISOString();
+            let retryQ = sb.from("plugin_actions")
+              .select("id, project_id, kind, parent_path, name, payload, position")
+              .eq("user_id", profile.id)
+              .eq("status", "sent")
+              .lt("sent_at", staleSentCutoff)
+              .order("sent_at", { ascending: true })
+              .limit(100);
+            if (body.project_id) retryQ = retryQ.eq("project_id", body.project_id);
+            const retry = await retryQ;
+            if (retry.error) return json({ error: retry.error.message }, 500);
+            actions = retry.data ?? [];
+          }
 
           if (actions && actions.length > 0) {
             const ids = actions.map((a) => a.id);

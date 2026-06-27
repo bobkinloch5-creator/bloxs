@@ -161,7 +161,7 @@ export const queuePreparedStudioActions = createServerFn({ method: "POST" })
       .select("id, created_at")
       .eq("project_id", data.projectId)
       .eq("user_id", context.userId)
-      .in("status", ["pending", "sent"])
+      .eq("status", "pending")
       .order("created_at", { ascending: false })
       .limit(normalizedActions.length);
     const newest = recent?.[0]?.created_at ? new Date(recent[0].created_at).getTime() : 0;
