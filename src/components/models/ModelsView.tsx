@@ -532,6 +532,7 @@ function ModelCard({ m, projectId, onChange }: { m: any; projectId?: string; onC
   const canPreview = complete && !!previewUrl;
   const assetOnly = complete && !hasModelFile && !!m.roblox_asset_id;
   const failed = m.status === "FAILED";
+  const primaryFileUrl = previewUrl || urls.glb || urls.gltf || urls.fbx || urls.obj || Object.values(urls)[0] || m.model_url || "";
   const isAnimation = m.mode === "animation";
   const isTexture = m.mode === "texture";
   const isRefine = m.mode === "refine";
@@ -540,11 +541,73 @@ function ModelCard({ m, projectId, onChange }: { m: any; projectId?: string; onC
   const previewShellRef = useRef<HTMLDivElement | null>(null);
   const [viewerLoaded, setViewerLoaded] = useState(false);
   const [viewerError, setViewerError] = useState<string | null>(null);
+  const [viewerProgress, setViewerProgress] = useState(0);
 
   useEffect(() => {
     setViewerLoaded(false);
     setViewerError(null);
+    setViewerProgress(0);
   }, [previewUrl]);
+
+  useEffect(() => {
+    if (!canPreview || !previewUrl) return;
+    const el = viewerRef.current as (HTMLElement & {
+      loaded?: boolean;
+      dismissPoster?: () => void;
+      requestUpdate?: () => void;
+    }) | null;
+    if (!el) return;
+
+    let cancelled = false;
+    const markLoaded = () => {
+      if (cancelled) return;
+      setViewerLoaded(true);
+      setViewerProgress(1);
+      setViewerError(null);
+    };
+    const markError = (event: Event) => {
+      if (cancelled) return;
+      const detail = (event as CustomEvent<any>)?.detail;
+      const message = detail?.sourceError?.message || detail?.message || "The preview file could not be loaded by the 3D viewer.";
+      setViewerError(String(message));
+      setViewerLoaded(false);
+    };
+    const markProgress = (event: Event) => {
+      const detail = (event as CustomEvent<any>)?.detail;
+      const progress = Number(detail?.totalProgress ?? 0);
+      if (Number.isFinite(progress)) setViewerProgress(Math.max(0, Math.min(1, progress)));
+      if (progress >= 0.98) markLoaded();
+    };
+
+    el.addEventListener("load", markLoaded);
+    el.addEventListener("model-visibility", markLoaded);
+    el.addEventListener("poster-dismissed", markLoaded);
+    el.addEventListener("progress", markProgress);
+    el.addEventListener("error", markError);
+
+    el.dismissPoster?.();
+    el.requestUpdate?.();
+    requestAnimationFrame(() => {
+      if (!cancelled && el.loaded) markLoaded();
+    });
+    const recovery = window.setTimeout(() => {
+      if (!cancelled && !viewerError) {
+        // Some browsers render the WebGL canvas but miss custom-element load events.
+        // Remove the blocking overlay so the already-visible model stays usable.
+        markLoaded();
+      }
+    }, 9000);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(recovery);
+      el.removeEventListener("load", markLoaded);
+      el.removeEventListener("model-visibility", markLoaded);
+      el.removeEventListener("poster-dismissed", markLoaded);
+      el.removeEventListener("progress", markProgress);
+      el.removeEventListener("error", markError);
+    };
+  }, [canPreview, previewUrl, viewerError]);
 
   async function goFullscreen() {
     const el = (viewerRef.current || previewShellRef.current) as (HTMLElement & { requestFullscreen?: () => Promise<void> }) | null;
@@ -643,27 +706,24 @@ function ModelCard({ m, projectId, onChange }: { m: any; projectId?: string; onC
             src={previewUrl}
             poster={m.thumbnail_url || undefined}
             reveal="auto"
+            loading="eager"
             camera-controls
             auto-rotate={!isAnimation}
             autoplay={isAnimation}
             touch-action="pan-y"
             interaction-prompt="auto"
             interaction-prompt-style="wiggle"
-            shadow-intensity="1.2"
-            exposure="1.05"
+            shadow-intensity="1.45"
+            shadow-softness="0.65"
+            exposure="1.12"
             environment-image="neutral"
+            tone-mapping="aces"
             bounds="tight"
             camera-orbit="45deg 65deg auto"
             field-of-view="30deg"
             min-camera-orbit="auto auto 5%"
             max-camera-orbit="auto auto 500%"
-            style={{ width: "100%", height: "100%", minHeight: "280px", background: "radial-gradient(circle at 50% 55%, rgba(99,102,241,.18), transparent 45%)" }}
-            onLoad={() => { setViewerLoaded(true); setViewerError(null); }}
-            onError={(event: any) => {
-              const detail = event?.detail?.sourceError?.message || event?.detail?.message || "The preview file could not be loaded by the 3D viewer.";
-              setViewerError(String(detail));
-              setViewerLoaded(false);
-            }}
+            style={{ width: "100%", height: "100%", minHeight: "280px", background: "radial-gradient(circle at 50% 55%, rgba(99,102,241,.18), transparent 45%)", transform: "translateZ(0)", willChange: "transform", contain: "layout paint size" }}
           />
         ) : m.thumbnail_url ? (
           <>
@@ -690,6 +750,9 @@ function ModelCard({ m, projectId, onChange }: { m: any; projectId?: string; onC
             <div className="rounded-xl border border-white/10 bg-black/65 px-4 py-3 text-center text-xs font-semibold text-white shadow-xl">
               <Loader2 className="mx-auto mb-2 h-5 w-5 animate-spin text-violet-200" />
               Preparing 3D preview…
+              <div className="mt-2 h-1.5 w-40 overflow-hidden rounded-full bg-white/10">
+                <div className="h-full rounded-full bg-gradient-to-r from-violet-300 to-cyan-300 transition-all" style={{ width: `${Math.max(12, Math.round(viewerProgress * 100))}%` }} />
+              </div>
             </div>
           </div>
         )}
@@ -697,7 +760,7 @@ function ModelCard({ m, projectId, onChange }: { m: any; projectId?: string; onC
           <div className="absolute inset-x-3 bottom-3 z-20 rounded-xl border border-rose-400/30 bg-rose-500/15 p-3 text-xs text-rose-100 backdrop-blur">
             <div className="font-bold">Preview failed to load</div>
             <div className="mt-1 opacity-85">{viewerError}</div>
-            <a href={previewUrl || m.model_url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1 text-[11px] font-bold underline">
+            <a href={primaryFileUrl} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1 text-[11px] font-bold underline">
               <ExternalLink className="h-3 w-3" /> Open preview file
             </a>
           </div>
@@ -830,9 +893,16 @@ function ModelCard({ m, projectId, onChange }: { m: any; projectId?: string; onC
               >
                 <Download className="h-3 w-3" /> All formats
               </button>
-              <a href={m.model_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] px-2 py-1 text-[10px] font-bold text-white">
-                <ExternalLink className="h-3 w-3" /> Open
-              </a>
+              {primaryFileUrl && (
+                <a href={primaryFileUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] px-2 py-1 text-[10px] font-bold text-white">
+                  <ExternalLink className="h-3 w-3" /> Open file
+                </a>
+              )}
+              {m.project_id && (
+                <Link to="/project/$projectId" params={{ projectId: m.project_id }} className="inline-flex items-center gap-1 rounded-md bg-violet-500/20 hover:bg-violet-500/30 px-2 py-1 text-[10px] font-bold text-violet-100">
+                  <ExternalLink className="h-3 w-3" /> Project
+                </Link>
+              )}
             </div>
             {isBridgeModel && (
               <div className="flex flex-wrap items-center gap-1.5 border-t border-white/10 pt-2">

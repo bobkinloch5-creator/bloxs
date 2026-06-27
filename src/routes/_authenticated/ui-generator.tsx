@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { getMyProfile } from "@/lib/profile.functions";
 import { generateRobloxUi } from "@/lib/ui-generator.functions";
 import { PageShell, EmptyState } from "@/components/PageShell";
-import { LayoutDashboard, Send, Loader2, Copy, Check, AlertTriangle, Sparkles, Shuffle } from "lucide-react";
+import { LayoutDashboard, Send, Loader2, Copy, Check, AlertTriangle, Sparkles, Shuffle, Download, ExternalLink } from "lucide-react";
 import { useState } from "react";
 
 export const Route = createFileRoute("/_authenticated/ui-generator")({
@@ -30,6 +30,23 @@ const EXAMPLES = [
 
 type Generated = { id: string; prompt: string; style: string; code: string; conceptImageUrl?: string; createdAt: number };
 
+function safeFileName(input: string, ext: string) {
+  const base = input.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "").slice(0, 42) || "bloxsmith-ui";
+  return `${base}.${ext}`;
+}
+
+function downloadText(content: string, filename: string) {
+  const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 function UiGenerator() {
   const profFn = useServerFn(getMyProfile);
   const genFn = useServerFn(generateRobloxUi);
@@ -42,8 +59,13 @@ function UiGenerator() {
   const [shuffleSeed, setShuffleSeed] = useState(0);
 
   const gen = useMutation({
-    mutationFn: async (vars: { prompt: string; style: string; modelPrompt?: string }) =>
-      genFn({ data: { prompt: vars.modelPrompt || vars.prompt, style: vars.style } }),
+    mutationFn: async (vars: { prompt: string; style: string; modelPrompt?: string }) => {
+      const request = genFn({ data: { prompt: vars.modelPrompt || vars.prompt, style: vars.style } });
+      const timeout = new Promise<never>((_, reject) => {
+        window.setTimeout(() => reject(new Error("Generation timed out while preparing the preview. Try again, or switch style/model if the provider is slow.")), 120_000);
+      });
+      return Promise.race([request, timeout]);
+    },
     onSuccess: (out, vars) => {
       setGenerated((g) => [
         { id: crypto.randomUUID(), prompt: vars.prompt, style: vars.style, code: out.code, conceptImageUrl: out.conceptImageUrl, createdAt: Date.now() },
@@ -144,6 +166,17 @@ function UiGenerator() {
             <AlertTriangle className="h-3.5 w-3.5" /> {err}
           </div>
         )}
+        {gen.isPending && (
+          <div className="mt-4 rounded-xl border border-cyan-300/20 bg-cyan-300/[0.07] p-3 text-xs text-cyan-100">
+            <div className="flex items-center justify-between gap-3 font-bold">
+              <span className="inline-flex items-center gap-2"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Preparing preview and Luau...</span>
+              <span>Live generation</span>
+            </div>
+            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10">
+              <div className="h-full w-2/3 animate-pulse rounded-full bg-gradient-to-r from-violet-300 via-fuchsia-300 to-cyan-300" />
+            </div>
+          </div>
+        )}
       </section>
 
       {generated.length === 0 ? (
@@ -174,22 +207,43 @@ function ResultCard({ result }: { result: Generated }) {
             {result.style} · saved concept · {new Date(result.createdAt).toLocaleTimeString()}
           </div>
         </div>
-        <button
-          onClick={async () => {
-            try { await navigator.clipboard.writeText(result.code); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch { /* ignore */ }
-          }}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-[11px] font-semibold text-slate-200 hover:bg-white/10"
-        >
-          {copied ? <Check className="h-3.5 w-3.5 text-emerald-300" /> : <Copy className="h-3.5 w-3.5" />}
-          {copied ? "Copied" : "Copy Luau"}
-        </button>
+        <div className="flex flex-wrap gap-1.5">
+          <button
+            onClick={async () => {
+              try { await navigator.clipboard.writeText(result.code); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch { /* ignore */ }
+            }}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-[11px] font-semibold text-slate-200 hover:bg-white/10"
+          >
+            {copied ? <Check className="h-3.5 w-3.5 text-emerald-300" /> : <Copy className="h-3.5 w-3.5" />}
+            {copied ? "Copied" : "Copy Luau"}
+          </button>
+          <button
+            onClick={() => downloadText(result.code, safeFileName(result.prompt, "client.lua"))}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-emerald-500/15 px-2.5 py-1.5 text-[11px] font-bold text-emerald-100 hover:bg-emerald-500/25"
+          >
+            <Download className="h-3.5 w-3.5" /> Download
+          </button>
+        </div>
       </div>
       {result.conceptImageUrl && (
-        <img
-          src={result.conceptImageUrl}
-          alt="Generated Roblox UI concept"
-          className="mt-3 max-h-[360px] w-full rounded-xl border border-white/10 object-contain bg-black/40"
-        />
+        <div className="mt-3 overflow-hidden rounded-xl border border-white/10 bg-black/50">
+          <div className="flex items-center justify-between border-b border-white/10 bg-black/55 px-3 py-2 text-[11px] font-bold text-white">
+            <span className="inline-flex items-center gap-2"><Sparkles className="h-3.5 w-3.5 text-cyan-200" /> Roblox UI preview</span>
+            <div className="flex gap-1.5">
+              <a href={result.conceptImageUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-md bg-white/[0.06] px-2 py-1 hover:bg-white/[0.12]">
+                <ExternalLink className="h-3 w-3" /> Open
+              </a>
+              <a href={result.conceptImageUrl} download={safeFileName(result.prompt, "png")} className="inline-flex items-center gap-1 rounded-md bg-white/[0.06] px-2 py-1 hover:bg-white/[0.12]">
+                <Download className="h-3 w-3" /> Image
+              </a>
+            </div>
+          </div>
+          <img
+            src={result.conceptImageUrl}
+            alt="Generated Roblox UI concept"
+            className="max-h-[420px] w-full object-contain"
+          />
+        </div>
       )}
       <pre className="mt-3 max-h-[400px] overflow-auto rounded-xl border border-white/10 bg-black/60 p-3 text-[11px] leading-relaxed text-slate-200">
         <code>{result.code}</code>
