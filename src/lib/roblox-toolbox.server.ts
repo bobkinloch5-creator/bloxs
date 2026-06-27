@@ -274,10 +274,14 @@ export async function searchRobloxToolbox(
   keyword: string,
   category: ToolboxCategory = "Model",
   limit = 6,
-): Promise<{ source: "live" | "fallback" | "none"; results: ToolboxResult[] }> {
+): Promise<{ source: "live" | "fallback" | "none"; results: ToolboxResult[]; searchedTerms: string[]; scanned: number }> {
   const terms = buildSearchTerms(keyword);
-  if (terms.length === 0) return { source: "none", results: [] };
+  if (terms.length === 0) return { source: "none", results: [], searchedTerms: [], scanned: 0 };
   const catId = CATEGORY_ID[category];
+  const safeLimit = Math.max(1, Math.min(limit, 50));
+  const activeTerms = terms.slice(0, 8);
+  const perPage = Math.max(Math.min(safeLimit * 8, 80), 40);
+  const maxPagesPerTerm = safeLimit > 12 ? 3 : 2;
 
   const enrich = (r: ToolboxResult): ToolboxResult => ({
     ...r,
@@ -296,52 +300,66 @@ export async function searchRobloxToolbox(
         const bTrusted = b.creatorName.trim().toLowerCase() === "roblox" ? 0.12 : 0;
         return (b.relevance! * 0.58 + b.safety! * 0.42 + bTrusted) - (a.relevance! * 0.58 + a.safety! * 0.42 + aTrusted);
       })
-      .slice(0, limit);
+      .slice(0, safeLimit);
 
   // 1. toolbox-service marketplace endpoint used by Creator Store/Toolbox.
   const liveRows = new Map<number, ToolboxResult>();
   const idsNeedingDetails: number[] = [];
   const sourceQueryById = new Map<number, string>();
-  for (const term of terms) {
+  for (const term of activeTerms) {
     const q = encodeURIComponent(term);
-    const tbUrl = `https://apis.roblox.com/toolbox-service/v1/marketplace/${catId}?keyword=${q}&limit=${Math.max(limit * 6, 30)}&sortType=2`;
-    const tb = (await tryFetch(tbUrl)) as
-      | { data?: Array<{ id?: number; asset?: { id?: number; name?: string; typeId?: number }; creator?: { name?: string; type?: number }; product?: { price?: number; isFree?: boolean } }> }
-      | null;
-    if (!tb?.data || !Array.isArray(tb.data)) continue;
-    for (const row of tb.data) {
-      const id = row?.asset?.id ?? row?.id;
-      const name = row?.asset?.name;
-      if (typeof id !== "number" || liveRows.has(id)) continue;
-      sourceQueryById.set(id, term);
-      if (!name) {
-        idsNeedingDetails.push(id);
-        continue;
+    let cursor: string | undefined;
+    for (let page = 0; page < maxPagesPerTerm; page += 1) {
+      const cursorPart = cursor ? `&cursor=${encodeURIComponent(cursor)}` : "";
+      const tbUrl = `https://apis.roblox.com/toolbox-service/v1/marketplace/${catId}?keyword=${q}&limit=${perPage}&sortType=2${cursorPart}`;
+      const tb = (await tryFetch(tbUrl)) as
+        | {
+            nextPageCursor?: string;
+            data?: Array<{
+              id?: number;
+              asset?: { id?: number; name?: string; typeId?: number };
+              creator?: { name?: string; type?: number };
+              product?: { price?: number; isFree?: boolean };
+            }>;
+          }
+        | null;
+      if (!tb?.data || !Array.isArray(tb.data)) break;
+      for (const row of tb.data) {
+        const id = row?.asset?.id ?? row?.id;
+        const name = row?.asset?.name;
+        if (typeof id !== "number" || liveRows.has(id)) continue;
+        sourceQueryById.set(id, term);
+        if (!name) {
+          idsNeedingDetails.push(id);
+          continue;
+        }
+        const price = row?.product?.price;
+        const isFree = row?.product?.isFree ?? (price === 0 || price == null);
+        liveRows.set(id, {
+          id,
+          name,
+          creatorName: row?.creator?.name ?? "",
+          creatorType: row?.creator?.type === 2 ? "Group" : "User",
+          assetType: category,
+          free: isFree,
+          sourceQuery: term,
+        });
       }
-      const price = row?.product?.price;
-      const isFree = row?.product?.isFree ?? (price === 0 || price == null);
-      liveRows.set(id, {
-        id,
-        name,
-        creatorName: row?.creator?.name ?? "",
-        creatorType: row?.creator?.type === 2 ? "Group" : "User",
-        assetType: category,
-        free: isFree,
-        sourceQuery: term,
-      });
+      cursor = tb.nextPageCursor;
+      if (!cursor) break;
     }
   }
 
-  for (const detail of await fetchToolboxDetails(idsNeedingDetails, category, sourceQueryById)) {
+  for (const detail of await fetchToolboxDetails(idsNeedingDetails.slice(0, 240), category, sourceQueryById)) {
     if (!liveRows.has(detail.id)) liveRows.set(detail.id, detail);
   }
 
   // 2. legacy public catalog endpoint as a wider backup. Roblox can change this
   // without notice, so failures are ignored and the curated fallback still works.
   const legacyCategory = category === "Audio" ? 9 : category === "Decal" ? 8 : category === "Mesh" ? 4 : 6;
-  for (const term of terms) {
+  for (const term of activeTerms) {
     const q = encodeURIComponent(term);
-    const legacyUrl = `https://search.roblox.com/catalog/json?CatalogContext=2&Category=${legacyCategory}&Keyword=${q}&SortType=3&ResultsPerPage=${Math.max(limit * 6, 30)}`;
+    const legacyUrl = `https://search.roblox.com/catalog/json?CatalogContext=2&Category=${legacyCategory}&Keyword=${q}&SortType=3&ResultsPerPage=${perPage}`;
     const legacy = (await tryFetch(legacyUrl)) as
       | Array<{ AssetId?: number; Name?: string; Creator?: string; CreatorName?: string; Price?: number | null; Sales?: number; AssetTypeID?: number }>
       | null;
@@ -364,7 +382,7 @@ export async function searchRobloxToolbox(
 
   if (liveRows.size > 0) {
     const ranked = rank(Array.from(liveRows.values()));
-    if (ranked.length > 0) return { source: "live", results: ranked };
+    if (ranked.length > 0) return { source: "live", results: ranked, searchedTerms: activeTerms, scanned: liveRows.size };
   }
 
   // 2. curated allowlist.
@@ -377,6 +395,6 @@ export async function searchRobloxToolbox(
       return true;
     })
     .map(enrich);
-  if (fb.length > 0) return { source: "fallback", results: fb.slice(0, limit) };
-  return { source: "none", results: [] };
+  if (fb.length > 0) return { source: "fallback", results: fb.slice(0, safeLimit), searchedTerms: activeTerms, scanned: liveRows.size };
+  return { source: "none", results: [], searchedTerms: activeTerms, scanned: liveRows.size };
 }
