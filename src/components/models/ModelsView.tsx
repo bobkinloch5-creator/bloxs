@@ -294,7 +294,7 @@ function ModelCard({ m, projectId, onChange }: { m: any; projectId?: string; onC
     if (!el) return;
     try { await el.requestFullscreen?.(); } catch { /* ignore */ }
   }
-
+  async function runAnimate(anim: string) {
     setAnimBusy(true); setActionErr(null);
     try {
       await animateFn({ data: { projectId, sourceId: m.id, animation: anim as any } });
@@ -320,7 +320,7 @@ function ModelCard({ m, projectId, onChange }: { m: any; projectId?: string; onC
       <div className="aspect-square bg-black/40 relative">
         {done ? (
           // @ts-expect-error - web component
-          <model-viewer src={m.model_url} camera-controls auto-rotate={!isAnimation} autoplay={isAnimation} ar style={{ width: "100%", height: "100%", background: "transparent" }} />
+          <model-viewer ref={viewerRef} src={m.model_url} camera-controls auto-rotate={!isAnimation} autoplay={isAnimation} ar touch-action="pan-y" interaction-prompt="none" shadow-intensity="1" exposure="1" style={{ width: "100%", height: "100%", background: "transparent" }} />
         ) : m.thumbnail_url ? (
           <img src={m.thumbnail_url} alt="" className="w-full h-full object-cover opacity-70" />
         ) : (
