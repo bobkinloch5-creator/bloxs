@@ -178,6 +178,18 @@ function isGrassRequest(userText: string) {
   return /\b(grass|grassy|lawn|turf|field|ground\s+cover|realistic\s+ground)\b/i.test(userText);
 }
 
+function isSimpleSingleThingRequest(userText: string) {
+  const text = userText.toLowerCase().trim();
+  if (!text) return false;
+  if (/\b(full|complete|entire|game|map|world|city|town|tycoon|simulator|rpg|obby|multiple|several|bunch|many|pack)\b/.test(text)) return false;
+  if (/\b(and|with|plus|including|also)\b|,/.test(text)) return false;
+  const nouns = text
+    .replace(/\b(add|make|create|build|insert|place|spawn|a|an|the|one|single|real|safe|free|toolbox|roblox|please|me)\b/g, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+  return nouns.length > 0 && nouns.length <= 3;
+}
+
 function visibleGrassStudioActions(userText: string) {
   const safePrompt = userText.trim().slice(0, 220) || "add realistic grass";
   const source = `
@@ -505,6 +517,11 @@ function toolboxMapRequests(userText: string): ToolboxSetRequest[] {
     }
   };
 
+  if (isSimpleSingleThingRequest(userText)) {
+    add("requested asset", userText.slice(0, 80), true, 8);
+    return requests;
+  }
+
   add("complete map kit", `${userText.slice(0, 80)} map kit`, true, 6);
 
   if (/\b(city|town|roleplay|rp|neighborhood|street|road)\b/.test(text)) {
@@ -594,7 +611,7 @@ async function toolboxMapStudioActions(userText: string) {
           free_only: true,
           no_scripts: true,
           allow_scripts: false,
-          folder_name: "BloxSmith_Toolbox_Map_Assets",
+          folder_name: "BloxSmith_ToolboxAssets",
           position: [row * 75 - 75, 3, col * 75],
           yaw: (slot % 4) * 90,
           scale: 1,
@@ -631,7 +648,7 @@ async function toolboxMapStudioActions(userText: string) {
         payload: {
           source: `
 local Workspace = game:GetService("Workspace")
-local folder = Workspace:FindFirstChild("BloxSmith_Toolbox_Map_Assets")
+local folder = Workspace:FindFirstChild("BloxSmith_ToolboxAssets") or Workspace:FindFirstChild("BloxSmith_Toolbox_Map_Assets")
 if folder then
   for _, model in ipairs(folder:GetChildren()) do
     if model:IsA("Model") then
@@ -1082,6 +1099,114 @@ gui:SetAttribute("Language", ${JSON.stringify(languageName)})
   ];
 }
 
+function simpleRobloxSystemStudioActions(userText: string, languageName: string) {
+  if (!isRobloxSystemRequest(userText) || !isSimpleSingleThingRequest(userText)) return [];
+  const text = userText.toLowerCase();
+  const safePrompt = userText.trim().slice(0, 180) || "BloxSmith simple system";
+  const kind =
+    /\b(loading|load\s*screen)\b/.test(text) ? "loading" :
+    /\b(main\s*menu|menu|play\s*button|start\s*button)\b/.test(text) ? "menu" :
+    /\b(hud|health|cash|coins|xp|level|timer)\b/.test(text) ? "hud" :
+    /\b(script|server\s*script)\b/.test(text) ? "script" :
+    "ui";
+  const source = `
+local StarterGui = game:GetService("StarterGui")
+local ServerScriptService = game:GetService("ServerScriptService")
+local kind = ${JSON.stringify(kind)}
+
+local function make(className, props, parent)
+  local inst = Instance.new(className)
+  for key, value in pairs(props or {}) do inst[key] = value end
+  inst.Parent = parent
+  return inst
+end
+
+if kind == "script" then
+  local scriptObj = ServerScriptService:FindFirstChild("BloxSmith_Simple_ServerScript")
+  if scriptObj then scriptObj:Destroy() end
+  scriptObj = Instance.new("Script")
+  scriptObj.Name = "BloxSmith_Simple_ServerScript"
+  scriptObj.Source = [[
+print("[BloxSmith] Simple server script is running.")
+]]
+  scriptObj.Parent = ServerScriptService
+  return
+end
+
+local gui = StarterGui:FindFirstChild("BloxSmith_Single_UI")
+if gui then gui:Destroy() end
+gui = Instance.new("ScreenGui")
+gui.Name = "BloxSmith_Single_UI"
+gui.ResetOnSpawn = false
+gui.IgnoreGuiInset = true
+gui.Parent = StarterGui
+
+local frame = make("Frame", {
+  Name = kind == "loading" and "LoadingScreen" or kind == "menu" and "MainMenu" or kind == "hud" and "HUD" or "Panel",
+  AnchorPoint = Vector2.new(0.5, 0.5),
+  BackgroundColor3 = Color3.fromRGB(16, 20, 36),
+  Position = kind == "hud" and UDim2.fromOffset(190, 48) or UDim2.fromScale(0.5, 0.5),
+  Size = kind == "hud" and UDim2.fromOffset(340, 64) or UDim2.fromOffset(440, 240),
+}, gui)
+make("UICorner", { CornerRadius = UDim.new(0, 12) }, frame)
+make("UIStroke", { Color = Color3.fromRGB(94, 108, 170), Thickness = 1 }, frame)
+
+local title = kind == "loading" and "Loading..." or kind == "menu" and "Main Menu" or kind == "hud" and "Health 100   Coins 0" or "BloxSmith UI"
+make("TextLabel", {
+  Name = "Title",
+  BackgroundTransparency = 1,
+  Position = UDim2.fromOffset(24, 24),
+  Size = UDim2.new(1, -48, kind == "hud" and 1 or 0, kind == "hud" and -48 or 72),
+  Font = Enum.Font.GothamBlack,
+  Text = title,
+  TextColor3 = Color3.fromRGB(255, 255, 255),
+  TextScaled = true,
+  TextWrapped = true,
+}, frame)
+
+if kind == "menu" then
+  local button = make("TextButton", {
+    Name = "PlayButton",
+    BackgroundColor3 = Color3.fromRGB(86, 96, 255),
+    Position = UDim2.new(0.5, -120, 1, -82),
+    Size = UDim2.fromOffset(240, 48),
+    Font = Enum.Font.GothamBold,
+    Text = "Play",
+    TextColor3 = Color3.fromRGB(255, 255, 255),
+    TextScaled = true,
+  }, frame)
+  make("UICorner", { CornerRadius = UDim.new(0, 10) }, button)
+end
+
+if kind == "loading" then
+  local bar = make("Frame", {
+    Name = "ProgressBar",
+    BackgroundColor3 = Color3.fromRGB(86, 96, 255),
+    Position = UDim2.new(0.18, 0, 0.72, 0),
+    Size = UDim2.new(0.64, 0, 0, 12),
+  }, frame)
+  make("UICorner", { CornerRadius = UDim.new(0, 999) }, bar)
+end
+
+gui:SetAttribute("BloxSmithRequest", ${JSON.stringify(safePrompt)})
+gui:SetAttribute("Language", ${JSON.stringify(languageName)})
+`;
+  return [
+    {
+      kind: "run_lua",
+      parent_path: "Workspace",
+      name: "BloxSmith_Build_Single_UI_Or_Script",
+      payload: { source },
+    },
+    {
+      kind: "scan_project",
+      parent_path: "Workspace",
+      name: "BloxSmith_Scan_Single_UI_Or_Script",
+      payload: { reason: "verify_single_ui_or_script_request" },
+    },
+  ];
+}
+
 export const Route = createFileRoute("/api/chat")({
   server: {
     handlers: {
@@ -1158,6 +1283,7 @@ export const Route = createFileRoute("/api/chat")({
           // Old "auto" / "primitives_only" settings are treated as toolbox-only
           // so visual builds do not silently become procedural placeholders.
           let assetMode: "toolbox_only" | "both" = "toolbox_only";
+          let proceduralFallbackAllowed = false;
           try {
             const { data: prof } = await supabase
               .from("profiles")
@@ -1167,6 +1293,7 @@ export const Route = createFileRoute("/api/chat")({
             const s = (prof?.settings && typeof prof.settings === "object" ? prof.settings : {}) as Record<string, unknown>;
             const m = s.asset_mode;
             if (m === "both") assetMode = "both";
+            proceduralFallbackAllowed = s.procedural_fallback_enabled === true && s.disable_procedural_fallback !== true;
           } catch { /* ignore */ }
 
 
@@ -1353,9 +1480,11 @@ export const Route = createFileRoute("/api/chat")({
                     console.warn("[chat] action compiler failed; using recovery Studio actions", compileErr);
                   }
 
-                  if (actions.length === 0) {
+                  if (actions.length === 0 && proceduralFallbackAllowed) {
                     actions = recoveryStudioActions(userText).map(normalizePluginAction);
                     cleanContent = `${cleanContent.trim()}\n\n_Auto-execute recovery queued a safe starter build because the selected model did not produce valid Studio actions._`;
+                  } else if (actions.length === 0) {
+                    cleanContent = `${cleanContent.trim()}\n\n_No safe structured Studio action was produced. Procedural fallback is disabled, so BloxSmith did not create placeholder blocks._`;
                   }
                 }
 
@@ -1374,7 +1503,10 @@ export const Route = createFileRoute("/api/chat")({
                   if (toolboxActions.length > 0) {
                     actions = [
                       ...toolboxActions,
-                      ...actions.filter((a) => !String(a.payload?.folder_name ?? "").includes("BloxSmith_Toolbox_Map_Assets")),
+                      ...actions.filter((a) => {
+                        const folderName = String(a.payload?.folder_name ?? "");
+                        return !folderName.includes("BloxSmith_Toolbox_Map_Assets") && !folderName.includes("BloxSmith_ToolboxAssets");
+                      }),
                     ];
                     if (!/toolbox map assets/i.test(cleanContent)) {
                       cleanContent = `${cleanContent.trim()}\n\n_Toolbox map seeding queued: BloxSmith searched safe free Creator Store assets and will insert matching map kits/props before final setup._`;
@@ -1383,10 +1515,19 @@ export const Route = createFileRoute("/api/chat")({
                 }
 
                 if (mode === "build" && isRobloxSystemRequest(userText)) {
-                  const systemActions = robloxSystemStudioActions(userText, languageName).map(normalizePluginAction);
+                  const systemActions = (
+                    isSimpleSingleThingRequest(userText)
+                      ? simpleRobloxSystemStudioActions(userText, languageName)
+                      : robloxSystemStudioActions(userText, languageName)
+                  ).map(normalizePluginAction);
                   if (systemActions.length > 0) {
                     actions = [
-                      ...actions.filter((a) => a.name !== "BloxSmith_Build_UI_And_Systems" && a.name !== "BloxSmith_Scan_UI_And_Systems"),
+                      ...actions.filter((a) => ![
+                        "BloxSmith_Build_UI_And_Systems",
+                        "BloxSmith_Scan_UI_And_Systems",
+                        "BloxSmith_Build_Single_UI_Or_Script",
+                        "BloxSmith_Scan_Single_UI_Or_Script",
+                      ].includes(a.name)),
                       ...systemActions,
                     ];
                     if (!/UI and systems guard/i.test(cleanContent)) {
@@ -1395,7 +1536,7 @@ export const Route = createFileRoute("/api/chat")({
                   }
                 }
 
-                if (mode === "build") {
+                if (mode === "build" && proceduralFallbackAllowed && !isSimpleSingleThingRequest(userText)) {
                   const guardActions = intentVisibilityStudioActions(userText).map(normalizePluginAction);
                   if (guardActions.length > 0) {
                     actions = [
@@ -1405,6 +1546,26 @@ export const Route = createFileRoute("/api/chat")({
                     if (!/visibility guard/i.test(cleanContent)) {
                       cleanContent = `${cleanContent.trim()}\n\n_Visibility guard queued: BloxSmith will verify the request leaves an obvious Studio result for common build intents._`;
                     }
+                  }
+                } else if (mode === "build" && !proceduralFallbackAllowed && !/procedural fallback disabled/i.test(cleanContent)) {
+                  cleanContent = `${cleanContent.trim()}\n\n_Procedural fallback disabled: BloxSmith will not create fake block assets when Toolbox-only mode is active._`;
+                }
+
+                if (mode === "build" && isSimpleSingleThingRequest(userText)) {
+                  let keptInsertAsset = false;
+                  actions = actions.filter((a) => {
+                    if ([
+                      "BloxSmith_Intent_Visibility_Guard",
+                      "BloxSmith_AutoExecute_Recovery",
+                    ].includes(a.name)) return false;
+                    if (a.kind === "insert_asset") {
+                      if (keptInsertAsset) return false;
+                      keptInsertAsset = true;
+                    }
+                    return true;
+                  });
+                  if (!/single item scope/i.test(cleanContent)) {
+                    cleanContent = `${cleanContent.trim()}\n\n_Single item scope: BloxSmith will only create the requested item, not a bundle of extra objects._`;
                   }
                 }
 
