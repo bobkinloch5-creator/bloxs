@@ -1,10 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { generateText } from "ai";
 import { z } from "zod";
-import { getProviderModel } from "./ai-gateway.server";
 import { DEFAULT_MODEL_ID } from "./models";
-import { generateUiConceptImage } from "./ui-concept-image.server";
+import { createRobloxUiBlueprint, renderRobloxUiBlueprintLuau, renderRobloxUiBlueprintSvg } from "./roblox-ui-blueprint";
 
 const uiGenerationSelect = "id, prompt, style, code, concept_image_url, created_at, project_id";
 
@@ -390,31 +388,12 @@ export const generateRobloxUi = createServerFn({ method: "POST" })
     projectId: z.string().uuid().optional(),
   }).parse(input))
   .handler(async ({ data, context }) => {
-    const { model } = getProviderModel(DEFAULT_MODEL_ID);
+    const blueprint = createRobloxUiBlueprint(data.prompt, data.style);
+    const conceptImageUrl = renderRobloxUiBlueprintSvg(blueprint);
+    const finalCode = renderRobloxUiBlueprintLuau(blueprint);
 
-    const conceptImageUrl = await generateUiConceptImage({ prompt: data.prompt, style: data.style });
-
-    let text = "";
-    try {
-      const generated = await generateText({
-        model,
-        system: SYS,
-        prompt: buildUserPrompt(data.prompt, data.style),
-        temperature: 1.0,
-        maxOutputTokens: 8192,
-      });
-      text = generated.text;
-    } catch (err) {
-      console.warn("[ui-generator] model generation failed; using fallback Luau", err);
-    }
-
-    // Strip accidental code fences and bare language tags the model sometimes prepends.
-    const cleaned = text
-      .replace(/^\s*```(?:lua|luau)?\s*\n?/i, "")
-      .replace(/\n?```\s*$/i, "")
-      .replace(/^\s*(?:lua|luau)\s*\n/i, "")
-      .trim();
-    const finalCode = looksLikeUsableLuau(cleaned) ? cleaned : fallbackRobloxUiCode(data.prompt, data.style);
+    // The preview and Luau are intentionally rendered from the same blueprint.
+    // This keeps the website image faithful to what the Roblox LocalScript builds.
 
     const sb = context.supabase as any;
     const { data: savedRow, error: saveError } = await sb.from("ui_generations").insert({
@@ -426,9 +405,10 @@ export const generateRobloxUi = createServerFn({ method: "POST" })
       concept_image_url: conceptImageUrl,
       model: DEFAULT_MODEL_ID,
       metadata: {
-        generator: "ui-generator",
+        generator: "exact-ui-blueprint",
         savedBy: "generateRobloxUi",
-        fallbackUsed: !looksLikeUsableLuau(cleaned),
+        exactPreview: true,
+        blueprintKind: blueprint.kind,
       },
     }).select("id, created_at").single();
     if (saveError) throw new Error(`Generated UI, but saving failed: ${saveError.message}`);
