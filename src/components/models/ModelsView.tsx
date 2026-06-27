@@ -44,6 +44,21 @@ const EXPORT_FORMATS: { key: string; label: string; ext: string }[] = [
   { key: "mtl", label: "MTL", ext: "mtl" },
 ];
 
+const STYLE_PRESETS: { key: string; label: string; modifier: string }[] = [
+  { key: "roblox", label: "Roblox-style", modifier: "stylized blocky Roblox-style low-poly game asset, flat shading, clean topology" },
+  { key: "lowpoly", label: "Low-poly", modifier: "low-poly geometric, faceted surfaces, minimal triangles, stylized game-ready" },
+  { key: "cartoon", label: "Cartoon", modifier: "cartoon, exaggerated proportions, bold colors, hand-painted textures" },
+  { key: "cute", label: "Cute / Chibi", modifier: "cute chibi style, soft rounded shapes, pastel colors, oversized head" },
+  { key: "realistic", label: "Realistic", modifier: "photorealistic, PBR materials, fine surface detail, studio lighting" },
+  { key: "fantasy", label: "Fantasy", modifier: "high-fantasy ornate, glowing runes, intricate filigree, magical aura" },
+  { key: "medieval", label: "Medieval", modifier: "medieval craftsmanship, worn metal and stone, leather straps, rustic" },
+  { key: "scifi", label: "Sci-Fi", modifier: "sci-fi futuristic, brushed metal panels, glowing accents, hi-tech greebles" },
+  { key: "modern", label: "Modern", modifier: "modern minimalist, clean surfaces, matte finish, neutral palette" },
+  { key: "horror", label: "Horror", modifier: "horror, decayed, blood-stained, eerie, desaturated, distressed surfaces" },
+  { key: "simulator", label: "Simulator", modifier: "bright candy-colored simulator game asset, smooth surfaces, oversized appeal" },
+  { key: "rpg", label: "RPG", modifier: "RPG hero-grade prop, ornate detail, rich materials, level-3-rarity look" },
+];
+
 async function forceDownload(url: string, filename: string) {
   try {
     const res = await fetch(url);
@@ -93,6 +108,7 @@ export function ModelsView({ projectId }: { projectId?: string }) {
   const [negativePrompt, setNegativePrompt] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [artStyle, setArtStyle] = useState<"realistic" | "sculpture">("realistic");
+  const [stylePreset, setStylePreset] = useState<string>("");
   const [topology, setTopology] = useState<"triangle" | "quad">("triangle");
   const [poly, setPoly] = useState(30000);
   const [busy, setBusy] = useState(false);
@@ -132,9 +148,13 @@ export function ModelsView({ projectId }: { projectId?: string }) {
     setErr(null);
     setBusy(true);
     try {
+      const basePrompt = prompt.trim();
+      const styledPrompt = stylePreset && basePrompt
+        ? `${basePrompt}, ${STYLE_PRESETS.find(s => s.key === stylePreset)?.modifier ?? ""}`
+        : basePrompt;
       await startFn({ data: {
         projectId, mode,
-        prompt: prompt.trim() || undefined,
+        prompt: styledPrompt || undefined,
         negativePrompt: negativePrompt.trim() || undefined,
         imageUrl: imageUrl || undefined,
         artStyle, topology, targetPolycount: poly, autoRefine: true,
