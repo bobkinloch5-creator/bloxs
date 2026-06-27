@@ -128,7 +128,7 @@ export const testModel = createServerFn({ method: "POST" })
         model,
         system: ROBLOX_MODEL_TEST_SYSTEM,
         prompt: ROBLOX_MODEL_TEST_PROMPT,
-        ...(extraBody ? { providerOptions: { nvidia: extraBody } } : {}),
+        ...(extraBody ? { providerOptions: { nvidia: extraBody as Record<string, never> } as never } : {}),
       });
       const durationMs = Date.now() - started;
       const text = (result.text ?? "").trim();

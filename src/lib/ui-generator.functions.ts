@@ -95,7 +95,7 @@ export const generateRobloxUi = createServerFn({ method: "POST" })
       prompt: buildUserPrompt(data.prompt, data.style),
       // Higher temperature = more creative variance between prompts
       temperature: 0.85,
-      maxTokens: 4096,
+      maxOutputTokens: 4096,
     });
 
     // Strip accidental code fences if the model emitted them
