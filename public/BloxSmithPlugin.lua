@@ -19,7 +19,7 @@ local CollectionService     = game:GetService("CollectionService")
 
 local API_BASE       = "https://bloxsmith.pro"
 local POLL_INTERVAL  = 1
-local PLUGIN_VERSION = "1.8.0"
+local PLUGIN_VERSION = "1.9.0"
 
 ------------------------------------------------------------------- token helpers
 local TOKEN_KEY = "token"
@@ -93,9 +93,9 @@ linkBox.ClearTextOnFocus = false; linkBox.TextEditable = false
 linkBox.BorderSizePixel = 0; linkBox.Visible = false
 linkBox.Parent = main
 
--- control buttons grid (2 rows x 3 cols)
+-- control buttons grid
 local controls = Instance.new("Frame")
-controls.Position = UDim2.new(0,12,0,216); controls.Size = UDim2.new(1,-24,0,128)
+controls.Position = UDim2.new(0,12,0,216); controls.Size = UDim2.new(1,-24,0,164)
 controls.BackgroundTransparency = 1; controls.Parent = main
 local grid = Instance.new("UIGridLayout", controls)
 grid.CellPadding = UDim2.new(0,6,0,6)
@@ -123,10 +123,13 @@ local sendErrBtn   = ctrlBtn("Send Errors", 8)
 local autoErrBtn   = ctrlBtn("Auto-Send: ON", 9)
 local organizeBtn  = ctrlBtn("Organize", 10)
 local autoFixBtn   = ctrlBtn("Auto-Fix", 11)
+local fixAllBtn    = ctrlBtn("Fix All", 12)
+local localTestBtn = ctrlBtn("Local Test", 13)
+local healthBtn    = ctrlBtn("Health", 14)
 
 ------------------------------------------------------------------- log
 local logBar = Instance.new("Frame")
-logBar.Position = UDim2.new(0,12,0,352); logBar.Size = UDim2.new(1,-24,0,22)
+logBar.Position = UDim2.new(0,12,0,390); logBar.Size = UDim2.new(1,-24,0,22)
 logBar.BackgroundTransparency = 1; logBar.Parent = main
 
 local logTitle = Instance.new("TextLabel")
@@ -151,7 +154,7 @@ local clearLogBtn = miniBtn("Clear", -66)
 local verboseBtn  = miniBtn("Verbose", -132)
 
 local logFrame = Instance.new("ScrollingFrame")
-logFrame.Position = UDim2.new(0,12,0,378); logFrame.Size = UDim2.new(1,-24,1,-390)
+logFrame.Position = UDim2.new(0,12,0,416); logFrame.Size = UDim2.new(1,-24,1,-428)
 logFrame.BackgroundColor3 = Color3.fromRGB(14,16,22); logFrame.BorderSizePixel = 0
 logFrame.CanvasSize = UDim2.new(0,0,0,0); logFrame.ScrollBarThickness = 4
 logFrame.Parent = main
@@ -281,6 +284,13 @@ local function normalizePath(path, kind)
     path = tostring(path):gsub("/", ".")
     local lower = string.lower(path)
     if SERVICE_ALIASES[lower] then path = SERVICE_ALIASES[lower] end
+    local first, rest = path:match("^([^%.]+)%.?(.*)$")
+    if first then
+        local alias = SERVICE_ALIASES[string.lower(first)]
+        if alias then
+            path = alias .. ((rest and rest ~= "") and ("." .. rest) or "")
+        end
+    end
     if path == "ReplicatedStorage" and (kind == "remoteevent" or kind == "remotefunction" or kind == "bindableevent") then
         return "ReplicatedStorage.Remotes"
     end
@@ -704,6 +714,44 @@ end
 
 ------------------------------------------------------------------- action executors
 local Exec = {}
+local executeAction
+local reportableResult
+
+local ACTION_KIND_ALIASES = {
+    create_script = "script",
+    create_server_script = "script",
+    create_local_script = "localscript",
+    create_localscript = "localscript",
+    create_module_script = "modulescript",
+    create_modulescript = "modulescript",
+    create_ui = "screengui",
+    create_screen_gui = "screengui",
+    create_screengui = "screengui",
+    create_folder = "folder",
+    create_part = "part",
+    create_model = "model",
+    create_tool = "tool",
+    create_sound = "sound",
+    create_team = "team",
+    create_remote_event = "remoteevent",
+    create_remoteevent = "remoteevent",
+    create_remote_function = "remotefunction",
+    create_remotefunction = "remotefunction",
+    create_bindable_event = "bindableevent",
+    create_bindableevent = "bindableevent",
+    insert_model_asset = "insert_asset",
+    insert_toolbox_asset = "insert_asset",
+    delete_object = "delete",
+    remove_object = "delete",
+    update_properties = "set_properties",
+    run_test = "scan_project",
+}
+
+local function normalizeActionKind(kind)
+    if type(kind) ~= "string" then return kind end
+    local cleaned = string.lower(kind):gsub("%s+", "_"):gsub("-", "_")
+    return ACTION_KIND_ALIASES[cleaned] or cleaned
+end
 
 local function makeScript(className, action, parent)
     local payload = action.payload or {}
@@ -956,6 +1004,29 @@ Exec.set_properties = function(a, _)
     applyProps(inst, a.payload.properties); return inst
 end
 
+Exec.update_script = function(a, p)
+    local payload = a.payload or {}
+    local source = payload.source
+    if type(source) ~= "string" then error("update_script missing payload.source") end
+    local inst = findByPath(payload.target_path)
+    if not inst and a.name then inst = p:FindFirstChild(a.name) end
+    if not inst then
+        local className = payload.class_name or payload.class or "Script"
+        if className == "LocalScript" or className == "ModuleScript" then
+            inst = Instance.new(className)
+        else
+            inst = Instance.new("Script")
+        end
+        inst.Name = a.name or "BloxSmithScript"
+        inst.Parent = p
+    end
+    if not (inst:IsA("Script") or inst:IsA("LocalScript") or inst:IsA("ModuleScript")) then
+        error("update_script target is not a script: " .. fullPath(inst))
+    end
+    inst.Source = source
+    return inst
+end
+
 Exec.rename = function(a, _)
     local inst = findByPath(a.payload and a.payload.target_path)
     if not inst then error("target not found") end
@@ -1021,22 +1092,46 @@ end
     return { ran = a.name }
 end
 
-local function describeAction(a)
+Exec.execute_batch = function(a, _)
     local payload = a.payload or {}
-    local extra = ""
-    if a.kind == "script" or a.kind == "localscript" or a.kind == "modulescript" then
-        extra = (" (%d chars)"):format(#(payload.source or ""))
-    elseif a.kind == "part" then
-        local sz = payload.size or {}
-        extra = (" %sx%sx%s"):format(tostring(sz[1] or "?"), tostring(sz[2] or "?"), tostring(sz[3] or "?"))
-    elseif a.kind == "insert_asset" then
-        extra = (" id=%s"):format(tostring(payload.asset_id))
+    local actions = payload.actions or payload.items or {}
+    if type(actions) ~= "table" then error("execute_batch missing payload.actions") end
+    local results = {}
+    for i, child in ipairs(actions) do
+        child.id = child.id or ((a.id and (tostring(a.id) .. ":" .. tostring(i))) or tostring(i))
+        local ok, result = pcall(executeAction, child)
+        results[#results+1] = {
+            index = i,
+            kind = child.kind,
+            status = ok and "done" or "failed",
+            result = ok and reportableResult(result) or nil,
+            error = ok and nil or tostring(result),
+        }
+        if not ok and payload.stop_on_error == true then
+            error(("execute_batch child %d failed: %s"):format(i, tostring(result)))
+        end
     end
-    return ("%s '%s' → %s%s"):format(a.kind, tostring(a.name), tostring(a.parent_path or "auto"), extra)
+    return { batch_count = #actions, results = results }
 end
 
-local function executeAction(action)
-    local kind = action.kind
+local function describeAction(a)
+    local payload = a.payload or {}
+    local kind = normalizeActionKind(a.kind)
+    local extra = ""
+    if kind == "script" or kind == "localscript" or kind == "modulescript" or kind == "update_script" then
+        extra = (" (%d chars)"):format(#(payload.source or ""))
+    elseif kind == "part" then
+        local sz = payload.size or {}
+        extra = (" %sx%sx%s"):format(tostring(sz[1] or "?"), tostring(sz[2] or "?"), tostring(sz[3] or "?"))
+    elseif kind == "insert_asset" then
+        extra = (" id=%s"):format(tostring(payload.asset_id))
+    end
+    return ("%s '%s' → %s%s"):format(kind, tostring(a.name), tostring(a.parent_path or "auto"), extra)
+end
+
+function executeAction(action)
+    local kind = normalizeActionKind(action.kind)
+    action.kind = kind
     local handler = Exec[kind]
     if not handler then error("Unknown action kind: " .. tostring(kind)) end
     local parent = resolveParent(action.parent_path, kind)
@@ -1044,7 +1139,7 @@ local function executeAction(action)
     return handler(action, parent)
 end
 
-local function reportableResult(value)
+function reportableResult(value)
     if typeof(value) == "Instance" then
         return { path = fullPath(value), class = value.ClassName, name = value.Name }
     elseif type(value) == "table" then
@@ -1071,13 +1166,26 @@ local function post(path, body, opts)
         headers["Authorization"] = "Bearer " .. body.token
         headers["X-BloxSmith-Token"] = body.token
     end
-    local ok, res = pcall(function()
-        return HttpService:RequestAsync({
-            Url = API_BASE .. path, Method = "POST",
-            Headers = headers,
-            Body = HttpService:JSONEncode(body),
-        })
-    end)
+    local encoded = HttpService:JSONEncode(body)
+    local ok, res
+    local attempts = opts.retries or 2
+    for attempt = 1, attempts do
+        ok, res = pcall(function()
+            return HttpService:RequestAsync({
+                Url = API_BASE .. path, Method = "POST",
+                Headers = headers,
+                Body = encoded,
+            })
+        end)
+        if ok and res and res.Success then break end
+        local status = ok and res and tonumber(res.StatusCode) or 0
+        local retryable = (not ok) or status == 0 or status == 408 or status == 429 or status >= 500
+        if not retryable or attempt >= attempts then break end
+        if verbose then
+            log(("POST %s retry %d/%d after %s"):format(path, attempt, attempts, ok and tostring(status) or tostring(res)), "warn")
+        end
+        task.wait(0.35 * attempt)
+    end
     local dt = math.floor((os.clock() - t0) * 1000)
     if not ok then
         log(("✗ POST %s failed after %dms — %s"):format(path, dt, tostring(res)), "error")
@@ -1106,10 +1214,12 @@ end
 local function reportBatch(results)
     local token = validToken()
     if not token or #results == 0 then return end
-    local ok = pcall(function()
-        post("/api/public/plugin/complete", { token = token, results = results }, { verbose = false })
+    local ok, err = pcall(function()
+        local _, postErr = post("/api/public/plugin/complete", { token = token, results = results }, { verbose = false })
+        if postErr then error(postErr) end
     end)
     if not ok then
+        log("Batch report failed; retrying per action: " .. tostring(err), "warn")
         -- Fallback: per-action (older server)
         for _, r in ipairs(results) do
             reportComplete(r.action_id, r.status, r.error, r.result)
@@ -1170,10 +1280,15 @@ local function pollOnce(force)
     end
     if #actions == 0 then return 0 end
     log(("Received %d action(s)."):format(#actions), "success")
+    setStatus("Executing", Color3.fromRGB(160,200,255), ("Running %d BloxSmith Studio action(s)…"):format(#actions))
     ChangeHistoryService:SetWaypoint("BloxSmith batch start")
     local okN, failN = 0, 0
     local results = {}
-    for _, a in ipairs(actions) do
+    for i, a in ipairs(actions) do
+        queueLen = #actions - (i - 1)
+        lastAction = ("Running %d/%d: %s"):format(i, #actions, describeAction(a))
+        refreshInfo()
+        setStatus("Executing", Color3.fromRGB(160,200,255), lastAction)
         local ok, errOrInst = pcall(executeAction, a)
         if ok then
             okN += 1; lastAction = describeAction(a)
@@ -1202,6 +1317,11 @@ local function pollOnce(force)
     -- Report all results in a single HTTP call, off the hot path.
     task.spawn(reportBatch, results)
     log(("Batch complete — %d ok, %d failed."):format(okN, failN), failN > 0 and "warn" or "success")
+    if failN > 0 then
+        setStatus("Needs attention", Color3.fromRGB(255,200,120), ("%d action(s) failed. Use View Errors or Fix All."):format(failN))
+    else
+        setStatus("Connected", Color3.fromRGB(120,220,160), ("Completed %d Studio action(s)."):format(okN))
+    end
     return #actions
 end
 
@@ -1330,6 +1450,10 @@ local function analyzeWorkspace()
         gui = {},
         tools = {},
         assets = {},
+        asset_safety = {},
+        verified_assets = 0,
+        needs_review_assets = 0,
+        rejected_assets = 0,
         suggestions = {},
     }
     local services = {}
@@ -1377,6 +1501,29 @@ local function analyzeWorkspace()
             end
             if CollectionService:HasTag(inst, "BloxSmithAsset") then
                 pushLimited(summary.assets, fullPath(inst), 60)
+                local status = nil
+                local assetId = nil
+                pcall(function()
+                    status = inst:GetAttribute("BloxSmithSafetyStatus")
+                    assetId = inst:GetAttribute("BloxSmithAssetId")
+                end)
+                status = status or "Unknown"
+                pushLimited(summary.asset_safety, {
+                    path = fullPath(inst),
+                    status = status,
+                    asset_id = assetId,
+                }, 60)
+                if status == "Working" then
+                    summary.verified_assets += 1
+                elseif status == "Needs Review" then
+                    summary.needs_review_assets += 1
+                    pushLimited(summary.issues, "toolbox_asset_needs_review:" .. fullPath(inst), 80)
+                elseif status == "Rejected" then
+                    summary.rejected_assets += 1
+                    pushLimited(summary.issues, "toolbox_asset_rejected:" .. fullPath(inst), 80)
+                else
+                    pushLimited(summary.issues, "toolbox_asset_unverified:" .. fullPath(inst), 80)
+                end
             end
         end
     end
@@ -1428,27 +1575,28 @@ local function buildScan()
     }
 end
 
-Exec.scan_project = function(_, _)
+local function uploadCurrentScan(verbose)
     local token = validToken()
-    if not token then error("scan_project requires connected plugin token") end
+    if not token then return nil, "not_connected" end
     local scan = buildScan()
     local data, err = post("/api/public/plugin/scan", {
         token = token, place_id = tostring(game.PlaceId or 0), scan = scan,
-    }, { verbose = false })
+    }, { verbose = verbose == true })
+    if err then return scan, err end
+    return scan, nil, data
+end
+
+Exec.scan_project = function(_, _)
+    local scan, err, data = uploadCurrentScan(false)
     if err then error("scan upload failed: " .. tostring(err)) end
     log(("Workspace scan uploaded — %d instance(s), %d issue(s)."):format(scan.sampled or 0, #(scan.awareness and scan.awareness.issues or {})), "success")
     return { scanned = scan.sampled, issues = scan.awareness and scan.awareness.issues or {}, uploaded = data and data.ok == true }
 end
 
 scanBtn.MouseButton1Click:Connect(function()
-    local token = validToken()
-    if not token then log("Not connected — click Connect first.", "warn"); return end
     log("Scanning game tree…", "info")
-    local scan = buildScan()
-    log(("Scanned %d instance(s) across %d service(s)."):format(scan.sampled, #scan.roots), "debug")
-    local data, err = post("/api/public/plugin/scan", {
-        token = token, place_id = tostring(game.PlaceId or 0), scan = scan,
-    }, { verbose = true })
+    local scan, err = uploadCurrentScan(true)
+    if scan then log(("Scanned %d instance(s) across %d service(s)."):format(scan.sampled, #scan.roots), "debug") end
     if err then log("Scan upload failed: " .. err, "error")
     else log("✓ Scan uploaded. AI will see this on your next message.", "success") end
 end)
@@ -1496,6 +1644,127 @@ autoErrBtn.MouseButton1Click:Connect(function()
     autoErrBtn.Text = "Auto-Send: " .. (AUTO_SEND_ERRORS and "ON" or "OFF")
     autoErrBtn.BackgroundColor3 = AUTO_SEND_ERRORS and Color3.fromRGB(45,48,58) or Color3.fromRGB(80,50,50)
     log("Auto error upload " .. (AUTO_SEND_ERRORS and "enabled" or "disabled"), "debug")
+end)
+
+local function runHealthCheck()
+    log("Running BloxSmith plugin health check…", "info")
+    local httpOk, httpEnabled = pcall(function() return HttpService.HttpEnabled end)
+    local scan = buildScan()
+    local issues = scan.awareness and scan.awareness.issues or {}
+    local token = validToken()
+    local score = 100
+    if not token then score -= 20 end
+    if httpOk and httpEnabled == false then score -= 25 end
+    if #issues > 0 then score -= math.min(30, #issues * 4) end
+    if #errorQueue > 0 then score -= math.min(15, #errorQueue * 3) end
+    if queueLen > 0 then score -= 5 end
+    score = math.max(0, math.min(100, score))
+    log(("Health score: %d/100 · token=%s · connected=%s · queue=%d · errors=%d · scanIssues=%d"):format(
+        score,
+        token and "yes" or "no",
+        connected and "yes" or "no",
+        queueLen,
+        #errorQueue,
+        #issues
+    ), score >= 80 and "success" or "warn")
+    log(("HTTP enabled: %s · API: %s · place: %s · Studio: %s · plugin: v%s"):format(
+        httpOk and tostring(httpEnabled) or "unknown",
+        API_BASE,
+        tostring(game.PlaceId or 0),
+        studioVersion(),
+        PLUGIN_VERSION
+    ), "debug")
+    if #issues > 0 then
+        for i = 1, math.min(#issues, 8) do
+            log("Issue " .. tostring(i) .. ": " .. tostring(issues[i]), "warn")
+        end
+    end
+end
+
+local function runLocalTestInsert()
+    ChangeHistoryService:SetWaypoint("BloxSmith local test start")
+    local folder = ensureFolder(Workspace, "BloxSmith_LocalTest")
+    local part = folder:FindFirstChild("Verified_TestPart")
+    if not part then
+        part = Instance.new("Part")
+        part.Name = "Verified_TestPart"
+        part.Parent = folder
+    end
+    part.Size = Vector3.new(4, 1, 4)
+    part.Anchored = true
+    part.Material = Enum.Material.Neon
+    part.Color = Color3.fromRGB(32, 210, 255)
+    part.CFrame = CFrame.new(0, 6, 0)
+    pcall(function()
+        CollectionService:AddTag(part, "BloxSmithAsset")
+        part:SetAttribute("BloxSmithVerified", true)
+        part:SetAttribute("BloxSmithSafetyStatus", "Working")
+    end)
+
+    local gui = StarterGui:FindFirstChild("BloxSmith_LocalTestGui")
+    if not gui then
+        gui = Instance.new("ScreenGui")
+        gui.Name = "BloxSmith_LocalTestGui"
+        gui.ResetOnSpawn = false
+        gui.Parent = StarterGui
+    end
+    local labelObj = gui:FindFirstChild("Status")
+    if not labelObj then
+        labelObj = Instance.new("TextLabel")
+        labelObj.Name = "Status"
+        labelObj.Parent = gui
+    end
+    labelObj.Size = UDim2.new(0, 260, 0, 36)
+    labelObj.Position = UDim2.new(0, 16, 0, 16)
+    labelObj.BackgroundColor3 = Color3.fromRGB(20, 24, 36)
+    labelObj.TextColor3 = Color3.fromRGB(235, 245, 255)
+    labelObj.Font = Enum.Font.GothamBold
+    labelObj.TextSize = 14
+    labelObj.Text = "BloxSmith plugin insert verified"
+
+    ChangeHistoryService:SetWaypoint("BloxSmith local test done")
+    local result = autoFixProject()
+    log(("Local Test inserted a verified part + ScreenGui. Cleanup removed %d empty folder(s)."):format(result.removed_empty_count or 0), "success")
+end
+
+local function runLocalFixAll()
+    local token = validToken()
+    ChangeHistoryService:SetWaypoint("BloxSmith Fix All start")
+    if token then
+        local scan1, scanErr = uploadCurrentScan(false)
+        if scanErr then log("Fix All initial scan upload failed: " .. tostring(scanErr), "warn")
+        elseif scan1 then log(("Fix All initial scan uploaded — %d issue(s)."):format(#(scan1.awareness and scan1.awareness.issues or {})), "success") end
+    else
+        log("Fix All running locally; connect plugin to upload scans to the website.", "warn")
+    end
+    local fix = autoFixProject()
+    log(("Fix All local repair — %d moved, %d duplicate folder(s) merged, %d fixed, %d empty folder(s) removed."):format(
+        fix.moved_count or 0,
+        fix.merged_duplicate_count or 0,
+        fix.fixed_count or 0,
+        fix.removed_empty_count or 0
+    ), "success")
+    if token then
+        local scan2, scanErr2 = uploadCurrentScan(false)
+        if scanErr2 then log("Fix All verification scan upload failed: " .. tostring(scanErr2), "warn")
+        elseif scan2 then log(("Fix All verification scan uploaded — %d issue(s) remain."):format(#(scan2.awareness and scan2.awareness.issues or {})), "success") end
+        pcall(flushErrors, false)
+    end
+    ChangeHistoryService:SetWaypoint("BloxSmith Fix All done")
+end
+
+healthBtn.MouseButton1Click:Connect(function()
+    runHealthCheck()
+end)
+
+localTestBtn.MouseButton1Click:Connect(function()
+    local ok, err = pcall(runLocalTestInsert)
+    if not ok then log("Local Test failed: " .. tostring(err), "error") end
+end)
+
+fixAllBtn.MouseButton1Click:Connect(function()
+    local ok, err = pcall(runLocalFixAll)
+    if not ok then log("Fix All failed: " .. tostring(err), "error") end
 end)
 
 organizeBtn.MouseButton1Click:Connect(function()
