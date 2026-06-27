@@ -62,6 +62,28 @@ export const queuePluginCommand = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const queueFixAll = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ projectId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const actions = [
+      { kind: "scan_project", name: "FixAll_1_Scan", parent_path: "Workspace", payload: {}, position: 0 },
+      { kind: "autofix_project", name: "FixAll_2_AutoFix", parent_path: "Workspace", payload: {}, position: 1 },
+      { kind: "organize_project", name: "FixAll_3_Organize", parent_path: "Workspace", payload: {}, position: 2 },
+      { kind: "scan_project", name: "FixAll_4_VerifyScan", parent_path: "Workspace", payload: {}, position: 3 },
+    ];
+
+    const { error } = await context.supabase.from("plugin_actions").insert(
+      actions.map((action) => ({
+        project_id: data.projectId,
+        user_id: context.userId,
+        ...action,
+      })),
+    );
+    if (error) throw new Error(error.message);
+    return { ok: true, count: actions.length };
+  });
+
 export const queueTestInsert = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ projectId: z.string().uuid() }).parse(input))

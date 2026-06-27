@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getProject, listProjects } from "@/lib/projects.functions";
-import { listMessages, listProjectActions, getPluginSession, clearMessages, clearActionQueue, undoLastBuild, queuePluginCommand, queueTestInsert, queuePreparedStudioActions } from "@/lib/chat.functions";
+import { listMessages, listProjectActions, getPluginSession, clearMessages, clearActionQueue, undoLastBuild, queuePluginCommand, queueFixAll, queueTestInsert, queuePreparedStudioActions } from "@/lib/chat.functions";
 import { getMyProfile } from "@/lib/profile.functions";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
@@ -52,6 +52,7 @@ const COMPOSER_ACTIONS = [
   { label: "Add NPCs", icon: Bot, mode: "build" as const, prompt: "Add safe free Toolbox NPC/enemy assets that match this game, then wire Humanoids, AI behavior, spawn folders, remotes/modules if needed, and clean organization." },
   { label: "Toolbox Assets", icon: Box, mode: "build" as const, prompt: "Search Roblox Toolbox/Creator Store for safe free assets that match this project, insert real models with names/ids, place them cleanly, and organize them. Do not use placeholder geometry." },
   { label: "Scan Game", icon: ScanLine, command: "scan_project" as const },
+  { label: "Fix All", icon: Wrench, command: "fix_all" as const },
   { label: "Playtest", icon: PlayCircle, mode: "build" as const, prompt: "Run a playtest-style audit using the latest scan/errors. Add scan_project, report problems found, and fix obvious breakages with safe actions." },
   { label: "Improve Map", icon: Hammer, mode: "build" as const, prompt: "Improve the existing map using safe free Toolbox assets only: better placement, lighting, spawn flow, signs, props, organization, and scan_project. Avoid procedural placeholder maps." },
   { label: "Make Premium", icon: Crown, mode: "build" as const, prompt: "Make this game feel premium and ready for release: professional loading screen, main menu, animated Play button, polished settings/shop/inventory/HUD/tutorial UI, mobile-safe layout, notification popups, smooth transitions, lighting, sky/atmosphere, camera effects, sounds, particles, cleanup, organize_project, and scan_project. No ugly default UI or unfinished screens." },
@@ -143,6 +144,7 @@ function ProjectPage() {
   const profileFn  = useServerFn(getMyProfile);
   const clearMessagesFn = useServerFn(clearMessages);
   const queueCommandFn = useServerFn(queuePluginCommand);
+  const queueFixAllFn = useServerFn(queueFixAll);
   const queueTestInsertFn = useServerFn(queueTestInsert);
 
   const { data: project } = useQuery({ queryKey: ["project", projectId], queryFn: () => projectFn({ data: { id: projectId } }) });
@@ -322,6 +324,16 @@ function ProjectPage() {
 
   async function runComposerAction(action: any) {
     if (!action) return;
+    if (action.command === "fix_all") {
+      try {
+        const res: any = await queueFixAllFn({ data: { projectId } });
+        setQueueNotice(res?.ok ? `Fix All queued ${res.count ?? 4} Studio checks and repairs.` : "Could not queue Fix All.");
+        await qc.invalidateQueries({ queryKey: ["actions", projectId] });
+      } catch (e: any) {
+        setQueueNotice(`Could not queue Fix All: ${e?.message ?? "unknown error"}`);
+      }
+      return;
+    }
     if (action.command === "test_insert") {
       try {
         const res: any = await queueTestInsertFn({ data: { projectId } });
@@ -1498,13 +1510,131 @@ function Composer({
   );
 }
 
+/* ────────────────── HEALTH + TIMELINE HELPERS ────────────────── */
+function clampScore(n: number) {
+  return Math.max(0, Math.min(100, Math.round(n)));
+}
+
+function actionStatusCounts(actions: any[] = []) {
+  return actions.reduce(
+    (acc, action) => {
+      const status = String(action?.status ?? "pending");
+      acc.total += 1;
+      if (status === "done") acc.done += 1;
+      else if (status === "failed") acc.failed += 1;
+      else if (status === "sent") acc.sent += 1;
+      else acc.pending += 1;
+      return acc;
+    },
+    { total: 0, done: 0, failed: 0, sent: 0, pending: 0 },
+  );
+}
+
+function getActionResult(action: any) {
+  return action?.result && typeof action.result === "object" ? action.result : {};
+}
+
+function buildHealthReport(actions: any[] = [], pluginSession: any, pluginOnline: boolean) {
+  const awareness = pluginSession?.last_scan?.awareness;
+  const issues: string[] = Array.isArray(awareness?.issues) ? awareness.issues : [];
+  const counts = actionStatusCounts(actions);
+  const inserts = actions.filter((a) => a.kind === "insert_asset");
+  const completedInserts = inserts.filter((a) => a.status === "done");
+  const verifiedInserts = completedInserts.filter((a) => {
+    const result = getActionResult(a);
+    return result.verified === true || result.safety_status === "Working" || result.safety?.status === "Working";
+  });
+  const reviewInserts = completedInserts.filter((a) => {
+    const result = getActionResult(a);
+    return result.safety_status === "Needs Review" || result.safety?.status === "Needs Review";
+  });
+  const scanDone = actions.some((a) => a.kind === "scan_project" && a.status === "done") || !!pluginSession?.last_scan_at;
+  const cleanupDone = actions.some((a) => (a.kind === "organize_project" || a.kind === "autofix_project") && a.status === "done");
+  const scriptsDone = actions.some((a) => ["script", "localscript", "modulescript", "remoteevent", "remotefunction"].includes(a.kind) && a.status === "done");
+  const uiDone = actions.some((a) => ["screengui", "gui", "frame", "textlabel", "textbutton", "imagelabel"].includes(a.kind) && a.status === "done");
+
+  let score = 100;
+  if (!pluginOnline) score -= 12;
+  if (!scanDone) score -= 8;
+  if (!cleanupDone && counts.total > 0) score -= 6;
+  score -= Math.min(35, counts.failed * 10);
+  score -= Math.min(30, issues.length * 5);
+  score -= Math.min(18, reviewInserts.length * 6);
+  if (counts.pending + counts.sent > 0) score -= 5;
+  if (inserts.length > 0 && verifiedInserts.length === 0) score -= 10;
+
+  const checks = [
+    { label: "Plugin connected", ok: pluginOnline, detail: pluginOnline ? "Studio is online" : "Connect the Studio plugin" },
+    { label: "Studio actions", ok: counts.total === 0 || counts.failed === 0, detail: counts.total ? `${counts.done}/${counts.total} completed` : "No actions yet" },
+    { label: "Toolbox assets", ok: inserts.length === 0 || verifiedInserts.length > 0, detail: inserts.length ? `${verifiedInserts.length}/${inserts.length} verified` : "No assets inserted yet" },
+    { label: "Safety scan", ok: reviewInserts.length === 0, detail: reviewInserts.length ? `${reviewInserts.length} need review` : "No risky imports detected" },
+    { label: "Cleanup", ok: cleanupDone || counts.total === 0, detail: cleanupDone ? "Organize/auto-fix ran" : "Run Fix All after builds" },
+    { label: "Workspace scan", ok: scanDone && issues.length === 0, detail: scanDone ? `${issues.length} issue${issues.length === 1 ? "" : "s"}` : "No scan yet" },
+    { label: "Scripts/remotes", ok: scriptsDone || counts.total === 0, detail: scriptsDone ? "Runtime systems queued" : "No scripts/remotes yet" },
+    { label: "UI", ok: uiDone || counts.total === 0, detail: uiDone ? "UI actions queued" : "No UI built yet" },
+  ];
+
+  return {
+    score: clampScore(score),
+    issues: issues.slice(0, 8),
+    counts,
+    inserts,
+    verifiedInserts,
+    reviewInserts,
+    scanDone,
+    cleanupDone,
+    checks,
+  };
+}
+
+function timelineState(done: boolean, active: boolean, failed = false) {
+  if (failed) return "failed";
+  if (done) return "done";
+  if (active) return "active";
+  return "idle";
+}
+
+function buildExecutionTimeline(actions: any[] = [], busy = false) {
+  const counts = actionStatusCounts(actions);
+  const hasActions = counts.total > 0;
+  const hasPending = counts.pending + counts.sent > 0;
+  const hasFailed = counts.failed > 0;
+  const insertRows = actions.filter((a) => a.kind === "insert_asset");
+  const assetDone = insertRows.some((a) => a.status === "done");
+  const safetyDone = insertRows.some((a) => {
+    const result = getActionResult(a);
+    return a.status === "done" && (result.safety || result.safety_status || result.verified !== undefined);
+  });
+  const cleanupDone = actions.some((a) => (a.kind === "organize_project" || a.kind === "autofix_project") && a.status === "done");
+  const scanDone = actions.some((a) => a.kind === "scan_project" && a.status === "done");
+
+  return [
+    { label: "Plan", detail: busy ? "AI is planning the build" : hasActions ? "Plan created" : "Waiting for prompt", state: timelineState(hasActions, busy) },
+    { label: "Queue", detail: hasActions ? `${counts.total} Studio action${counts.total === 1 ? "" : "s"}` : "No queued actions", state: timelineState(hasActions, busy && !hasActions) },
+    { label: "Send", detail: hasPending ? `${counts.pending + counts.sent} waiting/running` : counts.done ? "Plugin received actions" : "Waiting", state: timelineState(counts.done > 0, hasPending, hasFailed && counts.done === 0) },
+    { label: "Assets", detail: insertRows.length ? `${insertRows.filter((a) => a.status === "done").length}/${insertRows.length} inserted` : "No asset insert actions", state: timelineState(assetDone, hasPending && insertRows.length > 0) },
+    { label: "Safety", detail: safetyDone ? "Toolbox imports verified" : "Awaiting asset result", state: timelineState(safetyDone, assetDone && !safetyDone) },
+    { label: "Cleanup", detail: cleanupDone ? "Organize/auto-fix complete" : "Pending cleanup", state: timelineState(cleanupDone, hasPending) },
+    { label: "Verify", detail: scanDone ? "Workspace scan complete" : "Run scan_project", state: timelineState(scanDone, cleanupDone && !scanDone, hasFailed) },
+  ];
+}
+
+function healthTone(score: number) {
+  if (score >= 90) return { label: "Excellent", color: "var(--bs-success)" };
+  if (score >= 75) return { label: "Good", color: "#22c55e" };
+  if (score >= 55) return { label: "Needs Work", color: "var(--bs-warning, #eab308)" };
+  return { label: "Needs Fix", color: "var(--bs-danger, #ef4444)" };
+}
+
 /* ────────────────── RIGHT SIDEBAR ────────────────── */
 function RightSidebar({
   project, pluginOnline, pluginSession, actions, buildPct, buildLabel, busy, onAction, onPrompt,
 }: any) {
   const recent = (actions ?? []).slice(0, 6);
-  const awareness = pluginSession?.last_scan?.awareness;
-  const issues: string[] = Array.isArray(awareness?.issues) ? awareness.issues.slice(0, 6) : [];
+  const health = buildHealthReport(actions ?? [], pluginSession, pluginOnline);
+  const tone = healthTone(health.score);
+  const timeline = buildExecutionTimeline(actions ?? [], busy);
+  const issues = health.issues;
   const lastScanAt = pluginSession?.last_scan_at ? new Date(pluginSession.last_scan_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : null;
   return (
     <aside
@@ -1589,15 +1719,40 @@ function RightSidebar({
         </div>
       </div>
 
-      {/* Workspace health */}
+      {/* Project health */}
       <div className="bs-card rounded-2xl p-4">
         <div className="flex items-center justify-between">
-          <div className="text-sm font-semibold">Workspace Awareness</div>
+          <div className="text-sm font-semibold">Project Health</div>
           <span className="text-[10px]" style={{ color: "var(--bs-muted-fg)" }}>{lastScanAt ? `Scan ${lastScanAt}` : "No scan"}</span>
+        </div>
+        <div className="mt-3 flex items-center gap-3">
+          <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl border text-xl font-black" style={{ borderColor: tone.color, color: tone.color, background: `color-mix(in oklab, ${tone.color} 12%, transparent)` }}>
+            {health.score}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-black" style={{ color: tone.color }}>{tone.label}</div>
+            <div className="mt-1 text-[11px] leading-snug" style={{ color: "var(--bs-muted-fg)" }}>
+              {health.counts.done}/{health.counts.total || 0} actions complete · {health.verifiedInserts.length}/{health.inserts.length || 0} assets verified
+            </div>
+            <div className="mt-2 h-2 overflow-hidden rounded-full" style={{ background: "var(--bs-card-2)" }}>
+              <div className="h-full rounded-full transition-all" style={{ width: `${health.score}%`, background: tone.color }} />
+            </div>
+          </div>
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-1.5">
+          {health.checks.slice(0, 6).map((check) => (
+            <div key={check.label} className="rounded-lg border px-2 py-1.5" style={{ borderColor: "var(--bs-border)", background: "var(--bs-card-2)" }}>
+              <div className="flex items-center gap-1.5 text-[10px] font-bold">
+                {check.ok ? <CheckCircle2 className="h-3 w-3" style={{ color: "var(--bs-success)" }} /> : <AlertCircle className="h-3 w-3" style={{ color: "var(--bs-warning)" }} />}
+                <span className="truncate">{check.label}</span>
+              </div>
+              <div className="mt-0.5 truncate text-[9px]" style={{ color: "var(--bs-muted-fg)" }}>{check.detail}</div>
+            </div>
+          ))}
         </div>
         {issues.length === 0 ? (
           <p className="mt-2 text-[11px]" style={{ color: "var(--bs-muted-fg)" }}>
-            Queue a scan to detect broken scripts, missing remotes, floating assets, empty folders, unwired UI, DataStore issues, mobile problems, and performance cleanup.
+            No scan issues shown. Run a scan after major builds to verify scripts, UI, assets, empty folders, mobile, and performance.
           </p>
         ) : (
           <ul className="mt-2 space-y-1.5 text-[11px]">
@@ -1613,22 +1768,38 @@ function RightSidebar({
           <button type="button" onClick={() => onAction?.(COMPOSER_ACTIONS.find((a: any) => a.label === "Scan Game"))} className="bs-quick justify-center">
             <ScanLine className="h-3 w-3" /> Scan
           </button>
-          <button type="button" onClick={() => onAction?.(COMPOSER_ACTIONS.find((a: any) => a.label === "Fix Errors"))} className="bs-quick justify-center" style={{ color: "var(--bs-warning)" }}>
+          <button type="button" onClick={() => onAction?.(COMPOSER_ACTIONS.find((a: any) => a.label === "Fix All"))} className="bs-quick justify-center" style={{ color: "var(--bs-warning)" }}>
             <Wrench className="h-3 w-3" /> Fix All
           </button>
         </div>
       </div>
 
-      {/* Build progress */}
+      {/* Execution timeline */}
       <div className="bs-card rounded-2xl p-4">
         <div className="flex items-center justify-between">
-          <div className="text-sm font-semibold">Build Progress</div>
+          <div className="text-sm font-semibold">Execution Timeline</div>
           <div className="text-sm font-bold" style={{ color: "var(--bs-primary)" }}>{busy ? `${buildPct}%` : "Idle"}</div>
         </div>
         <div className="mt-2 h-2 w-full overflow-hidden rounded-full" style={{ background: "var(--bs-card-2)" }}>
           <div className="h-full rounded-full transition-all" style={{ width: busy ? `${buildPct}%` : "100%", background: busy ? "var(--bs-grad)" : "color-mix(in oklab, var(--bs-success) 60%, transparent)" }} />
         </div>
         <div className="mt-2 text-xs" style={{ color: "var(--bs-muted-fg)" }}>{buildLabel}</div>
+        <div className="mt-3 space-y-1.5">
+          {timeline.map((step) => {
+            const color = step.state === "done" ? "var(--bs-success)" : step.state === "failed" ? "var(--bs-danger)" : step.state === "active" ? "var(--bs-primary)" : "var(--bs-muted-fg)";
+            return (
+              <div key={step.label} className="flex items-center gap-2 rounded-lg border px-2 py-1.5" style={{ borderColor: "var(--bs-border)", background: "var(--bs-card-2)" }}>
+                <span className="grid h-5 w-5 shrink-0 place-items-center rounded-md" style={{ background: `color-mix(in oklab, ${color} 14%, transparent)`, color }}>
+                  {step.state === "active" ? <Loader2 className="h-3 w-3 animate-spin" /> : step.state === "done" ? <CheckCircle2 className="h-3 w-3" /> : step.state === "failed" ? <AlertCircle className="h-3 w-3" /> : <span className="h-1.5 w-1.5 rounded-full" style={{ background: color }} />}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-[11px] font-bold">{step.label}</div>
+                  <div className="truncate text-[10px]" style={{ color: "var(--bs-muted-fg)" }}>{step.detail}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Templates */}
@@ -1697,6 +1868,23 @@ function RightSidebar({
                 }} />
                 <span className="flex-1 truncate">
                   <span className="opacity-70">{a.kind}</span> <span className="font-medium">{a.name}</span>
+                  {a.kind === "insert_asset" && a.result?.safety_status && (
+                    <span className="ml-1 rounded px-1 py-0.5 text-[9px] font-bold"
+                      style={{
+                        background: a.result.safety_status === "Working"
+                          ? "color-mix(in oklab, var(--bs-success) 16%, transparent)"
+                          : "color-mix(in oklab, var(--bs-warning) 16%, transparent)",
+                        color: a.result.safety_status === "Working" ? "var(--bs-success)" : "var(--bs-warning)",
+                      }}
+                    >
+                      {a.result.safety_status}
+                    </span>
+                  )}
+                  {a.status === "failed" && a.error && (
+                    <span className="ml-1 text-[10px]" style={{ color: "var(--bs-danger)" }}>
+                      {String(a.error).slice(0, 50)}
+                    </span>
+                  )}
                 </span>
                 <span className="text-[10px] capitalize" style={{ color: "var(--bs-muted-fg)" }}>{a.status}</span>
               </li>
