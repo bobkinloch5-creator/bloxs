@@ -484,6 +484,160 @@ root:SetAttribute("LastBloxSmithVisibilityGuard", os.time())
   ];
 }
 
+function isToolboxMapRequest(userText: string) {
+  return /\b(map|world|city|town|village|lobby|hub|spawn|obby|parkour|race\s*track|racing|forest|island|beach|roleplay|rp|tycoon|horror|dungeon|rpg|street|road|neighborhood|theme\s*park|arena)\b/i.test(userText);
+}
+
+function toolboxMapRequests(userText: string): ToolboxSetRequest[] {
+  const text = userText.toLowerCase();
+  const requests: ToolboxSetRequest[] = [];
+  const add = (label: string, keyword: string, required = false, limit = 5) => {
+    if (!requests.some((r) => r.label === label || r.keyword === keyword)) {
+      requests.push({ label, keyword, category: "Model", required, limit });
+    }
+  };
+
+  add("complete map kit", `${userText.slice(0, 80)} map kit`, true, 6);
+
+  if (/\b(city|town|roleplay|rp|neighborhood|street|road)\b/.test(text)) {
+    add("city map kit", "city map kit", true, 6);
+    add("road kit", "modular road kit", true, 6);
+    add("buildings", "city building pack", true, 6);
+    add("street props", "street light traffic sign sidewalk", false, 5);
+  }
+
+  if (/\b(lobby|hub|spawn)\b/.test(text)) {
+    add("lobby map", "lobby map kit", true, 6);
+    add("spawn area", "spawn hub", true, 5);
+    add("decor props", "lobby decor", false, 5);
+  }
+
+  if (/\b(obby|parkour|platform|checkpoint)\b/.test(text)) {
+    add("obby kit", "obby kit", true, 6);
+    add("checkpoint kit", "obby checkpoint", false, 5);
+    add("parkour map", "parkour map", true, 6);
+  }
+
+  if (/\b(forest|woods|jungle|nature|park)\b/.test(text)) {
+    add("forest kit", "forest map kit", true, 6);
+    add("tree pack", "tree pack", true, 6);
+    add("rocks and bushes", "rock bush nature pack", false, 5);
+  }
+
+  if (/\b(island|beach|survival|ocean)\b/.test(text)) {
+    add("island map", "island map kit", true, 6);
+    add("beach props", "beach palm tree pack", false, 5);
+    add("camp props", "survival camp kit", false, 5);
+  }
+
+  if (/\b(race|racing|track|car|vehicle)\b/.test(text)) {
+    add("race track", "race track map", true, 6);
+    add("vehicle", "vehicle car", false, 5);
+    add("road props", "road barrier checkpoint", false, 5);
+  }
+
+  if (/\b(horror|haunted|escape)\b/.test(text)) {
+    add("horror map", "horror map kit", true, 6);
+    add("haunted building", "haunted house", true, 5);
+    add("horror props", "horror props", false, 5);
+  }
+
+  if (/\b(dungeon|rpg|fantasy|medieval|castle|village)\b/.test(text)) {
+    add("rpg map", "rpg map kit", true, 6);
+    add("dungeon kit", "dungeon kit", true, 6);
+    add("medieval props", "medieval village props", false, 5);
+  }
+
+  if (/\b(tycoon)\b/.test(text)) {
+    add("tycoon kit", "tycoon kit", true, 6);
+    add("conveyor kit", "conveyor dropper tycoon", true, 5);
+    add("tycoon buildings", "tycoon building", false, 5);
+  }
+
+  if (/\b(arena|battle|fighting|shooter)\b/.test(text)) {
+    add("arena map", "battle arena map", true, 6);
+    add("cover props", "arena cover props", false, 5);
+  }
+
+  return requests.slice(0, 12);
+}
+
+async function toolboxMapStudioActions(userText: string) {
+  if (!isToolboxMapRequest(userText)) return [];
+  try {
+    const set = await searchRobloxToolboxSet(toolboxMapRequests(userText), 6);
+    const usedIds = new Set<number>();
+    const actions = [];
+    let slot = 0;
+
+    for (const request of set.requests) {
+      const picked = request.results.find((r) => !usedIds.has(r.id));
+      if (!picked) continue;
+      usedIds.add(picked.id);
+      const row = slot % 3;
+      const col = Math.floor(slot / 3);
+      actions.push({
+        kind: "insert_asset",
+        parent_path: "Workspace",
+        name: `Toolbox_${request.label.replace(/[^a-z0-9]+/gi, "_").replace(/^_+|_+$/g, "") || "MapAsset"}`,
+        payload: {
+          asset_id: picked.id,
+          fallback_ids: picked.fallbackIds ?? [],
+          folder_name: "BloxSmith_Toolbox_Map_Assets",
+          position: [row * 75 - 75, 3, col * 75],
+          yaw: (slot % 4) * 90,
+          scale: 1,
+          tags: ["bloxsmith", "toolbox-map", request.label],
+          asset_name: picked.name,
+          creator_name: picked.creatorName,
+          source_query: picked.sourceQuery ?? request.keyword,
+          quality_tier: picked.qualityTier ?? "usable",
+        },
+      });
+      slot += 1;
+    }
+
+    if (actions.length > 0) {
+      actions.push({
+        kind: "run_lua",
+        parent_path: "Workspace",
+        name: "BloxSmith_Arrange_Toolbox_Map_Assets",
+        payload: {
+          source: `
+local Workspace = game:GetService("Workspace")
+local folder = Workspace:FindFirstChild("BloxSmith_Toolbox_Map_Assets")
+if folder then
+  for _, model in ipairs(folder:GetChildren()) do
+    if model:IsA("Model") then
+      local ok, cf, size = pcall(function() return model:GetBoundingBox() end)
+      if ok and size then
+        local yOffset = math.max(0, size.Y / 2)
+        model:PivotTo(CFrame.new(cf.Position.X, yOffset, cf.Position.Z))
+      end
+      for _, inst in ipairs(model:GetDescendants()) do
+        if inst:IsA("BasePart") then
+          inst.Anchored = true
+          inst.CanCollide = true
+        end
+      end
+    elseif model:IsA("BasePart") then
+      model.Anchored = true
+      model.CanCollide = true
+    end
+  end
+end
+`,
+        },
+      });
+    }
+
+    return actions;
+  } catch (err) {
+    console.warn("[chat] toolbox map seed failed", err);
+    return [];
+  }
+}
+
 export const Route = createFileRoute("/api/chat")({
   server: {
     handlers: {
@@ -732,6 +886,19 @@ export const Route = createFileRoute("/api/chat")({
                   ];
                   if (!/visible grass/i.test(cleanContent)) {
                     cleanContent = `${cleanContent.trim()}\n\n_Visible grass enforcement queued: large flat ground parts are recolored to Grass material, a grass surface is created, and Terrain grass decoration is enabled._`;
+                  }
+                }
+
+                if (mode === "build" && isToolboxMapRequest(userText)) {
+                  const toolboxActions = (await toolboxMapStudioActions(userText)).map(normalizePluginAction);
+                  if (toolboxActions.length > 0) {
+                    actions = [
+                      ...toolboxActions,
+                      ...actions.filter((a) => !String(a.payload?.folder_name ?? "").includes("BloxSmith_Toolbox_Map_Assets")),
+                    ];
+                    if (!/toolbox map assets/i.test(cleanContent)) {
+                      cleanContent = `${cleanContent.trim()}\n\n_Toolbox map seeding queued: BloxSmith searched safe free Creator Store assets and will insert matching map kits/props before final setup._`;
+                    }
                   }
                 }
 
