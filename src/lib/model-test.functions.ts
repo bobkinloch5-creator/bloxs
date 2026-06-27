@@ -18,7 +18,8 @@ Rules:
 - Include 5-8 actions so the scanner can verify Roblox execution readiness.
 - Use Roblox services, Luau, RemoteEvent/RemoteFunction, StarterGui, ReplicatedStorage, and ServerScriptService correctly.
 - Include server validation, testing/cleanup intent, and no TODO/placeholders.
-- Use action kinds only from: folder, script, localscript, modulescript, screengui, remoteevent, remotefunction, frame, textlabel, textbutton, run_lua, organize_project.
+- Use action kinds only from: script, localscript, modulescript, screengui, remoteevent, remotefunction, frame, textlabel, textbutton, run_lua, organize_project.
+- Do not create standalone folder actions. If a folder path is needed, insert real content into that path so the plugin can keep only non-empty folders.
 - Do not mention copying code manually.`;
 
 const ROBLOX_MODEL_TEST_PROMPT = `Build a premium Roblox coin HUD with:
@@ -33,7 +34,7 @@ Use this exact response shape:
 1 short sentence explaining the Roblox Core Brain check.
 \`\`\`bloxsmith-actions
 [
-  {"kind":"folder","parent_path":"ReplicatedStorage","name":"Remotes","payload":{}}
+  {"kind":"remoteevent","parent_path":"ReplicatedStorage.Remotes","name":"AddCoins","payload":{}}
 ]
 \`\`\``;
 

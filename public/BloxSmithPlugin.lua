@@ -357,21 +357,43 @@ local function ensureFolder(parent, name)
 end
 
 local function ensureProjectFolders()
-    local folders = {
-        ensureFolder(Workspace, "Map"),
-        ensureFolder(Workspace, "NPCs"),
-        ensureFolder(Workspace, "Props"),
-        ensureFolder(Workspace, "Vehicles"),
-        ensureFolder(Workspace, "Gameplay"),
-        ensureFolder(ReplicatedStorage, "Remotes"),
-        ensureFolder(ReplicatedStorage, "Modules"),
-        ensureFolder(ReplicatedStorage, "Assets"),
-        ensureFolder(ServerScriptService, "Systems"),
-        ensureFolder(ServerStorage, "BloxSmith_Quarantine"),
-    }
+    local folders = {}
     local starterScripts = StarterPlayer:WaitForChild("StarterPlayerScripts")
     table.insert(folders, starterScripts)
     return folders
+end
+
+local EMPTY_FOLDER_CLEANUP_ROOTS = {
+    Workspace,
+    ReplicatedStorage,
+    ReplicatedFirst,
+    ServerScriptService,
+    ServerStorage,
+    StarterGui,
+    StarterPack,
+    StarterPlayer,
+    Lighting,
+    SoundService,
+}
+
+local function pruneEmptyFolders()
+    local removed = {}
+    local function walk(inst)
+        for _, child in ipairs(inst:GetChildren()) do
+            walk(child)
+        end
+        if inst:IsA("Folder") and #inst:GetChildren() == 0 then
+            local path = fullPath(inst)
+            inst:Destroy()
+            table.insert(removed, path)
+        end
+    end
+    for _, root in ipairs(EMPTY_FOLDER_CLEANUP_ROOTS) do
+        for _, child in ipairs(root:GetChildren()) do
+            walk(child)
+        end
+    end
+    return removed
 end
 
 local SUSPICIOUS_SOURCE_PATTERNS = {
@@ -439,13 +461,14 @@ end
 local function organizeProject()
     ensureProjectFolders()
     local moved = {}
-    local workspaceFolders = {
-        Map = Workspace:FindFirstChild("Map"),
-        NPCs = Workspace:FindFirstChild("NPCs"),
-        Props = Workspace:FindFirstChild("Props"),
-        Vehicles = Workspace:FindFirstChild("Vehicles"),
-        Gameplay = Workspace:FindFirstChild("Gameplay"),
-    }
+    local workspaceFolders = {}
+    local function workspaceTarget(name)
+        workspaceFolders[name] = workspaceFolders[name] or ensureFolder(Workspace, name)
+        return workspaceFolders[name]
+    end
+    local function storageTarget(parent, name)
+        return ensureFolder(parent, name)
+    end
     local protected = {
         Terrain = true, Camera = true, Map = true, NPCs = true, Props = true,
         Vehicles = true, Gameplay = true,
@@ -455,15 +478,15 @@ local function organizeProject()
             local target = nil
             local lower = string.lower(inst.Name)
             if inst:IsA("SpawnLocation") or string.find(lower, "checkpoint") or string.find(lower, "teleport") then
-                target = workspaceFolders.Gameplay
+                target = workspaceTarget("Gameplay")
             elseif inst:FindFirstChildOfClass("Humanoid") or string.find(lower, "npc") or string.find(lower, "enemy") or string.find(lower, "zombie") then
-                target = workspaceFolders.NPCs
+                target = workspaceTarget("NPCs")
             elseif string.find(lower, "car") or string.find(lower, "vehicle") or string.find(lower, "boat") or string.find(lower, "plane") then
-                target = workspaceFolders.Vehicles
-            elseif inst:IsA("Model") or inst:IsA("Folder") then
-                target = workspaceFolders.Map
+                target = workspaceTarget("Vehicles")
+            elseif inst:IsA("Model") or (inst:IsA("Folder") and #inst:GetChildren() > 0) then
+                target = workspaceTarget("Map")
             elseif inst:IsA("BasePart") then
-                target = workspaceFolders.Props
+                target = workspaceTarget("Props")
             end
             if target then
                 local from = fullPath(inst)
@@ -475,22 +498,26 @@ local function organizeProject()
     for _, inst in ipairs(ReplicatedStorage:GetChildren()) do
         if inst:IsA("RemoteEvent") or inst:IsA("RemoteFunction") or inst:IsA("BindableEvent") or inst:IsA("BindableFunction") then
             local from = fullPath(inst)
-            inst.Parent = ReplicatedStorage.Remotes
-            table.insert(moved, from .. " -> " .. fullPath(ReplicatedStorage.Remotes))
+            local target = storageTarget(ReplicatedStorage, "Remotes")
+            inst.Parent = target
+            table.insert(moved, from .. " -> " .. fullPath(target))
         elseif inst:IsA("ModuleScript") then
             local from = fullPath(inst)
-            inst.Parent = ReplicatedStorage.Modules
-            table.insert(moved, from .. " -> " .. fullPath(ReplicatedStorage.Modules))
+            local target = storageTarget(ReplicatedStorage, "Modules")
+            inst.Parent = target
+            table.insert(moved, from .. " -> " .. fullPath(target))
         end
     end
     for _, inst in ipairs(ServerScriptService:GetChildren()) do
         if inst:IsA("Script") and inst.Name ~= "BloxSmith_Leaderstats" and inst.Name ~= "Systems" then
             local from = fullPath(inst)
-            inst.Parent = ServerScriptService.Systems
-            table.insert(moved, from .. " -> " .. fullPath(ServerScriptService.Systems))
+            local target = storageTarget(ServerScriptService, "Systems")
+            inst.Parent = target
+            table.insert(moved, from .. " -> " .. fullPath(target))
         end
     end
-    return { moved = moved, moved_count = #moved }
+    local removed = pruneEmptyFolders()
+    return { moved = moved, moved_count = #moved, removed_empty_folders = removed, removed_empty_count = #removed }
 end
 
 local function autoFixProject()
@@ -521,6 +548,9 @@ local function autoFixProject()
             end
         end
     end
+    local removed = pruneEmptyFolders()
+    result.removed_empty_folders = removed
+    result.removed_empty_count = #removed
     result.fixed_count = #result.fixed
     return result
 end
@@ -569,8 +599,8 @@ local function makeScript(className, action, parent)
 end
 
 Exec.folder = function(a, p)
-    local f = p:FindFirstChild(a.name) or Instance.new("Folder")
-    f.Name = a.name; f.Parent = p; return f
+    log(("Skipped empty folder '%s' under %s. Folders are created only when real content is inserted."):format(tostring(a.name), fullPath(p)), "warn")
+    return { skipped = true, reason = "empty_folder_guard", name = a.name, parent = fullPath(p) }
 end
 Exec.script         = function(a,p) return makeScript("Script", a, p) end
 Exec.localscript    = function(a,p) return makeScript("LocalScript", a, p) end
@@ -685,13 +715,13 @@ end
 
 Exec.organize_project = function(_, _)
     local result = organizeProject()
-    log(("Organized project — moved %d item(s)."):format(result.moved_count or 0), "success")
+    log(("Organized project — moved %d item(s), removed %d empty folder(s)."):format(result.moved_count or 0, result.removed_empty_count or 0), "success")
     return result
 end
 
 Exec.autofix_project = function(_, _)
     local result = autoFixProject()
-    log(("Auto-fix complete — %d moved, %d fixed."):format(result.moved_count or 0, result.fixed_count or 0), "success")
+    log(("Auto-fix complete — %d moved, %d fixed, %d empty folder(s) removed."):format(result.moved_count or 0, result.fixed_count or 0, result.removed_empty_count or 0), "success")
     return result
 end
 
@@ -699,15 +729,6 @@ Exec.insert_asset = function(a, p)
     local payload = a.payload or {}
     local id = tonumber(payload.asset_id)
     if not id or id <= 0 then error("insert_asset missing asset_id") end
-    if payload.folder_name and type(payload.folder_name) == "string" and payload.folder_name ~= "" then
-        local folder = p:FindFirstChild(payload.folder_name)
-        if not folder then
-            folder = Instance.new("Folder")
-            folder.Name = payload.folder_name
-            folder.Parent = p
-        end
-        p = folder
-    end
     local ok, container = pcall(function() return InsertService:LoadAsset(id) end)
     if not ok or not container then
         error("LoadAsset failed for " .. tostring(id) .. ": " .. tostring(container))
@@ -716,6 +737,9 @@ Exec.insert_asset = function(a, p)
     if #kids == 0 then
         container:Destroy()
         error("Asset " .. tostring(id) .. " loaded but was empty — skipping.")
+    end
+    if payload.folder_name and type(payload.folder_name) == "string" and payload.folder_name ~= "" then
+        p = ensureFolder(p, payload.folder_name)
     end
     container.Name = a.name or ("Asset_" .. id)
     -- Unwrap single-child container into the target parent.
@@ -1018,8 +1042,9 @@ local function pollOnce(force)
     if fixOk and fixResult then
         local moved = fixResult.moved_count or 0
         local fixed = fixResult.fixed_count or 0
-        if moved > 0 or fixed > 0 then
-            log(("Auto-cleanup after batch — %d moved, %d fixed."):format(moved, fixed), "success")
+        local removed = fixResult.removed_empty_count or 0
+        if moved > 0 or fixed > 0 or removed > 0 then
+            log(("Auto-cleanup after batch — %d moved, %d fixed, %d empty folder(s) removed."):format(moved, fixed, removed), "success")
         end
     elseif not fixOk then
         log("Auto-cleanup skipped: " .. tostring(fixResult), "warn")
@@ -1149,6 +1174,7 @@ local function analyzeWorkspace()
     local summary = {
         counts = {},
         folders = {},
+        empty_folders = {},
         issues = {},
         remotes = {},
         modules = {},
@@ -1158,23 +1184,6 @@ local function analyzeWorkspace()
         assets = {},
         suggestions = {},
     }
-    local expected = {
-        "Workspace.Map",
-        "Workspace.NPCs",
-        "Workspace.Props",
-        "Workspace.Vehicles",
-        "Workspace.Gameplay",
-        "ReplicatedStorage.Remotes",
-        "ReplicatedStorage.Modules",
-        "ReplicatedStorage.Assets",
-        "ServerScriptService.Systems",
-    }
-    for _, path in ipairs(expected) do
-        summary.folders[path] = findByPath(path) ~= nil
-        if not summary.folders[path] then
-            pushLimited(summary.issues, "missing_folder:" .. path, 80)
-        end
-    end
     local services = {}
     for _, svcName in ipairs(SCAN_ROOTS) do
         local ok, svc = pcall(function() return game:GetService(svcName) end)
@@ -1183,7 +1192,14 @@ local function analyzeWorkspace()
     for _, svc in ipairs(services) do
         for _, inst in ipairs(svc:GetDescendants()) do
             summary.counts[inst.ClassName] = (summary.counts[inst.ClassName] or 0) + 1
-            if inst:IsA("RemoteEvent") or inst:IsA("RemoteFunction") or inst:IsA("BindableEvent") or inst:IsA("BindableFunction") then
+            if inst:IsA("Folder") and #inst:GetChildren() == 0 then
+                local path = fullPath(inst)
+                summary.folders[path] = false
+                pushLimited(summary.empty_folders, path, 80)
+                pushLimited(summary.issues, "empty_folder:" .. path, 80)
+            elseif inst:IsA("Folder") then
+                summary.folders[fullPath(inst)] = true
+            elseif inst:IsA("RemoteEvent") or inst:IsA("RemoteFunction") or inst:IsA("BindableEvent") or inst:IsA("BindableFunction") then
                 pushLimited(summary.remotes, fullPath(inst), 60)
                 if inst.Parent == ReplicatedStorage then
                     pushLimited(summary.issues, "remote_not_in_remotes_folder:" .. fullPath(inst), 80)
