@@ -216,6 +216,15 @@ export function ModelsView({ projectId }: { projectId?: string }) {
         {mode === "text" ? (
           <div className="space-y-3">
             <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="A low-poly stylized treasure chest with gold trim" className="w-full min-h-[100px] resize-y rounded-xl border border-white/10 bg-black/30 p-3 text-sm text-white placeholder:text-muted-foreground outline-none focus:border-violet-400/60" maxLength={600} />
+            <div>
+              <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Style preset (optional — appended to prompt)</div>
+              <div className="flex flex-wrap gap-1.5">
+                <button onClick={() => setStylePreset("")} className={`rounded-full px-3 py-1 text-[11px] font-semibold transition ${stylePreset === "" ? "bg-violet-500/25 text-violet-200 border border-violet-400/40" : "bg-white/5 text-muted-foreground border border-white/10 hover:bg-white/10"}`}>No preset</button>
+                {STYLE_PRESETS.map((s) => (
+                  <button key={s.key} onClick={() => setStylePreset(s.key)} title={s.modifier} className={`rounded-full px-3 py-1 text-[11px] font-semibold transition ${stylePreset === s.key ? "bg-violet-500/25 text-violet-200 border border-violet-400/40" : "bg-white/5 text-muted-foreground border border-white/10 hover:bg-white/10"}`}>{s.label}</button>
+                ))}
+              </div>
+            </div>
             <input value={negativePrompt} onChange={(e) => setNegativePrompt(e.target.value)} placeholder="Negative prompt (optional) — e.g. low quality, blurry" className="w-full rounded-xl border border-white/10 bg-black/30 p-2.5 text-xs text-white placeholder:text-muted-foreground outline-none focus:border-violet-400/60" maxLength={300} />
           </div>
         ) : (
