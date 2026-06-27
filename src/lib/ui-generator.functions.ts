@@ -123,10 +123,11 @@ export const generateRobloxUi = createServerFn({ method: "POST" })
       maxOutputTokens: 4096,
     });
 
-    // Strip accidental code fences if the model emitted them
+    // Strip accidental code fences and bare language tags the model sometimes prepends.
     const cleaned = text
-      .replace(/^```(?:lua|luau)?\s*/i, "")
-      .replace(/```\s*$/i, "")
+      .replace(/^\s*```(?:lua|luau)?\s*\n?/i, "")
+      .replace(/\n?```\s*$/i, "")
+      .replace(/^\s*(?:lua|luau)\s*\n/i, "")
       .trim();
 
     if (data.projectId) {
