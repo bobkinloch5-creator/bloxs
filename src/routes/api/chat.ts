@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
-import { convertToModelMessages, streamText, stepCountIs, tool, type UIMessage } from "ai";
+import { convertToModelMessages, generateText, streamText, stepCountIs, tool, type UIMessage } from "ai";
 import { z } from "zod";
 import { getProviderModel, getFallbackModel } from "@/lib/ai-gateway.server";
 import { BLOXSMITH_SYSTEM_PROMPT, parseActions } from "@/lib/bloxsmith-prompt";
@@ -16,6 +16,154 @@ function jsonError(message: string, status: number, code?: string) {
     status,
     headers: { "Content-Type": "application/json" },
   });
+}
+
+async function compileMissingStudioActions(params: {
+  userText: string;
+  assistantText: string;
+  languageName: string;
+  assetMode: "toolbox_only" | "both";
+}) {
+  const fb = getFallbackModel();
+  const { text } = await generateText({
+    model: fb.model,
+    system:
+      "You are the BloxSmith Studio action compiler. Convert Roblox build plans into executable BloxSmith actions only. " +
+      "Return exactly one fenced ```bloxsmith-actions block containing valid JSON. Do not include prose outside the block.",
+    prompt: `The previous assistant response was in Build Mode but did not include executable Studio actions, so Roblox Studio received nothing.
+
+Convert the request and response below into a concise, safe, executable BloxSmith action list.
+
+Rules:
+- Output exactly one fenced block: \`\`\`bloxsmith-actions followed by a JSON array, then \`\`\`.
+- Supported kinds: insert_asset, run_lua, script, localscript, modulescript, screengui, remoteevent, remotefunction, part, terrain, setting, organize_project, autofix_project, scan_project.
+- Prefer insert_asset only when an asset id is explicitly present in the plan. Include payload.asset_id and payload.fallback_ids when known.
+- Use run_lua for placement, safe cleanup, scripting, UI wiring, lighting, spawns, collision fixes, and validation helpers.
+- Do not emit delete actions unless the user explicitly asked to delete or clear something.
+- Never produce empty folders, placeholders, TODOs, comments pretending work is done, or unsupported action kinds.
+- End with autofix_project and scan_project for build/test reliability.
+- Language for player-facing UI strings: ${params.languageName}.
+- Asset mode: ${params.assetMode}.
+
+User request:
+${params.userText.slice(0, 6000)}
+
+Assistant response that needs executable actions:
+${params.assistantText.slice(0, 12000)}`,
+    ...(fb.extraBody ? { providerOptions: { nvidia: fb.extraBody as Record<string, never> } as never } : {}),
+    ...(fb.modelSettings?.temperature !== undefined ? { temperature: fb.modelSettings.temperature } : { temperature: 0 }),
+    ...(fb.modelSettings?.topP !== undefined ? { topP: fb.modelSettings.topP } : {}),
+    maxOutputTokens: 12000,
+  });
+
+  return parseActions(text).actions;
+}
+
+function recoveryStudioActions(userText: string) {
+  const safePrompt = userText.trim().slice(0, 240) || "BloxSmith auto-execute recovery build";
+  const source = `
+local Workspace = game:GetService("Workspace")
+local Lighting = game:GetService("Lighting")
+local Players = game:GetService("Players")
+
+local root = Workspace:FindFirstChild("BloxSmith_AutoBuild")
+if root then root:Destroy() end
+root = Instance.new("Folder")
+root.Name = "BloxSmith_AutoBuild"
+root.Parent = Workspace
+
+local function part(name, size, position, color, material)
+  local p = Instance.new("Part")
+  p.Name = name
+  p.Anchored = true
+  p.Size = size
+  p.Position = position
+  p.Color = color
+  p.Material = material or Enum.Material.SmoothPlastic
+  p.TopSurface = Enum.SurfaceType.Smooth
+  p.BottomSurface = Enum.SurfaceType.Smooth
+  p.Parent = root
+  return p
+end
+
+part("Safe_Play_Area", Vector3.new(220, 2, 220), Vector3.new(0, -1, 0), Color3.fromRGB(72, 145, 82), Enum.Material.Grass)
+part("Main_Road_X", Vector3.new(220, 0.25, 18), Vector3.new(0, 0.15, 0), Color3.fromRGB(38, 41, 46), Enum.Material.Asphalt)
+part("Main_Road_Z", Vector3.new(18, 0.25, 220), Vector3.new(0, 0.2, 0), Color3.fromRGB(38, 41, 46), Enum.Material.Asphalt)
+
+for x = -72, 72, 48 do
+  for z = -72, 72, 48 do
+    if math.abs(x) > 12 and math.abs(z) > 12 then
+      local height = 18 + ((math.abs(x) + math.abs(z)) % 28)
+      part("Safe_Building_" .. x .. "_" .. z, Vector3.new(26, height, 26), Vector3.new(x, height / 2, z), Color3.fromRGB(88, 121, 156), Enum.Material.Concrete)
+      part("Roof_" .. x .. "_" .. z, Vector3.new(28, 1.5, 28), Vector3.new(x, height + 0.8, z), Color3.fromRGB(35, 43, 55), Enum.Material.Metal)
+    end
+  end
+end
+
+for i, pos in ipairs({ Vector3.new(-28, 2, -28), Vector3.new(28, 2, -28), Vector3.new(-28, 2, 28), Vector3.new(28, 2, 28) }) do
+  local spawn = Instance.new("SpawnLocation")
+  spawn.Name = "BloxSmith_Spawn_" .. i
+  spawn.Anchored = true
+  spawn.Size = Vector3.new(8, 1, 8)
+  spawn.Position = pos
+  spawn.Color = Color3.fromRGB(72, 255, 176)
+  spawn.Neutral = true
+  spawn.Parent = root
+end
+
+local sign = part("BloxSmith_Execution_Confirmed", Vector3.new(44, 18, 1), Vector3.new(0, 12, -54), Color3.fromRGB(23, 26, 38), Enum.Material.Metal)
+local gui = Instance.new("SurfaceGui")
+gui.Face = Enum.NormalId.Front
+gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+gui.PixelsPerStud = 24
+gui.Parent = sign
+local label = Instance.new("TextLabel")
+label.BackgroundTransparency = 1
+label.Size = UDim2.fromScale(1, 1)
+label.Font = Enum.Font.GothamBold
+label.TextScaled = true
+label.TextWrapped = true
+label.TextColor3 = Color3.fromRGB(245, 248, 255)
+label.Text = "BloxSmith executed this build in Studio. Request: " .. ${JSON.stringify(safePrompt)}
+label.Parent = gui
+
+Lighting.ClockTime = 14
+Lighting.Brightness = 2.2
+Workspace.StreamingEnabled = true
+
+for _, player in ipairs(Players:GetPlayers()) do
+  if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+    player.Character.HumanoidRootPart.CFrame = CFrame.new(0, 8, 0)
+  end
+end
+`;
+
+  return [
+    {
+      kind: "run_lua",
+      parent_path: "Workspace",
+      name: "BloxSmith_AutoExecute_Recovery",
+      payload: { source },
+    },
+    {
+      kind: "organize_project",
+      parent_path: "Workspace",
+      name: "BloxSmith_Organize_After_Recovery",
+      payload: { reason: "ensure_auto_executed_build_is_grouped" },
+    },
+    {
+      kind: "autofix_project",
+      parent_path: "Workspace",
+      name: "BloxSmith_Autofix_After_Recovery",
+      payload: { reason: "fix_common_studio_issues_after_auto_execute_recovery" },
+    },
+    {
+      kind: "scan_project",
+      parent_path: "Workspace",
+      name: "BloxSmith_Scan_After_Recovery",
+      payload: { reason: "verify_auto_execute_recovery_completed" },
+    },
+  ];
 }
 
 export const Route = createFileRoute("/api/chat")({
@@ -234,8 +382,31 @@ export const Route = createFileRoute("/api/chat")({
                 const parsed = parseActions(finalText);
                 // In chat mode, hard-strip any actions block the model accidentally emitted
                 // so it never gets shown to the user or queued for Studio.
-                const cleanContent = parsed.cleanContent;
-                const actions = mode === "chat" ? [] : parsed.actions.map(normalizePluginAction);
+                let cleanContent = parsed.cleanContent;
+                let actions = mode === "chat" ? [] : parsed.actions.map(normalizePluginAction);
+
+                if (mode === "build" && actions.length === 0) {
+                  try {
+                    const compiled = await compileMissingStudioActions({
+                      userText,
+                      assistantText: finalText,
+                      languageName,
+                      assetMode,
+                    });
+                    actions = compiled.map(normalizePluginAction);
+                    if (actions.length > 0) {
+                      cleanContent = `${cleanContent.trim()}\n\n_Auto-compiled executable Roblox Studio actions because the selected model returned a plan without an action block._`;
+                    }
+                  } catch (compileErr) {
+                    console.warn("[chat] action compiler failed; using recovery Studio actions", compileErr);
+                  }
+
+                  if (actions.length === 0) {
+                    actions = recoveryStudioActions(userText).map(normalizePluginAction);
+                    cleanContent = `${cleanContent.trim()}\n\n_Auto-execute recovery queued a safe starter build because the selected model did not produce valid Studio actions._`;
+                  }
+                }
+
                 const { data: msgRow } = await supabase.from("chat_messages").insert({
                   project_id: projectId,
                   user_id: userId,
