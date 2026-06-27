@@ -19,7 +19,7 @@ local CollectionService     = game:GetService("CollectionService")
 
 local API_BASE       = "https://bloxsmith.pro"
 local POLL_INTERVAL  = 1
-local PLUGIN_VERSION = "1.7.3"
+local PLUGIN_VERSION = "1.7.4"
 
 ------------------------------------------------------------------- token helpers
 local TOKEN_KEY = "token"
@@ -638,6 +638,28 @@ Exec.autofix_project = function(_, _)
     return result
 end
 
+local function loadAssetCandidate(id, name, parent)
+    local ok, container = pcall(function() return InsertService:LoadAsset(id) end)
+    if not ok or not container then
+        return nil, "LoadAsset failed: " .. tostring(container)
+    end
+    local kids = container:GetChildren()
+    if #kids == 0 then
+        container:Destroy()
+        return nil, "loaded empty asset"
+    end
+    container.Name = name or ("Asset_" .. tostring(id))
+    if #kids == 1 then
+        kids[1].Name = container.Name
+        kids[1].Parent = parent
+        local inserted = kids[1]
+        container:Destroy()
+        return inserted, nil
+    end
+    container.Parent = parent
+    return container, nil
+end
+
 Exec.insert_asset = function(a, p)
     local payload = a.payload or {}
     local id = tonumber(payload.asset_id)
@@ -651,27 +673,34 @@ Exec.insert_asset = function(a, p)
         end
         p = folder
     end
-    local ok, container = pcall(function() return InsertService:LoadAsset(id) end)
-    if not ok or not container then
-        error("LoadAsset failed for " .. tostring(id) .. ": " .. tostring(container))
+
+    local candidates = { id }
+    if type(payload.fallback_ids) == "table" then
+        for _, fallbackId in ipairs(payload.fallback_ids) do
+            local n = tonumber(fallbackId)
+            if n and n > 0 and n ~= id then
+                table.insert(candidates, n)
+            end
+        end
     end
-    local kids = container:GetChildren()
-    if #kids == 0 then
-        container:Destroy()
-        error("Asset " .. tostring(id) .. " loaded but was empty — skipping.")
+    local inserted, loadErr, usedId = nil, nil, nil
+    local attempted = {}
+    for index, candidateId in ipairs(candidates) do
+        table.insert(attempted, candidateId)
+        inserted, loadErr = loadAssetCandidate(candidateId, a.name or ("Asset_" .. candidateId), p)
+        if inserted then
+            usedId = candidateId
+            if index > 1 then
+                log(("Asset id=%d failed; fallback id=%d inserted instead."):format(id, usedId), "warn")
+            end
+            break
+        end
+        log(("Asset id=%d unavailable: %s"):format(candidateId, tostring(loadErr)), "warn")
     end
-    container.Name = a.name or ("Asset_" .. id)
-    -- Unwrap single-child container into the target parent.
-    local inserted
-    if #kids == 1 then
-        kids[1].Name = container.Name
-        kids[1].Parent = p
-        inserted = kids[1]
-        container:Destroy()
-    else
-        container.Parent = p
-        inserted = container
+    if not inserted then
+        error("LoadAsset failed for " .. tostring(id) .. " and fallbacks: " .. tostring(loadErr))
     end
+
     -- Optional placement: payload.position {x,y,z}, payload.rotation {x,y,z}
     -- in degrees, or payload.yaw in degrees. ScaleTo is supported for Models.
     local cf = nil
@@ -700,12 +729,21 @@ Exec.insert_asset = function(a, p)
     end
     local safetyReport = inspectInsertedAsset(inserted)
     if safetyReport.quarantined > 0 then
-        log(("Asset safety scan quarantined %d suspicious script(s) from id=%d."):format(safetyReport.quarantined, id), "warn")
+        log(("Asset safety scan quarantined %d suspicious script(s) from id=%d."):format(safetyReport.quarantined, usedId), "warn")
     elseif safetyReport.scripts > 0 then
-        log(("Asset safety scan checked %d script(s) in id=%d."):format(safetyReport.scripts, id), "debug")
+        log(("Asset safety scan checked %d script(s) in id=%d."):format(safetyReport.scripts, usedId), "debug")
     end
-    log(("✓ inserted asset id=%d as '%s' under %s"):format(id, inserted.Name, p:GetFullName()), "success")
-    return { asset_id = id, name = inserted.Name, path = inserted:GetFullName(), class = inserted.ClassName, safety = safetyReport }
+    log(("✓ inserted asset id=%d as '%s' under %s"):format(usedId, inserted.Name, p:GetFullName()), "success")
+    return {
+        asset_id = usedId,
+        requested_asset_id = id,
+        fallback_used = usedId ~= id,
+        attempted_asset_ids = attempted,
+        name = inserted.Name,
+        path = inserted:GetFullName(),
+        class = inserted.ClassName,
+        safety = safetyReport,
+    }
 end
 
 -- Known-good free public Roblox assets (verified accessible by any account).
@@ -726,27 +764,8 @@ local FALLBACK_ASSETS = {
 -- Try to load a single asset id. Returns (placed_instance, nil) on success
 -- or (nil, reason_string) on failure. Never throws.
 local function tryLoadAsset(id, name, parent)
-    local ok, container = pcall(function() return InsertService:LoadAsset(id) end)
-    if not ok or not container then
-        local reason = tostring(container or "unknown")
-        return nil, reason
-    end
-    local kids = container:GetChildren()
-    if #kids == 0 then
-        container:Destroy()
-        return nil, "empty"
-    end
-    container.Name = name or ("Asset_" .. id)
-    local placed
-    if #kids == 1 then
-        kids[1].Name = container.Name
-        kids[1].Parent = parent
-        placed = kids[1]
-        container:Destroy()
-    else
-        container.Parent = parent
-        placed = container
-    end
+    local placed, reason = loadAssetCandidate(id, name, parent)
+    if not placed then return nil, reason end
     pcall(function() CollectionService:AddTag(placed, "BloxSmithAsset") end)
     return placed, nil
 end

@@ -21,6 +21,11 @@ export interface ToolboxResult {
   hasScripts?: boolean;
   scriptCount?: number;
   upVotePercent?: number;
+  score?: number;
+  qualityTier?: "excellent" | "good" | "usable";
+  signals?: string[];
+  fallbackIds?: number[];
+  insertPayload?: { asset_id: number; fallback_ids?: number[] };
 }
 
 export type ToolboxCategory = "Model" | "Audio" | "Decal" | "Mesh";
@@ -74,29 +79,39 @@ function pickFallback(keyword: string): ToolboxResult[] {
 
 const QUERY_ALIASES: Array<{ test: RegExp; terms: string[] }> = [
   { test: /\b(obby|parkour)\b/i, terms: ["obby kit", "parkour kit", "obstacle course", "checkpoint obby"] },
-  { test: /\b(tycoon)\b/i, terms: ["tycoon kit", "tycoon building", "conveyor", "dropper"] },
-  { test: /\b(city|town|roleplay|rp)\b/i, terms: ["city kit", "city building", "road", "street light", "sidewalk"] },
-  { test: /\b(forest|woods|jungle)\b/i, terms: ["tree", "pine tree", "forest", "rock", "bush"] },
-  { test: /\b(car|cars|vehicle|vehicles|racing|race)\b/i, terms: ["car", "vehicle", "race car", "sports car", "road"] },
+  { test: /\b(tycoon)\b/i, terms: ["tycoon kit", "tycoon building", "conveyor", "dropper", "cash collector"] },
+  { test: /\b(city|town|roleplay|rp)\b/i, terms: ["city kit", "city building", "road", "street light", "sidewalk", "storefront", "traffic light"] },
+  { test: /\b(forest|woods|jungle)\b/i, terms: ["tree", "pine tree", "forest", "rock", "bush", "log cabin", "campfire"] },
+  { test: /\b(car|cars|vehicle|vehicles|racing|race)\b/i, terms: ["car", "vehicle", "race car", "sports car", "kart", "road"] },
   { test: /\b(road|street|highway)\b/i, terms: ["road", "street", "city road", "asphalt road"] },
-  { test: /\b(house|building|shop|store|mall|lobby)\b/i, terms: ["building", "house", "shop", "storefront", "lobby"] },
-  { test: /\b(pet|pets|egg|eggs)\b/i, terms: ["pet", "pet simulator", "egg", "dog", "cat"] },
-  { test: /\b(zombie|enemy|monster|npc|vendor|quest giver)\b/i, terms: ["npc", "zombie", "monster", "dummy", "vendor"] },
-  { test: /\b(sword|weapon|gun|blaster|bow|staff)\b/i, terms: ["weapon", "sword", "gun", "blaster", "bow"] },
+  { test: /\b(house|building|shop|store|mall|lobby)\b/i, terms: ["building", "house", "shop", "storefront", "lobby", "low poly building"] },
+  { test: /\b(pet|pets|egg|eggs)\b/i, terms: ["pet", "pet simulator", "egg", "dog", "cat", "pet egg"] },
+  { test: /\b(zombie|enemy|monster|npc|vendor|quest giver)\b/i, terms: ["npc", "zombie", "monster", "dummy", "vendor", "quest npc"] },
+  { test: /\b(sword|weapon|gun|blaster|bow|staff)\b/i, terms: ["weapon", "sword", "gun", "blaster", "bow", "classic weapon"] },
   { test: /\b(lobby|spawn|hub)\b/i, terms: ["lobby", "spawn", "hub", "welcome center"] },
   { test: /\b(horror|escape|haunted)\b/i, terms: ["horror house", "haunted house", "dark corridor", "flashlight"] },
-  { test: /\b(rpg|dungeon|quest|fantasy)\b/i, terms: ["dungeon", "fantasy house", "rpg npc", "treasure chest"] },
-  { test: /\b(tower defense|td)\b/i, terms: ["tower defense", "enemy npc", "path", "turret"] },
+  { test: /\b(rpg|dungeon|quest|fantasy)\b/i, terms: ["dungeon", "fantasy house", "rpg npc", "treasure chest", "medieval props"] },
+  { test: /\b(tower defense|td)\b/i, terms: ["tower defense", "enemy npc", "path", "turret", "tower"] },
   { test: /\b(cafe|restaurant|cooking|kitchen)\b/i, terms: ["cafe", "restaurant", "kitchen", "food"] },
   { test: /\b(beach|island|survival)\b/i, terms: ["island", "beach", "palm tree", "campfire"] },
+  { test: /\b(furniture|chair|table|bed|sofa|couch)\b/i, terms: ["furniture pack", "chair", "table", "sofa", "bed"] },
+  { test: /\b(sci[-\s]?fi|space|alien|laser)\b/i, terms: ["sci fi kit", "space station", "laser gun", "alien"] },
+  { test: /\b(castle|medieval|village)\b/i, terms: ["castle", "medieval village", "medieval house", "stone wall"] },
+  { test: /\b(school|classroom)\b/i, terms: ["school", "classroom", "desk", "locker"] },
+  { test: /\b(police|jail|prison)\b/i, terms: ["police car", "police station", "jail", "prison"] },
 ];
+
+const STOP_WORDS = new Set([
+  "a", "an", "and", "asset", "assets", "for", "free", "game", "kit", "make", "model", "models",
+  "of", "pack", "roblox", "safe", "the", "to", "with",
+]);
 
 function buildSearchTerms(keyword: string): string[] {
   const base = keyword.trim().replace(/\s+/g, " ");
   const terms = new Set<string>();
   if (base) terms.add(base);
   const tokens = base.split(/\s+/).filter((t) => t.length > 2);
-  for (const token of tokens.slice(0, 4)) terms.add(token);
+  for (const token of tokens.filter((t) => !STOP_WORDS.has(t.toLowerCase())).slice(0, 5)) terms.add(token);
   if (base && !/\broblox\b/i.test(base)) terms.add(`${base} roblox`);
   if (base && !/\bkit\b/i.test(base)) terms.add(`${base} kit`);
   if (base && !/\bmodel\b/i.test(base)) terms.add(`${base} model`);
@@ -201,6 +216,8 @@ const JUNK_PATTERNS = [
   /\bloader\b/i,
   /\bobfusc/i,
   /\bscript\s*hub\b/i,
+  /\breupload\b/i,
+  /\bleaked\b/i,
   /[💰🤑💎]/u,
   /\bclick\s*here\b/i,
   /\bgive\s*?away\b/i,
@@ -221,6 +238,7 @@ function rejectionReason(r: ToolboxResult): string | null {
   if (!isAllowedCreator(r.creatorName)) return "untrusted_creator";
   if ((r.relevance ?? 0) < 0.18) return "low_relevance";
   if ((r.safety ?? 0) < 0.62) return "low_safety";
+  if (r.hasScripts && r.creatorName.trim().toLowerCase() !== "roblox" && (r.scriptCount ?? 1) > 3) return "script_heavy";
   return null;
 }
 
@@ -230,10 +248,11 @@ function relevanceScore(query: string, name: string): number {
   if (!q || !n) return 0;
   if (n === q) return 1;
   if (n.includes(q)) return 0.85;
-  const tokens = q.split(/\s+/).filter(Boolean);
+  const tokens = q.split(/\s+/).filter((t) => t.length > 1 && !STOP_WORDS.has(t));
   if (tokens.length === 0) return 0;
   const hits = tokens.filter((t) => n.includes(t)).length;
-  return Math.min(1, hits / tokens.length);
+  const orderedBonus = tokens.length > 1 && n.includes(tokens.join(" ")) ? 0.15 : 0;
+  return Math.min(1, hits / tokens.length + orderedBonus);
 }
 
 function safetyScore(creatorName: string, name: string, meta?: ToolboxResult): number {
@@ -244,13 +263,31 @@ function safetyScore(creatorName: string, name: string, meta?: ToolboxResult): n
   if (meta?.verifiedCreator) s += 0.12;
   if (meta?.endorsed) s += 0.12;
   if (looksLikeJunk(name)) s -= 0.4;
-  if (meta?.hasScripts && c !== "roblox") s -= 0.12;
+  if (meta?.hasScripts && c !== "roblox") s -= meta.scriptCount && meta.scriptCount > 3 ? 0.22 : 0.12;
   if (typeof meta?.upVotePercent === "number") {
     if (meta.upVotePercent >= 85) s += 0.08;
     else if (meta.upVotePercent < 60) s -= 0.12;
   }
   if (/\b(pack|kit|low poly|cartoon|classic|mesh|model)\b/i.test(name)) s += 0.08;
   return Math.max(0, Math.min(1, s));
+}
+
+function qualitySignals(r: ToolboxResult): string[] {
+  const signals: string[] = [];
+  if (r.creatorName.trim().toLowerCase() === "roblox") signals.push("Roblox creator");
+  if (r.verifiedCreator) signals.push("verified creator");
+  if (r.endorsed) signals.push("endorsed");
+  if (r.free !== false) signals.push("free/public");
+  if (!r.hasScripts) signals.push("no scripts reported");
+  else if ((r.scriptCount ?? 0) <= 3) signals.push("low script count");
+  if ((r.relevance ?? 0) >= 0.7) signals.push("strong name match");
+  return signals.slice(0, 5);
+}
+
+function qualityTier(score: number): "excellent" | "good" | "usable" {
+  if (score >= 0.86) return "excellent";
+  if (score >= 0.72) return "good";
+  return "usable";
 }
 
 function isAllowedCreator(creatorName: string): boolean {
@@ -283,24 +320,40 @@ export async function searchRobloxToolbox(
   const perPage = Math.max(Math.min(safeLimit * 8, 80), 40);
   const maxPagesPerTerm = safeLimit > 12 ? 3 : 2;
 
-  const enrich = (r: ToolboxResult): ToolboxResult => ({
-    ...r,
-    thumbnail: r.thumbnail ?? thumbnailFor(r.id),
-    relevance: Math.max(relevanceScore(keyword, r.name), relevanceScore(r.sourceQuery ?? keyword, r.name)),
-    safety: safetyScore(r.creatorName, r.name, r),
-    free: r.free ?? true,
-  });
+  const enrich = (r: ToolboxResult): ToolboxResult => {
+    const relevance = Math.max(relevanceScore(keyword, r.name), relevanceScore(r.sourceQuery ?? keyword, r.name));
+    const safety = safetyScore(r.creatorName, r.name, { ...r, relevance });
+    const trustedBoost = r.creatorName.trim().toLowerCase() === "roblox" ? 0.08 : 0;
+    const score = Math.max(0, Math.min(1, relevance * 0.56 + safety * 0.44 + trustedBoost));
+    const row = {
+      ...r,
+      thumbnail: r.thumbnail ?? thumbnailFor(r.id),
+      relevance,
+      safety,
+      score,
+      qualityTier: qualityTier(score),
+      free: r.free ?? true,
+    };
+    return { ...row, signals: qualitySignals(row) };
+  };
 
   const rank = (rows: ToolboxResult[]) =>
     rows
       .map(enrich)
       .filter((r) => rejectionReason(r) === null)
-      .sort((a, b) => {
-        const aTrusted = a.creatorName.trim().toLowerCase() === "roblox" ? 0.12 : 0;
-        const bTrusted = b.creatorName.trim().toLowerCase() === "roblox" ? 0.12 : 0;
-        return (b.relevance! * 0.58 + b.safety! * 0.42 + bTrusted) - (a.relevance! * 0.58 + a.safety! * 0.42 + aTrusted);
-      })
-      .slice(0, safeLimit);
+      .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+      .slice(0, safeLimit)
+      .map((row, _, ranked) => {
+        const fallbackIds = ranked
+          .filter((candidate) => candidate.id !== row.id && candidate.assetType === row.assetType)
+          .slice(0, 3)
+          .map((candidate) => candidate.id);
+        return {
+          ...row,
+          fallbackIds,
+          insertPayload: fallbackIds.length ? { asset_id: row.id, fallback_ids: fallbackIds } : { asset_id: row.id },
+        };
+      });
 
   // 1. toolbox-service marketplace endpoint used by Creator Store/Toolbox.
   const liveRows = new Map<number, ToolboxResult>();
@@ -350,8 +403,10 @@ export async function searchRobloxToolbox(
     }
   }
 
-  for (const detail of await fetchToolboxDetails(idsNeedingDetails.slice(0, 240), category, sourceQueryById)) {
-    if (!liveRows.has(detail.id)) liveRows.set(detail.id, detail);
+  const detailIds = Array.from(new Set([...Array.from(liveRows.keys()), ...idsNeedingDetails])).slice(0, 240);
+  for (const detail of await fetchToolboxDetails(detailIds, category, sourceQueryById)) {
+    const existing = liveRows.get(detail.id);
+    liveRows.set(detail.id, { ...existing, ...detail, sourceQuery: existing?.sourceQuery ?? detail.sourceQuery });
   }
 
   // 2. legacy public catalog endpoint as a wider backup. Roblox can change this

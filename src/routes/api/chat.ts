@@ -318,7 +318,7 @@ export const Route = createFileRoute("/api/chat")({
 
           const toolboxTool = tool({
             description:
-              "Search the full public Roblox Toolbox/Creator Store for FREE public assets matching a keyword. Use this whenever the user asks for trees, buildings, cars, vehicles, roads, furniture, weapons, NPCs, pets, props, environment kits, sounds, or anything that should be a real Roblox model instead of generated primitives. The backend does a wide multi-query, multi-page free model search, filters unsafe/junk/broken-looking results, and returns ranked { id, name, creatorName, thumbnail, relevance, safety, sourceQuery } rows you can pass to insert_asset actions. Call once per distinct asset type you need.",
+              "Search the full public Roblox Toolbox/Creator Store for FREE public assets matching a keyword. Use this whenever the user asks for trees, buildings, cars, vehicles, roads, furniture, weapons, NPCs, pets, props, environment kits, sounds, or anything that should be a real Roblox model instead of generated primitives. The backend does a wide multi-query, multi-page free model search, enriches details, filters unsafe/junk/broken/script-heavy rows, and returns ranked rows with insertPayload { asset_id, fallback_ids }. Call once per distinct asset type you need.",
             inputSchema: z.object({
               keyword: z.string().describe("What to search for, e.g. 'oak tree', 'sports car', 'medieval house', 'zombie npc'."),
               category: z.enum(["Model", "Audio", "Decal", "Mesh"]).optional().describe("Asset category, defaults to Model."),
@@ -336,11 +336,13 @@ export const Route = createFileRoute("/api/chat")({
                 scanned: out.scanned,
                 searchedTerms: out.searchedTerms,
                 results: final,
+                insertionRule:
+                  "For each chosen row, emit insert_asset with payload.asset_id from row.id and payload.fallback_ids from row.fallbackIds. Use position/rotation/scale/folder_name/tags yourself. Prefer qualityTier 'excellent', then 'good'. Do not invent IDs.",
                 note: out.source === "fallback"
                   ? "Live search unavailable; these are curated verified-free Roblox-owned assets."
                   : out.source === "none"
                   ? "No safe free assets matched. Tell the user no Toolbox match was found and ASK before falling back to generated geometry."
-                  : "Live results from Roblox public Toolbox/Creator Store. Use only safe, free, relevant rows, prefer higher safety/relevance, and list inserted asset names, creators, and ids for the user.",
+                  : "Live results from Roblox public Toolbox/Creator Store. Use only safe, free, relevant rows, prefer higher score/safety/relevance, include fallback_ids, and list inserted asset names, creators, and ids for the user.",
               };
             },
           });
