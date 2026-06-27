@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getProject, listProjects } from "@/lib/projects.functions";
-import { listMessages, listProjectActions, getPluginSession, clearMessages, clearActionQueue, undoLastBuild, queuePluginCommand, queueTestInsert } from "@/lib/chat.functions";
+import { listMessages, listProjectActions, getPluginSession, clearMessages, clearActionQueue, undoLastBuild, queuePluginCommand, queueTestInsert, queuePreparedStudioActions } from "@/lib/chat.functions";
 import { getMyProfile } from "@/lib/profile.functions";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
@@ -532,6 +532,7 @@ function ProjectPage() {
                         key={m.id}
                         text={text}
                         imageUrl={imageUrl}
+                        projectId={projectId}
                         pluginOnline={pluginOnline}
                         actionRows={actionRows}
                         latestActionRows={latestActionRows}
@@ -944,6 +945,7 @@ function UserBubble({ text, imageUrl, profile }: { text: string; imageUrl?: stri
 function AssistantCard({
   text,
   imageUrl,
+  projectId,
   pluginOnline,
   actionRows = [],
   latestActionRows = [],
@@ -951,29 +953,37 @@ function AssistantCard({
 }: {
   text: string;
   imageUrl?: string | null;
+  projectId: string;
   pluginOnline?: boolean;
   actionRows?: any[];
   latestActionRows?: any[];
   isLatest?: boolean;
 }) {
+  const qc = useQueryClient();
+  const queuePreparedFn = useServerFn(queuePreparedStudioActions);
   // Strip the trailing bloxsmith-actions JSON block — it's executed by the
   // plugin, not meant for the user to read. Surface a friendly build banner instead.
   const actionsMatch = text.match(/```bloxsmith-actions\s*\n?([\s\S]*?)```/i);
   let displayText = text;
   let actionCount = 0;
   let rawActions = "";
+  let parsedActions: any[] = [];
   if (actionsMatch) {
     rawActions = actionsMatch[1].trim();
     displayText = text.replace(actionsMatch[0], "").trimEnd();
     try {
       const parsed = JSON.parse(rawActions);
-      if (Array.isArray(parsed)) actionCount = parsed.length;
-      else if (Array.isArray(parsed?.actions)) actionCount = parsed.actions.length;
+      if (Array.isArray(parsed)) parsedActions = parsed;
+      else if (Array.isArray(parsed?.actions)) parsedActions = parsed.actions;
+      actionCount = parsedActions.length;
     } catch {
       actionCount = 0;
     }
   }
   const [showRaw, setShowRaw] = useState(false);
+  const [forceBusy, setForceBusy] = useState(false);
+  const [forceErr, setForceErr] = useState<string | null>(null);
+  const autoQueueKeyRef = useRef<string | null>(null);
   const visibleActionRows = useMemo(() => {
     if (actionRows.length > 0 || !isLatest || actionCount <= 0) return actionRows;
     const recentCutoff = Date.now() - 2 * 60_000;
@@ -990,6 +1000,47 @@ function AssistantCard({
   const firstError = visibleActionRows.find((a) => a.status === "failed" && a.error)?.error;
   const confirmed = visibleActionRows.length > 0 && failed === 0 && queued === 0 && executing === 0 && done === visibleActionRows.length;
   const waitingForRows = actionCount > 0 && visibleActionRows.length === 0 && isLatest;
+  const hasDangerousAction = parsedActions.some((a) => {
+    const kind = String(a?.kind || "").toLowerCase();
+    const source = JSON.stringify(a?.payload || {}).toLowerCase();
+    return kind === "delete" || (kind === "run_lua" && /\b(destroy|clearallchildren|remove)\b/.test(source));
+  });
+
+  async function forceExecuteNow(auto = false) {
+    if (forceBusy || parsedActions.length === 0) return;
+    if (!auto && hasDangerousAction && !confirm("This build includes delete or destructive Lua actions. Execute it in Roblox Studio now?")) return;
+    setForceBusy(true);
+    setForceErr(null);
+    try {
+      const res: any = await queuePreparedFn({
+        data: {
+          projectId,
+          actions: parsedActions.map((a) => ({
+            kind: String(a?.kind || "script"),
+            parent_path: String(a?.parent_path || a?.target_path || "Workspace"),
+            name: String(a?.name || a?.target_path || "BloxSmithAction"),
+            payload: a?.payload ?? {},
+          })),
+        },
+      });
+      autoQueueKeyRef.current = rawActions;
+      await qc.invalidateQueries({ queryKey: ["actions", projectId] });
+      if (!res?.ok) setForceErr("Could not queue Studio actions.");
+    } catch (e) {
+      setForceErr(e instanceof Error ? e.message : "Could not queue Studio actions.");
+    } finally {
+      setForceBusy(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!waitingForRows || !pluginOnline || parsedActions.length === 0 || hasDangerousAction) return;
+    if (autoQueueKeyRef.current === rawActions) return;
+    const id = setTimeout(() => {
+      if (autoQueueKeyRef.current !== rawActions) void forceExecuteNow(true);
+    }, 1200);
+    return () => clearTimeout(id);
+  }, [waitingForRows, pluginOnline, rawActions, hasDangerousAction]);
   return (
     <div className="bs-msg-in flex gap-2.5">
       <div className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-xl ring-1 ring-[var(--bs-border)]" style={{ background: "var(--bs-card-2)" }}>
@@ -1031,7 +1082,7 @@ function AssistantCard({
               {!pluginOnline ? (
                 <>
                   <AlertCircle className="h-3.5 w-3.5" />
-                  Roblox Studio plugin is not connected. Open Studio and reconnect — {actionCount} {actionCount === 1 ? "action is" : "actions are"} queued and will run on connect.
+                  Roblox Studio plugin is not connected. Open Studio and reconnect, then press Force Execute Now if these actions are not already queued.
                 </>
               ) : failed > 0 ? (
                 <>
@@ -1051,7 +1102,7 @@ function AssistantCard({
               ) : waitingForRows ? (
                 <>
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Prepared {actionCount} Studio {actionCount === 1 ? "action" : "actions"}. Waiting for queue confirmation.
+                  Prepared {actionCount} Studio {actionCount === 1 ? "action" : "actions"}. Auto Execute is sending them to the Roblox plugin now.
                 </>
               ) : confirmed ? (
                 <>
@@ -1065,6 +1116,35 @@ function AssistantCard({
                 </>
               )}
             </div>
+            {(waitingForRows || failed > 0) && (
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => forceExecuteNow(false)}
+                  disabled={forceBusy || parsedActions.length === 0}
+                  className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-bold disabled:opacity-50"
+                  style={{
+                    borderColor: "color-mix(in oklab, var(--bs-primary) 45%, transparent)",
+                    background: "color-mix(in oklab, var(--bs-primary) 14%, transparent)",
+                    color: "var(--bs-primary)",
+                  }}
+                  title="Queue these prepared Studio actions directly for the Roblox plugin."
+                >
+                  {forceBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
+                  Force Execute Now
+                </button>
+                {hasDangerousAction && (
+                  <span className="text-[11px]" style={{ color: "var(--bs-muted-fg)" }}>
+                    Confirmation required because this build includes delete or destructive Lua actions.
+                  </span>
+                )}
+              </div>
+            )}
+            {forceErr && (
+              <div className="rounded-lg border px-3 py-2 text-xs" style={{ borderColor: "color-mix(in oklab, var(--bs-danger) 35%, transparent)", background: "color-mix(in oklab, var(--bs-danger) 10%, transparent)", color: "var(--bs-danger)" }}>
+                {forceErr}
+              </div>
+            )}
             <button
               type="button"
               onClick={() => setShowRaw((v) => !v)}
