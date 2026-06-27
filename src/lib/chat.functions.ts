@@ -21,7 +21,7 @@ export const listProjectActions = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     const { data: rows, error } = await context.supabase
       .from("plugin_actions")
-      .select("id, kind, name, parent_path, status, error, created_at, completed_at")
+      .select("id, message_id, kind, name, parent_path, status, error, result, created_at, sent_at, completed_at")
       .eq("project_id", data.projectId)
       .order("created_at", { ascending: false })
       .limit(50);
@@ -59,6 +59,63 @@ export const queuePluginCommand = createServerFn({ method: "POST" })
     });
     if (error) throw new Error(error.message);
     return { ok: true };
+  });
+
+export const queueTestInsert = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ projectId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const actions = [
+      {
+        kind: "folder",
+        parent_path: "Workspace",
+        name: "BloxSmith_Test",
+        payload: {},
+        position: 0,
+      },
+      {
+        kind: "part",
+        parent_path: "Workspace.BloxSmith_Test",
+        name: "TestPart",
+        payload: {
+          size: [4, 1, 4],
+          position: [0, 6, 0],
+          color: [0.1, 0.65, 1],
+          anchored: true,
+          material: "Neon",
+        },
+        position: 1,
+      },
+      {
+        kind: "screengui",
+        parent_path: "StarterGui",
+        name: "BloxSmith_TestGui",
+        payload: { reset_on_spawn: true },
+        position: 2,
+      },
+      {
+        kind: "script",
+        parent_path: "ServerScriptService",
+        name: "BloxSmith_TestScript",
+        payload: {
+          source: [
+            "local RunService = game:GetService(\"RunService\")",
+            "print(\"BloxSmith test insert executed\", RunService:IsStudio())",
+          ].join("\n"),
+        },
+        position: 3,
+      },
+    ];
+
+    const { error } = await context.supabase.from("plugin_actions").insert(
+      actions.map((action) => ({
+        project_id: data.projectId,
+        user_id: context.userId,
+        ...action,
+      })),
+    );
+    if (error) throw new Error(error.message);
+    return { ok: true, count: actions.length };
   });
 
 export const clearMessages = createServerFn({ method: "POST" })

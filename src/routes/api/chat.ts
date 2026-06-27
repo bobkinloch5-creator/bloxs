@@ -346,11 +346,15 @@ export const Route = createFileRoute("/api/chat")({
             usedModelId: string,
             notice: string | null,
             extraBody?: Record<string, unknown>,
+            modelSettings?: { temperature?: number; topP?: number; maxOutputTokens?: number },
           ) => streamText({
             model,
             system: BLOXSMITH_SYSTEM_PROMPT + modeHeader + languageHeader + assetModeRule + contextBlock,
             messages: convertedMessages,
             ...(extraBody ? { providerOptions: { nvidia: extraBody } } : {}),
+            ...(modelSettings?.temperature !== undefined ? { temperature: modelSettings.temperature } : {}),
+            ...(modelSettings?.topP !== undefined ? { topP: modelSettings.topP } : {}),
+            ...(modelSettings?.maxOutputTokens !== undefined ? { maxOutputTokens: modelSettings.maxOutputTokens } : {}),
             // In chat mode, do NOT expose the toolbox tool — the model can't build, so it doesn't need it.
             tools: mode === "chat" ? {} : { search_toolbox: toolboxTool },
             stopWhen: stepCountIs(50),
@@ -362,7 +366,7 @@ export const Route = createFileRoute("/api/chat")({
 
           let result = tryStream(modelChoice.model, modelChoice.meta.id, modelChoice.usedFallback
             ? `_Switched to ${modelChoice.meta.label} because the selected model isn't available._`
-            : null, modelChoice.extraBody);
+            : null, modelChoice.extraBody, modelChoice.modelSettings);
 
           // Wrap in fallback: if the stream errors before any tokens, retry with fallback.
           try {
@@ -385,6 +389,7 @@ export const Route = createFileRoute("/api/chat")({
               fb.meta.id,
               `_The selected model failed, so BloxSmith switched to ${fb.meta.label} (fallback)._`,
               fb.extraBody,
+              fb.modelSettings,
             );
             return result.toUIMessageStreamResponse();
           }

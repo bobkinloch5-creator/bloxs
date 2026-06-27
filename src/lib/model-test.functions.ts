@@ -123,12 +123,15 @@ export const testModel = createServerFn({ method: "POST" })
 
     const started = Date.now();
     try {
-      const { model, extraBody } = getProviderModel(data.modelId);
+      const { model, extraBody, modelSettings } = getProviderModel(data.modelId);
       const result = await generateText({
         model,
         system: ROBLOX_MODEL_TEST_SYSTEM,
         prompt: ROBLOX_MODEL_TEST_PROMPT,
         ...(extraBody ? { providerOptions: { nvidia: extraBody } } : {}),
+        ...(modelSettings?.temperature !== undefined ? { temperature: modelSettings.temperature } : {}),
+        ...(modelSettings?.topP !== undefined ? { topP: modelSettings.topP } : {}),
+        ...(modelSettings?.maxOutputTokens !== undefined ? { maxOutputTokens: modelSettings.maxOutputTokens } : {}),
       });
       const durationMs = Date.now() - started;
       const text = (result.text ?? "").trim();

@@ -103,6 +103,9 @@ Primitives:
 - "autofix_project"  payload: {} — runs organize_project plus safe obvious fixes: quarantines suspicious scripts and anchors loose root parts
 - "scan_project"     payload: {} — asks the Studio plugin to upload the latest workspace scan/health report for the next AI turn
 
+CONFIRMATION RULE:
+- Do not claim "complete", "inserted", "built in Studio", or "finished" in prose just because you emitted actions. Say what you prepared and what should happen. The app/plugin status UI is the source of truth and only confirms completion after Roblox Studio reports each action as done.
+
 ESCAPE HATCH FOR COMPLEX BUILDS — USE LIBERALLY:
 - "run_lua"         payload: { "source": "<Luau builder body>" }
   Runs INSIDE the Studio plugin context with full access to Instance.new, all services, InsertService, ChangeHistoryService, workspace.Terrain, etc. FOUR locals in scope:

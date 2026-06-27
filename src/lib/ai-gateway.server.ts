@@ -48,6 +48,7 @@ export function getProviderModel(modelId: string): {
   meta: ModelOption;
   usedFallback: boolean;
   extraBody?: Record<string, unknown>;
+  modelSettings?: ModelOption["modelSettings"];
 } {
   const requested = findModel(modelId);
   const safe = isSelectable(requested) ? requested : findModel(DEFAULT_MODEL_ID);
@@ -56,6 +57,7 @@ export function getProviderModel(modelId: string): {
     meta: safe,
     usedFallback: safe.id !== modelId,
     extraBody: safe.extraBody,
+    modelSettings: safe.modelSettings,
   };
 }
 
@@ -63,7 +65,8 @@ export function getFallbackModel(): {
   model: LanguageModel;
   meta: ModelOption;
   extraBody?: Record<string, unknown>;
+  modelSettings?: ModelOption["modelSettings"];
 } {
   const meta = findModel(FALLBACK_MODEL_ID);
-  return { model: buildModelFor(meta), meta, extraBody: meta.extraBody };
+  return { model: buildModelFor(meta), meta, extraBody: meta.extraBody, modelSettings: meta.modelSettings };
 }

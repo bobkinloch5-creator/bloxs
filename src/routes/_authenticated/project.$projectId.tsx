@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getProject, listProjects } from "@/lib/projects.functions";
-import { listMessages, listProjectActions, getPluginSession, clearMessages, clearActionQueue, undoLastBuild, queuePluginCommand } from "@/lib/chat.functions";
+import { listMessages, listProjectActions, getPluginSession, clearMessages, clearActionQueue, undoLastBuild, queuePluginCommand, queueTestInsert } from "@/lib/chat.functions";
 import { getMyProfile } from "@/lib/profile.functions";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
@@ -55,6 +55,7 @@ const COMPOSER_ACTIONS = [
   { label: "Playtest", icon: PlayCircle, mode: "build" as const, prompt: "Run a playtest-style audit using the latest scan/errors. Add scan_project, report problems found, and fix obvious breakages with safe actions." },
   { label: "Improve Map", icon: Hammer, mode: "build" as const, prompt: "Improve the existing map using safe free Toolbox assets only: better placement, lighting, spawn flow, signs, props, organization, and scan_project. Avoid procedural placeholder maps." },
   { label: "Make Premium", icon: Crown, mode: "build" as const, prompt: "Make this game feel premium and ready for release: professional loading screen, main menu, animated Play button, polished settings/shop/inventory/HUD/tutorial UI, mobile-safe layout, notification popups, smooth transitions, lighting, sky/atmosphere, camera effects, sounds, particles, cleanup, organize_project, and scan_project. No ugly default UI or unfinished screens." },
+  { label: "Test Insert", icon: Plug, command: "test_insert" as const },
   { label: "Explain", icon: HelpCircle, mode: "chat" as const, prompt: "Explain what was just built and how the scripts, remotes, UI, assets, and DataStores work, step by step." },
 ];
 
@@ -142,6 +143,7 @@ function ProjectPage() {
   const profileFn  = useServerFn(getMyProfile);
   const clearMessagesFn = useServerFn(clearMessages);
   const queueCommandFn = useServerFn(queuePluginCommand);
+  const queueTestInsertFn = useServerFn(queueTestInsert);
 
   const { data: project } = useQuery({ queryKey: ["project", projectId], queryFn: () => projectFn({ data: { id: projectId } }) });
   const { data: projects = [] } = useQuery({ queryKey: ["projects"], queryFn: () => projectsFn() });
@@ -320,6 +322,16 @@ function ProjectPage() {
 
   async function runComposerAction(action: any) {
     if (!action) return;
+    if (action.command === "test_insert") {
+      try {
+        const res: any = await queueTestInsertFn({ data: { projectId } });
+        setQueueNotice(res?.ok ? `Test Insert queued ${res.count ?? 4} actions for Roblox Studio.` : "Could not queue Test Insert.");
+        await qc.invalidateQueries({ queryKey: ["actions", projectId] });
+      } catch (e: any) {
+        setQueueNotice(`Could not queue Test Insert: ${e?.message ?? "unknown error"}`);
+      }
+      return;
+    }
     if (action.command) {
       try {
         const res: any = await queueCommandFn({
@@ -343,6 +355,16 @@ function ProjectPage() {
 
   const pluginOnline = !!(pluginSession?.online && pluginSession?.last_seen &&
     (Date.now() - new Date(pluginSession.last_seen).getTime() < 30_000));
+  const actionsByMessage = useMemo(() => {
+    const map = new Map<string, any[]>();
+    for (const action of actions ?? []) {
+      if (!action.message_id) continue;
+      const rows = map.get(action.message_id) ?? [];
+      rows.push(action);
+      map.set(action.message_id, rows);
+    }
+    return map;
+  }, [actions]);
 
   const isAdmin = !!profile?.is_admin;
   const credits = profile?.credits ?? 0;
@@ -491,20 +513,20 @@ function ProjectPage() {
 
                 {(() => {
                   const lastAssistantId = [...messages].reverse().find((m) => m.role === "assistant")?.id;
-                  const pendingCount = (actions ?? []).filter((a: any) => a.status === "pending").length;
                   return messages.map((m) => {
                     const text = m.parts.map((p) => (p.type === "text" ? p.text : "")).join("");
                     const imageUrl = historyImages.get(m.id) ?? null;
                     const isUser = m.role === "user";
                     if (isUser) return <UserBubble key={m.id} text={text} imageUrl={imageUrl} profile={profile} />;
                     const isLatest = m.id === lastAssistantId;
+                    const actionRows = actionsByMessage.get(m.id) ?? [];
                     return (
                       <AssistantCard
                         key={m.id}
                         text={text}
                         imageUrl={imageUrl}
                         pluginOnline={pluginOnline}
-                        pendingCount={isLatest ? pendingCount : 0}
+                        actionRows={actionRows}
                         isLatest={isLatest}
                       />
                     );
@@ -733,6 +755,38 @@ function LeftSidebar({
   );
 }
 
+function CreditUsageCard({ credits, maxCredits, resetLabel, resetAtIso }: { credits: number; maxCredits: number; resetLabel?: string; resetAtIso?: string | null }) {
+  const remainingPct = maxCredits > 0 ? Math.max(0, Math.min(100, Math.round((credits / maxCredits) * 100))) : 0;
+  const resetTime = resetAtIso
+    ? new Date(resetAtIso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
+    : "soon";
+  return (
+    <div className="hidden min-w-[260px] rounded-2xl border px-4 py-3 shadow-xl xl:block" style={{ borderColor: "var(--bs-border)", background: "var(--bs-card)" }}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-sm font-bold">{remainingPct}% usage remaining</div>
+          <div className="mt-0.5 text-xs leading-snug" style={{ color: "var(--bs-muted-fg)" }}>
+            Resets every 24 hours · Next reset is at {resetTime}
+            {resetLabel ? ` · ${resetLabel} left` : ""}
+          </div>
+        </div>
+        <Zap className="h-4 w-4 shrink-0" style={{ color: "var(--bs-primary)" }} />
+      </div>
+      <div className="mt-3 h-2 overflow-hidden rounded-full" style={{ background: "var(--bs-card-2)" }}>
+        <div className="h-full rounded-full transition-all" style={{ width: `${remainingPct}%`, background: "var(--bs-fg)" }} />
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <Link to="/donate" className="rounded-xl border px-3 py-2 text-center text-xs font-semibold" style={{ borderColor: "var(--bs-border)" }}>
+          Add credits
+        </Link>
+        <Link to="/settings" className="rounded-xl px-3 py-2 text-center text-xs font-semibold" style={{ background: "var(--bs-fg)", color: "var(--bs-bg)" }}>
+          Upgrade
+        </Link>
+      </div>
+    </div>
+  );
+}
+
 /* ────────────────── TOP BAR ────────────────── */
 function TopBar({
   project, projects, modelId, setModelId, credits, maxCredits, isAdmin, resetLabel, profile, onTour,
@@ -777,14 +831,7 @@ function TopBar({
           <span className="text-sm font-bold" style={{ color: "var(--bs-primary)" }}>Unlimited</span>
         </div>
       ) : (
-        <div className="bs-soft hidden items-center gap-1.5 px-2.5 py-1.5 sm:flex">
-          <Zap className="h-3.5 w-3.5" style={{ color: "var(--bs-primary)" }} />
-          <span className="text-sm font-bold">{credits}</span>
-          <span className="text-xs" style={{ color: "var(--bs-muted-fg)" }}>/ {maxCredits}</span>
-          <button className="ml-1 grid h-5 w-5 place-items-center rounded-md hover:bg-[var(--bs-card-2)]" title="Buy more">
-            <Plus className="h-3 w-3" />
-          </button>
-        </div>
+        <CreditUsageCard credits={credits} maxCredits={maxCredits} resetLabel={resetLabel} resetAtIso={profile?.credits_reset_at} />
       )}
 
       {/* Reset timer */}
@@ -890,13 +937,13 @@ function AssistantCard({
   text,
   imageUrl,
   pluginOnline,
-  pendingCount = 0,
+  actionRows = [],
   isLatest = false,
 }: {
   text: string;
   imageUrl?: string | null;
   pluginOnline?: boolean;
-  pendingCount?: number;
+  actionRows?: any[];
   isLatest?: boolean;
 }) {
   // Strip the trailing bloxsmith-actions JSON block — it's executed by the
@@ -911,13 +958,19 @@ function AssistantCard({
     try {
       const parsed = JSON.parse(rawActions);
       if (Array.isArray(parsed)) actionCount = parsed.length;
+      else if (Array.isArray(parsed?.actions)) actionCount = parsed.actions.length;
     } catch {
       actionCount = 0;
     }
   }
   const [showRaw, setShowRaw] = useState(false);
-  // Older messages: assume already built. Latest message: rely on live pending count.
-  const stillBuilding = isLatest && pendingCount > 0;
+  const queued = actionRows.filter((a) => a.status === "pending").length;
+  const executing = actionRows.filter((a) => a.status === "sent").length;
+  const done = actionRows.filter((a) => a.status === "done").length;
+  const failed = actionRows.filter((a) => a.status === "failed").length;
+  const firstError = actionRows.find((a) => a.status === "failed" && a.error)?.error;
+  const confirmed = actionRows.length > 0 && failed === 0 && queued === 0 && executing === 0 && done === actionRows.length;
+  const waitingForRows = actionCount > 0 && actionRows.length === 0 && isLatest;
   return (
     <div className="bs-msg-in flex gap-2.5">
       <div className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-xl ring-1 ring-[var(--bs-border)]" style={{ background: "var(--bs-card-2)" }}>
@@ -935,17 +988,23 @@ function AssistantCard({
               style={{
                 borderColor: !pluginOnline
                   ? "color-mix(in oklab, var(--bs-danger) 40%, transparent)"
-                  : stillBuilding
+                  : failed > 0
+                  ? "color-mix(in oklab, var(--bs-danger) 40%, transparent)"
+                  : queued > 0 || executing > 0 || waitingForRows
                   ? "color-mix(in oklab, var(--bs-primary) 40%, transparent)"
                   : "color-mix(in oklab, var(--bs-success) 40%, transparent)",
                 background: !pluginOnline
                   ? "color-mix(in oklab, var(--bs-danger) 10%, transparent)"
-                  : stillBuilding
+                  : failed > 0
+                  ? "color-mix(in oklab, var(--bs-danger) 10%, transparent)"
+                  : queued > 0 || executing > 0 || waitingForRows
                   ? "color-mix(in oklab, var(--bs-primary) 10%, transparent)"
                   : "color-mix(in oklab, var(--bs-success) 10%, transparent)",
                 color: !pluginOnline
                   ? "var(--bs-danger)"
-                  : stillBuilding
+                  : failed > 0
+                  ? "var(--bs-danger)"
+                  : queued > 0 || executing > 0 || waitingForRows
                   ? "var(--bs-primary)"
                   : "var(--bs-success)",
               }}
@@ -955,15 +1014,35 @@ function AssistantCard({
                   <AlertCircle className="h-3.5 w-3.5" />
                   Roblox Studio plugin is not connected. Open Studio and reconnect — {actionCount} {actionCount === 1 ? "action is" : "actions are"} queued and will run on connect.
                 </>
-              ) : stillBuilding ? (
+              ) : failed > 0 ? (
+                <>
+                  <AlertCircle className="h-3.5 w-3.5" />
+                  Roblox Studio failed {failed} {failed === 1 ? "action" : "actions"}{firstError ? `: ${firstError}` : "."}
+                </>
+              ) : executing > 0 ? (
                 <>
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Building in Roblox Studio — {pendingCount} of {actionCount} {actionCount === 1 ? "action" : "actions"} left…
+                  Plugin received {executing} {executing === 1 ? "action" : "actions"} and is executing them in Studio.
+                </>
+              ) : queued > 0 ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Queued {queued} of {actionRows.length || actionCount} {actionCount === 1 ? "action" : "actions"} for the Roblox plugin.
+                </>
+              ) : waitingForRows ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Prepared {actionCount} Studio {actionCount === 1 ? "action" : "actions"}. Waiting for queue confirmation.
+                </>
+              ) : confirmed ? (
+                <>
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  Plugin confirmed {done} {done === 1 ? "action" : "actions"} completed in Roblox Studio.
                 </>
               ) : (
                 <>
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                  Built {actionCount} {actionCount === 1 ? "action" : "actions"} in Roblox Studio.
+                  <AlertCircle className="h-3.5 w-3.5" />
+                  Studio confirmation is still pending for these actions.
                 </>
               )}
             </div>

@@ -25,6 +25,12 @@ export interface ModelOption {
   description: string;
   /** Extra body fields to send to the provider (e.g. NVIDIA thinking flags). */
   extraBody?: Record<string, unknown>;
+  /** Per-model generation settings required by some OpenAI-compatible routes. */
+  modelSettings?: {
+    temperature?: number;
+    topP?: number;
+    maxOutputTokens?: number;
+  };
 }
 
 // Every id below is routed through Quatarly or NVIDIA, not Lovable AI Gateway.
@@ -302,7 +308,8 @@ export const MODELS: ModelOption[] = [
     credits: "High",
     status: "Working",
     bestFor: "Heavy Luau code with an open-weights OpenAI model.",
-    description: "OpenAI's open-source 120B model via NVIDIA Integrate.",
+    description: "OpenAI's open-source 120B model via NVIDIA Integrate using the recommended GPT-OSS settings.",
+    modelSettings: { temperature: 1, topP: 1, maxOutputTokens: 4096 },
   },
 
 ];
