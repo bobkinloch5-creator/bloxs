@@ -195,6 +195,7 @@ export type Database = {
       model_generations: {
         Row: {
           animation_name: string | null
+          art_style: string | null
           completed_at: string | null
           created_at: string
           error: string | null
@@ -215,6 +216,7 @@ export type Database = {
         }
         Insert: {
           animation_name?: string | null
+          art_style?: string | null
           completed_at?: string | null
           created_at?: string
           error?: string | null
@@ -235,6 +237,7 @@ export type Database = {
         }
         Update: {
           animation_name?: string | null
+          art_style?: string | null
           completed_at?: string | null
           created_at?: string
           error?: string | null

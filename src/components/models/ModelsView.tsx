@@ -13,8 +13,7 @@ import {
   ANIMATION_PRESETS,
 } from "@/lib/models3d.functions";
 import { PageShell } from "@/components/PageShell";
-import bridgeAsset from "@/assets/MeshyRobloxBridge.exe.asset.json";
-import { Box, Loader2, Sparkles, Image as ImageIcon, Type, Timer, Download, ExternalLink, AlertCircle, CheckCircle2, PlayCircle, Palette, Zap } from "lucide-react";
+import { Box, Loader2, Sparkles, Image as ImageIcon, Type, Timer, Download, ExternalLink, AlertCircle, CheckCircle2, PlayCircle, Palette, Maximize2 } from "lucide-react";
 
 function useModelViewerScript() {
   useEffect(() => {
@@ -164,23 +163,6 @@ export function ModelsView({ projectId }: { projectId?: string }) {
         </Link>
       ) : undefined}
     >
-      {/* Roblox Bridge banner */}
-      <section className="rounded-2xl border border-emerald-400/20 bg-gradient-to-br from-emerald-500/10 via-transparent to-cyan-500/10 p-5 backdrop-blur-sm">
-        <div className="flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-3">
-            <div className="grid h-11 w-11 place-items-center rounded-xl bg-emerald-500/15 text-emerald-300">
-              <Zap className="h-5 w-5" />
-            </div>
-            <div>
-              <div className="text-xs font-semibold uppercase tracking-wider text-emerald-300">Auto-import into Roblox Studio</div>
-              <div className="text-sm text-muted-foreground">Run the Roblox Bridge once and finished 3D models auto-insert into your open Studio place.</div>
-            </div>
-          </div>
-          <a href={bridgeAsset.url} download="BloxSmithRobloxBridge.exe" className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/40 px-3 py-2 text-xs font-bold text-emerald-100">
-            <Download className="h-3.5 w-3.5" /> Download Bridge (.exe)
-          </a>
-        </div>
-      </section>
 
       {/* Cooldown banner */}
       <section className="rounded-2xl border border-white/10 bg-gradient-to-br from-violet-500/10 via-transparent to-blue-500/10 p-5 backdrop-blur-sm">
@@ -305,7 +287,13 @@ function ModelCard({ m, projectId, onChange }: { m: any; projectId?: string; onC
   const isTexture = m.mode === "texture";
   const isRefine = m.mode === "refine";
   const urls: Record<string, string> = m.model_urls || {};
+  const viewerRef = useRef<HTMLElement | null>(null);
 
+  async function goFullscreen() {
+    const el = viewerRef.current as (HTMLElement & { requestFullscreen?: () => Promise<void> }) | null;
+    if (!el) return;
+    try { await el.requestFullscreen?.(); } catch { /* ignore */ }
+  }
   async function runAnimate(anim: string) {
     setAnimBusy(true); setActionErr(null);
     try {
@@ -332,7 +320,7 @@ function ModelCard({ m, projectId, onChange }: { m: any; projectId?: string; onC
       <div className="aspect-square bg-black/40 relative">
         {done ? (
           // @ts-expect-error - web component
-          <model-viewer src={m.model_url} camera-controls auto-rotate={!isAnimation} autoplay={isAnimation} ar style={{ width: "100%", height: "100%", background: "transparent" }} />
+          <model-viewer ref={viewerRef} src={m.model_url} camera-controls auto-rotate={!isAnimation} autoplay={isAnimation} ar touch-action="pan-y" interaction-prompt="none" shadow-intensity="1" exposure="1" style={{ width: "100%", height: "100%", background: "transparent" }} />
         ) : m.thumbnail_url ? (
           <img src={m.thumbnail_url} alt="" className="w-full h-full object-cover opacity-70" />
         ) : (
@@ -344,6 +332,11 @@ function ModelCard({ m, projectId, onChange }: { m: any; projectId?: string; onC
           <span className={`absolute top-2 left-2 inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider backdrop-blur ${isAnimation ? "bg-fuchsia-500/30 text-fuchsia-100" : isTexture ? "bg-amber-500/30 text-amber-100" : "bg-cyan-500/30 text-cyan-100"}`}>
             {isAnimation ? <><PlayCircle className="h-3 w-3" /> {m.animation_name ?? "animation"}</> : isTexture ? <><Palette className="h-3 w-3" /> retexture</> : <><Sparkles className="h-3 w-3" /> refined</>}
           </span>
+        )}
+        {done && (
+          <button onClick={goFullscreen} title="Fullscreen 3D preview" className="absolute top-2 right-2 inline-flex items-center gap-1 rounded-md bg-black/60 hover:bg-black/80 backdrop-blur px-2 py-1 text-[10px] font-bold text-white">
+            <Maximize2 className="h-3 w-3" /> Fullscreen
+          </button>
         )}
         {!done && !failed && (
           <div className="absolute bottom-0 left-0 right-0 bg-black/60 backdrop-blur-sm p-2">

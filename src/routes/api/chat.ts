@@ -89,9 +89,9 @@ export const Route = createFileRoute("/api/chat")({
           const lastUser = [...messages].reverse().find((m) => m.role === "user");
           const userText = lastUser?.parts.map((p) => (p.type === "text" ? p.text : "")).join("") ?? "";
           const imageParts = messages
-            .flatMap((m) => m.parts ?? [])
-            .filter((p): p is { type: "file"; mediaType?: string; url?: string } =>
-              p.type === "file" && typeof (p as { mediaType?: string }).mediaType === "string" && String((p as { mediaType?: string }).mediaType).startsWith("image/"),
+            .flatMap((m) => (m.parts ?? []) as Array<Record<string, unknown>>)
+            .filter((p): p is { type: "file"; mediaType: string; url: string } =>
+              p?.type === "file" && typeof p.mediaType === "string" && (p.mediaType as string).startsWith("image/") && typeof p.url === "string",
             );
           const userImageUrl = imageParts.at(-1)?.url?.slice(0, 2_000_000) ?? null;
           if (userText) {
@@ -350,7 +350,7 @@ export const Route = createFileRoute("/api/chat")({
             model,
             system: BLOXSMITH_SYSTEM_PROMPT + modeHeader + languageHeader + assetModeRule + contextBlock,
             messages: convertedMessages,
-            ...(extraBody ? { providerOptions: { nvidia: extraBody } } : {}),
+            ...(extraBody ? { providerOptions: { nvidia: extraBody as Record<string, never> } as never } : {}),
             // In chat mode, do NOT expose the toolbox tool — the model can't build, so it doesn't need it.
             tools: mode === "chat" ? {} : { search_toolbox: toolboxTool },
             stopWhen: stepCountIs(50),
