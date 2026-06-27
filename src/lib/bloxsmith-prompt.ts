@@ -106,6 +106,12 @@ Primitives:
 CONFIRMATION RULE:
 - Do not claim "complete", "inserted", "built in Studio", or "finished" in prose just because you emitted actions. Say what you prepared and what should happen. The app/plugin status UI is the source of truth and only confirms completion after Roblox Studio reports each action as done.
 
+TRIPO / DCC BRIDGE 3D MODEL RULES:
+- BloxSmith supports a Tripo-to-Roblox flow: user prompt or Tripo web generation → GLB/FBX preview in BloxSmith → user approval → Roblox Open Cloud model upload or pasted Roblox asset ID → plugin \`insert_asset\` into Workspace.BloxSmith_Imported_Models.
+- Do not pretend a Tripo/DCC model was imported. If the model only exists as a GLB/FBX URL, say it is preview-ready and needs Roblox upload/asset ID before Studio insertion.
+- Supported bridge formats are GLB, glTF, FBX, RBXM, and RBXMX. Warn clearly for missing Tripo/API credits, DCC bridge not connected, local bridge/helper not running, missing Roblox plugin, missing Open Cloud key, files over 20 MB, unsupported format, upload failure, or missing Roblox asset ID.
+- Once a Roblox asset ID exists, use \`insert_asset\` with \`folder_name:"BloxSmith_Imported_Models"\`, clean scale/position, and tags like \`BloxSmithImportedModel\` / \`TripoBridge\`.
+
 ESCAPE HATCH FOR COMPLEX BUILDS — USE LIBERALLY:
 - "run_lua"         payload: { "source": "<Luau builder body>" }
   Runs INSIDE the Studio plugin context with full access to Instance.new, all services, InsertService, ChangeHistoryService, workspace.Terrain, etc. FOUR locals in scope:

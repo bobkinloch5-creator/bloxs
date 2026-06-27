@@ -196,6 +196,8 @@ export type Database = {
         Row: {
           animation_name: string | null
           art_style: string | null
+          bridge_metadata: Json | null
+          bridge_status: string | null
           completed_at: string | null
           created_at: string
           error: string | null
@@ -208,6 +210,12 @@ export type Database = {
           progress: number
           project_id: string | null
           prompt: string | null
+          roblox_asset_id: string | null
+          roblox_operation_path: string | null
+          roblox_upload_error: string | null
+          roblox_upload_status: string | null
+          source: string | null
+          source_format: string | null
           status: string
           task_id: string | null
           texture_urls: Json | null
@@ -217,6 +225,8 @@ export type Database = {
         Insert: {
           animation_name?: string | null
           art_style?: string | null
+          bridge_metadata?: Json | null
+          bridge_status?: string | null
           completed_at?: string | null
           created_at?: string
           error?: string | null
@@ -229,6 +239,12 @@ export type Database = {
           progress?: number
           project_id?: string | null
           prompt?: string | null
+          roblox_asset_id?: string | null
+          roblox_operation_path?: string | null
+          roblox_upload_error?: string | null
+          roblox_upload_status?: string | null
+          source?: string | null
+          source_format?: string | null
           status?: string
           task_id?: string | null
           texture_urls?: Json | null
@@ -238,6 +254,8 @@ export type Database = {
         Update: {
           animation_name?: string | null
           art_style?: string | null
+          bridge_metadata?: Json | null
+          bridge_status?: string | null
           completed_at?: string | null
           created_at?: string
           error?: string | null
@@ -250,6 +268,12 @@ export type Database = {
           progress?: number
           project_id?: string | null
           prompt?: string | null
+          roblox_asset_id?: string | null
+          roblox_operation_path?: string | null
+          roblox_upload_error?: string | null
+          roblox_upload_status?: string | null
+          source?: string | null
+          source_format?: string | null
           status?: string
           task_id?: string | null
           texture_urls?: Json | null

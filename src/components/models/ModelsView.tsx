@@ -10,10 +10,14 @@ import {
   pollModelGeneration,
   animateModel,
   retextureModel,
+  registerTripoBridgeModel,
+  uploadBridgeModelToRoblox,
+  checkRobloxUploadOperation,
+  queueBridgeModelToStudio,
   ANIMATION_PRESETS,
 } from "@/lib/models3d.functions";
 import { PageShell } from "@/components/PageShell";
-import { Box, Loader2, Sparkles, Image as ImageIcon, Type, Timer, Download, ExternalLink, AlertCircle, CheckCircle2, PlayCircle, Palette, Maximize2 } from "lucide-react";
+import { Box, Loader2, Sparkles, Image as ImageIcon, Type, Timer, Download, ExternalLink, AlertCircle, CheckCircle2, PlayCircle, Palette, Maximize2, UploadCloud, Plug, Link as LinkIcon, ShieldCheck, RefreshCw } from "lucide-react";
 
 function useModelViewerScript() {
   useEffect(() => {
@@ -43,6 +47,8 @@ const EXPORT_FORMATS: { key: string; label: string; ext: string }[] = [
   { key: "blend", label: "BLEND", ext: "blend" },
   { key: "mtl", label: "MTL", ext: "mtl" },
 ];
+
+const BRIDGE_FORMATS = ["glb", "gltf", "fbx", "rbxm", "rbxmx"] as const;
 
 const STYLE_PRESETS: { key: string; label: string; modifier: string }[] = [
   { key: "roblox", label: "Roblox-style", modifier: "stylized blocky Roblox-style low-poly game asset, flat shading, clean topology" },
@@ -89,6 +95,7 @@ export function ModelsView({ projectId }: { projectId?: string }) {
   const statusFn = useServerFn(getModelStatus);
   const startFn = useServerFn(startModelGeneration);
   const pollFn = useServerFn(pollModelGeneration);
+  const registerBridgeFn = useServerFn(registerTripoBridgeModel);
 
   const { data: project } = useQuery({
     queryKey: ["project", projectId],
@@ -112,7 +119,14 @@ export function ModelsView({ projectId }: { projectId?: string }) {
   const [topology, setTopology] = useState<"triangle" | "quad">("triangle");
   const [poly, setPoly] = useState(30000);
   const [busy, setBusy] = useState(false);
+  const [bridgeBusy, setBridgeBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [bridgeErr, setBridgeErr] = useState<string | null>(null);
+  const [bridgeSource, setBridgeSource] = useState<"tripo_api" | "tripo_bridge" | "external_model">("tripo_bridge");
+  const [bridgeName, setBridgeName] = useState("");
+  const [bridgeUrl, setBridgeUrl] = useState("");
+  const [bridgeFormat, setBridgeFormat] = useState<typeof BRIDGE_FORMATS[number]>("glb");
+  const [bridgeAssetId, setBridgeAssetId] = useState("");
   const [now, setNow] = useState(Date.now());
   const fileRef = useRef<HTMLInputElement | null>(null);
 
@@ -166,6 +180,29 @@ export function ModelsView({ projectId }: { projectId?: string }) {
     } finally { setBusy(false); }
   }
 
+  async function onRegisterBridgeModel() {
+    setBridgeErr(null);
+    setBridgeBusy(true);
+    try {
+      await registerBridgeFn({ data: {
+        projectId,
+        prompt: bridgeName.trim() || "Tripo DCC Bridge model",
+        modelUrl: bridgeUrl.trim(),
+        format: bridgeFormat,
+        robloxAssetId: bridgeAssetId.trim() || undefined,
+        source: bridgeSource,
+      } });
+      setBridgeName("");
+      setBridgeUrl("");
+      setBridgeAssetId("");
+      await refetchStatus();
+    } catch (e) {
+      setBridgeErr(e instanceof Error ? e.message : "Could not register Tripo bridge model.");
+    } finally {
+      setBridgeBusy(false);
+    }
+  }
+
   const canGenerate = !!status?.canGenerate && !busy;
 
   return (
@@ -198,6 +235,70 @@ export function ModelsView({ projectId }: { projectId?: string }) {
           </div>
           <div className={`rounded-xl px-4 py-3 text-center font-mono text-lg font-bold ${canGenerate ? "bg-emerald-500/15 text-emerald-300" : "bg-amber-500/15 text-amber-300"}`}>
             {canGenerate ? "Ready to generate" : `Next in ${formatRemaining(liveRemaining)}`}
+          </div>
+        </div>
+      </section>
+
+      {/* Tripo / DCC bridge */}
+      <section className="rounded-2xl border border-cyan-400/20 bg-cyan-500/[0.06] p-5 backdrop-blur-sm space-y-4">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-cyan-300/25 bg-cyan-300/10 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-cyan-200">
+              <Plug className="h-3.5 w-3.5" /> Tripo DCC Bridge + Roblox import
+            </div>
+            <h2 className="mt-3 text-lg font-bold text-white">BloxSmith Bridge workflow</h2>
+            <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+              Use Tripo API credits or Tripo web/DCC credits, preview the GLB/FBX here, approve it, upload it to Roblox/Open Cloud, then send the confirmed Roblox asset ID to the Studio plugin.
+            </p>
+          </div>
+          <div className="grid gap-1.5 text-[11px] text-cyan-100">
+            {["Connected/Waiting", "Model Received", "Preview Ready", "Uploading", "Importing", "Inserted/Failed"].map((s) => (
+              <span key={s} className="inline-flex items-center gap-1.5 rounded-md bg-black/30 px-2 py-1"><ShieldCheck className="h-3 w-3" /> {s}</span>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+          <div className="rounded-xl border border-white/10 bg-black/25 p-4 space-y-3">
+            <div className="flex flex-wrap gap-1.5">
+              {([
+                ["tripo_bridge", "DCC / web credits"],
+                ["tripo_api", "Tripo API"],
+                ["external_model", "External GLB/FBX"],
+              ] as const).map(([key, label]) => (
+                <button key={key} onClick={() => setBridgeSource(key)} className={`rounded-lg px-3 py-1.5 text-[11px] font-bold ${bridgeSource === key ? "bg-cyan-400/20 text-cyan-100 border border-cyan-300/40" : "bg-white/[0.04] text-muted-foreground border border-white/10"}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            <input value={bridgeName} onChange={(e) => setBridgeName(e.target.value)} placeholder="Model name, e.g. Tripo cyber sword" className="w-full rounded-xl border border-white/10 bg-black/30 p-2.5 text-sm text-white placeholder:text-muted-foreground outline-none focus:border-cyan-300/60" maxLength={200} />
+            <div className="grid gap-2 sm:grid-cols-[1fr_110px]">
+              <input value={bridgeUrl} onChange={(e) => setBridgeUrl(e.target.value)} placeholder="Paste GLB/FBX/RBXM/RBXMX URL from Tripo export or local bridge helper" className="w-full rounded-xl border border-white/10 bg-black/30 p-2.5 text-sm text-white placeholder:text-muted-foreground outline-none focus:border-cyan-300/60" />
+              <select value={bridgeFormat} onChange={(e) => setBridgeFormat(e.target.value as any)} className="rounded-xl border border-white/10 bg-black/30 p-2.5 text-sm text-white outline-none">
+                {BRIDGE_FORMATS.map((f) => <option key={f} value={f}>{f.toUpperCase()}</option>)}
+              </select>
+            </div>
+            <input value={bridgeAssetId} onChange={(e) => setBridgeAssetId(e.target.value)} placeholder="Optional Roblox model asset ID if already uploaded" className="w-full rounded-xl border border-white/10 bg-black/30 p-2.5 text-sm text-white placeholder:text-muted-foreground outline-none focus:border-cyan-300/60" maxLength={80} />
+            {bridgeErr && <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-200 inline-flex items-center gap-2"><AlertCircle className="h-4 w-4" /> {bridgeErr}</div>}
+            <button disabled={bridgeBusy || !bridgeUrl.trim()} onClick={onRegisterBridgeModel} className="inline-flex items-center gap-2 rounded-lg bg-cyan-500 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-40 disabled:cursor-not-allowed">
+              {bridgeBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <LinkIcon className="h-4 w-4" />} Add Tripo model to preview
+            </button>
+          </div>
+
+          <div className="rounded-xl border border-white/10 bg-black/25 p-4 text-xs text-muted-foreground">
+            <div className="mb-2 text-[11px] font-bold uppercase tracking-wider text-cyan-200">Exactly how to use it</div>
+            <ol className="list-decimal space-y-1.5 pl-4">
+              <li>Generate the model in Tripo Studio or through Tripo API.</li>
+              <li>Export/download GLB or FBX. Keep the file under Roblox Open Cloud's 20 MB model upload limit.</li>
+              <li>Make the file reachable by URL through your local bridge/helper export server, cloud storage, or Tripo result URL.</li>
+              <li>Paste that URL here and click <span className="font-semibold text-white">Add Tripo model to preview</span>.</li>
+              <li>Inspect the fullscreen 3D preview with drag, rotate, zoom, and pan.</li>
+              <li>Click <span className="font-semibold text-white">Upload to Roblox</span> if Open Cloud is configured, or paste an existing Roblox asset ID.</li>
+              <li>Click <span className="font-semibold text-white">Send to Studio</span>. The plugin inserts the real asset into <code>Workspace/BloxSmith_Imported_Models</code>.</li>
+            </ol>
+            <div className="mt-3 rounded-lg border border-amber-300/20 bg-amber-400/10 p-2 text-amber-100">
+              Warnings show clearly for: Tripo/API credits missing, local bridge not running, plugin offline, Open Cloud key missing, unsupported format, file over 20 MB, upload failure, or missing Roblox asset ID.
+            </div>
           </div>
         </div>
       </section>
@@ -304,7 +405,11 @@ export function ModelsView({ projectId }: { projectId?: string }) {
 function ModelCard({ m, projectId, onChange }: { m: any; projectId?: string; onChange: () => void }) {
   const animateFn = useServerFn(animateModel);
   const retextureFn = useServerFn(retextureModel);
+  const uploadRobloxFn = useServerFn(uploadBridgeModelToRoblox);
+  const checkUploadFn = useServerFn(checkRobloxUploadOperation);
+  const queueStudioFn = useServerFn(queueBridgeModelToStudio);
   const [animBusy, setAnimBusy] = useState(false);
+  const [robloxBusy, setRobloxBusy] = useState(false);
   const [actionErr, setActionErr] = useState<string | null>(null);
   const [picking, setPicking] = useState<null | "anim" | "texture">(null);
   const [texPrompt, setTexPrompt] = useState("");
@@ -315,6 +420,7 @@ function ModelCard({ m, projectId, onChange }: { m: any; projectId?: string; onC
   const isAnimation = m.mode === "animation";
   const isTexture = m.mode === "texture";
   const isRefine = m.mode === "refine";
+  const isBridgeModel = m.mode === "tripo_bridge" || m.mode === "tripo_api" || m.mode === "external_model" || !!m.source;
   const urls: Record<string, string> = m.model_urls || {};
   const viewerRef = useRef<HTMLElement | null>(null);
 
@@ -344,6 +450,37 @@ function ModelCard({ m, projectId, onChange }: { m: any; projectId?: string; onC
     } finally { setTexBusy(false); }
   }
 
+  async function uploadToRoblox() {
+    setRobloxBusy(true); setActionErr(null);
+    try {
+      await uploadRobloxFn({ data: { generationId: m.id, displayName: m.prompt || "BloxSmith Tripo Model" } });
+      onChange();
+    } catch (e) {
+      setActionErr(e instanceof Error ? e.message : "Upload failed.");
+    } finally { setRobloxBusy(false); }
+  }
+
+  async function checkRobloxUpload() {
+    setRobloxBusy(true); setActionErr(null);
+    try {
+      await checkUploadFn({ data: { generationId: m.id } });
+      onChange();
+    } catch (e) {
+      setActionErr(e instanceof Error ? e.message : "Could not check Roblox upload.");
+    } finally { setRobloxBusy(false); }
+  }
+
+  async function sendToStudio() {
+    if (!projectId) { setActionErr("Open this from a project before sending to Roblox Studio."); return; }
+    setRobloxBusy(true); setActionErr(null);
+    try {
+      await queueStudioFn({ data: { projectId, generationId: m.id, name: m.prompt || "BloxSmith Imported Model", scale: 1 } });
+      onChange();
+    } catch (e) {
+      setActionErr(e instanceof Error ? e.message : "Could not send model to Studio.");
+    } finally { setRobloxBusy(false); }
+  }
+
   return (
     <div className="rounded-2xl border border-white/10 bg-white/[0.03] overflow-hidden">
       <div className="aspect-square bg-black/40 relative">
@@ -360,6 +497,11 @@ function ModelCard({ m, projectId, onChange }: { m: any; projectId?: string; onC
         {(isAnimation || isTexture || isRefine) && (
           <span className={`absolute top-2 left-2 inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider backdrop-blur ${isAnimation ? "bg-fuchsia-500/30 text-fuchsia-100" : isTexture ? "bg-amber-500/30 text-amber-100" : "bg-cyan-500/30 text-cyan-100"}`}>
             {isAnimation ? <><PlayCircle className="h-3 w-3" /> {m.animation_name ?? "animation"}</> : isTexture ? <><Palette className="h-3 w-3" /> retexture</> : <><Sparkles className="h-3 w-3" /> refined</>}
+          </span>
+        )}
+        {isBridgeModel && (
+          <span className="absolute top-2 left-2 inline-flex items-center gap-1 rounded-md bg-cyan-500/30 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-cyan-100 backdrop-blur">
+            <Plug className="h-3 w-3" /> {m.source === "tripo_api" ? "Tripo API" : m.source === "tripo_bridge" ? "DCC Bridge" : "Bridge"}
           </span>
         )}
         {done && (
@@ -383,6 +525,17 @@ function ModelCard({ m, projectId, onChange }: { m: any; projectId?: string; onC
           {m.prompt || (m.mode === "image" ? "Image → 3D" : "Untitled")}
         </div>
         {failed && m.error && <div className="text-[11px] text-rose-300">{m.error}</div>}
+        {isBridgeModel && (
+          <div className="rounded-lg border border-cyan-300/15 bg-cyan-400/10 p-2 text-[11px] text-cyan-100">
+            <div className="font-bold">Bridge status: {m.bridge_status || (m.roblox_asset_id ? "Asset ID Ready" : "Preview Ready")}</div>
+            <div className="mt-0.5 text-cyan-100/75">
+              Format: {(m.source_format || "glb").toUpperCase()}
+              {m.roblox_asset_id ? ` · Roblox asset ${m.roblox_asset_id}` : ""}
+              {m.roblox_upload_status ? ` · Upload ${m.roblox_upload_status}` : ""}
+            </div>
+            {m.roblox_upload_error && <div className="mt-1 text-rose-200">{m.roblox_upload_error}</div>}
+          </div>
+        )}
         {actionErr && <div className="text-[11px] text-rose-300">{actionErr}</div>}
         {done && (
           <>
@@ -413,6 +566,23 @@ function ModelCard({ m, projectId, onChange }: { m: any; projectId?: string; onC
                 <ExternalLink className="h-3 w-3" /> Open
               </a>
             </div>
+            {isBridgeModel && (
+              <div className="flex flex-wrap items-center gap-1.5 border-t border-white/10 pt-2">
+                {!m.roblox_asset_id && (
+                  <button onClick={uploadToRoblox} disabled={robloxBusy} className="inline-flex items-center gap-1 rounded-md bg-blue-500/20 hover:bg-blue-500/30 px-2 py-1 text-[10px] font-bold text-blue-100 disabled:opacity-50">
+                    {robloxBusy ? <Loader2 className="h-3 w-3 animate-spin" /> : <UploadCloud className="h-3 w-3" />} Upload to Roblox
+                  </button>
+                )}
+                {m.roblox_operation_path && !m.roblox_asset_id && (
+                  <button onClick={checkRobloxUpload} disabled={robloxBusy} className="inline-flex items-center gap-1 rounded-md bg-cyan-500/20 hover:bg-cyan-500/30 px-2 py-1 text-[10px] font-bold text-cyan-100 disabled:opacity-50">
+                    {robloxBusy ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />} Check upload
+                  </button>
+                )}
+                <button onClick={sendToStudio} disabled={robloxBusy || !m.roblox_asset_id || !projectId} title={!projectId ? "Open a project to send this model to Studio." : !m.roblox_asset_id ? "Upload to Roblox or paste a Roblox asset ID first." : "Queue this model for the Studio plugin."} className="inline-flex items-center gap-1 rounded-md bg-emerald-500/20 hover:bg-emerald-500/30 px-2 py-1 text-[10px] font-bold text-emerald-100 disabled:opacity-40">
+                  {robloxBusy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plug className="h-3 w-3" />} Send to Studio
+                </button>
+              </div>
+            )}
             {!isAnimation && !isTexture && (
               <div className="flex flex-wrap items-center gap-1.5 pt-1">
                 <button onClick={() => setPicking(picking === "anim" ? null : "anim")} disabled={animBusy} className="inline-flex items-center gap-1 rounded-md bg-fuchsia-500/20 hover:bg-fuchsia-500/30 px-2 py-1 text-[10px] font-bold text-fuchsia-200 disabled:opacity-50">
