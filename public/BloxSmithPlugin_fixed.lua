@@ -19,7 +19,7 @@ local CollectionService     = game:GetService("CollectionService")
 
 local API_BASE       = "https://bloxsmith.pro"
 local POLL_INTERVAL  = 1
-local PLUGIN_VERSION = "1.7.2"
+local PLUGIN_VERSION = "1.7.3"
 
 ------------------------------------------------------------------- token helpers
 local TOKEN_KEY = "token"
@@ -865,7 +865,7 @@ Exec.run_lua = function(a, p)
         error("run_lua missing payload.source")
     end
     local wrapped = [[
-return function(parent, plugin, safeSet, safeSetProps)
+return function(parent, plugin, safeSet, safeSetProps, ...)
 ]] .. source .. [[
 
 end

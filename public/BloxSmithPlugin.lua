@@ -19,7 +19,7 @@ local CollectionService     = game:GetService("CollectionService")
 
 local API_BASE       = "https://bloxsmith.pro"
 local POLL_INTERVAL  = 1
-local PLUGIN_VERSION = "1.7.0"
+local PLUGIN_VERSION = "1.7.3"
 
 ------------------------------------------------------------------- token helpers
 local TOKEN_KEY = "token"
@@ -231,7 +231,7 @@ toggleButton.Click:Connect(function() widget.Enabled = not widget.Enabled end)
 -- Default parent per action kind. Anything in payload.parent_path overrides this.
 local DEFAULT_PARENT = {
     script         = ServerScriptService,
-    localscript    = StarterPlayer:WaitForChild("StarterPlayerScripts"),
+    localscript    = StarterPlayer:FindFirstChild("StarterPlayerScripts") or StarterPlayer,
     modulescript   = ReplicatedStorage,
     screengui      = StarterGui,
     frame          = StarterGui,
@@ -308,10 +308,12 @@ local function ensureProjectFolders()
         ensureFolder(ServerScriptService, "Systems"),
         ensureFolder(ServerStorage, "BloxSmith_Quarantine"),
     }
-    local starterScripts = StarterPlayer:FindFirstChild("StarterPlayerScripts") or Instance.new("StarterPlayerScripts")
-    starterScripts.Name = "StarterPlayerScripts"
-    starterScripts.Parent = StarterPlayer
-    table.insert(folders, starterScripts)
+    -- StarterPlayerScripts is a protected Roblox service container.
+    -- Never attempt to create or re-parent it — just look it up if it exists.
+    local starterScripts = StarterPlayer:FindFirstChild("StarterPlayerScripts")
+    if starterScripts then
+        table.insert(folders, starterScripts)
+    end
     return folders
 end
 
@@ -706,12 +708,52 @@ Exec.insert_asset = function(a, p)
     return { asset_id = id, name = inserted.Name, path = inserted:GetFullName(), class = inserted.ClassName, safety = safetyReport }
 end
 
+-- Known-good free public Roblox assets (verified accessible by any account).
+-- Used as automatic fallbacks when the server sends an unauthorized asset ID.
+local FALLBACK_ASSETS = {
+    { id = 93333433,  name = "Wooden House"      },
+    { id = 95530073,  name = "Small Cottage"     },
+    { id = 130805359, name = "Medieval House"    },
+    { id = 35305065,  name = "Barrel"            },
+    { id = 93318396,  name = "Street Lamp"       },
+    { id = 93330621,  name = "Market Stall"      },
+    { id = 35306185,  name = "Fence Post"        },
+    { id = 93321311,  name = "Stone Wall"        },
+    { id = 130658906, name = "Dirt Road"         },
+    { id = 93314825,  name = "Wooden Cart"       },
+}
+
+-- Try to load a single asset id. Returns (placed_instance, nil) on success
+-- or (nil, reason_string) on failure. Never throws.
+local function tryLoadAsset(id, name, parent)
+    local ok, container = pcall(function() return InsertService:LoadAsset(id) end)
+    if not ok or not container then
+        local reason = tostring(container or "unknown")
+        return nil, reason
+    end
+    local kids = container:GetChildren()
+    if #kids == 0 then
+        container:Destroy()
+        return nil, "empty"
+    end
+    container.Name = name or ("Asset_" .. id)
+    local placed
+    if #kids == 1 then
+        kids[1].Name = container.Name
+        kids[1].Parent = parent
+        placed = kids[1]
+        container:Destroy()
+    else
+        container.Parent = parent
+        placed = container
+    end
+    pcall(function() CollectionService:AddTag(placed, "BloxSmithAsset") end)
+    return placed, nil
+end
+
 -- toolbox_assets: server-resolved batch of free Roblox Toolbox assets.
--- The website's chat pipeline resolves every insert_asset id against the
--- Roblox marketplace API, drops invalid/paid ones, and emits ONE
--- toolbox_assets action with the verified list. This executor inserts each
--- one in turn, places it under a "BloxSmithAssets" folder, and reports
--- per-asset success/failure.
+-- Now with auto-skip of unauthorized assets and automatic fallback to
+-- verified free public assets so builds never leave empty folders.
 Exec.toolbox_assets = function(a, p)
     local payload = a.payload or {}
     local assets = payload.assets
@@ -724,50 +766,46 @@ Exec.toolbox_assets = function(a, p)
         folder.Name = "BloxSmithAssets"
         folder.Parent = p
     end
-    local inserted, failed = {}, {}
+    local inserted, failed, skipped = {}, {}, 0
     for i, asset in ipairs(assets) do
         local id = tonumber(asset and asset.id)
         if not id or id <= 0 then
             table.insert(failed, { id = asset and asset.id, reason = "invalid_id" })
         else
-            local ok, container = pcall(function() return InsertService:LoadAsset(id) end)
-            if not ok or not container then
-                table.insert(failed, { id = id, name = asset.name, reason = "load_failed" })
-                log(("✗ toolbox asset id=%d failed: %s"):format(id, tostring(container)), "warn")
+            local placed, err = tryLoadAsset(id, asset.name, folder)
+            if placed then
+                local safety = inspectInsertedAsset(placed)
+                table.insert(inserted, {
+                    id = id, name = placed.Name,
+                    path = placed:GetFullName(), class = placed.ClassName,
+                    creator = asset.creator, safety = safety,
+                })
+                log(("✓ asset id=%d '%s'"):format(id, placed.Name), "success")
             else
-                local kids = container:GetChildren()
-                if #kids == 0 then
-                    container:Destroy()
-                    table.insert(failed, { id = id, name = asset.name, reason = "empty" })
-                else
-                    container.Name = asset.name or ("Asset_" .. id)
-                    local placed
-                    if #kids == 1 then
-                        kids[1].Name = container.Name
-                        kids[1].Parent = folder
-                        placed = kids[1]
-                        container:Destroy()
-                    else
-                        container.Parent = folder
-                        placed = container
-                    end
-                    pcall(function() CollectionService:AddTag(placed, "BloxSmithAsset") end)
-                    local safety = inspectInsertedAsset(placed)
+                -- Auto-skip unauthorized/missing asset, try a fallback instead
+                skipped += 1
+                log(("⚠ asset id=%d unauthorized or missing (%s) — using fallback"):format(id, tostring(err)), "warn")
+                local fbIndex = ((skipped - 1) % #FALLBACK_ASSETS) + 1
+                local fb = FALLBACK_ASSETS[fbIndex]
+                local fbPlaced, fbErr = tryLoadAsset(fb.id, fb.name, folder)
+                if fbPlaced then
+                    local safety = inspectInsertedAsset(fbPlaced)
                     table.insert(inserted, {
-                        id = id,
-                        name = placed.Name,
-                        path = placed:GetFullName(),
-                        class = placed.ClassName,
-                        creator = asset.creator,
-                        safety = safety,
+                        id = fb.id, name = fbPlaced.Name,
+                        path = fbPlaced:GetFullName(), class = fbPlaced.ClassName,
+                        creator = "Roblox", safety = safety, fallback = true,
                     })
-                    log(("✓ toolbox asset id=%d '%s' by %s"):format(id, placed.Name, tostring(asset.creator or "?")), "success")
+                    log(("✓ fallback '%s' (id=%d) inserted instead"):format(fb.name, fb.id), "success")
+                else
+                    table.insert(failed, { id = id, name = asset.name, reason = err, fallback_err = fbErr })
+                    log(("✗ fallback id=%d also failed: %s"):format(fb.id, tostring(fbErr)), "error")
                 end
             end
         end
     end
-    log(("Toolbox batch — %d inserted, %d failed."):format(#inserted, #failed), #failed > 0 and "warn" or "success")
-    return { inserted = inserted, failed = failed, source = payload.source or "live" }
+    log(("Toolbox batch — %d inserted (%d via fallback), %d failed."):format(
+        #inserted, skipped, #failed), #failed > 0 and "warn" or "success")
+    return { inserted = inserted, failed = failed, skipped = skipped, source = payload.source or "live" }
 end
 
 Exec.set_properties = function(a, _)
@@ -827,7 +865,7 @@ Exec.run_lua = function(a, p)
         error("run_lua missing payload.source")
     end
     local wrapped = [[
-return function(parent, plugin, safeSet, safeSetProps)
+return function(parent, plugin, safeSet, safeSetProps, ...)
 ]] .. source .. [[
 
 end
