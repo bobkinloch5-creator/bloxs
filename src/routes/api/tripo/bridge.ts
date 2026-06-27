@@ -18,6 +18,12 @@ function inferFormat(url: string, explicit?: string | null) {
   return clean as typeof FORMATS[number];
 }
 
+function rejectReceiverUrl(url: string) {
+  if (/\/api\/tripo\/bridge\/?(\?|#|$)/i.test(url)) {
+    throw new Error("modelUrl cannot be the BloxSmith bridge receiver URL. Send a direct GLB/glTF/FBX/RBXM/RBXMX file URL, or send a Roblox asset ID.");
+  }
+}
+
 function normalizeAssetId(value: unknown) {
   const raw = String(value ?? "").trim();
   const match = raw.match(/\d+/);
@@ -81,6 +87,7 @@ export const Route = createFileRoute("/api/tripo/bridge")({
           if (modelUrl) {
             const parsed = new URL(modelUrl);
             if (!["http:", "https:"].includes(parsed.protocol)) throw new Error("modelUrl must be http:// or https://");
+            rejectReceiverUrl(parsed.href);
           }
 
           const projectId = input.projectId || input.project_id || null;
@@ -104,11 +111,6 @@ export const Route = createFileRoute("/api/tripo/bridge")({
             source_format: format,
             roblox_asset_id: assetId || null,
             bridge_status: assetId ? "Asset ID Ready" : "Preview Ready",
-            bridge_metadata: {
-              receiver: "api/tripo/bridge",
-              path: "Tripo DCC/web credits via BloxSmith bridge receiver",
-              receivedAt: new Date().toISOString(),
-            },
             completed_at: new Date().toISOString(),
           }).select("id").single();
           if (error) throw new Error(error.message);

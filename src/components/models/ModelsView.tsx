@@ -263,6 +263,10 @@ export function ModelsView({ projectId }: { projectId?: string }) {
       setBridgeErr("Invalid model URL. Use a full http:// or https:// link. Local files like C:\\Downloads\\model.glb cannot be previewed by the website.");
       return;
     }
+    if (/\/api\/tripo\/bridge\/?(\?|#|$)/i.test(bridgeUrl.trim())) {
+      setBridgeErr("That is the BloxSmith bridge receiver URL, not a model file. Paste it into your local Tripo bridge helper. Here, paste the exported GLB, glTF, FBX, RBXM, or RBXMX file URL.");
+      return;
+    }
     setBridgeBusy(true);
     try {
       await registerBridgeFn({ data: {
@@ -376,7 +380,7 @@ export function ModelsView({ projectId }: { projectId?: string }) {
             </div>
             <input value={bridgeName} onChange={(e) => setBridgeName(e.target.value)} placeholder="Model name, e.g. Tripo cyber sword" className="w-full rounded-xl border border-white/10 bg-black/30 p-2.5 text-sm text-white placeholder:text-muted-foreground outline-none focus:border-cyan-300/60" maxLength={200} />
             <div className="grid gap-2 sm:grid-cols-[1fr_110px]">
-              <input value={bridgeUrl} onChange={(e) => setBridgeUrl(e.target.value)} placeholder="Paste GLB/FBX/RBXM/RBXMX URL from Tripo export or local bridge helper" className="w-full rounded-xl border border-white/10 bg-black/30 p-2.5 text-sm text-white placeholder:text-muted-foreground outline-none focus:border-cyan-300/60" />
+              <input value={bridgeUrl} onChange={(e) => setBridgeUrl(e.target.value)} placeholder="Paste direct model file URL, e.g. https://.../model.glb (not the receiver URL)" className="w-full rounded-xl border border-white/10 bg-black/30 p-2.5 text-sm text-white placeholder:text-muted-foreground outline-none focus:border-cyan-300/60" />
               <select value={bridgeFormat} onChange={(e) => setBridgeFormat(e.target.value as any)} className="rounded-xl border border-white/10 bg-black/30 p-2.5 text-sm text-white outline-none">
                 {BRIDGE_FORMATS.map((f) => <option key={f} value={f}>{f.toUpperCase()}</option>)}
               </select>

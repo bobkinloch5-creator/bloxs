@@ -55,6 +55,12 @@ function inferFormat(input: string, explicit?: string | null) {
   return clean as typeof SUPPORTED_BRIDGE_FORMATS[number];
 }
 
+function rejectReceiverUrl(url: string) {
+  if (/\/api\/tripo\/bridge\/?(\?|#|$)/i.test(url)) {
+    throw new Error("That is the BloxSmith bridge receiver URL, not a model file URL. Paste it into your local Tripo bridge helper. In this field, paste the exported GLB, glTF, FBX, RBXM, or RBXMX file URL.");
+  }
+}
+
 function contentTypeFor(format: string) {
   if (format === "glb") return "model/gltf-binary";
   if (format === "gltf") return "model/gltf+json";
@@ -300,7 +306,9 @@ export const registerTripoBridgeModel = createServerFn({ method: "POST" })
       try {
         const parsed = new URL(modelUrl);
         if (!["http:", "https:"].includes(parsed.protocol)) throw new Error("bad_protocol");
-      } catch {
+        rejectReceiverUrl(parsed.href);
+      } catch (e) {
+        if (e instanceof Error && e.message.includes("bridge receiver URL")) throw e;
         throw new Error("Invalid model URL. Use a full http:// or https:// link to a GLB, FBX, glTF, RBXM, or RBXMX file. Local Windows paths like C:\\... cannot preview in the browser.");
       }
     }
@@ -323,10 +331,6 @@ export const registerTripoBridgeModel = createServerFn({ method: "POST" })
         bridge_status: robloxAssetId ? "Asset ID Ready" : "Preview Ready",
         roblox_asset_id: robloxAssetId || null,
         roblox_upload_status: robloxAssetId ? "uploaded" : null,
-        bridge_metadata: {
-          path: data.source === "tripo_bridge" ? "Tripo DCC/web credits via BloxSmith bridge import" : "Tripo/API model URL import",
-          supportedFormats: SUPPORTED_BRIDGE_FORMATS,
-        },
       })
       .select()
       .single();
@@ -406,7 +410,6 @@ export const uploadBridgeModelToRoblox = createServerFn({ method: "POST" })
         roblox_upload_status: assetId ? "uploaded" : "uploading",
         roblox_upload_error: null,
         bridge_status: assetId ? "Asset ID Ready" : "Uploading",
-        bridge_metadata: { ...(gen.bridge_metadata as any || {}), robloxUploadResponse: json },
       })
       .eq("id", gen.id)
       .select()
@@ -445,7 +448,6 @@ export const checkRobloxUploadOperation = createServerFn({ method: "POST" })
         roblox_upload_status: errorMessage ? "failed" : done ? "uploaded" : "uploading",
         roblox_upload_error: errorMessage ? String(errorMessage) : null,
         bridge_status: errorMessage ? "Failed" : assetId ? "Asset ID Ready" : "Uploading",
-        bridge_metadata: { ...(gen.bridge_metadata as any || {}), robloxOperationResponse: json },
       })
       .eq("id", gen.id)
       .select()
