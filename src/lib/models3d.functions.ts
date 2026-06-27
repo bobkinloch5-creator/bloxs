@@ -509,7 +509,10 @@ export const pollModelGeneration = createServerFn({ method: "POST" })
       .eq("user_id", userId)
       .maybeSingle();
     if (!gen) throw new Error("Generation not found.");
-    if (gen.status === "SUCCEEDED" || gen.status === "FAILED") return gen;
+    if (gen.status === "FAILED") return gen;
+    const savedUrls = (gen.model_urls || {}) as Record<string, string>;
+    const hasSavedPreview = !!(gen.model_url || savedUrls.glb || savedUrls.gltf);
+    if (gen.status === "SUCCEEDED" && hasSavedPreview) return gen;
     if (!gen.task_id) return gen;
 
     const path =

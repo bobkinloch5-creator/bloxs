@@ -202,10 +202,15 @@ export function ModelsView({ projectId }: { projectId?: string }) {
 
   useEffect(() => {
     if (!status?.models) return;
-    const pending = status.models.filter((m: any) => m.status !== "SUCCEEDED" && m.status !== "FAILED");
-    if (pending.length === 0) return;
+    const refreshable = status.models.filter((m: any) => {
+      if (m.status !== "SUCCEEDED" && m.status !== "FAILED") return true;
+      if (m.status !== "SUCCEEDED" || !m.task_id) return false;
+      const urls = (m.model_urls || {}) as Record<string, string>;
+      return !bestPreviewUrl(m, urls);
+    });
+    if (refreshable.length === 0) return;
     const id = setInterval(async () => {
-      await Promise.all(pending.map((m: any) => pollFn({ data: { generationId: m.id } }).catch(() => null)));
+      await Promise.all(refreshable.map((m: any) => pollFn({ data: { generationId: m.id } }).catch(() => null)));
       qc.invalidateQueries({ queryKey });
     }, 5000);
     return () => clearInterval(id);
@@ -473,6 +478,7 @@ export function ModelsView({ projectId }: { projectId?: string }) {
 function ModelCard({ m, projectId, onChange }: { m: any; projectId?: string; onChange: () => void }) {
   const animateFn = useServerFn(animateModel);
   const retextureFn = useServerFn(retextureModel);
+  const pollFn = useServerFn(pollModelGeneration);
   const uploadRobloxFn = useServerFn(uploadBridgeModelToRoblox);
   const checkUploadFn = useServerFn(checkRobloxUploadOperation);
   const queueStudioFn = useServerFn(queueBridgeModelToStudio);
@@ -480,6 +486,7 @@ function ModelCard({ m, projectId, onChange }: { m: any; projectId?: string; onC
   const [animBusy, setAnimBusy] = useState(false);
   const [robloxBusy, setRobloxBusy] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
+  const [refreshBusy, setRefreshBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [actionErr, setActionErr] = useState<string | null>(null);
   const [picking, setPicking] = useState<null | "anim" | "texture">(null);
@@ -490,9 +497,10 @@ function ModelCard({ m, projectId, onChange }: { m: any; projectId?: string; onC
   const previewUrl = bestPreviewUrl(m, urls);
   const title = modelTitle(m);
   const complete = m.status === "SUCCEEDED";
-  const done = complete && !!m.model_url;
-  const canPreview = done && !!previewUrl;
-  const assetOnly = complete && !m.model_url && !!m.roblox_asset_id;
+  const hasModelFile = !!m.model_url || Object.keys(urls).length > 0;
+  const done = complete;
+  const canPreview = complete && !!previewUrl;
+  const assetOnly = complete && !hasModelFile && !!m.roblox_asset_id;
   const failed = m.status === "FAILED";
   const isAnimation = m.mode === "animation";
   const isTexture = m.mode === "texture";
@@ -565,6 +573,16 @@ function ModelCard({ m, projectId, onChange }: { m: any; projectId?: string; onC
     } finally { setRobloxBusy(false); }
   }
 
+  async function refreshPreviewFile() {
+    setRefreshBusy(true); setActionErr(null);
+    try {
+      await pollFn({ data: { generationId: m.id } });
+      onChange();
+    } catch (e) {
+      setActionErr(e instanceof Error ? e.message : "Could not refresh the 3D preview file yet.");
+    } finally { setRefreshBusy(false); }
+  }
+
   async function deleteModel() {
     setDeleteBusy(true); setActionErr(null);
     try {
@@ -593,6 +611,8 @@ function ModelCard({ m, projectId, onChange }: { m: any; projectId?: string; onC
             ref={viewerRef}
             key={previewUrl}
             src={previewUrl}
+            poster={m.thumbnail_url || undefined}
+            reveal="auto"
             camera-controls
             auto-rotate={!isAnimation}
             autoplay={isAnimation}
@@ -616,7 +636,20 @@ function ModelCard({ m, projectId, onChange }: { m: any; projectId?: string; onC
             }}
           />
         ) : m.thumbnail_url ? (
-          <img src={m.thumbnail_url} alt="" className="w-full h-full object-cover opacity-70" />
+          <>
+            <img src={m.thumbnail_url} alt="" className="w-full h-full object-cover opacity-45 blur-[1px]" />
+            <div className="absolute inset-0 grid place-items-center p-4">
+              <div className="max-w-xs rounded-xl border border-amber-300/25 bg-black/70 p-4 text-center text-xs text-amber-100 shadow-xl backdrop-blur">
+                <div className="font-extrabold text-white">Thumbnail only</div>
+                <div className="mt-1 text-amber-100/85">The real GLB/glTF preview file is not saved on this model yet. Refresh it, then the card will show the interactive 3D viewer.</div>
+                {m.task_id && (
+                  <button onClick={refreshPreviewFile} disabled={refreshBusy} className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-amber-400/20 px-3 py-1.5 text-[11px] font-bold text-amber-50 hover:bg-amber-400/30 disabled:opacity-50">
+                    {refreshBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />} Refresh 3D file
+                  </button>
+                )}
+              </div>
+            </div>
+          </>
         ) : (
           <div className="absolute inset-0 grid place-items-center text-muted-foreground">
             {failed ? <AlertCircle className="h-8 w-8 text-rose-400" /> : <Loader2 className="h-8 w-8 animate-spin" />}
@@ -643,6 +676,11 @@ function ModelCard({ m, projectId, onChange }: { m: any; projectId?: string; onC
           <div className="absolute inset-x-3 bottom-3 z-20 rounded-xl border border-amber-300/25 bg-amber-500/15 p-3 text-xs text-amber-100 backdrop-blur">
             <div className="font-bold">Website preview needs GLB or glTF</div>
             <div className="mt-1 opacity-85">This model has {previewFileLabel(m, urls)} available, but the browser preview supports GLB/glTF. Download or upload it to Roblox, or add a GLB URL.</div>
+            {m.task_id && (
+              <button onClick={refreshPreviewFile} disabled={refreshBusy} className="mt-2 inline-flex items-center gap-1 rounded-md bg-amber-400/20 px-2 py-1 text-[10px] font-bold text-amber-50 hover:bg-amber-400/30 disabled:opacity-50">
+                {refreshBusy ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />} Refresh 3D file
+              </button>
+            )}
           </div>
         )}
         {assetOnly && (
@@ -736,7 +774,7 @@ function ModelCard({ m, projectId, onChange }: { m: any; projectId?: string; onC
             </button>
           </div>
         )}
-        {done && (
+        {done && hasModelFile && (
           <>
             <div className="flex flex-wrap items-center gap-1.5">
               {EXPORT_FORMATS.filter(f => urls[f.key]).map(f => (
