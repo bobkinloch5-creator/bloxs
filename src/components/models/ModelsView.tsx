@@ -287,8 +287,14 @@ function ModelCard({ m, projectId, onChange }: { m: any; projectId?: string; onC
   const isTexture = m.mode === "texture";
   const isRefine = m.mode === "refine";
   const urls: Record<string, string> = m.model_urls || {};
+  const viewerRef = useRef<HTMLElement | null>(null);
 
-  async function runAnimate(anim: string) {
+  async function goFullscreen() {
+    const el = viewerRef.current as (HTMLElement & { requestFullscreen?: () => Promise<void> }) | null;
+    if (!el) return;
+    try { await el.requestFullscreen?.(); } catch { /* ignore */ }
+  }
+
     setAnimBusy(true); setActionErr(null);
     try {
       await animateFn({ data: { projectId, sourceId: m.id, animation: anim as any } });
