@@ -250,6 +250,240 @@ Lighting.Brightness = math.max(Lighting.Brightness, 2)
   ];
 }
 
+function intentVisibilityStudioActions(userText: string) {
+  const text = userText.toLowerCase();
+  const wants = {
+    road: /\b(road|street|path|sidewalk|city|town)\b/.test(text),
+    water: /\b(water|lake|river|ocean|pond|pool|stream)\b/.test(text),
+    building: /\b(house|building|city|town|shop|store|base|lobby|room)\b/.test(text),
+    tree: /\b(tree|forest|woods|bush|nature|park)\b/.test(text),
+    spawn: /\b(spawn|checkpoint|start\s+point|respawn)\b/.test(text),
+    lighting: /\b(light|lighting|day|night|sun|sky|atmosphere|fog|cloud|sunset)\b/.test(text),
+    ui: /\b(ui|gui|menu|hud|button|screen|shop|inventory|health|cash|coins|loading)\b/.test(text),
+    npc: /\b(npc|enemy|zombie|monster|character|bot|villager)\b/.test(text),
+    obby: /\b(obby|platform|jump|parkour|checkpoint)\b/.test(text),
+    vehicle: /\b(car|vehicle|truck|bike|boat|plane)\b/.test(text),
+    genericBuild: /\b(add|make|create|build|put|insert|generate|place)\b/.test(text),
+  };
+
+  if (!Object.values(wants).some(Boolean)) return [];
+
+  const source = `
+local Workspace = game:GetService("Workspace")
+local Lighting = game:GetService("Lighting")
+local StarterGui = game:GetService("StarterGui")
+local ServerScriptService = game:GetService("ServerScriptService")
+local wants = ${JSON.stringify(wants)}
+
+local root = Workspace:FindFirstChild("BloxSmith_Visible_Result_Guard")
+if not root then
+  root = Instance.new("Folder")
+  root.Name = "BloxSmith_Visible_Result_Guard"
+  root.Parent = Workspace
+end
+
+local function part(name, size, cf, color, material, parent)
+  local p = Instance.new("Part")
+  p.Name = name
+  p.Anchored = true
+  p.CanCollide = true
+  p.Size = size
+  p.CFrame = cf
+  p.Color = color
+  p.Material = material or Enum.Material.SmoothPlastic
+  p.TopSurface = Enum.SurfaceType.Smooth
+  p.BottomSurface = Enum.SurfaceType.Smooth
+  p.Parent = parent or root
+  return p
+end
+
+local function ensureFolder(name)
+  local f = root:FindFirstChild(name)
+  if not f then
+    f = Instance.new("Folder")
+    f.Name = name
+    f.Parent = root
+  end
+  return f
+end
+
+if wants.road then
+  local roads = ensureFolder("Roads_Visible")
+  part("Main_Road_X", Vector3.new(180, 0.35, 18), CFrame.new(0, 0.45, 0), Color3.fromRGB(38, 40, 45), Enum.Material.Asphalt, roads)
+  part("Main_Road_Z", Vector3.new(18, 0.4, 180), CFrame.new(0, 0.55, 0), Color3.fromRGB(38, 40, 45), Enum.Material.Asphalt, roads)
+  for _, x in ipairs({-36, 0, 36}) do
+    part("Lane_Mark_" .. tostring(x), Vector3.new(2, 0.08, 9), CFrame.new(x, 0.85, 0), Color3.fromRGB(245, 225, 95), Enum.Material.Neon, roads)
+  end
+end
+
+if wants.water then
+  local water = ensureFolder("Water_Visible")
+  part("Visible_Water_Surface", Vector3.new(90, 0.3, 54), CFrame.new(62, 0.35, 62), Color3.fromRGB(45, 137, 210), Enum.Material.Glass, water)
+  pcall(function()
+    Workspace.Terrain:FillBlock(CFrame.new(62, -3, 62), Vector3.new(90, 6, 54), Enum.Material.Water)
+  end)
+end
+
+if wants.building then
+  local buildings = ensureFolder("Buildings_Visible")
+  for i, data in ipairs({
+    {-55, -45, 22, Color3.fromRGB(90, 120, 150)},
+    {-55, 45, 30, Color3.fromRGB(120, 105, 95)},
+    {55, -45, 26, Color3.fromRGB(86, 105, 125)},
+    {55, 45, 18, Color3.fromRGB(130, 120, 95)}
+  }) do
+    part("Visible_Building_" .. i, Vector3.new(24, data[3], 24), CFrame.new(data[1], data[3] / 2 + 0.6, data[2]), data[4], Enum.Material.Concrete, buildings)
+    part("Visible_Roof_" .. i, Vector3.new(26, 1.2, 26), CFrame.new(data[1], data[3] + 1.4, data[2]), Color3.fromRGB(35, 40, 48), Enum.Material.Metal, buildings)
+  end
+end
+
+if wants.tree then
+  local trees = ensureFolder("Trees_Visible")
+  for i, pos in ipairs({Vector3.new(-80, 0, -20), Vector3.new(-78, 0, 24), Vector3.new(80, 0, -24), Vector3.new(82, 0, 26), Vector3.new(0, 0, 82)}) do
+    part("Tree_Trunk_" .. i, Vector3.new(3, 14, 3), CFrame.new(pos.X, 7, pos.Z), Color3.fromRGB(101, 71, 45), Enum.Material.Wood, trees)
+    part("Tree_Canopy_" .. i, Vector3.new(16, 14, 16), CFrame.new(pos.X, 19, pos.Z), Color3.fromRGB(49, 135, 62), Enum.Material.Grass, trees)
+  end
+end
+
+if wants.spawn then
+  local spawns = ensureFolder("Spawns_Visible")
+  for i, pos in ipairs({Vector3.new(-10, 1, -10), Vector3.new(10, 1, -10), Vector3.new(0, 1, 12)}) do
+    local spawn = Instance.new("SpawnLocation")
+    spawn.Name = "Visible_Spawn_" .. i
+    spawn.Anchored = true
+    spawn.Neutral = true
+    spawn.Size = Vector3.new(8, 1, 8)
+    spawn.Position = pos
+    spawn.Color = Color3.fromRGB(80, 255, 170)
+    spawn.Parent = spawns
+  end
+end
+
+if wants.obby then
+  local obby = ensureFolder("Obby_Visible")
+  for i = 1, 7 do
+    part("Visible_Obby_Platform_" .. i, Vector3.new(12, 1.4, 12), CFrame.new(-48 + i * 14, 4 + i * 2, -78), Color3.fromHSV(i / 7, 0.65, 1), Enum.Material.Neon, obby)
+  end
+end
+
+if wants.vehicle then
+  local vehicles = ensureFolder("Vehicles_Visible")
+  local body = part("Visible_Vehicle_Body", Vector3.new(16, 4, 9), CFrame.new(0, 3, 44), Color3.fromRGB(210, 55, 65), Enum.Material.Metal, vehicles)
+  part("Visible_Vehicle_Cabin", Vector3.new(7, 4, 7), CFrame.new(-1, 7, 44), Color3.fromRGB(70, 130, 190), Enum.Material.Glass, vehicles)
+  for i, pos in ipairs({Vector3.new(-6, 1.6, 39), Vector3.new(6, 1.6, 39), Vector3.new(-6, 1.6, 49), Vector3.new(6, 1.6, 49)}) do
+    local wheel = part("Visible_Wheel_" .. i, Vector3.new(3, 3, 1.5), CFrame.new(pos), Color3.fromRGB(18, 18, 18), Enum.Material.Rubber, vehicles)
+    wheel.Shape = Enum.PartType.Cylinder
+  end
+  body:SetAttribute("BloxSmithVisibleVehicle", true)
+end
+
+if wants.npc then
+  local npcs = ensureFolder("NPCs_Visible")
+  local model = Instance.new("Model")
+  model.Name = "Visible_BloxSmith_NPC"
+  model.Parent = npcs
+  local torso = part("Torso", Vector3.new(3, 4, 1.5), CFrame.new(34, 5, 0), Color3.fromRGB(75, 130, 225), Enum.Material.SmoothPlastic, model)
+  local head = part("Head", Vector3.new(2.4, 2.4, 2.4), CFrame.new(34, 8.3, 0), Color3.fromRGB(245, 205, 150), Enum.Material.SmoothPlastic, model)
+  local humanoid = Instance.new("Humanoid")
+  humanoid.DisplayName = "BloxSmith NPC"
+  humanoid.Parent = model
+  model.PrimaryPart = torso
+  head.Shape = Enum.PartType.Ball
+end
+
+if wants.ui then
+  local gui = StarterGui:FindFirstChild("BloxSmith_Visible_UI")
+  if not gui then
+    gui = Instance.new("ScreenGui")
+    gui.Name = "BloxSmith_Visible_UI"
+    gui.ResetOnSpawn = false
+    gui.Parent = StarterGui
+  end
+  local frame = gui:FindFirstChild("MainPanel")
+  if not frame then
+    frame = Instance.new("Frame")
+    frame.Name = "MainPanel"
+    frame.Size = UDim2.fromOffset(360, 180)
+    frame.Position = UDim2.new(0.5, -180, 0.12, 0)
+    frame.BackgroundColor3 = Color3.fromRGB(20, 24, 36)
+    frame.Parent = gui
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 10)
+    corner.Parent = frame
+    local title = Instance.new("TextLabel")
+    title.Name = "Title"
+    title.BackgroundTransparency = 1
+    title.Size = UDim2.new(1, -24, 0, 50)
+    title.Position = UDim2.fromOffset(12, 12)
+    title.Font = Enum.Font.GothamBold
+    title.TextScaled = true
+    title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    title.Text = "BloxSmith UI"
+    title.Parent = frame
+    local button = Instance.new("TextButton")
+    button.Name = "PrimaryButton"
+    button.Size = UDim2.new(1, -48, 0, 48)
+    button.Position = UDim2.fromOffset(24, 104)
+    button.Font = Enum.Font.GothamBold
+    button.TextScaled = true
+    button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    button.BackgroundColor3 = Color3.fromRGB(88, 78, 255)
+    button.Text = "Start"
+    button.Parent = frame
+    local bc = Instance.new("UICorner")
+    bc.CornerRadius = UDim.new(0, 8)
+    bc.Parent = button
+  end
+end
+
+if wants.lighting then
+  Lighting.ClockTime = wants.genericBuild and 14 or Lighting.ClockTime
+  Lighting.Brightness = math.max(Lighting.Brightness, 2.2)
+  Lighting.Ambient = Color3.fromRGB(95, 105, 120)
+  Lighting.OutdoorAmbient = Color3.fromRGB(130, 145, 165)
+  local atmosphere = Lighting:FindFirstChildOfClass("Atmosphere") or Instance.new("Atmosphere")
+  atmosphere.Name = "BloxSmith_Atmosphere"
+  atmosphere.Density = 0.28
+  atmosphere.Offset = 0.2
+  atmosphere.Color = Color3.fromRGB(205, 225, 255)
+  atmosphere.Decay = Color3.fromRGB(110, 130, 160)
+  atmosphere.Parent = Lighting
+end
+
+if wants.genericBuild then
+  local receipt = root:FindFirstChild("BloxSmith_Result_Receipt")
+  if not receipt then
+    receipt = part("BloxSmith_Result_Receipt", Vector3.new(34, 12, 1), CFrame.new(0, 9, -34), Color3.fromRGB(28, 32, 46), Enum.Material.Metal, root)
+    local sg = Instance.new("SurfaceGui")
+    sg.Face = Enum.NormalId.Front
+    sg.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+    sg.PixelsPerStud = 24
+    sg.Parent = receipt
+    local label = Instance.new("TextLabel")
+    label.BackgroundTransparency = 1
+    label.Size = UDim2.fromScale(1, 1)
+    label.Font = Enum.Font.GothamBold
+    label.TextScaled = true
+    label.TextWrapped = true
+    label.TextColor3 = Color3.fromRGB(245, 248, 255)
+    label.Text = "BloxSmith build applied visibly in Studio"
+    label.Parent = sg
+  end
+end
+
+root:SetAttribute("LastBloxSmithVisibilityGuard", os.time())
+`;
+
+  return [
+    {
+      kind: "run_lua",
+      parent_path: "Workspace",
+      name: "BloxSmith_Intent_Visibility_Guard",
+      payload: { source },
+    },
+  ];
+}
+
 export const Route = createFileRoute("/api/chat")({
   server: {
     handlers: {
@@ -498,6 +732,19 @@ export const Route = createFileRoute("/api/chat")({
                   ];
                   if (!/visible grass/i.test(cleanContent)) {
                     cleanContent = `${cleanContent.trim()}\n\n_Visible grass enforcement queued: large flat ground parts are recolored to Grass material, a grass surface is created, and Terrain grass decoration is enabled._`;
+                  }
+                }
+
+                if (mode === "build") {
+                  const guardActions = intentVisibilityStudioActions(userText).map(normalizePluginAction);
+                  if (guardActions.length > 0) {
+                    actions = [
+                      ...actions.filter((a) => a.name !== "BloxSmith_Intent_Visibility_Guard"),
+                      ...guardActions,
+                    ];
+                    if (!/visibility guard/i.test(cleanContent)) {
+                      cleanContent = `${cleanContent.trim()}\n\n_Visibility guard queued: BloxSmith will verify the request leaves an obvious Studio result for common build intents._`;
+                    }
                   }
                 }
 
