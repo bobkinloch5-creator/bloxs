@@ -14,10 +14,11 @@ import {
   uploadBridgeModelToRoblox,
   checkRobloxUploadOperation,
   queueBridgeModelToStudio,
+  deleteModelGeneration,
   ANIMATION_PRESETS,
 } from "@/lib/models3d.functions";
 import { PageShell } from "@/components/PageShell";
-import { Box, Loader2, Sparkles, Image as ImageIcon, Type, Timer, Download, ExternalLink, AlertCircle, CheckCircle2, PlayCircle, Palette, Maximize2, UploadCloud, Plug, Link as LinkIcon, ShieldCheck, RefreshCw } from "lucide-react";
+import { Box, Loader2, Sparkles, Image as ImageIcon, Type, Timer, Download, ExternalLink, AlertCircle, CheckCircle2, PlayCircle, Palette, Maximize2, UploadCloud, Plug, Link as LinkIcon, ShieldCheck, RefreshCw, Trash2, X } from "lucide-react";
 
 function useModelViewerScript() {
   useEffect(() => {
@@ -408,8 +409,11 @@ function ModelCard({ m, projectId, onChange }: { m: any; projectId?: string; onC
   const uploadRobloxFn = useServerFn(uploadBridgeModelToRoblox);
   const checkUploadFn = useServerFn(checkRobloxUploadOperation);
   const queueStudioFn = useServerFn(queueBridgeModelToStudio);
+  const deleteFn = useServerFn(deleteModelGeneration);
   const [animBusy, setAnimBusy] = useState(false);
   const [robloxBusy, setRobloxBusy] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [actionErr, setActionErr] = useState<string | null>(null);
   const [picking, setPicking] = useState<null | "anim" | "texture">(null);
   const [texPrompt, setTexPrompt] = useState("");
@@ -481,6 +485,17 @@ function ModelCard({ m, projectId, onChange }: { m: any; projectId?: string; onC
     } finally { setRobloxBusy(false); }
   }
 
+  async function deleteModel() {
+    setDeleteBusy(true); setActionErr(null);
+    try {
+      await deleteFn({ data: { generationId: m.id, deleteRelated: true } });
+      setConfirmDelete(false);
+      onChange();
+    } catch (e) {
+      setActionErr(e instanceof Error ? e.message : "Could not delete this model.");
+    } finally { setDeleteBusy(false); }
+  }
+
   return (
     <div className="rounded-2xl border border-white/10 bg-white/[0.03] overflow-hidden">
       <div className="aspect-square bg-black/40 relative">
@@ -505,8 +520,18 @@ function ModelCard({ m, projectId, onChange }: { m: any; projectId?: string; onC
           </span>
         )}
         {done && (
-          <button onClick={goFullscreen} title="Fullscreen 3D preview" className="absolute top-2 right-2 inline-flex items-center gap-1 rounded-md bg-black/60 hover:bg-black/80 backdrop-blur px-2 py-1 text-[10px] font-bold text-white">
-            <Maximize2 className="h-3 w-3" /> Fullscreen
+          <div className="absolute top-2 right-2 flex gap-1">
+            <button onClick={goFullscreen} title="Fullscreen 3D preview" className="inline-flex items-center gap-1 rounded-md bg-black/60 hover:bg-black/80 backdrop-blur px-2 py-1 text-[10px] font-bold text-white">
+              <Maximize2 className="h-3 w-3" /> Fullscreen
+            </button>
+            <button onClick={() => setConfirmDelete(true)} title="Delete 3D model" className="grid h-7 w-7 place-items-center rounded-md bg-black/60 text-rose-200 backdrop-blur hover:bg-rose-500/25">
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
+        {!done && (
+          <button onClick={() => setConfirmDelete(true)} title="Delete 3D model" className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-md bg-black/60 text-rose-200 backdrop-blur hover:bg-rose-500/25">
+            <Trash2 className="h-3.5 w-3.5" />
           </button>
         )}
         {!done && !failed && (
@@ -525,6 +550,22 @@ function ModelCard({ m, projectId, onChange }: { m: any; projectId?: string; onC
           {m.prompt || (m.mode === "image" ? "Image → 3D" : "Untitled")}
         </div>
         {failed && m.error && <div className="text-[11px] text-rose-300">{m.error}</div>}
+        {confirmDelete && (
+          <div className="rounded-xl border border-rose-400/30 bg-rose-500/10 p-3 text-[11px] text-rose-100">
+            <div className="font-bold">Delete this 3D model?</div>
+            <div className="mt-1 text-rose-100/75">
+              This removes the BloxSmith model record plus related refined, animated, or re-textured versions. Roblox assets already uploaded to your Roblox account are not deleted.
+            </div>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              <button onClick={deleteModel} disabled={deleteBusy} className="inline-flex items-center gap-1 rounded-md bg-rose-500/30 px-2 py-1 text-[10px] font-bold text-rose-100 hover:bg-rose-500/40 disabled:opacity-50">
+                {deleteBusy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />} Delete
+              </button>
+              <button onClick={() => setConfirmDelete(false)} disabled={deleteBusy} className="inline-flex items-center gap-1 rounded-md bg-white/[0.06] px-2 py-1 text-[10px] font-bold text-white hover:bg-white/[0.12] disabled:opacity-50">
+                <X className="h-3 w-3" /> Cancel
+              </button>
+            </div>
+          </div>
+        )}
         {isBridgeModel && (
           <div className="rounded-lg border border-cyan-300/15 bg-cyan-400/10 p-2 text-[11px] text-cyan-100">
             <div className="font-bold">Bridge status: {m.bridge_status || (m.roblox_asset_id ? "Asset ID Ready" : "Preview Ready")}</div>

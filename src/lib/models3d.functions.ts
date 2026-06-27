@@ -117,6 +117,47 @@ export const getModelStatus = createServerFn({ method: "GET" })
     };
   });
 
+export const deleteModelGeneration = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => z.object({
+    generationId: z.string().uuid(),
+    deleteRelated: z.boolean().default(true),
+  }).parse(i))
+  .handler(async ({ data, context }) => {
+    const { data: rows, error: readError } = await context.supabase
+      .from("model_generations")
+      .select("id, parent_id")
+      .eq("user_id", context.userId);
+    if (readError) throw new Error(readError.message);
+
+    const allRows = rows ?? [];
+    const target = allRows.find((row) => row.id === data.generationId);
+    if (!target) throw new Error("3D model not found.");
+
+    const ids = new Set<string>([data.generationId]);
+    if (data.deleteRelated) {
+      let changed = true;
+      while (changed) {
+        changed = false;
+        for (const row of allRows) {
+          if (row.parent_id && ids.has(row.parent_id) && !ids.has(row.id)) {
+            ids.add(row.id);
+            changed = true;
+          }
+        }
+      }
+    }
+
+    const idList = Array.from(ids);
+    const { error } = await context.supabase
+      .from("model_generations")
+      .delete()
+      .eq("user_id", context.userId)
+      .in("id", idList);
+    if (error) throw new Error(error.message);
+    return { ok: true, deleted: idList.length };
+  });
+
 
 export const startModelGeneration = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
