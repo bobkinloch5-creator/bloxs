@@ -13,8 +13,7 @@ import {
   ANIMATION_PRESETS,
 } from "@/lib/models3d.functions";
 import { PageShell } from "@/components/PageShell";
-import bridgeAsset from "@/assets/MeshyRobloxBridge.exe.asset.json";
-import { Box, Loader2, Sparkles, Image as ImageIcon, Type, Timer, Download, ExternalLink, AlertCircle, CheckCircle2, PlayCircle, Palette, Zap } from "lucide-react";
+import { Box, Loader2, Sparkles, Image as ImageIcon, Type, Timer, Download, ExternalLink, AlertCircle, CheckCircle2, PlayCircle, Palette, Maximize2 } from "lucide-react";
 
 function useModelViewerScript() {
   useEffect(() => {
@@ -164,23 +163,6 @@ export function ModelsView({ projectId }: { projectId?: string }) {
         </Link>
       ) : undefined}
     >
-      {/* Roblox Bridge banner */}
-      <section className="rounded-2xl border border-emerald-400/20 bg-gradient-to-br from-emerald-500/10 via-transparent to-cyan-500/10 p-5 backdrop-blur-sm">
-        <div className="flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-3">
-            <div className="grid h-11 w-11 place-items-center rounded-xl bg-emerald-500/15 text-emerald-300">
-              <Zap className="h-5 w-5" />
-            </div>
-            <div>
-              <div className="text-xs font-semibold uppercase tracking-wider text-emerald-300">Auto-import into Roblox Studio</div>
-              <div className="text-sm text-muted-foreground">Run the Roblox Bridge once and finished 3D models auto-insert into your open Studio place.</div>
-            </div>
-          </div>
-          <a href={bridgeAsset.url} download="BloxSmithRobloxBridge.exe" className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/40 px-3 py-2 text-xs font-bold text-emerald-100">
-            <Download className="h-3.5 w-3.5" /> Download Bridge (.exe)
-          </a>
-        </div>
-      </section>
 
       {/* Cooldown banner */}
       <section className="rounded-2xl border border-white/10 bg-gradient-to-br from-violet-500/10 via-transparent to-blue-500/10 p-5 backdrop-blur-sm">
