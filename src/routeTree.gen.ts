@@ -34,6 +34,7 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as AuthenticatedCollaboratorsRouteImport } from './routes/_authenticated/collaborators'
 import { Route as AuthenticatedChatRouteImport } from './routes/_authenticated/chat'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as ApiTripoBridgeRouteImport } from './routes/api/tripo/bridge'
 import { Route as ApiPublicMcpRouteImport } from './routes/api/public/mcp'
 import { Route as AuthenticatedProjectProjectIdRouteImport } from './routes/_authenticated/project.$projectId'
 import { Route as AuthenticatedModelsProjectIdRouteImport } from './routes/_authenticated/models.$projectId'
@@ -171,6 +172,11 @@ const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const ApiTripoBridgeRoute = ApiTripoBridgeRouteImport.update({
+  id: '/api/tripo/bridge',
+  path: '/api/tripo/bridge',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicMcpRoute = ApiPublicMcpRouteImport.update({
   id: '/api/public/mcp',
   path: '/api/public/mcp',
@@ -253,6 +259,7 @@ export interface FileRoutesByFullPath {
   '/models/$projectId': typeof AuthenticatedModelsProjectIdRoute
   '/project/$projectId': typeof AuthenticatedProjectProjectIdRoute
   '/api/public/mcp': typeof ApiPublicMcpRoute
+  '/api/tripo/bridge': typeof ApiTripoBridgeRoute
   '/api/public/plugin/clear': typeof ApiPublicPluginClearRoute
   '/api/public/plugin/complete': typeof ApiPublicPluginCompleteRoute
   '/api/public/plugin/error': typeof ApiPublicPluginErrorRoute
@@ -289,6 +296,7 @@ export interface FileRoutesByTo {
   '/models/$projectId': typeof AuthenticatedModelsProjectIdRoute
   '/project/$projectId': typeof AuthenticatedProjectProjectIdRoute
   '/api/public/mcp': typeof ApiPublicMcpRoute
+  '/api/tripo/bridge': typeof ApiTripoBridgeRoute
   '/api/public/plugin/clear': typeof ApiPublicPluginClearRoute
   '/api/public/plugin/complete': typeof ApiPublicPluginCompleteRoute
   '/api/public/plugin/error': typeof ApiPublicPluginErrorRoute
@@ -327,6 +335,7 @@ export interface FileRoutesById {
   '/_authenticated/models/$projectId': typeof AuthenticatedModelsProjectIdRoute
   '/_authenticated/project/$projectId': typeof AuthenticatedProjectProjectIdRoute
   '/api/public/mcp': typeof ApiPublicMcpRoute
+  '/api/tripo/bridge': typeof ApiTripoBridgeRoute
   '/api/public/plugin/clear': typeof ApiPublicPluginClearRoute
   '/api/public/plugin/complete': typeof ApiPublicPluginCompleteRoute
   '/api/public/plugin/error': typeof ApiPublicPluginErrorRoute
@@ -365,6 +374,7 @@ export interface FileRouteTypes {
     | '/models/$projectId'
     | '/project/$projectId'
     | '/api/public/mcp'
+    | '/api/tripo/bridge'
     | '/api/public/plugin/clear'
     | '/api/public/plugin/complete'
     | '/api/public/plugin/error'
@@ -401,6 +411,7 @@ export interface FileRouteTypes {
     | '/models/$projectId'
     | '/project/$projectId'
     | '/api/public/mcp'
+    | '/api/tripo/bridge'
     | '/api/public/plugin/clear'
     | '/api/public/plugin/complete'
     | '/api/public/plugin/error'
@@ -438,6 +449,7 @@ export interface FileRouteTypes {
     | '/_authenticated/models/$projectId'
     | '/_authenticated/project/$projectId'
     | '/api/public/mcp'
+    | '/api/tripo/bridge'
     | '/api/public/plugin/clear'
     | '/api/public/plugin/complete'
     | '/api/public/plugin/error'
@@ -461,6 +473,7 @@ export interface RootRouteChildren {
   ApiChatRoute: typeof ApiChatRoute
   ApiVoiceRoute: typeof ApiVoiceRoute
   ApiPublicMcpRoute: typeof ApiPublicMcpRoute
+  ApiTripoBridgeRoute: typeof ApiTripoBridgeRoute
   ApiPublicPluginClearRoute: typeof ApiPublicPluginClearRoute
   ApiPublicPluginCompleteRoute: typeof ApiPublicPluginCompleteRoute
   ApiPublicPluginErrorRoute: typeof ApiPublicPluginErrorRoute
@@ -647,6 +660,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/tripo/bridge': {
+      id: '/api/tripo/bridge'
+      path: '/api/tripo/bridge'
+      fullPath: '/api/tripo/bridge'
+      preLoaderRoute: typeof ApiTripoBridgeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/mcp': {
       id: '/api/public/mcp'
       path: '/api/public/mcp'
@@ -782,6 +802,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiChatRoute: ApiChatRoute,
   ApiVoiceRoute: ApiVoiceRoute,
   ApiPublicMcpRoute: ApiPublicMcpRoute,
+  ApiTripoBridgeRoute: ApiTripoBridgeRoute,
   ApiPublicPluginClearRoute: ApiPublicPluginClearRoute,
   ApiPublicPluginCompleteRoute: ApiPublicPluginCompleteRoute,
   ApiPublicPluginErrorRoute: ApiPublicPluginErrorRoute,
@@ -793,3 +814,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
