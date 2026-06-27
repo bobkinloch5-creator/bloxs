@@ -308,9 +308,9 @@ export const Route = createFileRoute("/api/chat")({
           const assetModeRule = mode === "chat" ? "" : (() => {
             switch (assetMode) {
               case "toolbox_only":
-                return `\n[ASSET MODE: TOOLBOX ONLY]\nThe user has chosen Toolbox Assets Only. Hard rules for this turn:\n- For every visual model (trees, buildings, vehicles, NPCs, pets, weapons, props, decor, furniture, roads, shops, cities, forests, maps, worlds, and environment kits) you MUST call the search_toolbox tool and emit insert_asset actions with safe returned ids.\n- DO NOT build trees, houses, roads, cars, NPCs, weapons, decorations, maps, or random scenery from primitives in run_lua. DO NOT emit raw "part" actions to fake real-world objects.\n- Only use run_lua for placement/scaling/rotation of inserted assets, clean organization, service setup, scripts, UI wiring, and non-visual support logic.\n- If search_toolbox returns source "none" for a required category, tell the user plainly that no safe free Toolbox asset was found and ASK whether to fall back to generated geometry.\n- Briefly list which assets you inserted (name + creatorName + id) in your explanation.\n`;
+                return `\n[ASSET MODE: TOOLBOX ONLY]\nThe user has chosen Toolbox Assets Only. Hard rules for this turn:\n- For every visual model (trees, buildings, vehicles, NPCs, pets, weapons, props, decor, furniture, roads, shops, cities, forests, maps, worlds, and environment kits) you MUST call the search_toolbox tool and emit insert_asset actions with safe returned ids.\n- Do a WIDE Creator Store search: split broad prompts into categories and call search_toolbox separately for each needed category. Example city = road/street, building/skyscraper/shop, street light, car/vehicle, sign/decor. Example forest = tree, rock, bush, cabin, animal/NPC if needed.\n- DO NOT build trees, houses, roads, cars, NPCs, weapons, decorations, maps, or random scenery from primitives in run_lua. DO NOT emit raw "part" actions to fake real-world objects.\n- Only use run_lua for placement/scaling/rotation of inserted assets, clean organization, service setup, scripts, UI wiring, and non-visual support logic.\n- If search_toolbox returns source "none" for a required category, tell the user plainly that no safe free Toolbox asset was found and ASK whether to fall back to generated geometry.\n- Briefly list which assets you inserted (name + creatorName + id) in your explanation.\n`;
               case "both":
-                return `\n[ASSET MODE: TOOLBOX + SCRIPTED SYSTEMS]\nUse Toolbox assets via search_toolbox + insert_asset for all visual models and environment content. Use run_lua for placement, scaling, rotation, scripted systems, UI, remotes, storage organization, and light terrain/support edits only. If no safe relevant Toolbox asset exists, ask before generating fallback geometry.\n`;
+                return `\n[ASSET MODE: TOOLBOX + SCRIPTED SYSTEMS]\nUse Toolbox assets via search_toolbox + insert_asset for all visual models and environment content. Split broad prompts into multiple searches for each asset category before building. Use run_lua for placement, scaling, rotation, scripted systems, UI, remotes, storage organization, and light terrain/support edits only. If no safe relevant Toolbox asset exists, ask before generating fallback geometry.\n`;
               default:
                 return `\n[ASSET MODE: TOOLBOX ONLY]\nUse safe free Roblox Toolbox / Creator Store assets for visual content. Ask before generating any fallback geometry.\n`;
             }
@@ -318,16 +318,17 @@ export const Route = createFileRoute("/api/chat")({
 
           const toolboxTool = tool({
             description:
-              "Search Roblox's public Toolbox/Marketplace for FREE assets matching a keyword. Use this whenever the user asks for trees, buildings, cars, vehicles, furniture, weapons, NPCs, pets, props, environment kits, sounds, or anything that looks better as a real model than primitives. Returns ranked { id, name, creatorName, thumbnail, relevance, safety } rows you can pass to insert_asset actions. Call once per distinct asset type you need.",
+              "Search Roblox's public Toolbox/Creator Store for FREE public assets matching a keyword. Use this whenever the user asks for trees, buildings, cars, vehicles, roads, furniture, weapons, NPCs, pets, props, environment kits, sounds, or anything that should be a real Roblox model instead of generated primitives. The backend does a wide multi-query search, filters unsafe/junk/broken-looking results, and returns ranked { id, name, creatorName, thumbnail, relevance, safety, sourceQuery } rows you can pass to insert_asset actions. Call once per distinct asset type you need.",
             inputSchema: z.object({
               keyword: z.string().describe("What to search for, e.g. 'oak tree', 'sports car', 'medieval house', 'zombie npc'."),
               category: z.enum(["Model", "Audio", "Decal", "Mesh"]).optional().describe("Asset category, defaults to Model."),
-              limit: z.number().int().min(1).max(10).optional().describe("Max results, default 6."),
+              limit: z.number().int().min(1).max(20).optional().describe("Max results, default 8."),
             }),
             execute: async ({ keyword, category, limit }: { keyword: string; category?: ToolboxCategory; limit?: number }) => {
-              const out = await searchRobloxToolbox(keyword, category ?? "Model", limit ?? 6);
-              // Hide low-quality rows from the AI (it can still rely on the top picks).
-              const filtered = out.results.filter((r) => r.free !== false && (r.safety ?? 0) >= 0.8 && (r.relevance ?? 0) >= 0.3 && r.creatorName === "Roblox");
+              const out = await searchRobloxToolbox(keyword, category ?? "Model", limit ?? 8);
+              // Hide low-quality rows from the AI while allowing safe public Creator Store assets,
+              // not only Roblox-owned assets. The helper has already removed junk and paid rows.
+              const filtered = out.results.filter((r) => r.free !== false && (r.safety ?? 0) >= 0.62 && (r.relevance ?? 0) >= 0.18);
               const final = filtered;
               return {
                 source: out.source,
@@ -337,7 +338,7 @@ export const Route = createFileRoute("/api/chat")({
                   ? "Live search unavailable; these are curated verified-free Roblox-owned assets."
                   : out.source === "none"
                   ? "No safe free assets matched. Tell the user no Toolbox match was found and ASK before falling back to generated geometry."
-                  : "Live results from Roblox public toolbox. Use only safe, free, relevant rows from trusted creators and list inserted assets for the user.",
+                  : "Live results from Roblox public Toolbox/Creator Store. Use only safe, free, relevant rows, prefer higher safety/relevance, and list inserted asset names, creators, and ids for the user.",
               };
             },
           });

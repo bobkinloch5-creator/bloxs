@@ -15,6 +15,12 @@ export interface ToolboxResult {
   safety?: number;    // 0..1 — heuristic safety/quality score (creator, name junk filter)
   reason?: string;
   free?: boolean;
+  sourceQuery?: string;
+  endorsed?: boolean;
+  verifiedCreator?: boolean;
+  hasScripts?: boolean;
+  scriptCount?: number;
+  upVotePercent?: number;
 }
 
 export type ToolboxCategory = "Model" | "Audio" | "Decal" | "Mesh";
@@ -67,42 +73,114 @@ function pickFallback(keyword: string): ToolboxResult[] {
 }
 
 const QUERY_ALIASES: Array<{ test: RegExp; terms: string[] }> = [
-  { test: /\b(obby|parkour)\b/i, terms: ["obby kit", "parkour kit", "obstacle course"] },
-  { test: /\b(tycoon)\b/i, terms: ["tycoon kit", "conveyor", "dropper"] },
-  { test: /\b(city|town|roleplay)\b/i, terms: ["city kit", "road", "building"] },
-  { test: /\b(forest|woods|jungle)\b/i, terms: ["tree", "pine tree", "forest"] },
-  { test: /\b(car|cars|vehicle|vehicles)\b/i, terms: ["car", "vehicle", "race car"] },
-  { test: /\b(road|street|highway)\b/i, terms: ["road", "street", "city road"] },
-  { test: /\b(house|building|shop|store)\b/i, terms: ["building", "house", "shop"] },
-  { test: /\b(pet|pets)\b/i, terms: ["pet", "dog", "cat"] },
-  { test: /\b(zombie|enemy|monster|npc)\b/i, terms: ["npc", "zombie", "dummy"] },
-  { test: /\b(sword|weapon|gun|blaster)\b/i, terms: ["weapon", "sword", "gun"] },
-  { test: /\b(lobby|spawn)\b/i, terms: ["lobby", "spawn", "welcome"] },
+  { test: /\b(obby|parkour)\b/i, terms: ["obby kit", "parkour kit", "obstacle course", "checkpoint obby"] },
+  { test: /\b(tycoon)\b/i, terms: ["tycoon kit", "tycoon building", "conveyor", "dropper"] },
+  { test: /\b(city|town|roleplay|rp)\b/i, terms: ["city kit", "city building", "road", "street light", "sidewalk"] },
+  { test: /\b(forest|woods|jungle)\b/i, terms: ["tree", "pine tree", "forest", "rock", "bush"] },
+  { test: /\b(car|cars|vehicle|vehicles|racing|race)\b/i, terms: ["car", "vehicle", "race car", "sports car", "road"] },
+  { test: /\b(road|street|highway)\b/i, terms: ["road", "street", "city road", "asphalt road"] },
+  { test: /\b(house|building|shop|store|mall|lobby)\b/i, terms: ["building", "house", "shop", "storefront", "lobby"] },
+  { test: /\b(pet|pets|egg|eggs)\b/i, terms: ["pet", "pet simulator", "egg", "dog", "cat"] },
+  { test: /\b(zombie|enemy|monster|npc|vendor|quest giver)\b/i, terms: ["npc", "zombie", "monster", "dummy", "vendor"] },
+  { test: /\b(sword|weapon|gun|blaster|bow|staff)\b/i, terms: ["weapon", "sword", "gun", "blaster", "bow"] },
+  { test: /\b(lobby|spawn|hub)\b/i, terms: ["lobby", "spawn", "hub", "welcome center"] },
+  { test: /\b(horror|escape|haunted)\b/i, terms: ["horror house", "haunted house", "dark corridor", "flashlight"] },
+  { test: /\b(rpg|dungeon|quest|fantasy)\b/i, terms: ["dungeon", "fantasy house", "rpg npc", "treasure chest"] },
+  { test: /\b(tower defense|td)\b/i, terms: ["tower defense", "enemy npc", "path", "turret"] },
+  { test: /\b(cafe|restaurant|cooking|kitchen)\b/i, terms: ["cafe", "restaurant", "kitchen", "food"] },
+  { test: /\b(beach|island|survival)\b/i, terms: ["island", "beach", "palm tree", "campfire"] },
 ];
 
 function buildSearchTerms(keyword: string): string[] {
   const base = keyword.trim().replace(/\s+/g, " ");
   const terms = new Set<string>();
   if (base) terms.add(base);
+  const tokens = base.split(/\s+/).filter((t) => t.length > 2);
+  for (const token of tokens.slice(0, 4)) terms.add(token);
+  if (base && !/\broblox\b/i.test(base)) terms.add(`${base} roblox`);
+  if (base && !/\bkit\b/i.test(base)) terms.add(`${base} kit`);
+  if (base && !/\bmodel\b/i.test(base)) terms.add(`${base} model`);
   for (const alias of QUERY_ALIASES) {
     if (alias.test.test(base)) {
       for (const term of alias.terms) terms.add(term);
     }
   }
-  return Array.from(terms).slice(0, 4);
+  return Array.from(terms).slice(0, 10);
 }
 
 async function tryFetch(url: string): Promise<unknown | null> {
   try {
     const res = await fetch(url, {
       headers: { Accept: "application/json", "User-Agent": "BloxSmith/1.0" },
-      signal: AbortSignal.timeout(6000),
+      signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) return null;
     return (await res.json()) as unknown;
   } catch {
     return null;
   }
+}
+
+async function fetchToolboxDetails(
+  ids: number[],
+  category: ToolboxCategory,
+  sourceQueryById: Map<number, string>,
+): Promise<ToolboxResult[]> {
+  const unique = Array.from(new Set(ids)).filter((id) => Number.isFinite(id) && id > 0).slice(0, 120);
+  const rows: ToolboxResult[] = [];
+  for (let i = 0; i < unique.length; i += 40) {
+    const chunk = unique.slice(i, i + 40);
+    const url = `https://apis.roblox.com/toolbox-service/v1/items/details?assetIds=${chunk.join(",")}`;
+    const json = (await tryFetch(url)) as
+      | {
+          data?: Array<{
+            asset?: {
+              id?: number;
+              name?: string;
+              typeId?: number;
+              isEndorsed?: boolean;
+              hasScripts?: boolean;
+              scriptCount?: number;
+              visibilityStatus?: number;
+            };
+            creator?: { id?: number; name?: string; type?: number; isVerifiedCreator?: boolean };
+            voting?: { upVotePercent?: number };
+            product?: { price?: number; isFree?: boolean };
+            fiatProduct?: {
+              published?: boolean;
+              purchasable?: boolean;
+              isFree?: boolean;
+              purchasePrice?: { quantity?: { significand?: number; exponent?: number } };
+            };
+          }>;
+        }
+      | null;
+    if (!json?.data || !Array.isArray(json.data)) continue;
+    for (const item of json.data) {
+      const id = item.asset?.id;
+      const name = item.asset?.name;
+      if (typeof id !== "number" || !name) continue;
+      const fiatFree =
+        item.fiatProduct?.isFree ??
+        (item.fiatProduct?.purchasePrice?.quantity?.significand === 0 || item.fiatProduct?.purchasePrice == null);
+      const classicFree = item.product?.isFree ?? (item.product?.price === 0 || item.product?.price == null);
+      rows.push({
+        id,
+        name,
+        creatorName: item.creator?.name ?? "",
+        creatorType: item.creator?.type === 2 ? "Group" : "User",
+        assetType: category,
+        free: fiatFree && classicFree && item.fiatProduct?.published !== false && item.fiatProduct?.purchasable !== false,
+        sourceQuery: sourceQueryById.get(id),
+        endorsed: item.asset?.isEndorsed,
+        verifiedCreator: item.creator?.isVerifiedCreator,
+        hasScripts: item.asset?.hasScripts,
+        scriptCount: item.asset?.scriptCount,
+        upVotePercent: item.voting?.upVotePercent,
+      });
+    }
+  }
+  return rows;
 }
 
 const JUNK_PATTERNS = [
@@ -119,6 +197,10 @@ const JUNK_PATTERNS = [
   /\bexploit\b/i,
   /\bscript\s*builder\b/i,
   /\bhd\s*admin\b/i,
+  /\badmin\s*commands?\b/i,
+  /\bloader\b/i,
+  /\bobfusc/i,
+  /\bscript\s*hub\b/i,
   /[💰🤑💎]/u,
   /\bclick\s*here\b/i,
   /\bgive\s*?away\b/i,
@@ -136,9 +218,9 @@ function looksLikeJunk(name: string): boolean {
 function rejectionReason(r: ToolboxResult): string | null {
   if (r.free === false) return "not_free";
   if (looksLikeJunk(r.name)) return "suspicious_name";
-  if (!isTrustedCreator(r.creatorName)) return "untrusted_creator";
-  if ((r.relevance ?? 0) <= 0.1) return "low_relevance";
-  if ((r.safety ?? 0) < 0.8) return "low_safety";
+  if (!isAllowedCreator(r.creatorName)) return "untrusted_creator";
+  if ((r.relevance ?? 0) < 0.18) return "low_relevance";
+  if ((r.safety ?? 0) < 0.62) return "low_safety";
   return null;
 }
 
@@ -154,17 +236,29 @@ function relevanceScore(query: string, name: string): number {
   return Math.min(1, hits / tokens.length);
 }
 
-function safetyScore(creatorName: string, name: string): number {
+function safetyScore(creatorName: string, name: string, meta?: ToolboxResult): number {
   let s = 0.5;
   const c = (creatorName || "").toLowerCase();
   if (c === "roblox") s += 0.4;
-  else if (c) s += 0.1;
+  else if (c) s += 0.18;
+  if (meta?.verifiedCreator) s += 0.12;
+  if (meta?.endorsed) s += 0.12;
   if (looksLikeJunk(name)) s -= 0.4;
+  if (meta?.hasScripts && c !== "roblox") s -= 0.12;
+  if (typeof meta?.upVotePercent === "number") {
+    if (meta.upVotePercent >= 85) s += 0.08;
+    else if (meta.upVotePercent < 60) s -= 0.12;
+  }
+  if (/\b(pack|kit|low poly|cartoon|classic|mesh|model)\b/i.test(name)) s += 0.08;
   return Math.max(0, Math.min(1, s));
 }
 
-function isTrustedCreator(creatorName: string): boolean {
-  return creatorName.trim().toLowerCase() === "roblox";
+function isAllowedCreator(creatorName: string): boolean {
+  const c = creatorName.trim();
+  if (!c) return false;
+  if (looksLikeJunk(c)) return false;
+  if (/robux|scam|hack|exploit|admin|loader|virus|infected/i.test(c)) return false;
+  return true;
 }
 
 function thumbnailFor(id: number): string {
@@ -174,7 +268,7 @@ function thumbnailFor(id: number): string {
 
 /**
  * Search Roblox public toolbox/marketplace for free assets matching `keyword`.
- * Filters to verified-creator, free items and ranks by relevance × safety.
+ * Filters to free/public-looking items, rejects junk, and ranks by relevance × safety.
  */
 export async function searchRobloxToolbox(
   keyword: string,
@@ -188,8 +282,8 @@ export async function searchRobloxToolbox(
   const enrich = (r: ToolboxResult): ToolboxResult => ({
     ...r,
     thumbnail: r.thumbnail ?? thumbnailFor(r.id),
-    relevance: relevanceScore(keyword, r.name),
-    safety: safetyScore(r.creatorName, r.name),
+    relevance: Math.max(relevanceScore(keyword, r.name), relevanceScore(r.sourceQuery ?? keyword, r.name)),
+    safety: safetyScore(r.creatorName, r.name, r),
     free: r.free ?? true,
   });
 
@@ -197,22 +291,33 @@ export async function searchRobloxToolbox(
     rows
       .map(enrich)
       .filter((r) => rejectionReason(r) === null)
-      .sort((a, b) => (b.relevance! * 0.6 + b.safety! * 0.4) - (a.relevance! * 0.6 + a.safety! * 0.4))
+      .sort((a, b) => {
+        const aTrusted = a.creatorName.trim().toLowerCase() === "roblox" ? 0.12 : 0;
+        const bTrusted = b.creatorName.trim().toLowerCase() === "roblox" ? 0.12 : 0;
+        return (b.relevance! * 0.58 + b.safety! * 0.42 + bTrusted) - (a.relevance! * 0.58 + a.safety! * 0.42 + aTrusted);
+      })
       .slice(0, limit);
 
-  // 1. toolbox-service marketplace endpoint.
+  // 1. toolbox-service marketplace endpoint used by Creator Store/Toolbox.
   const liveRows = new Map<number, ToolboxResult>();
+  const idsNeedingDetails: number[] = [];
+  const sourceQueryById = new Map<number, string>();
   for (const term of terms) {
     const q = encodeURIComponent(term);
-    const tbUrl = `https://apis.roblox.com/toolbox-service/v1/marketplace/${catId}?keyword=${q}&limit=${limit * 4}&sortType=2`;
+    const tbUrl = `https://apis.roblox.com/toolbox-service/v1/marketplace/${catId}?keyword=${q}&limit=${Math.max(limit * 6, 30)}&sortType=2`;
     const tb = (await tryFetch(tbUrl)) as
-      | { data?: Array<{ asset?: { id?: number; name?: string; typeId?: number }; creator?: { name?: string; type?: number }; product?: { price?: number; isFree?: boolean } }> }
+      | { data?: Array<{ id?: number; asset?: { id?: number; name?: string; typeId?: number }; creator?: { name?: string; type?: number }; product?: { price?: number; isFree?: boolean } }> }
       | null;
     if (!tb?.data || !Array.isArray(tb.data)) continue;
     for (const row of tb.data) {
-      const id = row?.asset?.id;
+      const id = row?.asset?.id ?? row?.id;
       const name = row?.asset?.name;
-      if (typeof id !== "number" || !name || liveRows.has(id)) continue;
+      if (typeof id !== "number" || liveRows.has(id)) continue;
+      sourceQueryById.set(id, term);
+      if (!name) {
+        idsNeedingDetails.push(id);
+        continue;
+      }
       const price = row?.product?.price;
       const isFree = row?.product?.isFree ?? (price === 0 || price == null);
       liveRows.set(id, {
@@ -222,9 +327,41 @@ export async function searchRobloxToolbox(
         creatorType: row?.creator?.type === 2 ? "Group" : "User",
         assetType: category,
         free: isFree,
+        sourceQuery: term,
       });
     }
   }
+
+  for (const detail of await fetchToolboxDetails(idsNeedingDetails, category, sourceQueryById)) {
+    if (!liveRows.has(detail.id)) liveRows.set(detail.id, detail);
+  }
+
+  // 2. legacy public catalog endpoint as a wider backup. Roblox can change this
+  // without notice, so failures are ignored and the curated fallback still works.
+  const legacyCategory = category === "Audio" ? 9 : category === "Decal" ? 8 : category === "Mesh" ? 4 : 6;
+  for (const term of terms) {
+    const q = encodeURIComponent(term);
+    const legacyUrl = `https://search.roblox.com/catalog/json?CatalogContext=2&Category=${legacyCategory}&Keyword=${q}&SortType=3&ResultsPerPage=${Math.max(limit * 6, 30)}`;
+    const legacy = (await tryFetch(legacyUrl)) as
+      | Array<{ AssetId?: number; Name?: string; Creator?: string; CreatorName?: string; Price?: number | null; Sales?: number; AssetTypeID?: number }>
+      | null;
+    if (!Array.isArray(legacy)) continue;
+    for (const row of legacy) {
+      const id = row?.AssetId;
+      const name = row?.Name;
+      if (typeof id !== "number" || !name || liveRows.has(id)) continue;
+      liveRows.set(id, {
+        id,
+        name,
+        creatorName: row.CreatorName ?? row.Creator ?? "",
+        creatorType: "User",
+        assetType: category,
+        free: row.Price === 0 || row.Price == null,
+        sourceQuery: term,
+      });
+    }
+  }
+
   if (liveRows.size > 0) {
     const ranked = rank(Array.from(liveRows.values()));
     if (ranked.length > 0) return { source: "live", results: ranked };
