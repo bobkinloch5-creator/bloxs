@@ -5,7 +5,7 @@ import { z } from "zod";
 import { getProviderModel, getFallbackModel } from "@/lib/ai-gateway.server";
 import { BLOXSMITH_SYSTEM_PROMPT, parseActions } from "@/lib/bloxsmith-prompt";
 import { DEFAULT_MODEL_ID, findModel, isSelectable } from "@/lib/models";
-import { searchRobloxToolbox, type ToolboxCategory } from "@/lib/roblox-toolbox.server";
+import { searchRobloxToolbox, searchRobloxToolboxSet, type ToolboxCategory, type ToolboxSetRequest } from "@/lib/roblox-toolbox.server";
 import { chargeCredits, creditCostForTier, BUILD_ACTIONS_BONUS } from "@/lib/credits.server";
 import { describeImageWithNvidiaPaliGemma } from "@/lib/nvidia-vision.server";
 import { generateUiConceptImage } from "@/lib/ui-concept-image.server";
@@ -309,8 +309,9 @@ export const Route = createFileRoute("/api/chat")({
             switch (assetMode) {
               case "toolbox_only":
                 return `\n[ASSET MODE: TOOLBOX ONLY]\nThe user has chosen Toolbox Assets Only. Hard rules for this turn:\n- For every visual model (trees, buildings, vehicles, NPCs, pets, weapons, props, decor, furniture, roads, shops, cities, forests, maps, worlds, and environment kits) you MUST call the search_toolbox tool and emit insert_asset actions with safe returned ids.\n- Do a WIDE Creator Store search: split broad prompts into categories and call search_toolbox separately for each needed category. Example city = road/street, building/skyscraper/shop, street light, car/vehicle, sign/decor. Example forest = tree, rock, bush, cabin, animal/NPC if needed.\n- DO NOT build trees, houses, roads, cars, NPCs, weapons, decorations, maps, or random scenery from primitives in run_lua. DO NOT emit raw "part" actions to fake real-world objects.\n- Only use run_lua for placement/scaling/rotation of inserted assets, clean organization, service setup, scripts, UI wiring, and non-visual support logic.\n- If search_toolbox returns source "none" for a required category, tell the user plainly that no safe free Toolbox asset was found and ASK whether to fall back to generated geometry.\n- Briefly list which assets you inserted (name + creatorName + id) in your explanation.\n`;
+                return `\n[ASSET MODE: TOOLBOX ONLY]\nThe user has chosen Toolbox Assets Only. Hard rules for this turn:\n- Think of Roblox Toolbox / Creator Store as a live searchable asset universe. You do not rely on memory or invented IDs; you search it.\n- For full games, maps, screenshots, cities, worlds, lobbies, or multi-prop scenes, call search_toolbox_set FIRST with every visual category needed. Example city = road/street, building/skyscraper/shop, street light, sidewalk, car/vehicle, sign/decor, NPC if needed. Example forest = tree, rock, bush, cabin, campfire, animal/NPC if needed.\n- For one-off visual assets, call search_toolbox. For follow-up gaps after search_toolbox_set, call search_toolbox with narrower keywords.\n- For every visual model (trees, buildings, vehicles, NPCs, pets, weapons, props, decor, furniture, roads, shops, cities, forests, maps, worlds, and environment kits) emit insert_asset actions with safe returned ids and fallback_ids.\n- DO NOT build trees, houses, roads, cars, NPCs, weapons, decorations, maps, or random scenery from primitives in run_lua. DO NOT emit raw "part" actions to fake real-world objects.\n- Only use run_lua for placement/scaling/rotation of inserted assets, clean organization, service setup, scripts, UI wiring, and non-visual support logic.\n- If a required search_toolbox_set request returns status "missing" or search_toolbox returns source "none", tell the user plainly that no safe free Toolbox asset was found and ASK whether to fall back to generated geometry.\n- Briefly list which assets you inserted (name + creatorName + id) in your explanation.\n`;
               case "both":
-                return `\n[ASSET MODE: TOOLBOX + SCRIPTED SYSTEMS]\nUse Toolbox assets via search_toolbox + insert_asset for all visual models and environment content. Split broad prompts into multiple searches for each asset category before building. Use run_lua for placement, scaling, rotation, scripted systems, UI, remotes, storage organization, and light terrain/support edits only. If no safe relevant Toolbox asset exists, ask before generating fallback geometry.\n`;
+                return `\n[ASSET MODE: TOOLBOX + SCRIPTED SYSTEMS]\nUse Toolbox assets via search_toolbox_set/search_toolbox + insert_asset for all visual models and environment content. For full scenes or game templates, call search_toolbox_set with each needed category before building. Use run_lua for placement, scaling, rotation, scripted systems, UI, remotes, storage organization, and light terrain/support edits only. If no safe relevant Toolbox asset exists, ask before generating fallback geometry.\n`;
               default:
                 return `\n[ASSET MODE: TOOLBOX ONLY]\nUse safe free Roblox Toolbox / Creator Store assets for visual content. Ask before generating any fallback geometry.\n`;
             }
@@ -347,6 +348,31 @@ export const Route = createFileRoute("/api/chat")({
             },
           });
 
+          const toolboxSetTool = tool({
+            description:
+              "Search the whole public Roblox Toolbox/Creator Store for a SET of needed visual asset categories in one call. Use this before building full maps, worlds, screenshots, lobbies, cities, tycoons, obbies, simulators, RPGs, racing maps, roleplay cities, or any scene needing multiple asset types. Provide one request per category, e.g. road, building, street light, vehicle, tree, rock, NPC. Returns per-category ranked safe/free rows with fallbackIds and insertPayload.",
+            inputSchema: z.object({
+              requests: z.array(z.object({
+                label: z.string().describe("Short category label, e.g. 'city roads', 'shop buildings', 'street lights'."),
+                keyword: z.string().describe("Roblox Toolbox keyword for this category."),
+                category: z.enum(["Model", "Audio", "Decal", "Mesh"]).optional().describe("Asset category, defaults to Model."),
+                limit: z.number().int().min(1).max(24).optional().describe("Max safe results for this category, default 8."),
+                required: z.boolean().optional().describe("True when this category is essential and should not be faked with geometry."),
+              })).min(1).max(16),
+              defaultLimit: z.number().int().min(1).max(24).optional().describe("Default per-category safe result limit."),
+            }),
+            execute: async ({ requests, defaultLimit }: { requests: ToolboxSetRequest[]; defaultLimit?: number }) => {
+              const out = await searchRobloxToolboxSet(requests, defaultLimit ?? 8);
+              return {
+                ...out,
+                note:
+                  out.source === "none"
+                    ? "No safe free Toolbox assets were found for this requested set. Ask before fallback geometry."
+                    : "Use each request.best or another high-score result for insert_asset. Always include fallback_ids where present, and do not invent IDs.",
+              };
+            },
+          });
+
           const tryStream = (
             model: typeof modelChoice.model,
             usedModelId: string,
@@ -362,7 +388,7 @@ export const Route = createFileRoute("/api/chat")({
             ...(modelSettings?.topP !== undefined ? { topP: modelSettings.topP } : {}),
             ...(modelSettings?.maxOutputTokens !== undefined ? { maxOutputTokens: modelSettings.maxOutputTokens } : {}),
             // In chat mode, do NOT expose the toolbox tool — the model can't build, so it doesn't need it.
-            tools: mode === "chat" ? {} : { search_toolbox: toolboxTool },
+            tools: mode === "chat" ? {} : { search_toolbox: toolboxTool, search_toolbox_set: toolboxSetTool },
             stopWhen: stepCountIs(50),
             onFinish: persistFinish(usedModelId, notice),
             onError: ({ error }) => {

@@ -29,6 +29,23 @@ export interface ToolboxResult {
 }
 
 export type ToolboxCategory = "Model" | "Audio" | "Decal" | "Mesh";
+export interface ToolboxSetRequest {
+  label: string;
+  keyword: string;
+  category?: ToolboxCategory;
+  limit?: number;
+  required?: boolean;
+}
+
+export interface ToolboxSetResult extends ToolboxSetRequest {
+  source: "live" | "fallback" | "none";
+  results: ToolboxResult[];
+  searchedTerms: string[];
+  scanned: number;
+  best?: ToolboxResult;
+  status: "ready" | "fallback" | "missing";
+}
+
 const CATEGORY_ID: Record<ToolboxCategory, number> = {
   Model: 10,
   Audio: 12,
@@ -452,4 +469,61 @@ export async function searchRobloxToolbox(
     .map(enrich);
   if (fb.length > 0) return { source: "fallback", results: fb.slice(0, safeLimit), searchedTerms: activeTerms, scanned: liveRows.size };
   return { source: "none", results: [], searchedTerms: activeTerms, scanned: liveRows.size };
+}
+
+export async function searchRobloxToolboxSet(
+  requests: ToolboxSetRequest[],
+  defaultLimit = 8,
+): Promise<{
+  source: "live" | "partial" | "fallback" | "none";
+  requests: ToolboxSetResult[];
+  readyCount: number;
+  missingRequired: string[];
+  insertionRule: string;
+}> {
+  const normalized = requests
+    .filter((r) => r && typeof r.keyword === "string" && r.keyword.trim())
+    .slice(0, 16)
+    .map((r) => ({
+      label: String(r.label || r.keyword).trim().slice(0, 60),
+      keyword: r.keyword.trim().slice(0, 120),
+      category: r.category ?? "Model",
+      limit: Math.max(1, Math.min(r.limit ?? defaultLimit, 24)),
+      required: r.required !== false,
+    }));
+
+  const rows = await Promise.all(
+    normalized.map(async (request): Promise<ToolboxSetResult> => {
+      const out = await searchRobloxToolbox(request.keyword, request.category, request.limit);
+      const results = out.results.filter((r) => r.free !== false && (r.safety ?? 0) >= 0.62 && (r.relevance ?? 0) >= 0.18);
+      return {
+        ...request,
+        source: out.source,
+        results,
+        searchedTerms: out.searchedTerms,
+        scanned: out.scanned,
+        best: results[0],
+        status: results.length > 0 ? (out.source === "fallback" ? "fallback" : "ready") : "missing",
+      };
+    }),
+  );
+
+  const readyCount = rows.filter((r) => r.results.length > 0).length;
+  const missingRequired = rows.filter((r) => r.required && r.results.length === 0).map((r) => r.label);
+  const liveCount = rows.filter((r) => r.source === "live" && r.results.length > 0).length;
+  const fallbackCount = rows.filter((r) => r.source === "fallback" && r.results.length > 0).length;
+  const source =
+    readyCount === 0 ? "none" :
+    liveCount === rows.length ? "live" :
+    fallbackCount === readyCount ? "fallback" :
+    "partial";
+
+  return {
+    source,
+    requests: rows,
+    readyCount,
+    missingRequired,
+    insertionRule:
+      "For each asset category, choose request.best or another high score result. Emit insert_asset with payload.asset_id from result.id and payload.fallback_ids from result.fallbackIds. Add folder_name, tags, position, rotation/yaw, and scale. If a required request is missing, do not fake it with parts; ask before fallback geometry.",
+  };
 }
