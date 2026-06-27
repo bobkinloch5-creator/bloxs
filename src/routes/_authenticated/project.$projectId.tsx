@@ -962,6 +962,7 @@ function AssistantCard({
   actionRows = [],
   latestActionRows = [],
   isLatest = false,
+  autoExecute = true,
 }: {
   text: string;
   imageUrl?: string | null;
@@ -970,6 +971,7 @@ function AssistantCard({
   actionRows?: any[];
   latestActionRows?: any[];
   isLatest?: boolean;
+  autoExecute?: boolean;
 }) {
   const qc = useQueryClient();
   const queuePreparedFn = useServerFn(queuePreparedStudioActions);
@@ -1046,13 +1048,14 @@ function AssistantCard({
   }
 
   useEffect(() => {
-    if (!waitingForRows || !pluginOnline || parsedActions.length === 0 || hasDangerousAction) return;
+    // Plan Mode guard: if auto-execute is off, never fire automatically.
+    if (!autoExecute || !waitingForRows || !pluginOnline || parsedActions.length === 0 || hasDangerousAction) return;
     if (autoQueueKeyRef.current === rawActions) return;
     const id = setTimeout(() => {
       if (autoQueueKeyRef.current !== rawActions) void forceExecuteNow(true);
     }, 1200);
     return () => clearTimeout(id);
-  }, [waitingForRows, pluginOnline, rawActions, hasDangerousAction]);
+  }, [autoExecute, waitingForRows, pluginOnline, rawActions, hasDangerousAction]);
   return (
     <div className="bs-msg-in flex gap-2.5">
       <div className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-xl ring-1 ring-[var(--bs-border)]" style={{ background: "var(--bs-card-2)" }}>
@@ -1079,6 +1082,8 @@ function AssistantCard({
                   ? "color-mix(in oklab, var(--bs-danger) 10%, transparent)"
                   : failed > 0
                   ? "color-mix(in oklab, var(--bs-danger) 10%, transparent)"
+                  : waitingForRows && !autoExecute
+                  ? "color-mix(in oklab, var(--bs-warning, #eab308) 10%, transparent)"
                   : queued > 0 || executing > 0 || waitingForRows
                   ? "color-mix(in oklab, var(--bs-primary) 10%, transparent)"
                   : "color-mix(in oklab, var(--bs-success) 10%, transparent)",
@@ -1086,6 +1091,8 @@ function AssistantCard({
                   ? "var(--bs-danger)"
                   : failed > 0
                   ? "var(--bs-danger)"
+                  : waitingForRows && !autoExecute
+                  ? "var(--bs-warning, #eab308)"
                   : queued > 0 || executing > 0 || waitingForRows
                   ? "var(--bs-primary)"
                   : "var(--bs-success)",
@@ -1113,8 +1120,13 @@ function AssistantCard({
                 </>
               ) : waitingForRows ? (
                 <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Prepared {actionCount} Studio {actionCount === 1 ? "action" : "actions"}. Auto Execute is sending them to the Roblox plugin now.
+                  {autoExecute ? (
+                    <><Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Prepared {actionCount} Studio {actionCount === 1 ? "action" : "actions"}. Sending to the Roblox plugin now&hellip;</>
+                  ) : (
+                    <><Save className="h-3.5 w-3.5" />
+                    Plan ready &mdash; {actionCount} Studio {actionCount === 1 ? "action" : "actions"} prepared. Click <strong>Force Execute Now</strong> to send to Roblox Studio.</>
+                  )}
                 </>
               ) : confirmed ? (
                 <>
@@ -1469,8 +1481,15 @@ function Composer({
             {mode === "build" && (
               <label
                 className="ml-1 inline-flex select-none items-center gap-1.5 rounded-lg border px-2 py-1.5 text-[11px] font-bold"
-                style={{ borderColor: "var(--bs-border)", color: "var(--bs-muted-fg)" }}
-                title={t("chat.autoExecuteHint")}
+                style={{
+                  borderColor: autoExecute ? "color-mix(in oklab, var(--bs-primary) 50%, transparent)" : "var(--bs-border)",
+                  background: autoExecute ? "color-mix(in oklab, var(--bs-primary) 10%, transparent)" : "transparent",
+                  color: autoExecute ? "var(--bs-primary)" : "var(--bs-muted-fg)",
+                  cursor: "pointer",
+                }}
+                title={autoExecute
+                  ? "Auto-execute ON — builds run in Roblox Studio immediately. Uncheck to plan first and push manually."
+                  : t("chat.autoExecuteHint")}
               >
                 <input
                   type="checkbox"
@@ -2006,10 +2025,12 @@ function ModelPicker({
           style={{ background: "color-mix(in oklab, var(--bs-fg) 8%, transparent)", color: "var(--bs-muted-fg)" }}>
           {current?.provider}
         </span>
-        <span className="hidden lg:inline text-[10px] rounded-md px-1.5 py-0.5"
-          style={{ background: "color-mix(in oklab, var(--bs-fg) 8%, transparent)", color: healthColor(currentHealth) }}>
-          {healthLabel(currentHealth)}
-        </span>
+        {healthLabel(currentHealth) !== "Untested" && (
+          <span className="hidden lg:inline text-[10px] rounded-md px-1.5 py-0.5"
+            style={{ background: "color-mix(in oklab, var(--bs-fg) 8%, transparent)", color: healthColor(currentHealth) }}>
+            {healthLabel(currentHealth)}
+          </span>
+        )}
         <ChevronDown className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--bs-muted-fg)" }} />
       </button>
 
