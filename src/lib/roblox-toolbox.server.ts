@@ -1,7 +1,7 @@
-// Server-only helper: search Roblox's public toolbox/marketplace for free assets
+﻿// Server-only helper: search Roblox's public toolbox/marketplace for free assets
 // matching a keyword. Returns a small list of { id, name, creatorName, creatorType,
 // thumbnail, relevance, safety }.
-// Best-effort — Roblox occasionally changes these endpoints; we try the public
+// Best-effort â€” Roblox occasionally changes these endpoints; we try the public
 // Creator Store/Toolbox search paths and return "none" when no safe live result
 // is available. We do not invent or silently substitute hardcoded model ids.
 
@@ -12,8 +12,8 @@ export interface ToolboxResult {
   creatorType: string;
   assetType?: string;
   thumbnail?: string;
-  relevance?: number; // 0..1 — how well the asset name matches the query
-  safety?: number;    // 0..1 — heuristic safety/quality score (creator, name junk filter)
+  relevance?: number; // 0..1 â€” how well the asset name matches the query
+  safety?: number;    // 0..1 â€” heuristic safety/quality score (creator, name junk filter)
   reason?: string;
   free?: boolean;
   sourceQuery?: string;
@@ -250,7 +250,7 @@ const JUNK_PATTERNS = [
   /\bscript\s*hub\b/i,
   /\breupload\b/i,
   /\bleaked\b/i,
-  /[💰🤑💎]/u,
+  /[ðŸ’°ðŸ¤‘ðŸ’Ž]/u,
   /\bclick\s*here\b/i,
   /\bgive\s*?away\b/i,
 ];
@@ -340,14 +340,42 @@ function isAllowedCreator(creatorName: string): boolean {
 }
 
 function thumbnailFor(id: number): string {
-  // Public Roblox thumbnail endpoint — returns a redirect to a CDN image.
+  // Public Roblox thumbnail endpoint â€” returns a redirect to a CDN image.
   return `https://www.roblox.com/asset-thumbnail/image?assetId=${id}&width=150&height=150&format=png`;
 }
 
 /**
  * Search Roblox public toolbox/marketplace for free assets matching `keyword`.
- * Filters to free/public-looking items, rejects junk, and ranks by relevance × safety.
+ * Filters to free/public-looking items, rejects junk, and ranks by relevance Ã— safety.
  */
+export async function validateAssetIds(ids: number[]): Promise<{ valid: number[]; blocked: number[]; reasons: Record<number, string> }> {
+  const valid: number[] = [], blocked: number[] = [], reasons: Record<number, string> = {};
+  if (ids.length === 0) return { valid, blocked, reasons };
+  for (let i = 0; i < ids.length; i += 40) {
+    const chunk = ids.slice(i, i + 40);
+    const url = `https://apis.roblox.com/toolbox-service/v1/items/details?assetIds=${chunk.join(",")}`;
+    try {
+      const res = await fetch(url, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(8000) });
+      const json = res.ok ? (await res.json()) as any : null;
+      const returnedIds = new Set<number>();
+      if (json?.data && Array.isArray(json.data)) {
+        for (const item of json.data) {
+          const id = item.asset?.id; if (typeof id !== "number") continue;
+          returnedIds.add(id);
+          if (typeof item.asset?.visibilityStatus === "number" && item.asset.visibilityStatus !== 0) { blocked.push(id); reasons[id] = "visibility_restricted"; continue; }
+          const qty = item.fiatProduct?.purchasePrice?.quantity;
+          const fiatFree = item.fiatProduct?.isFree ?? (qty == null || qty.significand === 0);
+          const classicFree = item.product?.isFree ?? (item.product?.price === 0 || item.product?.price == null);
+          if (!fiatFree || !classicFree) { blocked.push(id); reasons[id] = "paid_asset"; continue; }
+          if (item.fiatProduct?.published === false || item.fiatProduct?.purchasable === false) { blocked.push(id); reasons[id] = "not_published"; continue; }
+          valid.push(id);
+        }
+      }
+      for (const id of chunk) { if (!returnedIds.has(id)) { blocked.push(id); reasons[id] = "not_found_or_private"; } }
+    } catch { for (const id of chunk) valid.push(id); }
+  }
+  return { valid, blocked, reasons };
+}
 export async function searchRobloxToolbox(
   keyword: string,
   category: ToolboxCategory = "Model",
@@ -667,3 +695,4 @@ export async function searchRobloxToolboxSet(
       "For each asset category, choose request.best or another high score result. The returned list is safely varied among top matches, so do not force the same old asset every time. Emit insert_asset with payload.asset_id from result.id, payload.fallback_ids from result.fallbackIds, and copy result.insertPayload metadata including preview, asset_name, creator_name, category, tags, toolbox_only/free_only/no_scripts. Add folder_name, position, rotation/yaw, and scale. If a required request is missing, do not fake it with parts; ask before fallback geometry.",
   };
 }
+
