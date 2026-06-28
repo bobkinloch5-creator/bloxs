@@ -1173,6 +1173,26 @@ local function refreshInfo()
     lastLabel.Text = "Last: " .. lastAction
 end
 
+local function statusForAction(action)
+    local kind = tostring(action and action.kind or "")
+    if kind == "insert_asset" then
+        return "Inserting assets", "Loading verified Toolbox asset into Studio."
+    elseif kind == "script" or kind == "localscript" or kind == "modulescript" or kind == "run_lua" then
+        return "Creating scripts", "Writing and validating Luau for the open project."
+    elseif kind == "screengui" or kind == "gui" or kind == "frame" or kind == "textlabel" or kind == "textbutton" or kind == "imagelabel" then
+        return "Creating UI", "Building Roblox ScreenGui objects and wiring controls."
+    elseif kind == "remoteevent" or kind == "remotefunction" or kind == "bindableevent" then
+        return "Creating scripts", "Creating communication objects for systems."
+    elseif kind == "scan_project" then
+        return "Scanning project", "Checking errors, hierarchy, assets, UI, and scripts."
+    elseif kind == "autofix_project" then
+        return "Fixing errors", "Repairing broken scripts, folders, assets, and UI."
+    elseif kind == "organize_project" then
+        return "Organizing project", "Sorting Studio objects into clean folders."
+    end
+    return "Executing build", "Applying structured BloxSmith command in Studio."
+end
+
 local function pollOnce(force)
     local token = validToken()
     if not token then
@@ -1203,7 +1223,7 @@ local function pollOnce(force)
         -- userId surfaced only on first successful poll after (re)connect
         if lastHeartbeat == 0 then log("userId: " .. tostring(data.user_id), "debug") end
     end
-    setStatus("Connected", Color3.fromRGB(120,220,160), "Linked to your BloxSmith account.")
+    setStatus("Connected to Studio", Color3.fromRGB(120,220,160), "Waiting for prompt.")
     local actions = data.actions or {}
     queueLen = #actions; refreshInfo()
     if os.clock() - lastHeartbeat > 60 then
@@ -1211,11 +1231,14 @@ local function pollOnce(force)
         lastHeartbeat = os.clock()
     end
     if #actions == 0 then return 0 end
+    setStatus("Planning build", Color3.fromRGB(160,200,255), ("Received %d structured command(s)."):format(#actions))
     log(("Received %d action(s)."):format(#actions), "success")
     ChangeHistoryService:SetWaypoint("BloxSmith batch start")
     local okN, failN = 0, 0
     local results = {}
     for _, a in ipairs(actions) do
+        local stage, sub = statusForAction(a)
+        setStatus(stage, Color3.fromRGB(160,200,255), sub)
         local ok, errOrInst = pcall(executeAction, a)
         if ok then
             okN += 1; lastAction = describeAction(a)
@@ -1241,6 +1264,11 @@ local function pollOnce(force)
     ChangeHistoryService:SetWaypoint("BloxSmith batch done")
     -- Report all results in a single HTTP call, off the hot path.
     task.spawn(reportBatch, results)
+    if failN > 0 then
+        setStatus("Build failed with reason", Color3.fromRGB(255,180,80), ("%d command(s) failed. Check activity log for details."):format(failN))
+    else
+        setStatus("Build complete", Color3.fromRGB(120,220,160), "Studio confirmed all queued commands finished.")
+    end
     log(("Batch complete — %d ok, %d failed."):format(okN, failN), failN > 0 and "warn" or "success")
     return #actions
 end

@@ -1,9 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { Bell, Box, CheckCircle2, ImageIcon, ShieldCheck, Sparkles, Wrench } from "lucide-react";
 
-const CHANGELOG_VERSION = "2026-06-28-function-catalog";
+const CHANGELOG_VERSION = "2026-06-28-execution-pipeline";
 
 const CHANGELOG_ITEMS = [
+  {
+    title: "Verified execution pipeline",
+    date: "Jun 28",
+    icon: CheckCircle2,
+    body: "BloxSmith now documents and drives a stronger chat-to-plugin flow: plan, Toolbox search, preview, Studio execution, scan, fix, test, polish, and final report, with clearer plugin status messages for each stage.",
+  },
   {
     title: "50 real builder functions",
     date: "Jun 28",
