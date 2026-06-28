@@ -8,7 +8,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Plus, Trash2, Loader2, Sparkles, Search, Folder, Lightbulb,
   LayoutDashboard, Plug, Users, History, Settings as SettingsIcon,
-  MessageSquare, Box, Radio, BookOpen, HelpCircle, Bell, ChevronDown,
+  MessageSquare, Box, Radio, BookOpen, HelpCircle, ChevronDown,
   Upload, ArrowRight, Crown, Infinity as InfinityIcon, Zap, Timer,
   Play, MoreHorizontal, LayoutGrid, List, Wand2, Download,
   ExternalLink, LogOut,
@@ -44,6 +44,7 @@ const THUMBS: Record<string, string> = {
 import { OnboardingTour } from "@/components/OnboardingTour";
 import { MobileNavTrigger } from "@/components/MobileNav";
 import { ProfileMenu } from "@/components/ProfileMenu";
+import { ChangelogNotifications } from "@/components/ChangelogNotifications";
 import { supabase } from "@/integrations/supabase/client";
 
 
@@ -479,7 +480,7 @@ function TopBar({
       <button onClick={onTour} title="Replay tour" className="bs-quick !px-2.5">
         <HelpCircle className="h-3.5 w-3.5" />
       </button>
-      <button title="Notifications" className="bs-quick !px-2.5"><Bell className="h-3.5 w-3.5" /></button>
+      <ChangelogNotifications buttonClassName="bs-quick !px-2.5" iconClassName="h-3.5 w-3.5" />
 
       <button onClick={onNewProject} className="hidden items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold sm:inline-flex" style={{ background: "var(--bs-grad)", color: "#fff" }}>
         <Plus className="h-3.5 w-3.5" /> New Project

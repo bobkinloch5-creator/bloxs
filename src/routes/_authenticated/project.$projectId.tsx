@@ -15,13 +15,14 @@ import {
   FileCode, Paperclip, Wrench, Wand2, HelpCircle, Save, Crown,
   Sun, Moon, ChevronDown, Zap, Timer, Box, X, Infinity as InfinityIcon,
   Folder, Lightbulb, LayoutDashboard, Search, Settings as SettingsIcon,
-  Plug, History, Users, Bell, Plus, ExternalLink, RefreshCw, ImageIcon,
+  Plug, History, Users, Plus, ExternalLink, RefreshCw, ImageIcon,
   Cpu, Music, BookOpen, Upload, RotateCcw, Square, Undo2,
   ShieldCheck, Bot, Hammer, Bug, PlayCircle, Gauge, ScanLine,
 } from "lucide-react";
 import bloxLogo from "@/assets/bloxsmith-logo.png.asset.json";
 import { OnboardingTour } from "@/components/OnboardingTour";
 import { MobileNavTrigger } from "@/components/MobileNav";
+import { ChangelogNotifications } from "@/components/ChangelogNotifications";
 
 import { VoiceControls, useBloxSmithSpeaker } from "@/components/VoiceControls";
 import { VoiceBuildButton } from "@/components/VoiceBuildButton";
@@ -873,9 +874,7 @@ function TopBar({
       )}
 
       {/* Notifications */}
-      <button className="bs-icon-btn" title="Notifications" aria-label="Notifications">
-        <Bell className="h-4 w-4" />
-      </button>
+      <ChangelogNotifications />
       {/* Help / Tour */}
       <button onClick={onTour} className="bs-icon-btn" title="Replay tour" aria-label="Help">
         <HelpCircle className="h-4 w-4" />
