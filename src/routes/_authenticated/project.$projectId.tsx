@@ -100,6 +100,40 @@ const COMPOSER_ACTIONS = [
   { label: "Explain", icon: HelpCircle, mode: "chat" as const, prompt: "Explain what was just built and how the scripts, remotes, UI, assets, and DataStores work, step by step." },
 ];
 
+const PRIMARY_COMPOSER_ACTIONS = [
+  "Build in Studio",
+  "Fix Errors",
+  "Generate UI",
+  "Add UI",
+  "Toolbox Assets",
+  "Scan Game",
+  "Fix All",
+  "Make Premium",
+];
+
+const COMPOSER_ACTION_MENUS = [
+  {
+    label: "Systems",
+    icon: Cpu,
+    actions: ["Add NPCs", "Add Scripts", "Add Quests", "Add Currency", "Add Shop", "Add Save", "Gamepasses", "Enemies", "Weapons", "Vehicles", "Pets", "Teleports", "Rounds", "Admin Panel"],
+  },
+  {
+    label: "Fixes",
+    icon: Wrench,
+    actions: ["Fix Scripts", "Fix UI", "Fix Map", "Fix Assets", "Fix Mobile", "Optimize Mobile", "Optimize Performance", "Empty Folders", "Duplicates", "Anchor All", "Organize", "Test Game", "Playtest"],
+  },
+  {
+    label: "Assets",
+    icon: Box,
+    actions: ["Build Map", "Improve Map", "Image to Game", "Test Insert"],
+  },
+  {
+    label: "Reports",
+    icon: BookOpen,
+    actions: ["Publish Checklist", "Build History", "Project Memory", "Prompt Enhancer", "Error Reader", "Safety Scan", "Update Generator", "Community Share", "Final Report", "Explain"],
+  },
+];
+
 const GAME_TEMPLATES = [
   { label: "Zombie Survival Pack", prompt: "Prompt-to-full-game mode: build a complete Zombie Survival Pack with safe Toolbox map/enemy/weapon assets, spawn area, safe zone, waves, zombies that move and damage players, gun shop, coins, leaderboard, loading screen, mobile controls, DataStore saving, tutorial, anti-exploit checks, polish, organize_project, test report, and scan_project." },
   { label: "Obby Pack", prompt: "Build a complete Obby Pack with safe Toolbox obby/parkour assets, checkpoints, kill parts, stage saving, leaderboard, HUD, mobile controls, finish reward, tutorial, organize_project, test report, and scan_project." },
@@ -1323,6 +1357,7 @@ function Composer({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { t } = useLang();
   const canSend = !!token && !busy && (input.trim().length > 0 || !!attachment);
+  const actionByLabel = useMemo(() => new Map(COMPOSER_ACTIONS.map((a) => [a.label, a])), []);
   const openScreenshotToGame = () => {
     setMode("build");
     fileInputRef.current?.click();
@@ -1344,7 +1379,7 @@ function Composer({
         }
       }}
     >
-      <div className="mx-auto w-full max-w-3xl">
+      <div className="mx-auto w-full max-w-4xl">
         {queueNotice && (
           <div
             className="mb-2 flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold"
@@ -1492,19 +1527,6 @@ function Composer({
               onUtterance={(t: string) => { if (t.trim()) onVoiceTranscript?.(t.trim()); }}
             />
 
-            {COMPOSER_ACTIONS.map((a) => (
-              <button
-                key={a.label}
-                disabled={busy}
-                onClick={() => onAction(a)}
-                className="bs-quick"
-                title={a.label}
-              >
-                <a.icon className="h-3.5 w-3.5" />
-                <span className="hidden md:inline">{a.label}</span>
-              </button>
-            ))}
-
             <div className="flex-1" />
 
             <div className="lg:hidden">
@@ -1601,6 +1623,36 @@ function Composer({
               </div>
             )}
 
+            <div className="basis-full" />
+
+            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+              {PRIMARY_COMPOSER_ACTIONS.map((label) => {
+                const a = actionByLabel.get(label);
+                if (!a) return null;
+                return (
+                  <button
+                    key={a.label}
+                    disabled={busy}
+                    onClick={() => onAction(a)}
+                    className="bs-quick"
+                    title={a.label}
+                  >
+                    <a.icon className="h-3.5 w-3.5" />
+                    <span className="hidden md:inline">{a.label}</span>
+                  </button>
+                );
+              })}
+              {COMPOSER_ACTION_MENUS.map((menu) => (
+                <ComposerActionMenu
+                  key={menu.label}
+                  menu={menu}
+                  actionByLabel={actionByLabel}
+                  busy={busy}
+                  onAction={onAction}
+                />
+              ))}
+            </div>
+
             {/* Push to Studio — runs the last drafted plan as real Roblox actions */}
             <button
               type="button"
@@ -1657,6 +1709,42 @@ function Composer({
         </div>
       </div>
     </div>
+  );
+}
+
+function ComposerActionMenu({ menu, actionByLabel, busy, onAction }: any) {
+  const Icon = menu.icon;
+  return (
+    <details className="bs-action-menu">
+      <summary className="bs-quick select-none" title={`${menu.label} actions`}>
+        <Icon className="h-3.5 w-3.5" />
+        <span>{menu.label}</span>
+        <ChevronDown className="h-3 w-3 opacity-70" />
+      </summary>
+      <div className="bs-action-menu-panel">
+        {menu.actions.map((label: string) => {
+          const action = actionByLabel.get(label);
+          if (!action) return null;
+          const ActionIcon = action.icon;
+          return (
+            <button
+              key={label}
+              type="button"
+              disabled={busy}
+              onClick={(event) => {
+                onAction(action);
+                event.currentTarget.closest("details")?.removeAttribute("open");
+              }}
+              className="bs-action-menu-item"
+              title={label}
+            >
+              <ActionIcon className="h-3.5 w-3.5" />
+              <span>{label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </details>
   );
 }
 
