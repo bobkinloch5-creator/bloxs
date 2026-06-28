@@ -196,8 +196,6 @@ export type Database = {
         Row: {
           animation_name: string | null
           art_style: string | null
-          bridge_metadata: Json | null
-          bridge_status: string | null
           completed_at: string | null
           created_at: string
           error: string | null
@@ -210,12 +208,6 @@ export type Database = {
           progress: number
           project_id: string | null
           prompt: string | null
-          roblox_asset_id: string | null
-          roblox_operation_path: string | null
-          roblox_upload_error: string | null
-          roblox_upload_status: string | null
-          source: string | null
-          source_format: string | null
           status: string
           task_id: string | null
           texture_urls: Json | null
@@ -225,8 +217,6 @@ export type Database = {
         Insert: {
           animation_name?: string | null
           art_style?: string | null
-          bridge_metadata?: Json | null
-          bridge_status?: string | null
           completed_at?: string | null
           created_at?: string
           error?: string | null
@@ -239,12 +229,6 @@ export type Database = {
           progress?: number
           project_id?: string | null
           prompt?: string | null
-          roblox_asset_id?: string | null
-          roblox_operation_path?: string | null
-          roblox_upload_error?: string | null
-          roblox_upload_status?: string | null
-          source?: string | null
-          source_format?: string | null
           status?: string
           task_id?: string | null
           texture_urls?: Json | null
@@ -254,8 +238,6 @@ export type Database = {
         Update: {
           animation_name?: string | null
           art_style?: string | null
-          bridge_metadata?: Json | null
-          bridge_status?: string | null
           completed_at?: string | null
           created_at?: string
           error?: string | null
@@ -268,12 +250,6 @@ export type Database = {
           progress?: number
           project_id?: string | null
           prompt?: string | null
-          roblox_asset_id?: string | null
-          roblox_operation_path?: string | null
-          roblox_upload_error?: string | null
-          roblox_upload_status?: string | null
-          source?: string | null
-          source_format?: string | null
           status?: string
           task_id?: string | null
           texture_urls?: Json | null
@@ -604,6 +580,56 @@ export type Database = {
           },
           {
             foreignKeyName: "studio_errors_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ui_generations: {
+        Row: {
+          code: string
+          concept_image_url: string | null
+          created_at: string
+          id: string
+          metadata: Json
+          model: string | null
+          project_id: string | null
+          prompt: string
+          style: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          code?: string
+          concept_image_url?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json
+          model?: string | null
+          project_id?: string | null
+          prompt: string
+          style?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          code?: string
+          concept_image_url?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json
+          model?: string | null
+          project_id?: string | null
+          prompt?: string
+          style?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ui_generations_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"

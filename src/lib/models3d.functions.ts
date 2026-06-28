@@ -58,7 +58,7 @@ async function startTextTo3dJob(body: Record<string, unknown>) {
   } catch (error) {
     if (!looksLikeUnsupportedOptionalField(error)) throw error;
     const fallbackBody = { ...richBody };
-    delete fallbackBody.enable_pbr;
+    delete (fallbackBody as any).enable_pbr;
     return meshyFetch("/v2/text-to-3d", {
       method: "POST",
       body: JSON.stringify(fallbackBody),
@@ -361,7 +361,7 @@ export const registerTripoBridgeModel = createServerFn({ method: "POST" })
         bridge_status: robloxAssetId ? "Asset ID Ready" : "Preview Ready",
         roblox_asset_id: robloxAssetId || null,
         roblox_upload_status: robloxAssetId ? "uploaded" : null,
-      })
+      } as any)
       .select()
       .single();
     if (error) throw new Error(error.message);
@@ -384,9 +384,9 @@ export const uploadBridgeModelToRoblox = createServerFn({ method: "POST" })
       .maybeSingle();
     if (!gen) throw new Error("Model not found.");
     if (!gen.model_url) throw new Error("No GLB/FBX model URL is available to upload.");
-    if (gen.roblox_asset_id) return gen;
+    if ((gen as any).roblox_asset_id) return gen;
 
-    const format = inferFormat(gen.model_url, gen.source_format);
+    const format = inferFormat(gen.model_url, (gen as any).source_format);
     const head = await fetch(gen.model_url, { method: "HEAD" }).catch(() => null);
     const size = Number(head?.headers.get("content-length") || 0);
     if (size > ROBLOX_MODEL_UPLOAD_LIMIT) {
@@ -426,7 +426,7 @@ export const uploadBridgeModelToRoblox = createServerFn({ method: "POST" })
         roblox_upload_status: "failed",
         roblox_upload_error: String(msg),
         bridge_status: "Failed",
-      }).eq("id", gen.id);
+      } as any).eq("id", gen.id);
       throw new Error(String(msg));
     }
 
@@ -440,7 +440,7 @@ export const uploadBridgeModelToRoblox = createServerFn({ method: "POST" })
         roblox_upload_status: assetId ? "uploaded" : "uploading",
         roblox_upload_error: null,
         bridge_status: assetId ? "Asset ID Ready" : "Uploading",
-      })
+      } as any)
       .eq("id", gen.id)
       .select()
       .single();
@@ -459,9 +459,9 @@ export const checkRobloxUploadOperation = createServerFn({ method: "POST" })
       .eq("user_id", context.userId)
       .maybeSingle();
     if (!gen) throw new Error("Model not found.");
-    if (gen.roblox_asset_id) return gen;
-    if (!gen.roblox_operation_path) throw new Error("No Roblox upload operation is available yet.");
-    const res = await fetch(`https://apis.roblox.com/assets/v1/${String(gen.roblox_operation_path).replace(/^\/+/, "")}`, {
+    if ((gen as any).roblox_asset_id) return gen;
+    if (!(gen as any).roblox_operation_path) throw new Error("No Roblox upload operation is available yet.");
+    const res = await fetch(`https://apis.roblox.com/assets/v1/${String((gen as any).roblox_operation_path).replace(/^\/+/, "")}`, {
       headers: { "x-api-key": robloxOpenCloudKey() },
     });
     const text = await res.text();
@@ -478,7 +478,7 @@ export const checkRobloxUploadOperation = createServerFn({ method: "POST" })
         roblox_upload_status: errorMessage ? "failed" : done ? "uploaded" : "uploading",
         roblox_upload_error: errorMessage ? String(errorMessage) : null,
         bridge_status: errorMessage ? "Failed" : assetId ? "Asset ID Ready" : "Uploading",
-      })
+      } as any)
       .eq("id", gen.id)
       .select()
       .single();
@@ -503,7 +503,7 @@ export const queueBridgeModelToStudio = createServerFn({ method: "POST" })
       .eq("user_id", context.userId)
       .maybeSingle();
     if (!gen) throw new Error("Model not found.");
-    const assetId = normalizeRobloxAssetId(data.assetId || gen.roblox_asset_id);
+    const assetId = normalizeRobloxAssetId(data.assetId || (gen as any).roblox_asset_id);
     if (!assetId) throw new Error("Roblox asset ID is missing. Upload the GLB/FBX to Roblox first, or paste an existing Roblox model asset ID.");
     const safeName = (data.name || gen.prompt || "BloxSmith_Imported_Model").replace(/[^\w\s-]/g, "").trim().slice(0, 80) || "BloxSmith_Imported_Model";
     const { error } = await context.supabase.from("plugin_actions").insert({
@@ -524,7 +524,7 @@ export const queueBridgeModelToStudio = createServerFn({ method: "POST" })
     await context.supabase.from("model_generations").update({
       roblox_asset_id: assetId,
       bridge_status: "Importing to Roblox Studio",
-    }).eq("id", gen.id);
+    } as any).eq("id", gen.id);
     return { ok: true, assetId };
   });
 
