@@ -58,7 +58,7 @@ async function startTextTo3dJob(body: Record<string, unknown>) {
   } catch (error) {
     if (!looksLikeUnsupportedOptionalField(error)) throw error;
     const fallbackBody = { ...richBody };
-    delete fallbackBody.enable_pbr;
+    delete (fallbackBody as any).enable_pbr;
     return meshyFetch("/v2/text-to-3d", {
       method: "POST",
       body: JSON.stringify(fallbackBody),

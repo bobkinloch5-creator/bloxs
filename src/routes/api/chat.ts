@@ -270,7 +270,7 @@ async function toolboxAssetFinderStudioActions(userText: string) {
   if (requests.length === 0) return [];
   try {
     const set = await searchRobloxToolboxSet(requests, 10);
-    const actions = [];
+    const actions: any[] = [];
     const usedIds = new Set<number>();
     const slots = [
       { position: [0, 4, -24], yaw: 0 },
@@ -790,7 +790,7 @@ function toolboxMapRequests(userText: string): ToolboxSetRequest[] {
     const variant = pickMapVariant(userText);
     add(`${variant.name} map kit`, `${variant.name} city map kit`, true, 8);
     for (const [label, keyword, required, limit] of variant.terms) {
-      add(label, keyword, Boolean(required), Number(limit));
+      add(String(label), String(keyword), Boolean(required), Number(limit));
     }
   } else {
     add("complete map kit", `${userText.slice(0, 80)} map kit`, true, 6);
