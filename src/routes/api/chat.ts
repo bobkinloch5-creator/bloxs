@@ -190,6 +190,212 @@ function isSimpleSingleThingRequest(userText: string) {
   return nouns.length > 0 && nouns.length <= 3;
 }
 
+const TOOLBOX_ASSET_FINDER_CATEGORIES = [
+  { label: "pistol", role: "weapon", folder: "Weapons", test: /\b(pistol|handgun)\b/i, keyword: "pistol weapon model" },
+  { label: "rifle", role: "weapon", folder: "Weapons", test: /\b(rifle|gun|blaster|laser\s*gun)\b/i, keyword: "rifle gun weapon model" },
+  { label: "sword", role: "weapon", folder: "Weapons", test: /\b(sword|katana|blade)\b/i, keyword: "sword weapon model" },
+  { label: "bow", role: "weapon", folder: "Weapons", test: /\b(bow|crossbow)\b/i, keyword: "bow weapon model" },
+  { label: "sports car", role: "vehicle", folder: "Vehicles", test: /\b(sports?\s*car|super\s*car|race\s*car)\b/i, keyword: "sports car vehicle model" },
+  { label: "police car", role: "vehicle", folder: "Vehicles", test: /\bpolice\s*car\b/i, keyword: "police car vehicle model" },
+  { label: "car", role: "vehicle", folder: "Vehicles", test: /\b(car|vehicle)\b/i, keyword: "car vehicle model" },
+  { label: "truck", role: "vehicle", folder: "Vehicles", test: /\btruck\b/i, keyword: "truck vehicle model" },
+  { label: "plane", role: "vehicle", folder: "Vehicles", test: /\b(plane|airplane|jet)\b/i, keyword: "plane vehicle model" },
+  { label: "boat", role: "vehicle", folder: "Vehicles", test: /\bboat\b/i, keyword: "boat vehicle model" },
+  { label: "zombie", role: "character", folder: "Characters", test: /\bzombie\b/i, keyword: "zombie npc model" },
+  { label: "monster", role: "character", folder: "Characters", test: /\b(monster|creature|enemy)\b/i, keyword: "monster npc model" },
+  { label: "shopkeeper", role: "character", folder: "Characters", test: /\b(shopkeeper|vendor|merchant)\b/i, keyword: "shopkeeper npc model" },
+  { label: "pet", role: "character", folder: "Characters", test: /\b(pet|dog|cat)\b/i, keyword: "pet model" },
+  { label: "police station", role: "building", folder: "Buildings", test: /\bpolice\s*station\b/i, keyword: "police station building model" },
+  { label: "hospital", role: "building", folder: "Buildings", test: /\bhospital\b/i, keyword: "hospital building model" },
+  { label: "house", role: "building", folder: "Buildings", test: /\bhouse\b/i, keyword: "house building model" },
+  { label: "shop", role: "building", folder: "Buildings", test: /\b(shop|store|storefront)\b/i, keyword: "shop storefront building model" },
+  { label: "castle", role: "building", folder: "Buildings", test: /\bcastle\b/i, keyword: "castle building model" },
+  { label: "tree", role: "nature", folder: "Nature", test: /\b(tree|trees)\b/i, keyword: "tree nature model" },
+  { label: "rock", role: "nature", folder: "Nature", test: /\b(rock|rocks|boulder)\b/i, keyword: "rock nature model" },
+  { label: "grass", role: "nature", folder: "Nature", test: /\b(grass|flower|flowers|bush|bushes)\b/i, keyword: "grass flower bush nature model" },
+  { label: "mountain", role: "nature", folder: "Nature", test: /\b(mountain|mountains|cliff)\b/i, keyword: "mountain cliff nature model" },
+  { label: "crate", role: "prop", folder: "Props", test: /\b(crate|barrel|box)\b/i, keyword: "crate barrel prop model" },
+  { label: "sign", role: "prop", folder: "Props", test: /\b(sign|street\s*sign)\b/i, keyword: "sign prop model" },
+  { label: "furniture", role: "prop", folder: "Props", test: /\b(furniture|chair|table|bed|sofa|lamp)\b/i, keyword: "furniture prop model" },
+  { label: "checkpoint", role: "gameplay", folder: "Gameplay", test: /\bcheckpoint\b/i, keyword: "checkpoint obby model" },
+  { label: "coin", role: "gameplay", folder: "Gameplay", test: /\b(coin|coins|gem|collectible)\b/i, keyword: "coin collectible model" },
+  { label: "door", role: "gameplay", folder: "Gameplay", test: /\bdoor\b/i, keyword: "door model" },
+  { label: "button", role: "gameplay", folder: "Gameplay", test: /\bbutton|portal\b/i, keyword: "button portal model" },
+  { label: "fire", role: "effect", folder: "Effects", test: /\b(fire|flame|smoke|explosion|magic|particle|effect)\b/i, keyword: "fire smoke particle effect model" },
+];
+
+function cleanedAssetPrompt(userText: string) {
+  return userText
+    .replace(/\b(add|make|create|build|insert|place|spawn|give me|put|a|an|the|one|single|real|safe|free|toolbox|roblox|please|me|into|in|my|game)\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 80);
+}
+
+function toolboxAssetFinderRequests(userText: string): Array<ToolboxSetRequest & { role?: string; folder?: string }> {
+  if (isToolboxMapRequest(userText) || isRobloxSystemRequest(userText)) return [];
+  const matches: Array<ToolboxSetRequest & { role?: string; folder?: string }> = [];
+  for (const category of TOOLBOX_ASSET_FINDER_CATEGORIES) {
+    if (category.test.test(userText) && !matches.some((m) => m.label === category.label)) {
+      matches.push({
+        label: category.label,
+        keyword: category.keyword,
+        category: "Model",
+        required: true,
+        limit: 10,
+        role: category.role,
+        folder: category.folder,
+      });
+    }
+  }
+  if (matches.length === 0 && isSimpleSingleThingRequest(userText)) {
+    const query = cleanedAssetPrompt(userText);
+    if (query) {
+      matches.push({
+        label: query,
+        keyword: `${query} model`,
+        category: "Model",
+        required: true,
+        limit: 12,
+        role: "asset",
+        folder: "Requested",
+      });
+    }
+  }
+  return (isSimpleSingleThingRequest(userText) ? matches.slice(0, 1) : matches).slice(0, 6);
+}
+
+async function toolboxAssetFinderStudioActions(userText: string) {
+  const requests = toolboxAssetFinderRequests(userText);
+  if (requests.length === 0) return [];
+  try {
+    const set = await searchRobloxToolboxSet(requests, 10);
+    const actions = [];
+    const usedIds = new Set<number>();
+    const slots = [
+      { position: [0, 4, -24], yaw: 0 },
+      { position: [-22, 4, -10], yaw: 18 },
+      { position: [22, 4, -10], yaw: -18 },
+      { position: [-32, 4, 18], yaw: 35 },
+      { position: [32, 4, 18], yaw: -35 },
+      { position: [0, 4, 34], yaw: 180 },
+    ];
+
+    for (const request of set.requests) {
+      const original = requests.find((r) => r.label === request.label);
+      const picked = request.results.find((r) => !usedIds.has(r.id));
+      if (!picked) continue;
+      usedIds.add(picked.id);
+      const slot = slots[actions.length % slots.length];
+      actions.push({
+        kind: "insert_asset",
+        parent_path: "Workspace",
+        name: `Toolbox_${request.label.replace(/[^a-z0-9]+/gi, "_").replace(/^_+|_+$/g, "") || "Asset"}`,
+        payload: {
+          asset_id: picked.id,
+          fallback_ids: picked.fallbackIds ?? [],
+          free_only: true,
+          no_scripts: true,
+          allow_scripts: false,
+          folder_name: "BloxSmith_ToolboxAssetFinder",
+          position: slot.position,
+          yaw: slot.yaw,
+          scale: 1,
+          placement_role: original?.role ?? "asset",
+          district: original?.folder ?? "Requested",
+          toolbox_only: true,
+          disable_procedural_fallback: true,
+          tags: ["bloxsmith", "toolbox-asset-finder", "real-toolbox-asset", request.label, original?.role ?? "asset"],
+          asset_name: picked.name,
+          creator_name: picked.creatorName,
+          thumbnail: picked.thumbnail,
+          source_query: picked.sourceQuery ?? request.keyword,
+          quality_tier: picked.qualityTier ?? "usable",
+          safety_score: picked.safety,
+          relevance_score: picked.relevance,
+          has_scripts: picked.hasScripts,
+          script_count: picked.scriptCount ?? 0,
+          preview: {
+            id: picked.id,
+            name: picked.name,
+            creatorName: picked.creatorName,
+            thumbnail: picked.thumbnail,
+            safety: picked.safety,
+            relevance: picked.relevance,
+            hasScripts: picked.hasScripts,
+            scriptCount: picked.scriptCount ?? 0,
+          },
+        },
+      });
+    }
+
+    if (actions.length === 0) return [];
+    actions.push({
+      kind: "run_lua",
+      parent_path: "Workspace",
+      name: "BloxSmith_Arrange_Toolbox_Asset_Finder",
+      payload: {
+        source: `
+local Workspace = game:GetService("Workspace")
+local folder = Workspace:FindFirstChild("BloxSmith_ToolboxAssetFinder")
+if folder then
+  local buckets = {"Weapons", "Vehicles", "Characters", "Buildings", "Nature", "Maps", "Props", "Gameplay", "Effects", "Requested"}
+  for _, name in ipairs(buckets) do
+    if not folder:FindFirstChild(name) then
+      local child = Instance.new("Folder")
+      child.Name = name
+      child.Parent = folder
+    end
+  end
+  local function snap(inst)
+    if inst:IsA("Model") then
+      local ok, cf, size = pcall(function() return inst:GetBoundingBox() end)
+      if ok and size then
+        local _, yaw = inst:GetPivot():ToOrientation()
+        inst:PivotTo(CFrame.new(cf.Position.X, math.max(0, size.Y / 2), cf.Position.Z) * CFrame.Angles(0, yaw, 0))
+      end
+    elseif inst:IsA("BasePart") then
+      inst.CFrame = CFrame.new(inst.Position.X, math.max(0, inst.Size.Y / 2), inst.Position.Z) * inst.CFrame.Rotation
+    end
+  end
+  for _, asset in ipairs(folder:GetChildren()) do
+    if not asset:IsA("Folder") then
+      snap(asset)
+      for _, inst in ipairs(asset:GetDescendants()) do
+        if inst:IsA("BasePart") then
+          inst.Anchored = true
+          inst.CanCollide = true
+        elseif inst:IsA("Script") or inst:IsA("LocalScript") or inst:IsA("ModuleScript") then
+          inst.Disabled = true
+        end
+      end
+      local district = tostring(asset:GetAttribute("BloxSmithDistrict") or "Requested")
+      local bucket = folder:FindFirstChild(district) or folder:FindFirstChild("Requested")
+      if bucket then asset.Parent = bucket end
+    end
+  end
+  for _, bucket in ipairs(folder:GetChildren()) do
+    if bucket:IsA("Folder") and #bucket:GetChildren() == 0 then bucket:Destroy() end
+  end
+  Workspace:SetAttribute("BloxSmithToolboxAssetFinder", true)
+  Workspace:SetAttribute("BloxSmithProceduralFallbackDisabled", true)
+end
+`,
+      },
+    });
+    actions.push({
+      kind: "scan_project",
+      parent_path: "Workspace",
+      name: "BloxSmith_Scan_Toolbox_Asset_Finder",
+      payload: { reason: "verify_real_toolbox_asset_inserted_and_scripts_disabled" },
+    });
+    return actions;
+  } catch (err) {
+    console.warn("[chat] toolbox asset finder failed", err);
+    return [];
+  }
+}
+
 function visibleGrassStudioActions(userText: string) {
   const safePrompt = userText.trim().slice(0, 220) || "add realistic grass";
   const source = `
@@ -948,47 +1154,67 @@ local function gradient(parent, a, b)
   return make("UIGradient", { Color = ColorSequence.new(a, b), Rotation = 28 }, parent)
 end
 
+local loadingPrompt = ${JSON.stringify(safePrompt)}
+local loadingVariant = (#loadingPrompt % 4) + 1
+local loadingTitleText = loadingPrompt:lower():find("city") and "Loading City" or loadingPrompt:lower():find("race") and "Loading Race" or loadingPrompt:lower():find("horror") and "Entering the Dark" or loadingPrompt:lower():find("quest") and "Loading Quest" or "Loading World"
+local loadingTipText = loadingPrompt:lower():find("toolbox") and "Verifying safe free assets..." or loadingPrompt:lower():find("menu") and "Preparing animated menus..." or "Preparing your Roblox experience..."
+
 local loading = make("Frame", {
   Name = "LoadingScreen",
-  BackgroundColor3 = Color3.fromRGB(7, 10, 22),
+  BackgroundColor3 = loadingVariant == 2 and Color3.fromRGB(12, 7, 24) or loadingVariant == 3 and Color3.fromRGB(4, 17, 24) or Color3.fromRGB(7, 10, 22),
   BorderSizePixel = 0,
   Size = UDim2.fromScale(1, 1),
   Visible = true,
   ZIndex = 50,
 }, gui)
-gradient(loading, Color3.fromRGB(10, 14, 34), Color3.fromRGB(38, 32, 92))
+gradient(loading, loadingVariant == 3 and Color3.fromRGB(9, 46, 60) or Color3.fromRGB(10, 14, 34), loadingVariant == 2 and Color3.fromRGB(74, 34, 82) or Color3.fromRGB(38, 32, 92))
+
+local accentShape = make("Frame", {
+  Name = "AnimatedAccent",
+  AnchorPoint = Vector2.new(0.5, 0.5),
+  BackgroundColor3 = loadingVariant == 3 and Color3.fromRGB(40, 220, 190) or Color3.fromRGB(96, 110, 255),
+  BackgroundTransparency = 0.28,
+  Position = loadingVariant == 1 and UDim2.fromScale(0.5, 0.28) or loadingVariant == 2 and UDim2.fromScale(0.22, 0.52) or loadingVariant == 3 and UDim2.fromScale(0.75, 0.34) or UDim2.fromScale(0.5, 0.5),
+  Rotation = loadingVariant == 2 and -18 or loadingVariant == 3 and 14 or 0,
+  Size = loadingVariant == 4 and UDim2.fromScale(0.22, 0.22) or UDim2.fromScale(0.16, 0.16),
+  ZIndex = 50,
+}, loading)
+corner(accentShape, loadingVariant == 2 and 24 or 999)
+gradient(accentShape, Color3.fromRGB(80, 255, 220), Color3.fromRGB(120, 85, 255))
 
 local loadingTitle = make("TextLabel", {
   Name = "Title",
   BackgroundTransparency = 1,
-  Position = UDim2.fromScale(0.12, 0.34),
-  Size = UDim2.fromScale(0.76, 0.12),
+  Position = loadingVariant == 2 and UDim2.fromScale(0.42, 0.32) or loadingVariant == 3 and UDim2.fromScale(0.1, 0.27) or UDim2.fromScale(0.12, 0.34),
+  Size = loadingVariant == 2 and UDim2.fromScale(0.48, 0.11) or loadingVariant == 3 and UDim2.fromScale(0.55, 0.12) or UDim2.fromScale(0.76, 0.12),
   Font = Enum.Font.GothamBlack,
-  Text = "BloxSmith",
+  Text = loadingTitleText,
   TextColor3 = Color3.fromRGB(255, 255, 255),
   TextScaled = true,
   TextWrapped = true,
+  TextXAlignment = loadingVariant == 3 and Enum.TextXAlignment.Left or Enum.TextXAlignment.Center,
   ZIndex = 51,
 }, loading)
 
 local loadingSub = make("TextLabel", {
   Name = "Subtitle",
   BackgroundTransparency = 1,
-  Position = UDim2.fromScale(0.18, 0.47),
-  Size = UDim2.fromScale(0.64, 0.055),
+  Position = loadingVariant == 2 and UDim2.fromScale(0.42, 0.45) or loadingVariant == 3 and UDim2.fromScale(0.1, 0.42) or UDim2.fromScale(0.18, 0.47),
+  Size = loadingVariant == 2 and UDim2.fromScale(0.42, 0.055) or loadingVariant == 3 and UDim2.fromScale(0.48, 0.055) or UDim2.fromScale(0.64, 0.055),
   Font = Enum.Font.GothamMedium,
-  Text = "Preparing your Roblox experience...",
+  Text = loadingTipText,
   TextColor3 = Color3.fromRGB(190, 200, 230),
   TextScaled = true,
   TextWrapped = true,
+  TextXAlignment = loadingVariant == 3 and Enum.TextXAlignment.Left or Enum.TextXAlignment.Center,
   ZIndex = 51,
 }, loading)
 
 local barBack = make("Frame", {
   Name = "ProgressBack",
   BackgroundColor3 = Color3.fromRGB(28, 32, 50),
-  Position = UDim2.fromScale(0.28, 0.58),
-  Size = UDim2.fromScale(0.44, 0.022),
+  Position = loadingVariant == 2 and UDim2.fromScale(0.42, 0.58) or loadingVariant == 3 and UDim2.fromScale(0.1, 0.55) or UDim2.fromScale(0.28, 0.58),
+  Size = loadingVariant == 2 and UDim2.fromScale(0.42, 0.026) or loadingVariant == 3 and UDim2.fromScale(0.55, 0.03) or UDim2.fromScale(0.44, 0.022),
   ZIndex = 51,
 }, loading)
 corner(barBack, 999)
@@ -1686,6 +1912,33 @@ export const Route = createFileRoute("/api/chat")({
                   ];
                   if (!/visible grass/i.test(cleanContent)) {
                     cleanContent = `${cleanContent.trim()}\n\n_Visible grass enforcement queued: large flat ground parts are recolored to Grass material, a grass surface is created, and Terrain grass decoration is enabled._`;
+                  }
+                }
+
+                if (mode === "build" && toolboxAssetFinderRequests(userText).length > 0) {
+                  const finderActions = (await toolboxAssetFinderStudioActions(userText)).map(normalizePluginAction);
+                  if (finderActions.length > 0) {
+                    actions = [
+                      ...finderActions,
+                      ...actions.filter((a) => {
+                        if (["part", "model", "terrain"].includes(a.kind)) return false;
+                        if (a.kind === "insert_asset") return false;
+                        if ([
+                          "BloxSmith_Intent_Visibility_Guard",
+                          "BloxSmith_AutoExecute_Recovery",
+                          "BloxSmith_Apply_Visible_Grass",
+                          "BloxSmith_Arrange_Toolbox_Asset_Finder",
+                          "BloxSmith_Scan_Toolbox_Asset_Finder",
+                        ].includes(a.name)) return false;
+                        return true;
+                      }),
+                    ];
+                    if (!/Toolbox Asset Finder/i.test(cleanContent)) {
+                      cleanContent = `${cleanContent.trim()}\n\n_Toolbox Asset Finder queued: BloxSmith searched safe free public Creator Store assets, will insert the best real matching asset(s), disable imported scripts, ground-snap/organize them, and report the asset name and ID._`;
+                    }
+                  } else if (assetMode === "toolbox_only") {
+                    actions = actions.filter((a) => !["part", "model", "terrain", "insert_asset", "run_lua"].includes(a.kind));
+                    cleanContent = `${cleanContent.trim()}\n\n_No safe free Toolbox asset was found for this request. Toolbox-only mode is enabled, so BloxSmith did not create fake placeholder blocks._`;
                   }
                 }
 

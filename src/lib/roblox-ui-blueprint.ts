@@ -134,11 +134,21 @@ function bar(name: string, label: string, x: number, y: number, w: number, h: nu
   return { kind: "bar", name, text: label, x, y, w, h, progress, fill, radius: h / 2, gradient: true, ...extra };
 }
 
+function stableSeed(value: string) {
+  let seed = 2166136261;
+  for (let i = 0; i < value.length; i += 1) {
+    seed ^= value.charCodeAt(i);
+    seed = Math.imul(seed, 16777619);
+  }
+  return seed >>> 0;
+}
+
 export function createRobloxUiBlueprint(prompt: string, style: string): UiBlueprint {
   const kind = inferKind(prompt);
   const palette = paletteFor(style);
   const title = safeText(prompt, kind === "hud" ? 44 : 46);
   const subtitle = `${style || "Modern"} Roblox ${kind.replace("-", " ")}`;
+  const seed = stableSeed(`${prompt}|${style}|${new Date().toISOString().slice(0, 13)}`);
   const boxes: UiBox[] = [];
 
   boxes.push(frame("Background", 0, 0, WIDTH, HEIGHT, palette.bg, 0));
@@ -153,14 +163,49 @@ export function createRobloxUiBlueprint(prompt: string, style: string): UiBluepr
   boxes.push(text("StatusText", "READY", 1095, 156, 80, 22, palette.good, 14, true));
 
   if (kind === "loading") {
-    boxes.push(frame("LoadingCard", 330, 318, 876, 368, palette.panel2, 28, 0.9, { stroke: palette.accent, strokeOpacity: 0.6 }));
-    boxes.push(frame("LoadingIcon", 700, 244, 136, 136, palette.accent, 28, 1, { gradient: true }));
-    boxes.push(text("LoadingTitle", "Loading World", 468, 390, 600, 62, palette.text, 52, true));
-    boxes.push(text("Tip", "Preparing scripts, UI, assets, and Roblox systems", 416, 462, 704, 34, palette.muted, 23));
-    boxes.push(frame("ProgressBack", 400, 548, 736, 34, "#000000", 18, 0.32));
-    boxes.push(bar("Progress", "78%", 400, 548, 736, 34, 0.78, palette.accent));
-    boxes.push(button("SkipButton", "SKIP", 646, 626, 244, 58, palette.accent2, 18, { gradient: true }));
-    boxes.push(text("LoadingSmall", "Streaming assets safely...", 612, 712, 310, 26, palette.muted, 17));
+    const variant = seed % 4;
+    const titleText = /city|town/i.test(prompt) ? "Loading City" : /rpg|quest|dungeon/i.test(prompt) ? "Loading Quest" : /race|car/i.test(prompt) ? "Loading Race" : /horror/i.test(prompt) ? "Entering the Dark" : "Loading World";
+    const tipText = /toolbox|asset|model/i.test(prompt)
+      ? "Verifying safe free Toolbox assets..."
+      : /ui|menu|screen/i.test(prompt)
+        ? "Animating panels and buttons..."
+        : "Preparing scripts, UI, assets, and Roblox systems";
+    if (variant === 0) {
+      boxes.push(frame("LoadingCard", 330, 318, 876, 368, palette.panel2, 28, 0.9, { stroke: palette.accent, strokeOpacity: 0.6 }));
+      boxes.push(frame("LoadingIcon", 700, 244, 136, 136, palette.accent, 28, 1, { gradient: true }));
+      boxes.push(text("LoadingTitle", titleText, 468, 390, 600, 62, palette.text, 52, true));
+      boxes.push(text("Tip", tipText, 416, 462, 704, 34, palette.muted, 23));
+      boxes.push(frame("ProgressBack", 400, 548, 736, 34, "#000000", 18, 0.32));
+      boxes.push(bar("Progress", "78%", 400, 548, 736, 34, 0.78, palette.accent));
+      boxes.push(button("SkipButton", "SKIP", 646, 626, 244, 58, palette.accent2, 18, { gradient: true }));
+      boxes.push(text("LoadingSmall", "Streaming assets safely...", 612, 712, 310, 26, palette.muted, 17));
+    } else if (variant === 1) {
+      boxes.push(frame("LeftHero", 250, 280, 420, 430, palette.panel2, 30, 0.92, { stroke: palette.accent2, strokeOpacity: 0.62 }));
+      boxes.push(frame("HeroOrb", 360, 360, 198, 198, palette.accent, 999, 0.9, { gradient: true }));
+      boxes.push(frame("RightLoadPanel", 720, 300, 556, 378, palette.card, 26, 0.94, { stroke: palette.accent, strokeOpacity: 0.62 }));
+      boxes.push(text("LoadingTitle", titleText, 770, 352, 420, 58, palette.text, 50, true));
+      boxes.push(text("Tip", tipText, 772, 430, 380, 32, palette.muted, 21));
+      boxes.push(frame("ProgressBack", 770, 540, 420, 30, "#000000", 16, 0.3));
+      boxes.push(bar("Progress", "64%", 770, 540, 420, 30, 0.64, palette.accent2));
+      boxes.push(button("SkipButton", "CONTINUE", 770, 604, 220, 54, palette.accent, 16, { gradient: true }));
+    } else if (variant === 2) {
+      boxes.push(frame("LoadingStrip", 232, 334, 1072, 146, palette.panel2, 28, 0.92, { stroke: palette.accent, strokeOpacity: 0.58 }));
+      boxes.push(text("LoadingTitle", titleText, 292, 382, 560, 52, palette.text, 46, true));
+      boxes.push(frame("PulseOne", 940, 374, 72, 72, palette.accent, 999, 0.9, { gradient: true }));
+      boxes.push(frame("PulseTwo", 1034, 374, 72, 72, palette.accent2, 999, 0.9, { gradient: true }));
+      boxes.push(frame("PulseThree", 1128, 374, 72, 72, palette.good, 999, 0.9));
+      boxes.push(text("Tip", tipText, 296, 526, 740, 34, palette.muted, 23));
+      boxes.push(frame("ProgressBack", 292, 610, 952, 38, "#000000", 19, 0.32));
+      boxes.push(bar("Progress", "91%", 292, 610, 952, 38, 0.91, palette.accent));
+    } else {
+      boxes.push(frame("CenterBadge", 634, 246, 268, 268, palette.accent, 42, 1, { gradient: true }));
+      boxes.push(frame("LoadingCard", 392, 470, 752, 268, palette.panel2, 30, 0.9, { stroke: palette.accent2, strokeOpacity: 0.66 }));
+      boxes.push(text("LoadingTitle", titleText, 492, 522, 552, 58, palette.text, 50, true));
+      boxes.push(text("Tip", tipText, 492, 596, 548, 32, palette.muted, 21));
+      boxes.push(frame("ProgressBack", 492, 658, 452, 30, "#000000", 16, 0.34));
+      boxes.push(bar("Progress", "72%", 492, 658, 452, 30, 0.72, palette.accent2));
+      boxes.push(button("SkipButton", "PLAY SOON", 964, 646, 138, 54, palette.accent, 16, { gradient: true }));
+    }
   } else if (kind === "hud") {
     boxes.push(button("PlayButton", "PLAY", 1210, 144, 110, 48, palette.accent, 16, { gradient: true }));
     boxes.push(frame("CoinPill", 222, 248, 230, 58, palette.card, 20, 0.94, { stroke: palette.warn, strokeOpacity: 0.55 }));
