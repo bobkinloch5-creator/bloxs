@@ -1,9 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { Bell, Box, CheckCircle2, ImageIcon, ShieldCheck, Sparkles, Wrench } from "lucide-react";
 
-const CHANGELOG_VERSION = "2026-06-28-complete-builder-controls";
+const CHANGELOG_VERSION = "2026-06-28-smarter-brain-agents";
 
 const CHANGELOG_ITEMS = [
+  {
+    title: "Smarter Roblox brain",
+    date: "Jun 28",
+    icon: Sparkles,
+    body: "BloxSmith now follows a stronger Think, Inspect, Plan, Build, Test, Fix, Polish workflow with project context, asset scoring, specialized agents, and stronger no-unfinished-system rules.",
+  },
   {
     title: "Complete builder controls",
     date: "Jun 28",

@@ -48,11 +48,13 @@ const QUICK_PROMPTS = [
 ];
 
 const COMPOSER_ACTIONS = [
-  { label: "Build in Studio", icon: Upload, mode: "build" as const, prompt: "Build the current request in Roblox Studio now using the full BloxSmith brain: plan the build order, use safe Toolbox assets for visuals, create complete scripts/UI/remotes/DataStores, organize services correctly, test with scan_project, and fix obvious issues." },
+  { label: "Build Full Game", icon: PlayCircle, mode: "build" as const, prompt: "Prompt-to-full-game mode: build the current request as a complete playable Roblox game. Understand the goal, inspect current project context, plan map/assets/scripts/UI/remotes/save/mobile/testing, use real safe free Toolbox assets only for visuals, create complete systems, organize_project, autofix_project, scan_project, playtest-style report, polish, and explain what changed." },
+  { label: "Build in Studio", icon: Upload, mode: "build" as const, prompt: "Build the current request in Roblox Studio now using the full BloxSmith brain: inspect project context, plan the build order, use safe Toolbox assets for visuals, create complete scripts/UI/remotes/DataStores, organize services correctly, test with scan_project, and fix obvious issues." },
   { label: "Fix Errors", icon: Bug, mode: "build" as const, prompt: "Use the latest Studio errors, memory, and workspace scan to fix broken scripts, missing RemoteEvents, duplicated NPCs, floating assets, unwired UI buttons, DataStore problems, mobile issues, and performance problems. Explain the cause briefly, include autofix_project, then scan_project to verify." },
   { label: "Generate UI", icon: ImageIcon, mode: "build" as const, prompt: "AI Image-to-Roblox UI Generator: generate a premium Roblox UI concept image in chat, then convert it into real functional Roblox Studio UI. Build ScreenGui, Frames, TextButtons, ImageButtons/ImageLabels where useful, TextLabels, UIStroke, UICorner, UIGradient, UIPadding, UIListLayout/UIGridLayout, UIScale, UIAspectRatioConstraint, LocalScripts, TweenService animations, wired close/open/play/shop/settings/inventory buttons, mobile-safe scaling, and scan_project/autofix_project tests. Do not leave the UI as a flat image." },
   { label: "Add UI", icon: LayoutDashboard, mode: "build" as const, prompt: "Build premium Roblox UI for this project: loading screen, main menu, Play button, settings, shop, inventory, quest UI, health/currency HUD, notifications, mobile controls, smooth TweenService animations, responsive constraints, clean fonts/colors/spacing, click sounds, and fully wired buttons/remotes. No default grey UI, no placeholders, no overlapping text." },
   { label: "Add NPCs", icon: Bot, mode: "build" as const, prompt: "Add safe free Toolbox NPC/enemy assets that match this game, then wire Humanoids, AI behavior, spawn folders, remotes/modules if needed, and clean organization." },
+  { label: "Add Scripts", icon: FileCode, mode: "build" as const, prompt: "Add the complete working Roblox scripts needed for the current requested feature: ServerScripts, LocalScripts, ModuleScripts, RemoteEvents/RemoteFunctions, DataStore logic where needed, anti-exploit checks, button wiring, testing, and scan_project. Do not create empty or broken scripts." },
   { label: "Toolbox Assets", icon: Box, mode: "build" as const, prompt: "Search Roblox Toolbox/Creator Store for safe free assets that match this project, insert real models with names/ids, place them cleanly, and organize them. Do not use placeholder geometry." },
   { label: "Scan Game", icon: ScanLine, command: "scan_project" as const },
   { label: "Fix All", icon: Wrench, command: "fix_all" as const },
@@ -61,6 +63,7 @@ const COMPOSER_ACTIONS = [
   { label: "Fix Map", icon: Hammer, mode: "build" as const, prompt: "Fix only map issues using real safe Toolbox assets when replacements are needed: floating assets, bad spacing, roads alignment, buildings on ground, cars on roads, NPCs on walkable surfaces, signs facing players, spawn flow, and safe zones. Organize and scan afterward." },
   { label: "Fix Assets", icon: Box, mode: "build" as const, prompt: "Fix only Toolbox asset issues: broken/private/invisible/oversized/duplicate/unsafe assets, missing textures or meshes, bad names, hidden scripts, missing Humanoids, and missing PrimaryParts. Replace failed assets with another safe free public Toolbox asset. Organize and scan afterward." },
   { label: "Fix Mobile", icon: Gauge, mode: "build" as const, prompt: "Make the game mobile friendly: large touch buttons, clean UI scaling, no overlapping menus, simple settings, mobile controls, low graphics mode, and performance checks. Test UI and queue scan_project." },
+  { label: "Optimize Mobile", icon: Gauge, mode: "build" as const, prompt: "Optimize the entire game for mobile: reduce lag, anchor static assets, lower heavy visual effects, add low graphics setting, make UI touch-friendly, add mobile controls, test for overlap, organize_project, autofix_project, and scan_project." },
   { label: "Empty Folders", icon: Folder, command: "organize_project" as const },
   { label: "Duplicates", icon: RotateCcw, mode: "build" as const, prompt: "Remove duplicate BloxSmith assets and duplicate systems safely, keeping the newest working version. Do not delete unique user content. Organize project and scan afterward." },
   { label: "Anchor All", icon: ShieldCheck, mode: "build" as const, prompt: "Anchor all static map, building, prop, road, tree, sign, and decoration BaseParts that should not move. Do not anchor tools, vehicles that need driving, characters, NPC rigs, or physics gameplay objects. Organize and scan afterward." },
@@ -69,6 +72,7 @@ const COMPOSER_ACTIONS = [
   { label: "Playtest", icon: PlayCircle, mode: "build" as const, prompt: "Run a playtest-style audit using the latest scan/errors. Add scan_project, report problems found, and fix obvious breakages with safe actions." },
   { label: "Improve Map", icon: Hammer, mode: "build" as const, prompt: "Improve the existing map using safe free Toolbox assets only: better placement, lighting, spawn flow, signs, props, organization, and scan_project. Avoid procedural placeholder maps." },
   { label: "Make Premium", icon: Crown, mode: "build" as const, prompt: "Make this game feel premium and ready for release: professional loading screen, main menu, animated Play button, polished settings/shop/inventory/HUD/tutorial UI, mobile-safe layout, notification popups, smooth transitions, lighting, sky/atmosphere, camera effects, sounds, particles, cleanup, organize_project, and scan_project. No ugly default UI or unfinished screens." },
+  { label: "Publish Checklist", icon: BookOpen, mode: "build" as const, prompt: "Create a publish-ready checklist and helper content for this Roblox game: title ideas, description, tags, icon idea, thumbnail idea, update log, controls, tutorial text, monetization ideas, age/safety notes, performance check, mobile check, and what still needs testing. Do not publish automatically." },
   { label: "Test Insert", icon: Plug, command: "test_insert" as const },
   { label: "Explain", icon: HelpCircle, mode: "chat" as const, prompt: "Explain what was just built and how the scripts, remotes, UI, assets, and DataStores work, step by step." },
 ];
@@ -89,15 +93,27 @@ const GAME_TEMPLATES = [
   { label: "City Builder", prompt: "Build a city builder template with safe building/road assets, plot system, placement grid, catalog UI, server placement validation, and saving." },
   { label: "Tower Defense", prompt: "Build a tower defense template with safe map/tower/enemy assets, path waypoints, wave manager, tower placement, cash rewards, base health UI, and saving." },
   { label: "Cooking Game", prompt: "Build a cooking game template with safe cafe/kitchen/food assets, customers, order queue, recipes, timers, earnings, upgrades, shop UI, and saving." },
+  { label: "Battle Royale", prompt: "Build a battle royale template with safe arena/island assets, lobby, spawn points, shrinking zone, loot spawns, weapons, round system, elimination UI, mobile controls, saving/rewards, organize_project, test report, and scan_project." },
+  { label: "Survival", prompt: "Build a survival template with safe island/forest assets, hunger/thirst, gathering tool, crafting UI, loot spawns, day/night cycle, saving, mobile controls, organize_project, test report, and scan_project." },
+  { label: "Farming Simulator", prompt: "Build a farming simulator template with safe farm/crop/tool assets, plots, crop growth, selling, upgrades, currency, shop UI, saving, mobile support, organize_project, test report, and scan_project." },
+  { label: "Restaurant Game", prompt: "Build a restaurant game template with safe restaurant/kitchen/food assets, customer NPCs, order queue, recipes, timers, earnings, upgrades, shop UI, saving, mobile support, organize_project, test report, and scan_project." },
+  { label: "School Roleplay", prompt: "Build a school roleplay template with safe school/classroom assets, roles/jobs, NPCs, spawn lobby, map labels, UI, vehicles if useful, saving, mobile support, organize_project, test report, and scan_project." },
+  { label: "Military Base", prompt: "Build a military base template with safe base/vehicle/weapon assets, teams, guarded zones, training area, shop/loadout UI, rewards, admin-safe validation, mobile support, organize_project, test report, and scan_project." },
+  { label: "Prison Escape", prompt: "Build a prison escape template with safe prison/police/vehicle assets, prisoner/guard teams, escape objectives, wanted system, jail/safe zones, UI, saving, mobile support, organize_project, test report, and scan_project." },
+  { label: "Anime Fighting", prompt: "Build an anime fighting game template with safe arena/effect/weapon assets, abilities, cooldown UI, combat validation, rounds, rewards, saving, mobile controls, polish, organize_project, test report, and scan_project." },
 ];
 
 const AGENTS = [
+  { name: "Planner Agent", icon: Lightbulb, job: "Intent, tasks, build plan" },
   { name: "Asset Agent", icon: Box, job: "Safe free Toolbox models" },
   { name: "Builder Agent", icon: Hammer, job: "Map, lighting, folders" },
   { name: "Scripter Agent", icon: FileCode, job: "Luau systems and remotes" },
   { name: "UI Agent", icon: LayoutDashboard, job: "Menus, HUD, mobile" },
+  { name: "NPC Agent", icon: Bot, job: "NPCs, enemies, pets, dialogue" },
   { name: "Tester Agent", icon: Bug, job: "Scans and fixes" },
   { name: "Optimizer Agent", icon: Gauge, job: "Cleanup and performance" },
+  { name: "Fixer Agent", icon: Wrench, job: "Patch errors and retest" },
+  { name: "Publisher Agent", icon: BookOpen, job: "Publish checklist and polish" },
   { name: "Memory Agent", icon: BookOpen, job: "Project rules and history" },
 ];
 
