@@ -1,9 +1,21 @@
 import { useEffect, useRef, useState } from "react";
 import { Bell, Box, CheckCircle2, ImageIcon, ShieldCheck, Sparkles, Wrench } from "lucide-react";
 
-const CHANGELOG_VERSION = "2026-06-28-full-builder-toolbox-variety";
+const CHANGELOG_VERSION = "2026-06-28-toolbox-proof-builder-polish";
 
 const CHANGELOG_ITEMS = [
+  {
+    title: "Toolbox insertion proof",
+    date: "Jun 28",
+    icon: ShieldCheck,
+    body: "The Studio plugin now verifies inserted assets have visible 3D content, bounds, texture/mesh signals, safe scripts, clean grounding, duplicate protection, and clearer success/failure reports.",
+  },
+  {
+    title: "Better map layout planning",
+    date: "Jun 28",
+    icon: Sparkles,
+    body: "Map builds now plan roads/paths first, buildings second, gameplay anchors third, characters and vehicles fourth, and props/nature/lighting last for cleaner Roblox-ready placement.",
+  },
   {
     title: "Full Roblox builder brain",
     date: "Jun 28",

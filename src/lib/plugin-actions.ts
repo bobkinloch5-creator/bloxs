@@ -116,6 +116,23 @@ export function normalizePluginAction(action: any) {
   if (action?.properties && !payload.properties) payload.properties = action.properties;
   if (action?.asset_id && !payload.asset_id) payload.asset_id = action.asset_id;
   if (action?.fallback_ids && !payload.fallback_ids) payload.fallback_ids = action.fallback_ids;
+  if (kind === "insert_asset") {
+    const preview = payload.preview && typeof payload.preview === "object" ? payload.preview as Record<string, unknown> : {};
+    payload.toolbox_only = payload.toolbox_only ?? true;
+    payload.free_only = payload.free_only ?? true;
+    payload.no_scripts = payload.no_scripts ?? true;
+    payload.disable_procedural_fallback = payload.disable_procedural_fallback ?? true;
+    payload.allow_duplicates = payload.allow_duplicates ?? false;
+    payload.ground_snap = payload.ground_snap ?? true;
+    payload.asset_name = payload.asset_name ?? preview.name;
+    payload.creator_name = payload.creator_name ?? preview.creatorName;
+    payload.source_query = payload.source_query ?? preview.sourceQuery;
+    payload.category = payload.category ?? preview.category;
+    payload.quality_tier = payload.quality_tier ?? preview.qualityTier;
+    payload.safety_score = payload.safety_score ?? preview.safety;
+    payload.relevance_score = payload.relevance_score ?? preview.relevance;
+    if (!payload.tags && Array.isArray(preview.tags)) payload.tags = preview.tags;
+  }
 
   if (kind === "organize_project" && /^(folder|create[_\s-]*folder)$/i.test(String(rawKind ?? "").trim())) {
     return {

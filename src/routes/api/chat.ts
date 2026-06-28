@@ -2131,7 +2131,7 @@ export const Route = createFileRoute("/api/chat")({
                 searchedTerms: out.searchedTerms,
                 results: final,
                 insertionRule:
-                  "For each chosen row, emit insert_asset with payload.asset_id from row.id and payload.fallback_ids from row.fallbackIds. Use position/rotation/scale/folder_name/tags yourself. Prefer excellent/good matches, but vary among similarly safe relevant rows instead of always picking the same asset. Do not invent IDs.",
+                  "For each chosen row, emit insert_asset and copy row.insertPayload into payload, then add position/rotation/scale/folder_name/placement_role/district yourself. Prefer excellent/good matches, but vary among similarly safe relevant rows instead of always picking the same asset. Do not invent IDs.",
                 note: out.source === "none"
                   ? "No safe free assets matched. Tell the user no Toolbox match was found and ASK before falling back to generated geometry."
                   : "Live results from Roblox public Toolbox/Creator Store. Use only safe, free, relevant rows, vary among similarly high-quality matches, include fallback_ids, and list inserted asset names, creators, and ids for the user.",
@@ -2159,7 +2159,7 @@ export const Route = createFileRoute("/api/chat")({
                 note:
                   out.source === "none"
                     ? "No safe free Toolbox assets were found for this requested set. Ask before fallback geometry."
-                    : "Use each request.best or another high-score result for insert_asset. Vary among safe relevant assets across repeated builds, always include fallback_ids where present, and do not invent IDs.",
+                    : "Use each request.best or another high-score result for insert_asset. Copy result.insertPayload metadata, vary among safe relevant assets across repeated builds, always include fallback_ids where present, and do not invent IDs.",
               };
             },
           });

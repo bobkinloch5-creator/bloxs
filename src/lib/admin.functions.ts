@@ -63,7 +63,7 @@ export const getAdminOverview = createServerFn({ method: "GET" })
 
 export const listAllUsers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { search?: string; limit?: number } | undefined) => d ?? {})
+  .validator((d: { search?: string; limit?: number } | undefined) => d ?? {})
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await requireAdmin(context);
     const limit = Math.min(data.limit ?? 100, 500);
@@ -105,7 +105,7 @@ export const listAllUsers = createServerFn({ method: "GET" })
 
 export const giftCredits = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { userId: string; amount: number }) => d)
+  .validator((d: { userId: string; amount: number }) => d)
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await requireAdmin(context);
     if (!Number.isFinite(data.amount)) throw new Error("Invalid amount");
@@ -120,7 +120,7 @@ export const giftCredits = createServerFn({ method: "POST" })
 
 export const setUserBanned = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { userId: string; banned: boolean; reason?: string }) => d)
+  .validator((d: { userId: string; banned: boolean; reason?: string }) => d)
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await requireAdmin(context);
     const patch: any = { banned: data.banned, banned_reason: data.banned ? (data.reason ?? "") : null, banned_at: data.banned ? new Date().toISOString() : null };
@@ -131,7 +131,7 @@ export const setUserBanned = createServerFn({ method: "POST" })
 
 export const setUserRole = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { userId: string; role: "admin" | "moderator" | "donator" | "user" | "owner"; grant: boolean }) => d)
+  .validator((d: { userId: string; role: "admin" | "moderator" | "donator" | "user" | "owner"; grant: boolean }) => d)
   .handler(async ({ data, context }) => {
     const { isOwner, supabaseAdmin } = await requireAdmin(context);
     if ((data.role === "admin" || data.role === "owner") && !isOwner) throw new Error("Only the owner can grant admin/owner roles");

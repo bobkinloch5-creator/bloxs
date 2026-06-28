@@ -14,7 +14,7 @@ async function callerIsAdmin(supabase: any, userId: string) {
 
 export const submitDonationClaim = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { paypalReference: string; amountNote?: string }) => {
+  .validator((data: { paypalReference: string; amountNote?: string }) => {
     const ref = (data?.paypalReference ?? "").trim();
     if (ref.length < 3 || ref.length > 200) throw new Error("Enter a valid PayPal reference (transaction ID, email, or note).");
     const note = (data?.amountNote ?? "").trim().slice(0, 300);
@@ -76,7 +76,7 @@ export const listPendingDonationClaims = createServerFn({ method: "GET" })
 
 export const decideDonationClaim = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { id: string; approve: boolean; note?: string }) => {
+  .validator((data: { id: string; approve: boolean; note?: string }) => {
     if (!data?.id) throw new Error("Missing id");
     return { id: data.id, approve: !!data.approve, note: (data.note ?? "").trim().slice(0, 300) };
   })

@@ -5,7 +5,7 @@ import { normalizePluginAction } from "@/lib/plugin-actions";
 
 export const listMessages = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ projectId: z.string().uuid() }).parse(input))
+  .validator((input: unknown) => z.object({ projectId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const { data: rows, error } = await context.supabase
       .from("chat_messages")
@@ -18,7 +18,7 @@ export const listMessages = createServerFn({ method: "GET" })
 
 export const listProjectActions = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ projectId: z.string().uuid() }).parse(input))
+  .validator((input: unknown) => z.object({ projectId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const { data: rows, error } = await context.supabase
       .from("plugin_actions")
@@ -43,7 +43,7 @@ export const getPluginSession = createServerFn({ method: "GET" })
 
 export const queuePluginCommand = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({
+  .validator((input: unknown) => z.object({
     projectId: z.string().uuid(),
     kind: z.enum(["scan_project", "organize_project", "autofix_project"]),
     name: z.string().min(1).max(80).optional(),
@@ -64,7 +64,7 @@ export const queuePluginCommand = createServerFn({ method: "POST" })
 
 export const queueFixAll = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ projectId: z.string().uuid() }).parse(input))
+  .validator((input: unknown) => z.object({ projectId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const actions = [
       { kind: "scan_project", name: "FixAll_1_Scan", parent_path: "Workspace", payload: {}, position: 0 },
@@ -86,7 +86,7 @@ export const queueFixAll = createServerFn({ method: "POST" })
 
 export const queueTestInsert = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ projectId: z.string().uuid() }).parse(input))
+  .validator((input: unknown) => z.object({ projectId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const actions = [
       {
@@ -136,7 +136,7 @@ export const queueTestInsert = createServerFn({ method: "POST" })
 
 export const queuePreparedStudioActions = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({
+  .validator((input: unknown) => z.object({
     projectId: z.string().uuid(),
     executionMode: z.enum(["safe", "fast", "owner"]).optional().default("fast"),
     actions: z.array(z.object({
@@ -199,7 +199,7 @@ export const queuePreparedStudioActions = createServerFn({ method: "POST" })
 
 export const clearMessages = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ projectId: z.string().uuid() }).parse(input))
+  .validator((input: unknown) => z.object({ projectId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     // Wipe chat memory + queued/pending plugin actions for this project.
     const { error: e1 } = await context.supabase
@@ -221,7 +221,7 @@ export const clearMessages = createServerFn({ method: "POST" })
 // touching chat history. Used by the visible Stop / Clear Queue controls.
 export const clearActionQueue = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ projectId: z.string().uuid() }).parse(input))
+  .validator((input: unknown) => z.object({ projectId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const { data: rows, error } = await context.supabase
       .from("plugin_actions")
@@ -244,7 +244,7 @@ export const clearActionQueue = createServerFn({ method: "POST" })
 // ChangeHistoryService:Undo() on its side.
 export const undoLastBuild = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ projectId: z.string().uuid() }).parse(input))
+  .validator((input: unknown) => z.object({ projectId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     // Find the most recent assistant message that produced actions.
     const { data: msgs } = await context.supabase

@@ -110,7 +110,7 @@ function normalizeRobloxAssetId(value: unknown) {
 
 export const getModelStatus = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) => z.object({ projectId: z.string().uuid().optional() }).parse(i ?? {}))
+  .validator((i: unknown) => z.object({ projectId: z.string().uuid().optional() }).parse(i ?? {}))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { data: rows } = await supabase
@@ -158,7 +158,7 @@ export const getModelStatus = createServerFn({ method: "GET" })
 
 export const deleteModelGeneration = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) => z.object({
+  .validator((i: unknown) => z.object({
     generationId: z.string().uuid(),
     deleteRelated: z.boolean().default(true),
   }).parse(i))
@@ -200,7 +200,7 @@ export const deleteModelGeneration = createServerFn({ method: "POST" })
 
 export const startModelGeneration = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) => z.object({
+  .validator((i: unknown) => z.object({
     projectId: z.string().uuid().optional(),
     mode: z.enum(["text", "image"]),
     prompt: z.string().trim().max(600).optional(),
@@ -317,7 +317,7 @@ export const startModelGeneration = createServerFn({ method: "POST" })
 
 export const registerTripoBridgeModel = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) => z.object({
+  .validator((i: unknown) => z.object({
     projectId: z.string().uuid().optional(),
     prompt: z.string().trim().min(2).max(200).default("Tripo DCC Bridge model"),
     modelUrl: z.string().trim().max(2000).optional(),
@@ -370,7 +370,7 @@ export const registerTripoBridgeModel = createServerFn({ method: "POST" })
 
 export const uploadBridgeModelToRoblox = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) => z.object({
+  .validator((i: unknown) => z.object({
     generationId: z.string().uuid(),
     displayName: z.string().trim().min(2).max(80).optional(),
     description: z.string().trim().max(1000).optional(),
@@ -450,7 +450,7 @@ export const uploadBridgeModelToRoblox = createServerFn({ method: "POST" })
 
 export const checkRobloxUploadOperation = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) => z.object({ generationId: z.string().uuid() }).parse(i))
+  .validator((i: unknown) => z.object({ generationId: z.string().uuid() }).parse(i))
   .handler(async ({ data, context }) => {
     const { data: gen } = await context.supabase
       .from("model_generations")
@@ -488,7 +488,7 @@ export const checkRobloxUploadOperation = createServerFn({ method: "POST" })
 
 export const queueBridgeModelToStudio = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) => z.object({
+  .validator((i: unknown) => z.object({
     projectId: z.string().uuid(),
     generationId: z.string().uuid(),
     assetId: z.string().trim().max(80).optional(),
@@ -530,7 +530,7 @@ export const queueBridgeModelToStudio = createServerFn({ method: "POST" })
 
 export const pollModelGeneration = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) => z.object({ generationId: z.string().uuid() }).parse(i))
+  .validator((i: unknown) => z.object({ generationId: z.string().uuid() }).parse(i))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { data: gen } = await supabase
@@ -613,7 +613,7 @@ export type AnimationPreset = typeof ANIMATION_PRESETS[number];
 
 export const animateModel = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) => z.object({
+  .validator((i: unknown) => z.object({
     projectId: z.string().uuid().optional(),
     sourceId: z.string().uuid(),
     animation: z.enum(ANIMATION_PRESETS),
@@ -653,7 +653,7 @@ export const animateModel = createServerFn({ method: "POST" })
 
 export const retextureModel = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) => z.object({
+  .validator((i: unknown) => z.object({
     projectId: z.string().uuid().optional(),
     sourceId: z.string().uuid(),
     texturePrompt: z.string().trim().min(3).max(400),

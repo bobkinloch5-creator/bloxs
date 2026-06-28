@@ -382,7 +382,7 @@ Instructions:
 
 export const generateRobloxUi = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({
+  .validator((input: unknown) => z.object({
     prompt: z.string().min(3).max(2000),
     style: z.string().min(1).max(40),
     projectId: z.string().uuid().optional(),
@@ -430,7 +430,7 @@ export const generateRobloxUi = createServerFn({ method: "POST" })
 
 export const listSavedRobloxUis = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({
+  .validator((input: unknown) => z.object({
     projectId: z.string().uuid().optional(),
     limit: z.number().int().min(1).max(50).default(24),
   }).parse(input ?? {}))
@@ -461,7 +461,7 @@ export const listSavedRobloxUis = createServerFn({ method: "GET" })
 
 export const deleteSavedRobloxUi = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({
+  .validator((input: unknown) => z.object({
     id: z.string().uuid(),
   }).parse(input))
   .handler(async ({ data, context }) => {

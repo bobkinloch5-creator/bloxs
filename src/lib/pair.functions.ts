@@ -6,7 +6,7 @@ import { z } from "zod";
 // token to it. The plugin's polling endpoint then returns that token.
 export const claimPairCode = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z.object({
       code: z.string().min(4).max(12),
       projectId: z.string().uuid().optional(),

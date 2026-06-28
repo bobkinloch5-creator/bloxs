@@ -12,7 +12,7 @@ const SynthInput = z.object({
 
 export const synthesizeVoice = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => SynthInput.parse(input))
+  .validator((input: unknown) => SynthInput.parse(input))
   .handler(async ({ data, context }) => {
     const apiKey = process.env.LOVABLE_API_KEY;
     if (!apiKey) {

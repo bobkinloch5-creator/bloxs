@@ -43,7 +43,7 @@ export type AssetMode = (typeof ASSET_MODES)[number];
 
 export const updateMyProfile = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z.object({
       display_name: z.string().max(60).optional(),
       bio: z.string().max(500).optional(),

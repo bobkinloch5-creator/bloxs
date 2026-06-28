@@ -26,7 +26,25 @@ export interface ToolboxResult {
   qualityTier?: "excellent" | "good" | "usable";
   signals?: string[];
   fallbackIds?: number[];
-  insertPayload?: { asset_id: number; fallback_ids?: number[] };
+  verificationStatus?: "search_verified" | "metadata_verified" | "studio_verified_pending";
+  librarySource?: "live_creator_store" | "verified_live_search";
+  category?: string;
+  tags?: string[];
+  recentlyUsed?: boolean;
+  insertPayload?: {
+    asset_id: number;
+    fallback_ids?: number[];
+    asset_name?: string;
+    creator_name?: string;
+    source_query?: string;
+    category?: string;
+    tags?: string[];
+    preview?: Record<string, unknown>;
+    toolbox_only?: boolean;
+    free_only?: boolean;
+    no_scripts?: boolean;
+    disable_procedural_fallback?: boolean;
+  };
 }
 
 export type ToolboxCategory = "Model" | "Audio" | "Decal" | "Mesh";
@@ -85,6 +103,21 @@ const QUERY_ALIASES: Array<{ test: RegExp; terms: string[] }> = [
   { test: /\b(police|jail|prison)\b/i, terms: ["police car", "police station", "jail", "prison"] },
 ];
 
+const ASSET_LIBRARY_PROFILES: Array<{ category: string; test: RegExp; tags: string[]; searchTerms: string[] }> = [
+  { category: "Weapons", test: /\b(pistol|gun|rifle|sword|bow|weapon|blaster|laser|staff)\b/i, tags: ["weapon", "tool", "combat"], searchTerms: ["pistol", "rifle", "sword", "bow", "laser gun"] },
+  { category: "Vehicles", test: /\b(car|truck|vehicle|police car|race|racing|plane|boat|kart)\b/i, tags: ["vehicle", "transport"], searchTerms: ["sports car", "police car", "truck", "plane", "boat"] },
+  { category: "Characters", test: /\b(npc|zombie|monster|shopkeeper|pet|enemy|boss|dummy)\b/i, tags: ["character", "npc"], searchTerms: ["npc", "zombie", "monster", "shopkeeper", "pet"] },
+  { category: "Buildings", test: /\b(house|building|police station|hospital|shop|store|castle|skyscraper|town)\b/i, tags: ["building", "map"], searchTerms: ["house", "police station", "hospital", "shop building", "castle"] },
+  { category: "Nature", test: /\b(tree|forest|rock|grass|mountain|flower|bush|nature)\b/i, tags: ["nature", "environment"], searchTerms: ["tree", "rock", "grass", "mountain", "flowers"] },
+  { category: "Maps", test: /\b(city|obby|island|forest|dungeon|arena|map|world|tycoon|simulator)\b/i, tags: ["map", "world"], searchTerms: ["city kit", "obby kit", "island map", "dungeon", "battle arena"] },
+  { category: "Props", test: /\b(crate|barrel|sign|furniture|lamp|bench|table|chair|prop)\b/i, tags: ["prop", "decor"], searchTerms: ["crate", "barrel", "sign", "furniture", "lamp"] },
+  { category: "Gameplay", test: /\b(checkpoint|coin|door|button|portal|spawn|reward)\b/i, tags: ["gameplay", "interactive"], searchTerms: ["checkpoint", "coin", "door", "button", "portal"] },
+  { category: "Effects", test: /\b(fire|smoke|explosion|magic|particle|effect)\b/i, tags: ["effect", "vfx"], searchTerms: ["fire effect", "smoke", "explosion", "magic", "particles"] },
+];
+
+const recentAssetsByKey = new Map<string, number[]>();
+const RECENT_ASSET_LIMIT = 18;
+
 const STOP_WORDS = new Set([
   "a", "an", "and", "asset", "assets", "for", "free", "game", "kit", "make", "model", "models",
   "of", "pack", "roblox", "safe", "the", "to", "with",
@@ -104,7 +137,22 @@ function buildSearchTerms(keyword: string): string[] {
       for (const term of alias.terms) terms.add(term);
     }
   }
+  for (const profile of ASSET_LIBRARY_PROFILES) {
+    if (profile.test.test(base)) {
+      for (const term of profile.searchTerms) terms.add(term);
+    }
+  }
   return Array.from(terms).slice(0, 10);
+}
+
+function libraryProfileFor(keyword: string, assetName?: string) {
+  const haystack = `${keyword} ${assetName ?? ""}`;
+  return ASSET_LIBRARY_PROFILES.find((profile) => profile.test.test(haystack)) ?? {
+    category: "Models",
+    tags: ["toolbox", "model"],
+    searchTerms: [],
+    test: /\b\B/,
+  };
 }
 
 async function tryFetch(url: string): Promise<unknown | null> {
@@ -309,6 +357,8 @@ export async function searchRobloxToolbox(
   if (terms.length === 0) return { source: "none", results: [], searchedTerms: [], scanned: 0 };
   const catId = CATEGORY_ID[category];
   const safeLimit = Math.max(1, Math.min(limit, 50));
+  const usageKey = `${category}:${keyword.toLowerCase().replace(/\s+/g, " ").trim()}`;
+  const recentIds = new Set(recentAssetsByKey.get(usageKey) ?? []);
   const activeTerms = terms.slice(0, 8);
   const perPage = Math.max(Math.min(safeLimit * 8, 80), 40);
   const maxPagesPerTerm = safeLimit > 12 ? 3 : 2;
@@ -317,7 +367,10 @@ export async function searchRobloxToolbox(
     const relevance = Math.max(relevanceScore(keyword, r.name), relevanceScore(r.sourceQuery ?? keyword, r.name));
     const safety = safetyScore(r.creatorName, r.name, { ...r, relevance });
     const trustedBoost = r.creatorName.trim().toLowerCase() === "roblox" ? 0.08 : 0;
-    const score = Math.max(0, Math.min(1, relevance * 0.56 + safety * 0.44 + trustedBoost));
+    const recentlyUsed = recentIds.has(r.id);
+    const reusePenalty = recentlyUsed ? 0.08 : 0;
+    const score = Math.max(0, Math.min(1, relevance * 0.56 + safety * 0.44 + trustedBoost - reusePenalty));
+    const profile = libraryProfileFor(keyword, r.name);
     const row = {
       ...r,
       thumbnail: r.thumbnail ?? thumbnailFor(r.id),
@@ -326,6 +379,11 @@ export async function searchRobloxToolbox(
       score,
       qualityTier: qualityTier(score),
       free: r.free ?? true,
+      category: profile.category,
+      tags: Array.from(new Set([...(r.tags ?? []), ...profile.tags, "BloxSmithAsset"])).slice(0, 8),
+      verificationStatus: "studio_verified_pending" as const,
+      librarySource: "verified_live_search" as const,
+      recentlyUsed,
     };
     return { ...row, signals: qualitySignals(row) };
   };
@@ -357,15 +415,44 @@ export async function searchRobloxToolbox(
       ...ranked.filter((row) => !topIds.has(row.id)),
     ].slice(0, safeLimit);
 
+    const chosenIds = diversified.slice(0, Math.min(4, diversified.length)).map((row) => row.id);
+    recentAssetsByKey.set(usageKey, Array.from(new Set([...chosenIds, ...(recentAssetsByKey.get(usageKey) ?? [])])).slice(0, RECENT_ASSET_LIMIT));
+
     return diversified.map((row) => {
       const fallbackIds = diversified
         .filter((candidate) => candidate.id !== row.id && candidate.assetType === row.assetType)
         .slice(0, 4)
         .map((candidate) => candidate.id);
+      const preview = {
+        id: row.id,
+        name: row.name,
+        creatorName: row.creatorName,
+        category: row.category,
+        thumbnail: row.thumbnail,
+        qualityTier: row.qualityTier,
+        safety: row.safety,
+        relevance: row.relevance,
+        sourceQuery: row.sourceQuery,
+        verificationStatus: row.verificationStatus,
+        tags: row.tags,
+      };
       return {
         ...row,
         fallbackIds,
-        insertPayload: fallbackIds.length ? { asset_id: row.id, fallback_ids: fallbackIds } : { asset_id: row.id },
+        insertPayload: {
+          asset_id: row.id,
+          ...(fallbackIds.length ? { fallback_ids: fallbackIds } : {}),
+          asset_name: row.name,
+          creator_name: row.creatorName,
+          source_query: row.sourceQuery,
+          category: row.category,
+          tags: row.tags,
+          preview,
+          toolbox_only: true,
+          free_only: true,
+          no_scripts: true,
+          disable_procedural_fallback: true,
+        },
       };
     });
   };
@@ -577,6 +664,6 @@ export async function searchRobloxToolboxSet(
     readyCount,
     missingRequired,
     insertionRule:
-      "For each asset category, choose request.best or another high score result. The returned list is safely varied among top matches, so do not force the same old asset every time. Emit insert_asset with payload.asset_id from result.id and payload.fallback_ids from result.fallbackIds. Add folder_name, tags, position, rotation/yaw, and scale. If a required request is missing, do not fake it with parts; ask before fallback geometry.",
+      "For each asset category, choose request.best or another high score result. The returned list is safely varied among top matches, so do not force the same old asset every time. Emit insert_asset with payload.asset_id from result.id, payload.fallback_ids from result.fallbackIds, and copy result.insertPayload metadata including preview, asset_name, creator_name, category, tags, toolbox_only/free_only/no_scripts. Add folder_name, position, rotation/yaw, and scale. If a required request is missing, do not fake it with parts; ask before fallback geometry.",
   };
 }

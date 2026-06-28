@@ -348,15 +348,30 @@ end
 
 local function inspectInsertedAsset(root, options)
     options = options or {}
-    local report = { scanned = 0, scripts = 0, quarantined = 0, warnings = {} }
+    local report = {
+        scanned = 0, scripts = 0, quarantined = 0, warnings = {},
+        visible_parts = 0, mesh_parts = 0, textures = 0, decals = 0, special_meshes = 0,
+        has_visible_content = false, has_textures_or_meshes = false,
+    }
     local descendants = root:GetDescendants()
     table.insert(descendants, 1, root)
     for _, inst in ipairs(descendants) do
         report.scanned += 1
         if inst:IsA("BasePart") then
+            if inst.Transparency < 1 and inst.Size.Magnitude > 0.05 then
+                report.visible_parts += 1
+                report.has_visible_content = true
+            end
+            if inst:IsA("MeshPart") then report.mesh_parts += 1 end
             if inst.Anchored == false and not inst:FindFirstAncestorOfClass("Tool") and not inst:FindFirstAncestorWhichIsA("Humanoid") then
                 table.insert(report.warnings, "loose_unanchored_part:" .. fullPath(inst))
             end
+        elseif inst:IsA("Texture") then
+            report.textures += 1
+        elseif inst:IsA("Decal") then
+            report.decals += 1
+        elseif inst:IsA("SpecialMesh") then
+            report.special_meshes += 1
         elseif inst:IsA("Script") or inst:IsA("LocalScript") or inst:IsA("ModuleScript") then
             report.scripts += 1
             local source = ""
@@ -377,7 +392,59 @@ local function inspectInsertedAsset(root, options)
             break
         end
     end
+    report.has_textures_or_meshes = report.mesh_parts > 0 or report.textures > 0 or report.decals > 0 or report.special_meshes > 0
+    if not report.has_visible_content then
+        table.insert(report.warnings, "no_visible_3d_content")
+    end
     return report
+end
+
+local function assetBounds(root)
+    if root:IsA("Model") then
+        local ok, cf, size = pcall(function() return root:GetBoundingBox() end)
+        if ok and cf and size then return cf, size end
+    elseif root:IsA("BasePart") then
+        return root.CFrame, root.Size
+    end
+    return nil, nil
+end
+
+local function groundSnap(root)
+    if root:FindFirstAncestorOfClass("Tool") then return false end
+    local cf, size = assetBounds(root)
+    if not cf or not size or size.Magnitude <= 0.05 then return false end
+    local bottomY = cf.Position.Y - (size.Y / 2)
+    local desiredBottom = 0
+    local deltaY = desiredBottom - bottomY
+    if math.abs(deltaY) < 0.05 then return false end
+    pcall(function() root:PivotTo(cf + Vector3.new(0, deltaY, 0)) end)
+    return true
+end
+
+local function anchorWorldModel(root)
+    if root:FindFirstAncestorOfClass("Tool") or root:FindFirstChildOfClass("Humanoid") then return 0 end
+    local anchored = 0
+    for _, inst in ipairs(root:GetDescendants()) do
+        if inst:IsA("BasePart") and not inst.Anchored then
+            inst.Anchored = true
+            anchored += 1
+        end
+    end
+    if root:IsA("BasePart") and not root.Anchored then
+        root.Anchored = true
+        anchored += 1
+    end
+    return anchored
+end
+
+local function findExistingAsset(parent, id)
+    for _, inst in ipairs(parent:GetDescendants()) do
+        local existingId = inst:GetAttribute("BloxSmithAssetId") or inst:GetAttribute("BloxSmithRequestedAssetId")
+        if tonumber(existingId) == tonumber(id) then
+            return inst
+        end
+    end
+    return nil
 end
 
 local function organizeProject()
@@ -709,13 +776,42 @@ Exec.insert_asset = function(a, p)
             end
         end
     end
+
+    if payload.allow_duplicates ~= true then
+        for _, candidateId in ipairs(candidates) do
+            local existing = findExistingAsset(p, candidateId)
+            if existing then
+                log(("Skipped duplicate Toolbox asset id=%d already at %s"):format(candidateId, fullPath(existing)), "warn")
+                return {
+                    skipped = true,
+                    reason = "duplicate_asset",
+                    asset_id = candidateId,
+                    path = fullPath(existing),
+                    verified = true,
+                    safety_status = "Duplicate Skipped",
+                }
+            end
+        end
+    end
+
     local inserted, loadErr, usedId = nil, nil, nil
     local attempted = {}
     for index, candidateId in ipairs(candidates) do
         table.insert(attempted, candidateId)
         inserted, loadErr = loadAssetCandidate(candidateId, a.name or ("Asset_" .. candidateId), p)
         if inserted then
-            usedId = candidateId
+            local proof = inspectInsertedAsset(inserted, { no_scripts = true })
+            if not proof.has_visible_content then
+                inserted:Destroy()
+                failedAssetIds[candidateId] = true
+                inserted = nil
+                loadErr = "loaded asset has no visible 3D content"
+                log(("Skipped empty/invisible asset id=%d. Trying another free model."):format(candidateId), "warn")
+            else
+                usedId = candidateId
+            end
+        end
+        if inserted then
             if index > 1 then
                 log(("Asset id=%d failed; fallback id=%d inserted instead."):format(id, usedId), "warn")
             end
@@ -752,6 +848,14 @@ Exec.insert_asset = function(a, p)
     if payload.scale and inserted:IsA("Model") then
         pcall(function() inserted:ScaleTo(tonumber(payload.scale) or 1) end)
     end
+    local anchoredCount = 0
+    if payload.anchor ~= false and payload.anchored ~= false then
+        anchoredCount = anchorWorldModel(inserted)
+    end
+    local groundSnapped = false
+    if payload.ground_snap ~= false then
+        groundSnapped = groundSnap(inserted)
+    end
     if payload.tags and type(payload.tags) == "table" then
         for _, tag in ipairs(payload.tags) do
             if type(tag) == "string" and tag ~= "" then
@@ -772,6 +876,8 @@ Exec.insert_asset = function(a, p)
         if payload.quality_tier then inserted:SetAttribute("BloxSmithQualityTier", tostring(payload.quality_tier)) end
         if payload.safety_score then inserted:SetAttribute("BloxSmithSafetyScore", tonumber(payload.safety_score) or 0) end
         if payload.relevance_score then inserted:SetAttribute("BloxSmithRelevanceScore", tonumber(payload.relevance_score) or 0) end
+        if payload.category then inserted:SetAttribute("BloxSmithCategory", tostring(payload.category)) end
+        inserted:SetAttribute("BloxSmithStudioVerified", true)
     end)
     local noScripts = payload.no_scripts ~= false and payload.allow_scripts ~= true
     local safetyReport = inspectInsertedAsset(inserted, { no_scripts = noScripts })
@@ -780,7 +886,21 @@ Exec.insert_asset = function(a, p)
     elseif safetyReport.scripts > 0 then
         log(("Asset safety scan checked %d script(s) in id=%d."):format(safetyReport.scripts, usedId), "debug")
     end
-    log(("✓ inserted asset id=%d as '%s' under %s"):format(usedId, inserted.Name, p:GetFullName()), "success")
+    local cf, size = assetBounds(inserted)
+    local bounds = nil
+    if cf and size then
+        bounds = {
+            position = { cf.Position.X, cf.Position.Y, cf.Position.Z },
+            size = { size.X, size.Y, size.Z },
+        }
+    end
+    log(("✓ inserted verified asset id=%d as '%s' under %s (%d visible part(s), %d texture/mesh signal(s))"):format(
+        usedId,
+        inserted.Name,
+        p:GetFullName(),
+        safetyReport.visible_parts or 0,
+        (safetyReport.mesh_parts or 0) + (safetyReport.textures or 0) + (safetyReport.decals or 0) + (safetyReport.special_meshes or 0)
+    ), "success")
     return {
         asset_id = usedId,
         requested_asset_id = id,
@@ -789,7 +909,12 @@ Exec.insert_asset = function(a, p)
         name = inserted.Name,
         path = inserted:GetFullName(),
         class = inserted.ClassName,
+        verified = safetyReport.has_visible_content == true,
+        safety_status = safetyReport.quarantined > 0 and "Scripts Quarantined" or "Verified",
         safety = safetyReport,
+        anchored_parts = anchoredCount,
+        ground_snapped = groundSnapped,
+        bounds = bounds,
     }
 end
 

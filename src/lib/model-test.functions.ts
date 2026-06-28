@@ -109,7 +109,7 @@ async function assertOwner(context: { supabase: { auth: { getUser: () => Promise
 
 export const testModel = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => {
+  .validator((input: unknown) => {
     const v = input as { modelId?: string };
     if (!v?.modelId || typeof v.modelId !== "string") throw new Error("modelId required");
     return { modelId: v.modelId };

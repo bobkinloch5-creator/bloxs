@@ -19,7 +19,7 @@ Rules:
 
 export const improvePrompt = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => Input.parse(input))
+  .validator((input: unknown) => Input.parse(input))
   .handler(async ({ data }) => {
     try {
       const { model } = getProviderModel(FALLBACK_MODEL_ID);
