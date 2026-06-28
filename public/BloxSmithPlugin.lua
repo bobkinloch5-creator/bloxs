@@ -1,5 +1,5 @@
 -- BloxSmithPlugin.lua
--- BloxSmith Roblox Studio Plugin ??? execution & connection bridge.
+-- BloxSmith Roblox Studio Plugin — execution & connection bridge.
 -- Install: Plugins > Open Plugins Folder, drop this file in, restart Studio.
 
 local HttpService           = game:GetService("HttpService")
@@ -15,24 +15,10 @@ local Teams                 = game:GetService("Teams")
 local Workspace             = game:GetService("Workspace")
 local ChangeHistoryService  = game:GetService("ChangeHistoryService")
 local InsertService         = game:GetService("InsertService")
-local CollectionService     = game:GetService("CollectionService")
 
 local API_BASE       = "https://bloxsmith.pro"
-local POLL_INTERVAL  = 1
-local PLUGIN_VERSION = "1.7.5"
-
-------------------------------------------------------------------- token helpers
-local TOKEN_KEY = "token"
-local function validToken()
-    local t = plugin:GetSetting(TOKEN_KEY)
-    if type(t) ~= "string" then return nil end
-    t = (t:gsub("^%s+", ""):gsub("%s+$", ""))
-    if t == "" then return nil end
-    return t
-end
-local function clearToken()
-    plugin:SetSetting(TOKEN_KEY, nil)
-end
+local POLL_INTERVAL  = 4
+local PLUGIN_VERSION = "1.3.0"
 
 ------------------------------------------------------------------- UI shell
 local toolbar = plugin:CreateToolbar("BloxSmith")
@@ -70,8 +56,8 @@ label(main, "Execution bridge for Roblox Studio", UDim2.new(0,12,0,32), UDim2.ne
 local statusLabel = label(main, "Status: not connected", UDim2.new(0,12,0,58), UDim2.new(1,-24,0,18), Enum.Font.GothamMedium, 13)
 local subStatus   = label(main, "Click Connect to link this Studio session.", UDim2.new(0,12,0,78), UDim2.new(1,-24,0,16), nil, 12, Color3.fromRGB(150,155,170))
 
-local infoLabel   = label(main, "Project: ???    Queue: 0", UDim2.new(0,12,0,98), UDim2.new(1,-24,0,16), nil, 12, Color3.fromRGB(160,165,180))
-local lastLabel   = label(main, "Last action: ???", UDim2.new(0,12,0,116), UDim2.new(1,-24,0,16), nil, 12, Color3.fromRGB(160,165,180))
+local infoLabel   = label(main, "Project: —    Queue: 0", UDim2.new(0,12,0,98), UDim2.new(1,-24,0,16), nil, 12, Color3.fromRGB(160,165,180))
+local lastLabel   = label(main, "Last action: —", UDim2.new(0,12,0,116), UDim2.new(1,-24,0,16), nil, 12, Color3.fromRGB(160,165,180))
 
 -- primary connect button
 local connectBtn = Instance.new("TextButton")
@@ -95,7 +81,7 @@ linkBox.Parent = main
 
 -- control buttons grid (2 rows x 3 cols)
 local controls = Instance.new("Frame")
-controls.Position = UDim2.new(0,12,0,216); controls.Size = UDim2.new(1,-24,0,128)
+controls.Position = UDim2.new(0,12,0,216); controls.Size = UDim2.new(1,-24,0,64)
 controls.BackgroundTransparency = 1; controls.Parent = main
 local grid = Instance.new("UIGridLayout", controls)
 grid.CellPadding = UDim2.new(0,6,0,6)
@@ -118,15 +104,10 @@ local execBtn      = ctrlBtn("Run Queue", 3)
 local clearBtn     = ctrlBtn("Clear Queue", 4)
 local errorsBtn    = ctrlBtn("View Errors", 5)
 local openWebBtn   = ctrlBtn("Open Website", 6)
-local scanBtn      = ctrlBtn("Scan Game", 7)
-local sendErrBtn   = ctrlBtn("Send Errors", 8)
-local autoErrBtn   = ctrlBtn("Auto-Send: ON", 9)
-local organizeBtn  = ctrlBtn("Organize", 10)
-local autoFixBtn   = ctrlBtn("Auto-Fix", 11)
 
 ------------------------------------------------------------------- log
 local logBar = Instance.new("Frame")
-logBar.Position = UDim2.new(0,12,0,352); logBar.Size = UDim2.new(1,-24,0,22)
+logBar.Position = UDim2.new(0,12,0,288); logBar.Size = UDim2.new(1,-24,0,22)
 logBar.BackgroundTransparency = 1; logBar.Parent = main
 
 local logTitle = Instance.new("TextLabel")
@@ -151,7 +132,7 @@ local clearLogBtn = miniBtn("Clear", -66)
 local verboseBtn  = miniBtn("Verbose", -132)
 
 local logFrame = Instance.new("ScrollingFrame")
-logFrame.Position = UDim2.new(0,12,0,378); logFrame.Size = UDim2.new(1,-24,1,-390)
+logFrame.Position = UDim2.new(0,12,0,314); logFrame.Size = UDim2.new(1,-24,1,-326)
 logFrame.BackgroundColor3 = Color3.fromRGB(14,16,22); logFrame.BorderSizePixel = 0
 logFrame.CanvasSize = UDim2.new(0,0,0,0); logFrame.ScrollBarThickness = 4
 logFrame.Parent = main
@@ -231,7 +212,7 @@ toggleButton.Click:Connect(function() widget.Enabled = not widget.Enabled end)
 -- Default parent per action kind. Anything in payload.parent_path overrides this.
 local DEFAULT_PARENT = {
     script         = ServerScriptService,
-    localscript    = StarterPlayer:FindFirstChild("StarterPlayerScripts") or StarterPlayer,
+    localscript    = StarterPlayer:WaitForChild("StarterPlayerScripts"),
     modulescript   = ReplicatedStorage,
     screengui      = StarterGui,
     frame          = StarterGui,
@@ -281,261 +262,6 @@ local function findByPath(path)
     return node
 end
 
-local function fullPath(inst)
-    local ok, path = pcall(function() return inst:GetFullName() end)
-    return ok and path or tostring(inst)
-end
-
-local function ensureFolder(parent, name)
-    local existing = parent:FindFirstChild(name)
-    if existing and existing:IsA("Folder") then return existing end
-    local f = Instance.new("Folder")
-    f.Name = name
-    f.Parent = parent
-    return f
-end
-
-local function ensureProjectFolders()
-    local folders = {
-        ensureFolder(Workspace, "Map"),
-        ensureFolder(Workspace, "NPCs"),
-        ensureFolder(Workspace, "Props"),
-        ensureFolder(Workspace, "Vehicles"),
-        ensureFolder(Workspace, "Gameplay"),
-        ensureFolder(ReplicatedStorage, "Remotes"),
-        ensureFolder(ReplicatedStorage, "Modules"),
-        ensureFolder(ReplicatedStorage, "Assets"),
-        ensureFolder(ServerScriptService, "Systems"),
-        ensureFolder(ServerStorage, "BloxSmith_Quarantine"),
-    }
-    -- StarterPlayerScripts is a protected Roblox service container.
-    -- Never attempt to create or re-parent it ??? just look it up if it exists.
-    local starterScripts = StarterPlayer:FindFirstChild("StarterPlayerScripts")
-    if starterScripts then
-        table.insert(folders, starterScripts)
-    end
-    return folders
-end
-
-local SUSPICIOUS_SOURCE_PATTERNS = {
-    "require%s*%(",
-    "loadstring%s*%(",
-    "getfenv%s*%(",
-    "setfenv%s*%(",
-    "HttpService%s*:",
-    "InsertService%s*:%s*LoadAsset",
-    "MarketplaceService%s*:%s*PromptPurchase",
-}
-
-local function sourceLooksSuspicious(source)
-    if type(source) ~= "string" or source == "" then return false, nil end
-    for _, pattern in ipairs(SUSPICIOUS_SOURCE_PATTERNS) do
-        if string.find(source, pattern) then return true, pattern end
-    end
-    return false, nil
-end
-
-local function quarantineInstance(inst, reason)
-    local quarantine = ensureFolder(ServerStorage, "BloxSmith_Quarantine")
-    local marker = Instance.new("StringValue")
-    marker.Name = "BloxSmith_QuarantineReason"
-    marker.Value = tostring(reason or "suspicious")
-    marker.Parent = inst
-    pcall(function() CollectionService:AddTag(inst, "BloxSmithQuarantined") end)
-    inst.Parent = quarantine
-    return fullPath(inst)
-end
-
-local function inspectInsertedAsset(root, options)
-    options = options or {}
-    local report = {
-        scanned = 0, scripts = 0, quarantined = 0, warnings = {},
-        visible_parts = 0, mesh_parts = 0, textures = 0, decals = 0, special_meshes = 0,
-        has_visible_content = false, has_textures_or_meshes = false,
-    }
-    local descendants = root:GetDescendants()
-    table.insert(descendants, 1, root)
-    for _, inst in ipairs(descendants) do
-        report.scanned += 1
-        if inst:IsA("BasePart") then
-            if inst.Transparency < 1 and inst.Size.Magnitude > 0.05 then
-                report.visible_parts += 1
-                report.has_visible_content = true
-            end
-            if inst:IsA("MeshPart") then report.mesh_parts += 1 end
-            if inst.Anchored == false and not inst:FindFirstAncestorOfClass("Tool") and not inst:FindFirstAncestorWhichIsA("Humanoid") then
-                table.insert(report.warnings, "loose_unanchored_part:" .. fullPath(inst))
-            end
-        elseif inst:IsA("Texture") then
-            report.textures += 1
-        elseif inst:IsA("Decal") then
-            report.decals += 1
-        elseif inst:IsA("SpecialMesh") then
-            report.special_meshes += 1
-        elseif inst:IsA("Script") or inst:IsA("LocalScript") or inst:IsA("ModuleScript") then
-            report.scripts += 1
-            local source = ""
-            pcall(function() source = inst.Source end)
-            local suspicious, pattern = sourceLooksSuspicious(source)
-            if options.no_scripts or suspicious then
-                report.quarantined += 1
-                pcall(function()
-                    if inst:IsA("Script") or inst:IsA("LocalScript") then inst.Disabled = true end
-                end)
-                local before = fullPath(inst)
-                quarantineInstance(inst, options.no_scripts and "Toolbox scripts disabled by safety setting" or ("Suspicious source pattern: " .. tostring(pattern)))
-                table.insert(report.warnings, "quarantined_script:" .. before)
-            end
-        end
-        if #report.warnings >= 40 then
-            table.insert(report.warnings, "warning_limit_reached")
-            break
-        end
-    end
-    report.has_textures_or_meshes = report.mesh_parts > 0 or report.textures > 0 or report.decals > 0 or report.special_meshes > 0
-    if not report.has_visible_content then
-        table.insert(report.warnings, "no_visible_3d_content")
-    end
-    return report
-end
-
-local function assetBounds(root)
-    if root:IsA("Model") then
-        local ok, cf, size = pcall(function() return root:GetBoundingBox() end)
-        if ok and cf and size then return cf, size end
-    elseif root:IsA("BasePart") then
-        return root.CFrame, root.Size
-    end
-    return nil, nil
-end
-
-local function groundSnap(root)
-    if root:FindFirstAncestorOfClass("Tool") then return false end
-    local cf, size = assetBounds(root)
-    if not cf or not size or size.Magnitude <= 0.05 then return false end
-    local bottomY = cf.Position.Y - (size.Y / 2)
-    local desiredBottom = 0
-    local deltaY = desiredBottom - bottomY
-    if math.abs(deltaY) < 0.05 then return false end
-    pcall(function() root:PivotTo(cf + Vector3.new(0, deltaY, 0)) end)
-    return true
-end
-
-local function anchorWorldModel(root)
-    if root:FindFirstAncestorOfClass("Tool") or root:FindFirstChildOfClass("Humanoid") then return 0 end
-    local anchored = 0
-    for _, inst in ipairs(root:GetDescendants()) do
-        if inst:IsA("BasePart") and not inst.Anchored then
-            inst.Anchored = true
-            anchored += 1
-        end
-    end
-    if root:IsA("BasePart") and not root.Anchored then
-        root.Anchored = true
-        anchored += 1
-    end
-    return anchored
-end
-
-local function findExistingAsset(parent, id)
-    for _, inst in ipairs(parent:GetDescendants()) do
-        local existingId = inst:GetAttribute("BloxSmithAssetId") or inst:GetAttribute("BloxSmithRequestedAssetId")
-        if tonumber(existingId) == tonumber(id) then
-            return inst
-        end
-    end
-    return nil
-end
-
-local function organizeProject()
-    ensureProjectFolders()
-    local moved = {}
-    local workspaceFolders = {
-        Map = Workspace:FindFirstChild("Map"),
-        NPCs = Workspace:FindFirstChild("NPCs"),
-        Props = Workspace:FindFirstChild("Props"),
-        Vehicles = Workspace:FindFirstChild("Vehicles"),
-        Gameplay = Workspace:FindFirstChild("Gameplay"),
-    }
-    local protected = {
-        Terrain = true, Camera = true, Map = true, NPCs = true, Props = true,
-        Vehicles = true, Gameplay = true,
-    }
-    for _, inst in ipairs(Workspace:GetChildren()) do
-        if not protected[inst.Name] then
-            local target = nil
-            local lower = string.lower(inst.Name)
-            if inst:IsA("SpawnLocation") or string.find(lower, "checkpoint") or string.find(lower, "teleport") then
-                target = workspaceFolders.Gameplay
-            elseif inst:FindFirstChildOfClass("Humanoid") or string.find(lower, "npc") or string.find(lower, "enemy") or string.find(lower, "zombie") then
-                target = workspaceFolders.NPCs
-            elseif string.find(lower, "car") or string.find(lower, "vehicle") or string.find(lower, "boat") or string.find(lower, "plane") then
-                target = workspaceFolders.Vehicles
-            elseif inst:IsA("Model") or inst:IsA("Folder") then
-                target = workspaceFolders.Map
-            elseif inst:IsA("BasePart") then
-                target = workspaceFolders.Props
-            end
-            if target then
-                local from = fullPath(inst)
-                inst.Parent = target
-                table.insert(moved, from .. " -> " .. fullPath(target))
-            end
-        end
-    end
-    for _, inst in ipairs(ReplicatedStorage:GetChildren()) do
-        if inst:IsA("RemoteEvent") or inst:IsA("RemoteFunction") or inst:IsA("BindableEvent") or inst:IsA("BindableFunction") then
-            local from = fullPath(inst)
-            inst.Parent = ReplicatedStorage.Remotes
-            table.insert(moved, from .. " -> " .. fullPath(ReplicatedStorage.Remotes))
-        elseif inst:IsA("ModuleScript") then
-            local from = fullPath(inst)
-            inst.Parent = ReplicatedStorage.Modules
-            table.insert(moved, from .. " -> " .. fullPath(ReplicatedStorage.Modules))
-        end
-    end
-    for _, inst in ipairs(ServerScriptService:GetChildren()) do
-        if inst:IsA("Script") and inst.Name ~= "BloxSmith_Leaderstats" and inst.Name ~= "Systems" then
-            local from = fullPath(inst)
-            inst.Parent = ServerScriptService.Systems
-            table.insert(moved, from .. " -> " .. fullPath(ServerScriptService.Systems))
-        end
-    end
-    return { moved = moved, moved_count = #moved }
-end
-
-local function autoFixProject()
-    local result = organizeProject()
-    result.fixed = {}
-    result.warnings = {}
-    for _, inst in ipairs(game:GetDescendants()) do
-        if #result.warnings >= 80 then
-            table.insert(result.warnings, "warning_limit_reached")
-            break
-        end
-        if inst:IsA("Script") or inst:IsA("LocalScript") or inst:IsA("ModuleScript") then
-            local source = ""
-            pcall(function() source = inst.Source end)
-            local suspicious, pattern = sourceLooksSuspicious(source)
-            if suspicious and not inst:FindFirstAncestor("BloxSmith_Quarantine") then
-                local before = fullPath(inst)
-                pcall(function()
-                    if inst:IsA("Script") or inst:IsA("LocalScript") then inst.Disabled = true end
-                end)
-                quarantineInstance(inst, "Suspicious source pattern: " .. tostring(pattern))
-                table.insert(result.fixed, "quarantined suspicious script: " .. before)
-            end
-        elseif inst:IsA("BasePart") then
-            if inst.Parent == Workspace and inst.Anchored == false and not inst:FindFirstAncestorOfClass("Tool") then
-                inst.Anchored = true
-                table.insert(result.fixed, "anchored loose root part: " .. fullPath(inst))
-            end
-        end
-    end
-    result.fixed_count = #result.fixed
-    return result
-end
-
 local function applyProps(inst, props)
     if type(props) ~= "table" then return end
     for k, v in pairs(props) do
@@ -559,7 +285,7 @@ local function ud2(t, defScale, defOffset)
 end
 
 local function ensureUnique(parent, name)
-    -- avoid duplicate child names by suffixing _2, _3???
+    -- avoid duplicate child names by suffixing _2, _3…
     if not parent:FindFirstChild(name) then return name end
     local i = 2
     while parent:FindFirstChild(name .. "_" .. i) do i += 1 end
@@ -569,32 +295,13 @@ end
 ------------------------------------------------------------------- action executors
 local Exec = {}
 
-local function validateLuaSource(source, scriptName)
-    if type(source) ~= "string" or source:match("^%s*$") then
-        return false, "empty script source"
-    end
-    if source:find("{%s*[%w_]+%s*:") then
-        return false, "JSON-style table syntax found; use key = value in Luau tables"
-    end
-    local fn, err = loadstring(source, "=BloxSmithScript/" .. tostring(scriptName or "Script"))
-    if not fn then
-        return false, tostring(err)
-    end
-    return true, nil
-end
-
 local function makeScript(className, action, parent)
     local payload = action.payload or {}
-    local source = payload.source or ""
-    local ok, err = validateLuaSource(source, action.name)
-    if not ok then
-        error("script validation failed for " .. tostring(action.name) .. ": " .. tostring(err))
-    end
     local existing = parent:FindFirstChild(action.name)
     if existing and existing:IsA(className) then existing:Destroy() end
     local s = Instance.new(className)
     s.Name = action.name
-    s.Source = source
+    s.Source = payload.source or "-- empty"
     s.Parent = parent; return s
 end
 
@@ -713,279 +420,27 @@ Exec.leaderstats = function(a, _)
     s.Source = table.concat(lines, "\n"); s.Parent = ServerScriptService; return s
 end
 
-Exec.organize_project = function(_, _)
-    local result = organizeProject()
-    log(("Organized project ??? moved %d item(s)."):format(result.moved_count or 0), "success")
-    return result
-end
-
-Exec.autofix_project = function(_, _)
-    local result = autoFixProject()
-    log(("Auto-fix complete ??? %d moved, %d fixed."):format(result.moved_count or 0, result.fixed_count or 0), "success")
-    return result
-end
-
-local blockedAssetIds = {}
-
-local function loadAssetCandidate(id, name, parent)
-    if blockedAssetIds[id] then
-        return nil, "blacklisted_failed_asset"
-    end
-    local ok, container = pcall(function() return InsertService:LoadAsset(id) end)
-    if not ok or not container then
-        blockedAssetIds[id] = true
-        return nil, "LoadAsset failed: " .. tostring(container)
-    end
-    local kids = container:GetChildren()
-    if #kids == 0 then
-        container:Destroy()
-        return nil, "loaded empty asset"
-    end
-    container.Name = name or ("Asset_" .. tostring(id))
-    if #kids == 1 then
-        kids[1].Name = container.Name
-        kids[1].Parent = parent
-        local inserted = kids[1]
-        container:Destroy()
-        return inserted, nil
-    end
-    container.Parent = parent
-    return container, nil
-end
-
 Exec.insert_asset = function(a, p)
     local payload = a.payload or {}
     local id = tonumber(payload.asset_id)
-    if not id or id <= 0 then error("insert_asset missing asset_id") end
-    if payload.folder_name and type(payload.folder_name) == "string" and payload.folder_name ~= "" then
-        local folder = p:FindFirstChild(payload.folder_name)
-        if not folder then
-            folder = Instance.new("Folder")
-            folder.Name = payload.folder_name
-            folder.Parent = p
-        end
-        p = folder
+    if not id then error("insert_asset missing asset_id") end
+    local ok, model = pcall(function() return InsertService:LoadAsset(id) end)
+    if not ok or not model then error("LoadAsset failed for " .. tostring(id)) end
+    model.Name = a.name or ("Asset_" .. id)
+    -- Unwrap single-child Model container into the target parent
+    local children = model:GetChildren()
+    if #children == 1 then
+        children[1].Name = model.Name
+        children[1].Parent = p
+        model:Destroy()
+        return children[1]
     end
-
-    local candidates = { id }
-    if type(payload.fallback_ids) == "table" then
-        for _, fallbackId in ipairs(payload.fallback_ids) do
-            local n = tonumber(fallbackId)
-            if n and n > 0 and n ~= id then
-                table.insert(candidates, n)
-            end
-        end
-    end
-
-    if payload.allow_duplicates ~= true then
-        for _, candidateId in ipairs(candidates) do
-            local existing = findExistingAsset(p, candidateId)
-            if existing then
-                log(("Skipped duplicate Toolbox asset id=%d already at %s"):format(candidateId, fullPath(existing)), "warn")
-                return {
-                    skipped = true,
-                    reason = "duplicate_asset",
-                    asset_id = candidateId,
-                    path = fullPath(existing),
-                    verified = true,
-                    safety_status = "Duplicate Skipped",
-                }
-            end
-        end
-    end
-
-    local inserted, loadErr, usedId = nil, nil, nil
-    local attempted = {}
-    for index, candidateId in ipairs(candidates) do
-        table.insert(attempted, candidateId)
-        inserted, loadErr = loadAssetCandidate(candidateId, a.name or ("Asset_" .. candidateId), p)
-        if inserted then
-            local proof = inspectInsertedAsset(inserted, { no_scripts = true })
-            if not proof.has_visible_content then
-                inserted:Destroy()
-                blockedAssetIds[candidateId] = true
-                inserted = nil
-                loadErr = "loaded asset has no visible 3D content"
-                log(("Skipped empty/invisible asset id=%d. Trying another free model."):format(candidateId), "warn")
-            else
-                usedId = candidateId
-            end
-        end
-        if inserted then
-            if index > 1 then
-                log(("Asset id=%d failed; fallback id=%d inserted instead."):format(id, usedId), "warn")
-            end
-            break
-        end
-        log(("Skipped locked/private asset id=%d: %s. Trying another free model."):format(candidateId, tostring(loadErr)), "warn")
-    end
-    if not inserted then
-        return {
-            skipped = true,
-            reason = "all_asset_candidates_unavailable",
-            requested_asset_id = id,
-            attempted_asset_ids = attempted,
-            error = tostring(loadErr),
-        }
-    end
-
-    -- Optional placement: payload.position {x,y,z}, payload.rotation {x,y,z}
-    -- in degrees, or payload.yaw in degrees. ScaleTo is supported for Models.
-    local cf = nil
-    if payload.position then
-        local pos = payload.position
-        cf = CFrame.new(tonumber(pos[1]) or 0, tonumber(pos[2]) or 0, tonumber(pos[3]) or 0)
-    end
-    if cf and payload.rotation then
-        local rot = payload.rotation
-        cf = cf * CFrame.Angles(math.rad(tonumber(rot[1]) or 0), math.rad(tonumber(rot[2]) or 0), math.rad(tonumber(rot[3]) or 0))
-    elseif cf and payload.yaw then
-        cf = cf * CFrame.Angles(0, math.rad(tonumber(payload.yaw) or 0), 0)
-    end
-    if cf and (inserted:IsA("Model") or inserted:IsA("BasePart")) then
-        pcall(function() inserted:PivotTo(cf) end)
-    end
-    if payload.scale and inserted:IsA("Model") then
-        pcall(function() inserted:ScaleTo(tonumber(payload.scale) or 1) end)
-    end
-    local anchoredCount = 0
-    if payload.anchor ~= false and payload.anchored ~= false then
-        anchoredCount = anchorWorldModel(inserted)
-    end
-    local groundSnapped = false
-    if payload.ground_snap ~= false then
-        groundSnapped = groundSnap(inserted)
-    end
-    if payload.tags and type(payload.tags) == "table" then
-        for _, tag in ipairs(payload.tags) do
-            if type(tag) == "string" and tag ~= "" then
-                pcall(function() CollectionService:AddTag(inserted, tag) end)
-            end
-        end
-    end
-    pcall(function()
-        inserted:SetAttribute("BloxSmithAssetId", usedId)
-        inserted:SetAttribute("BloxSmithRequestedAssetId", id)
-        inserted:SetAttribute("BloxSmithToolboxOnly", payload.toolbox_only == true or payload.free_only == true)
-        inserted:SetAttribute("BloxSmithProceduralFallbackDisabled", payload.disable_procedural_fallback ~= false)
-        if payload.asset_name then inserted:SetAttribute("BloxSmithAssetName", tostring(payload.asset_name)) end
-        if payload.creator_name then inserted:SetAttribute("BloxSmithCreatorName", tostring(payload.creator_name)) end
-        if payload.source_query then inserted:SetAttribute("BloxSmithSourceQuery", tostring(payload.source_query)) end
-        if payload.placement_role then inserted:SetAttribute("BloxSmithPlacementRole", tostring(payload.placement_role)) end
-        if payload.district then inserted:SetAttribute("BloxSmithDistrict", tostring(payload.district)) end
-        if payload.quality_tier then inserted:SetAttribute("BloxSmithQualityTier", tostring(payload.quality_tier)) end
-        if payload.safety_score then inserted:SetAttribute("BloxSmithSafetyScore", tonumber(payload.safety_score) or 0) end
-        if payload.relevance_score then inserted:SetAttribute("BloxSmithRelevanceScore", tonumber(payload.relevance_score) or 0) end
-        if payload.category then inserted:SetAttribute("BloxSmithCategory", tostring(payload.category)) end
-        inserted:SetAttribute("BloxSmithStudioVerified", true)
-    end)
-    local noScripts = payload.no_scripts ~= false and payload.allow_scripts ~= true
-    local safetyReport = inspectInsertedAsset(inserted, { no_scripts = noScripts })
-    if safetyReport.quarantined > 0 then
-        log(("Asset safety scan quarantined %d suspicious script(s) from id=%d."):format(safetyReport.quarantined, usedId), "warn")
-    elseif safetyReport.scripts > 0 then
-        log(("Asset safety scan checked %d script(s) in id=%d."):format(safetyReport.scripts, usedId), "debug")
-    end
-    local cf, size = assetBounds(inserted)
-    local bounds = nil
-    if cf and size then
-        bounds = {
-            position = { cf.Position.X, cf.Position.Y, cf.Position.Z },
-            size = { size.X, size.Y, size.Z },
-        }
-    end
-    log(("??? inserted verified asset id=%d as '%s' under %s (%d visible part(s), %d texture/mesh signal(s))"):format(
-        usedId,
-        inserted.Name,
-        p:GetFullName(),
-        safetyReport.visible_parts or 0,
-        (safetyReport.mesh_parts or 0) + (safetyReport.textures or 0) + (safetyReport.decals or 0) + (safetyReport.special_meshes or 0)
-    ), "success")
-    return {
-        asset_id = usedId,
-        requested_asset_id = id,
-        fallback_used = usedId ~= id,
-        attempted_asset_ids = attempted,
-        name = inserted.Name,
-        path = inserted:GetFullName(),
-        class = inserted.ClassName,
-        verified = safetyReport.has_visible_content == true,
-        safety_status = safetyReport.quarantined > 0 and "Scripts Quarantined" or "Verified",
-        safety = safetyReport,
-        anchored_parts = anchoredCount,
-        ground_snapped = groundSnapped,
-        bounds = bounds,
-    }
-end
-
--- Try to load a single asset id. Returns (placed_instance, nil) on success
--- or (nil, reason_string) on failure. Never throws.
-local function tryLoadAsset(id, name, parent)
-    local placed, reason = loadAssetCandidate(id, name, parent)
-    if not placed then return nil, reason end
-    pcall(function() CollectionService:AddTag(placed, "BloxSmithAsset") end)
-    return placed, nil
-end
-
--- toolbox_assets: server-resolved batch of free Roblox Toolbox assets.
--- Auto-skips unauthorized assets. It does not substitute hardcoded fallback
--- models because Toolbox mode must only insert assets selected by live search.
-Exec.toolbox_assets = function(a, p)
-    local payload = a.payload or {}
-    local assets = payload.assets
-    if type(assets) ~= "table" or #assets == 0 then
-        error("toolbox_assets missing payload.assets array")
-    end
-    local folder = p:FindFirstChild("BloxSmithAssets")
-    if not folder then
-        folder = Instance.new("Folder")
-        folder.Name = "BloxSmithAssets"
-        folder.Parent = p
-    end
-    local inserted, failed, skipped = {}, {}, 0
-    for i, asset in ipairs(assets) do
-        local id = tonumber(asset and asset.id)
-        if not id or id <= 0 then
-            table.insert(failed, { id = asset and asset.id, reason = "invalid_id" })
-        else
-            local placed, err = tryLoadAsset(id, asset.name, folder)
-            if placed then
-                local safety = inspectInsertedAsset(placed)
-                table.insert(inserted, {
-                    id = id, name = placed.Name,
-                    path = placed:GetFullName(), class = placed.ClassName,
-                    creator = asset.creator, safety = safety,
-                })
-                log(("??? asset id=%d '%s'"):format(id, placed.Name), "success")
-            else
-                skipped += 1
-                table.insert(failed, { id = id, name = asset.name, reason = err })
-                log(("??? asset id=%d unauthorized or missing (%s) ??? skipped; no hardcoded fallback inserted"):format(id, tostring(err)), "warn")
-            end
-        end
-    end
-    log(("Toolbox batch ??? %d inserted, %d skipped, %d failed."):format(
-        #inserted, skipped, #failed), #failed > 0 and "warn" or "success")
-    return { inserted = inserted, failed = failed, skipped = skipped, source = payload.source or "live" }
+    model.Parent = p; return model
 end
 
 Exec.set_properties = function(a, _)
-    local path = a.payload and a.payload.target_path
-    local inst = findByPath(path)
-    if not inst then
-        -- Soft-skip: don't fail the whole batch if the AI referenced a
-        -- target that doesn't exist (typo, race with a previous action, or
-        -- the target lives in a place the user hasn't scanned). Try the
-        -- action's own `name` under `parent_path` as a fallback.
-        if a.parent_path and a.name then
-            local parent = resolveParent(a.parent_path, "folder")
-            inst = parent and parent:FindFirstChild(a.name)
-        end
-        if not inst then
-            log(("set_properties skipped ??? target not found: %s"):format(tostring(path)), "warn")
-            return { skipped = true, reason = "target_not_found", target_path = path }
-        end
-    end
+    local inst = findByPath(a.payload and a.payload.target_path)
+    if not inst then error("target not found: " .. tostring(a.payload and a.payload.target_path)) end
     applyProps(inst, a.payload.properties); return inst
 end
 
@@ -1012,51 +467,8 @@ Exec.delete = function(a, _)
     return { deleted = name }
 end
 
--- run_lua: execute a Luau builder script INSIDE the plugin context.
--- Two extra helpers are exposed to the builder so the AI doesn't have to
--- guard every property write itself:
---   safeSet(inst, key, value)            ??? pcall-wrapped single property set
---   safeSetProps(inst, { K = V, ... })   ??? pcall-wrapped bulk set
--- Both swallow errors with a [BloxSmith] warn so one hallucinated property
--- (e.g. workspace.Terrain.Decoration) can't kill the whole build.
-Exec.run_lua = function(a, p)
-    local payload = a.payload or {}
-    local source = payload.source
-    if type(source) ~= "string" or source == "" then
-        error("run_lua missing payload.source")
-    end
-    local wrapped = [[
-return function(parent, plugin, safeSet, safeSetProps, ...)
-]] .. source .. [[
-
-end
-]]
-    local fn, parseErr = loadstring(wrapped, "=BloxSmith/" .. tostring(a.name or "builder"))
-    if not fn then error("compile error: " .. tostring(parseErr)) end
-    local builder = fn()
-    if type(builder) ~= "function" then error("builder did not return a function") end
-
-    local function safeSet(inst, k, v)
-        if typeof(inst) ~= "Instance" then return false end
-        local ok, err = pcall(function() inst[k] = v end)
-        if not ok then
-            warn(("[BloxSmith] safeSet %s.%s skipped: %s"):format(inst.Name or "?", tostring(k), tostring(err)))
-        end
-        return ok
-    end
-    local function safeSetProps(inst, props)
-        if typeof(inst) ~= "Instance" or type(props) ~= "table" then return end
-        for k, v in pairs(props) do safeSet(inst, k, v) end
-    end
-
-    local ok, runErr = pcall(builder, p, plugin, safeSet, safeSetProps)
-    if not ok then error("runtime error: " .. tostring(runErr)) end
-    return { ran = a.name }
-end
-
 local function describeAction(a)
     local payload = a.payload or {}
-    local meta = payload._bloxsmith or {}
     local extra = ""
     if a.kind == "script" or a.kind == "localscript" or a.kind == "modulescript" then
         extra = (" (%d chars)"):format(#(payload.source or ""))
@@ -1064,17 +476,9 @@ local function describeAction(a)
         local sz = payload.size or {}
         extra = (" %sx%sx%s"):format(tostring(sz[1] or "?"), tostring(sz[2] or "?"), tostring(sz[3] or "?"))
     elseif a.kind == "insert_asset" then
-        local assetName = payload.asset_name or (payload.preview and payload.preview.name)
-        local safety = payload.safety_score or (payload.preview and payload.preview.safety)
-        local safetyNum = tonumber(safety)
-        extra = (" id=%s%s%s"):format(
-            tostring(payload.asset_id),
-            assetName and (" ?? " .. tostring(assetName)) or "",
-            safetyNum and (" ?? safety " .. tostring(math.floor(safetyNum * 100))) or ""
-        )
+        extra = (" id=%s"):format(tostring(payload.asset_id))
     end
-    local mode = meta.execution_mode and (" [" .. tostring(meta.execution_mode) .. "]") or ""
-    return ("%s%s '%s' ??? %s%s"):format(a.kind, mode, tostring(a.name), tostring(a.parent_path or "auto"), extra)
+    return ("%s '%s' → %s%s"):format(a.kind, tostring(a.name), tostring(a.parent_path or "auto"), extra)
 end
 
 local function executeAction(action)
@@ -1082,17 +486,8 @@ local function executeAction(action)
     local handler = Exec[kind]
     if not handler then error("Unknown action kind: " .. tostring(kind)) end
     local parent = resolveParent(action.parent_path, kind)
-    log("??? " .. describeAction(action), "debug")
+    log("→ " .. describeAction(action), "debug")
     return handler(action, parent)
-end
-
-local function reportableResult(value)
-    if typeof(value) == "Instance" then
-        return { path = fullPath(value), class = value.ClassName, name = value.Name }
-    elseif type(value) == "table" then
-        return value
-    end
-    return nil
 end
 
 ------------------------------------------------------------------- HTTP
@@ -1105,63 +500,41 @@ local function post(path, body, opts)
     opts = opts or {}
     local verbose = opts.verbose ~= false and (VERBOSE or opts.force)
     local t0 = os.clock()
-    if verbose then log("??? POST " .. API_BASE .. path, "net") end
-    body = body or {}
-    local headers = { ["Content-Type"] = "application/json" }
-    -- Forward token in both header and body for defense-in-depth.
-    if type(body.token) == "string" and body.token ~= "" then
-        headers["Authorization"] = "Bearer " .. body.token
-        headers["X-BloxSmith-Token"] = body.token
-    end
+    if verbose then log("→ POST " .. path, "net") end
     local ok, res = pcall(function()
         return HttpService:RequestAsync({
             Url = API_BASE .. path, Method = "POST",
-            Headers = headers,
-            Body = HttpService:JSONEncode(body),
+            Headers = { ["Content-Type"] = "application/json" },
+            Body = HttpService:JSONEncode(body or {}),
         })
     end)
     local dt = math.floor((os.clock() - t0) * 1000)
     if not ok then
-        log(("??? POST %s failed after %dms ??? %s"):format(path, dt, tostring(res)), "error")
-        return nil, tostring(res), 0
+        log(("✗ POST %s failed after %dms — %s"):format(path, dt, tostring(res)), "error")
+        return nil, tostring(res)
     end
     if not res.Success then
         local short = tostring(res.Body or "")
-        if #short > 240 then short = short:sub(1,240) .. "???" end
-        log(("??? POST %s ??? HTTP %s in %dms ??? %s"):format(path, tostring(res.StatusCode), dt, short), "error")
-        return nil, "HTTP " .. tostring(res.StatusCode) .. ": " .. tostring(res.Body), tonumber(res.StatusCode) or 0
+        if #short > 240 then short = short:sub(1,240) .. "…" end
+        log(("✗ POST %s → HTTP %s in %dms — %s"):format(path, tostring(res.StatusCode), dt, short), "error")
+        return nil, "HTTP " .. tostring(res.StatusCode) .. ": " .. tostring(res.Body)
     end
     local decoded; pcall(function() decoded = HttpService:JSONDecode(res.Body) end)
-    if verbose then log(("??? POST %s ??? %s in %dms"):format(path, tostring(res.StatusCode), dt), "net") end
-    return decoded or {}, nil, tonumber(res.StatusCode) or 200
+    if verbose then log(("← POST %s → %s in %dms"):format(path, tostring(res.StatusCode), dt), "net") end
+    return decoded or {}, nil
 end
 
 local function reportComplete(actionId, status, errMsg, result)
-    local token = validToken()
+    local token = plugin:GetSetting("token")
     if not token then return end
     post("/api/public/plugin/complete", {
         token = token, action_id = actionId, status = status, error = errMsg, result = result,
     }, { verbose = false })
 end
 
--- Fast batch report: one HTTP call for many results.
-local function reportBatch(results)
-    local token = validToken()
-    if not token or #results == 0 then return end
-    local ok = pcall(function()
-        post("/api/public/plugin/complete", { token = token, results = results }, { verbose = false })
-    end)
-    if not ok then
-        -- Fallback: per-action (older server)
-        for _, r in ipairs(results) do
-            reportComplete(r.action_id, r.status, r.error, r.result)
-        end
-    end
-end
-
 ------------------------------------------------------------------- state
 local connected, pairingCode = false, nil
-local lastHeartbeat, queueLen, lastAction = 0, 0, "???"
+local lastHeartbeat, queueLen, lastAction = 0, 0, "—"
 
 local function setStatus(text, color, sub)
     statusLabel.Text = "Status: " .. text
@@ -1173,110 +546,48 @@ local function refreshInfo()
     lastLabel.Text = "Last: " .. lastAction
 end
 
-local function statusForAction(action)
-    local kind = tostring(action and action.kind or "")
-    if kind == "insert_asset" then
-        return "Inserting assets", "Loading verified Toolbox asset into Studio."
-    elseif kind == "script" or kind == "localscript" or kind == "modulescript" or kind == "run_lua" then
-        return "Creating scripts", "Writing and validating Luau for the open project."
-    elseif kind == "screengui" or kind == "gui" or kind == "frame" or kind == "textlabel" or kind == "textbutton" or kind == "imagelabel" then
-        return "Creating UI", "Building Roblox ScreenGui objects and wiring controls."
-    elseif kind == "remoteevent" or kind == "remotefunction" or kind == "bindableevent" then
-        return "Creating scripts", "Creating communication objects for systems."
-    elseif kind == "scan_project" then
-        return "Scanning project", "Checking errors, hierarchy, assets, UI, and scripts."
-    elseif kind == "autofix_project" then
-        return "Fixing errors", "Repairing broken scripts, folders, assets, and UI."
-    elseif kind == "organize_project" then
-        return "Organizing project", "Sorting Studio objects into clean folders."
-    end
-    return "Executing build", "Applying structured BloxSmith command in Studio."
-end
-
 local function pollOnce(force)
-    local token = validToken()
-    if not token then
-        connected = false
-        setStatus("not connected", Color3.fromRGB(255,180,80),
-            "Plugin not connected. Please reconnect from bloxsmith.pro.")
-        if force then log("No saved token ??? click Connect to link.", "warn") end
-        return
-    end
-    if force then log(("token found: yes  ??  API: %s  ??  place: %s  ??  v%s")
-        :format(API_BASE, tostring(game.PlaceId or 0), PLUGIN_VERSION), "debug") end
-    local data, err, status = post("/api/public/plugin/poll", {
-        token = token, place_id = tostring(game.PlaceId or 0), studio_version = studioVersion(), plugin_version = PLUGIN_VERSION,
+    local token = plugin:GetSetting("token")
+    if not token then return end
+    local data, err = post("/api/public/plugin/poll", {
+        token = token, place_id = tostring(game.PlaceId or 0), studio_version = studioVersion(),
     }, { verbose = VERBOSE, force = force })
     if err then
-        if status == 401 then
-            clearToken(); connected = false
-            connectBtn.Text = "Connect"; connectBtn.BackgroundColor3 = Color3.fromRGB(70,130,240)
-            setStatus("not connected", Color3.fromRGB(255,180,80),
-                "Plugin not connected. Please reconnect from bloxsmith.pro.")
-            log("Token rejected by server (401) ??? cleared. Click Connect to reconnect.", "error")
-            return
-        end
         setStatus("error", Color3.fromRGB(255,120,120), err)
-        log("Poll failed ??? will retry.", "error"); return
+        log("Poll failed — will retry.", "error"); return
     end
-    if data and data.user_id then
-        -- userId surfaced only on first successful poll after (re)connect
-        if lastHeartbeat == 0 then log("userId: " .. tostring(data.user_id), "debug") end
-    end
-    setStatus("Connected to Studio", Color3.fromRGB(120,220,160), "Waiting for prompt.")
+    setStatus("Connected", Color3.fromRGB(120,220,160), "Linked to your BloxSmith account.")
     local actions = data.actions or {}
     queueLen = #actions; refreshInfo()
     if os.clock() - lastHeartbeat > 60 then
-        log(("Heartbeat ??? %d pending"):format(#actions), "debug")
+        log(("Heartbeat — %d pending"):format(#actions), "debug")
         lastHeartbeat = os.clock()
     end
-    if #actions == 0 then return 0 end
-    setStatus("Planning build", Color3.fromRGB(160,200,255), ("Received %d structured command(s)."):format(#actions))
+    if #actions == 0 then return end
     log(("Received %d action(s)."):format(#actions), "success")
     ChangeHistoryService:SetWaypoint("BloxSmith batch start")
     local okN, failN = 0, 0
-    local results = {}
     for _, a in ipairs(actions) do
-        local stage, sub = statusForAction(a)
-        setStatus(stage, Color3.fromRGB(160,200,255), sub)
         local ok, errOrInst = pcall(executeAction, a)
         if ok then
             okN += 1; lastAction = describeAction(a)
-            log("??? " .. lastAction, "action")
-            results[#results+1] = { action_id = a.id, status = "done", result = reportableResult(errOrInst) }
+            log("✓ " .. lastAction, "action")
+            reportComplete(a.id, "done", nil, nil)
         else
             failN += 1
-            log("??? " .. a.kind .. " '" .. tostring(a.name) .. "': " .. tostring(errOrInst), "error")
-            results[#results+1] = { action_id = a.id, status = "failed", error = tostring(errOrInst) }
+            log("✗ " .. a.kind .. " '" .. tostring(a.name) .. "': " .. tostring(errOrInst), "error")
+            reportComplete(a.id, "failed", tostring(errOrInst), nil)
         end
+        refreshInfo()
     end
-    local fixOk, fixResult = pcall(autoFixProject)
-    if fixOk and fixResult then
-        local moved = fixResult.moved_count or 0
-        local fixed = fixResult.fixed_count or 0
-        if moved > 0 or fixed > 0 then
-            log(("Auto-cleanup after batch ??? %d moved, %d fixed."):format(moved, fixed), "success")
-        end
-    elseif not fixOk then
-        log("Auto-cleanup skipped: " .. tostring(fixResult), "warn")
-    end
-    queueLen = 0; refreshInfo()
     ChangeHistoryService:SetWaypoint("BloxSmith batch done")
-    -- Report all results in a single HTTP call, off the hot path.
-    task.spawn(reportBatch, results)
-    if failN > 0 then
-        setStatus("Build failed with reason", Color3.fromRGB(255,180,80), ("%d command(s) failed. Check activity log for details."):format(failN))
-    else
-        setStatus("Build complete", Color3.fromRGB(120,220,160), "Studio confirmed all queued commands finished.")
-    end
-    log(("Batch complete ??? %d ok, %d failed."):format(okN, failN), failN > 0 and "warn" or "success")
-    return #actions
+    log(("Batch complete — %d ok, %d failed."):format(okN, failN), failN > 0 and "warn" or "success")
 end
 
 local function startPairing()
-    setStatus("connecting", Color3.fromRGB(160,200,255), "Creating one-time approval link???")
+    setStatus("connecting", Color3.fromRGB(160,200,255), "Creating one-time approval link…")
     connectBtn.Text = "Cancel"; connectBtn.BackgroundColor3 = Color3.fromRGB(220,90,90)
-    log("Requesting pair code???", "info")
+    log("Requesting pair code…", "info")
     local data, err = post("/api/public/plugin/pair/start", { plugin_version = PLUGIN_VERSION }, { verbose = true })
     if err or not data or not data.code then
         log("Pair start failed: " .. tostring(err or "no data"), "error")
@@ -1301,7 +612,7 @@ local function startPairing()
         elseif poll and poll.status == "approved" and poll.plugin_token then
             plugin:SetSetting("token", poll.plugin_token)
             pairingCode = nil; linkBox.Visible = false
-            log("Approved ??? ??? token saved.", "success")
+            log("Approved ✓ — token saved.", "success")
             connected = true
             connectBtn.Text = "Disconnect"; connectBtn.BackgroundColor3 = Color3.fromRGB(220,90,90)
             pollOnce(true); return
@@ -1316,12 +627,12 @@ local function startPairing()
 end
 
 local function disconnect()
-    clearToken()
+    plugin:SetSetting("token", nil)
     connected = false; pairingCode = nil
     connectBtn.Text = "Connect"; connectBtn.BackgroundColor3 = Color3.fromRGB(70,130,240)
     linkBox.Visible = false
     setStatus("not connected", Color3.fromRGB(200,200,210), "Click Connect to link.")
-    log("Disconnected ??? token removed.", "warn")
+    log("Disconnected — token removed.", "warn")
 end
 
 ------------------------------------------------------------------- buttons
@@ -1336,12 +647,10 @@ connectBtn.MouseButton1Click:Connect(function()
 end)
 
 reconnectBtn.MouseButton1Click:Connect(function()
-    if not validToken() then
-        log("No saved token ??? starting fresh connect.", "warn")
-        clearToken(); connected = false
-        task.spawn(startPairing); return
+    if not plugin:GetSetting("token") then
+        log("No saved token — use Connect first.", "warn"); return
     end
-    log("Reconnecting???", "info"); connected = true; pollOnce(true)
+    log("Reconnecting…", "info"); connected = true; pollOnce(true)
 end)
 
 syncBtn.MouseButton1Click:Connect(function()
@@ -1351,13 +660,13 @@ end)
 
 execBtn.MouseButton1Click:Connect(function()
     if not connected then log("Not connected.", "warn"); return end
-    log("Running queue???", "info"); pollOnce(true)
+    log("Running queue…", "info"); pollOnce(true)
 end)
 
 clearBtn.MouseButton1Click:Connect(function()
-    local token = validToken()
-    if not token then log("Not connected ??? click Connect first.", "warn"); return end
-    log("Clearing stuck queue???", "info")
+    local token = plugin:GetSetting("token")
+    if not token then log("Not connected.", "warn"); return end
+    log("Clearing stuck queue…", "info")
     local data, err = post("/api/public/plugin/clear", { token = token }, { verbose = true })
     if err then log("Clear failed: " .. err, "error")
     else log(("Cleared %d action(s)."):format((data and data.cleared) or 0), "success"); queueLen = 0; refreshInfo() end
@@ -1371,251 +680,19 @@ end)
 
 openWebBtn.MouseButton1Click:Connect(function()
     if tryCopy(API_BASE .. "/plugin") then
-        log("Copied " .. API_BASE .. "/plugin to clipboard ??? paste into your browser.", "info")
+        log("Copied " .. API_BASE .. "/plugin to clipboard — paste into your browser.", "info")
     else
         log("Open " .. API_BASE .. "/plugin in your browser.", "info")
     end
 end)
 
-------------------------------------------------------------------- scan game tree
-local SCAN_ROOTS = {
-    "Workspace", "ServerScriptService", "ServerStorage", "ReplicatedStorage",
-    "ReplicatedFirst", "StarterGui", "StarterPack", "StarterPlayer",
-    "Lighting", "SoundService", "Teams",
-}
-local function pushLimited(list, value, max)
-    if #list < (max or 50) then table.insert(list, value) end
-end
-local function analyzeWorkspace()
-    local summary = {
-        counts = {},
-        folders = {},
-        issues = {},
-        remotes = {},
-        modules = {},
-        systems = {},
-        gui = {},
-        tools = {},
-        assets = {},
-        suggestions = {},
-    }
-    local expected = {
-        "Workspace.Map",
-        "Workspace.NPCs",
-        "Workspace.Props",
-        "Workspace.Vehicles",
-        "Workspace.Gameplay",
-        "ReplicatedStorage.Remotes",
-        "ReplicatedStorage.Modules",
-        "ReplicatedStorage.Assets",
-        "ServerScriptService.Systems",
-    }
-    for _, path in ipairs(expected) do
-        summary.folders[path] = findByPath(path) ~= nil
-        if not summary.folders[path] then
-            pushLimited(summary.issues, "missing_folder:" .. path, 80)
-        end
-    end
-    local services = {}
-    for _, svcName in ipairs(SCAN_ROOTS) do
-        local ok, svc = pcall(function() return game:GetService(svcName) end)
-        if ok and svc then table.insert(services, svc) end
-    end
-    for _, svc in ipairs(services) do
-        for _, inst in ipairs(svc:GetDescendants()) do
-            summary.counts[inst.ClassName] = (summary.counts[inst.ClassName] or 0) + 1
-            if inst:IsA("RemoteEvent") or inst:IsA("RemoteFunction") or inst:IsA("BindableEvent") or inst:IsA("BindableFunction") then
-                pushLimited(summary.remotes, fullPath(inst), 60)
-                if inst.Parent == ReplicatedStorage then
-                    pushLimited(summary.issues, "remote_not_in_remotes_folder:" .. fullPath(inst), 80)
-                end
-            elseif inst:IsA("ModuleScript") then
-                pushLimited(summary.modules, fullPath(inst), 60)
-                local source = ""
-                pcall(function() source = inst.Source end)
-                local suspicious, pattern = sourceLooksSuspicious(source)
-                if suspicious then pushLimited(summary.issues, "suspicious_module:" .. fullPath(inst) .. ":" .. tostring(pattern), 80) end
-            elseif inst:IsA("Script") or inst:IsA("LocalScript") then
-                local source = ""
-                pcall(function() source = inst.Source end)
-                local suspicious, pattern = sourceLooksSuspicious(source)
-                if suspicious then pushLimited(summary.issues, "suspicious_script:" .. fullPath(inst) .. ":" .. tostring(pattern), 80) end
-                if inst:IsA("Script") and inst.Parent == ServerScriptService and inst.Name ~= "BloxSmith_Leaderstats" then
-                    pushLimited(summary.issues, "server_script_not_in_systems:" .. fullPath(inst), 80)
-                end
-            elseif inst:IsA("ScreenGui") then
-                pushLimited(summary.gui, fullPath(inst), 50)
-            elseif inst:IsA("Tool") then
-                pushLimited(summary.tools, fullPath(inst), 50)
-            elseif inst:IsA("BasePart") then
-                if inst.Parent == Workspace and inst.Anchored == false and not inst:FindFirstAncestorOfClass("Tool") then
-                    pushLimited(summary.issues, "loose_unanchored_root_part:" .. fullPath(inst), 80)
-                end
-            end
-            if CollectionService:HasTag(inst, "BloxSmithAsset") then
-                pushLimited(summary.assets, fullPath(inst), 60)
-            end
-        end
-    end
-    if #summary.issues > 0 then
-        pushLimited(summary.suggestions, "Run organize_project or autofix_project before adding more systems.", 10)
-    end
-    if #(summary.remotes) == 0 then
-        pushLimited(summary.suggestions, "No remotes found; new interactive systems should create ReplicatedStorage.Remotes.", 10)
-    end
-    if #(summary.modules) == 0 then
-        pushLimited(summary.suggestions, "No modules found; reusable catalogs/config should go in ReplicatedStorage.Modules.", 10)
-    end
-    return summary
-end
-local function scanInstance(inst, depth, maxDepth, budget)
-    if budget.count >= budget.max then return nil end
-    budget.count += 1
-    local node = { name = inst.Name, class = inst.ClassName }
-    if depth < maxDepth then
-        local kids = inst:GetChildren()
-        if #kids > 0 then
-            node.children = {}
-            for i, c in ipairs(kids) do
-                if i > 80 then node.truncated = true; break end
-                local child = scanInstance(c, depth + 1, maxDepth, budget)
-                if child then table.insert(node.children, child) end
-            end
-        end
-    end
-    return node
-end
-local function buildScan()
-    local budget = { count = 0, max = 2000 }
-    local roots = {}
-    for _, svcName in ipairs(SCAN_ROOTS) do
-        local ok, svc = pcall(function() return game:GetService(svcName) end)
-        if ok and svc then
-            local node = scanInstance(svc, 0, 4, budget)
-            if node then table.insert(roots, node) end
-        end
-    end
-    return {
-        place_id = tostring(game.PlaceId or 0),
-        built_at = os.time(),
-        plugin_version = PLUGIN_VERSION,
-        roots = roots,
-        sampled = budget.count,
-        awareness = analyzeWorkspace(),
-    }
-end
-
-Exec.scan_project = function(_, _)
-    local token = validToken()
-    if not token then error("scan_project requires connected plugin token") end
-    local scan = buildScan()
-    local data, err = post("/api/public/plugin/scan", {
-        token = token, place_id = tostring(game.PlaceId or 0), scan = scan,
-    }, { verbose = false })
-    if err then error("scan upload failed: " .. tostring(err)) end
-    log(("Workspace scan uploaded ??? %d instance(s), %d issue(s)."):format(scan.sampled or 0, #(scan.awareness and scan.awareness.issues or {})), "success")
-    return { scanned = scan.sampled, issues = scan.awareness and scan.awareness.issues or {}, uploaded = data and data.ok == true }
-end
-
-scanBtn.MouseButton1Click:Connect(function()
-    local token = validToken()
-    if not token then log("Not connected ??? click Connect first.", "warn"); return end
-    log("Scanning game tree???", "info")
-    local scan = buildScan()
-    log(("Scanned %d instance(s) across %d service(s)."):format(scan.sampled, #scan.roots), "debug")
-    local data, err = post("/api/public/plugin/scan", {
-        token = token, place_id = tostring(game.PlaceId or 0), scan = scan,
-    }, { verbose = true })
-    if err then log("Scan upload failed: " .. err, "error")
-    else log("??? Scan uploaded. AI will see this on your next message.", "success") end
-end)
-
-------------------------------------------------------------------- error capture (LogService ??? API)
-local LogService = game:GetService("LogService")
-local AUTO_SEND_ERRORS = true
-local errorQueue, lastErrFlush = {}, 0
-
-local function classifyLevel(msgType)
-    if msgType == Enum.MessageType.MessageError then return "error"
-    elseif msgType == Enum.MessageType.MessageWarning then return "warn"
-    else return nil end
-end
-
-LogService.MessageOut:Connect(function(message, msgType)
-    local lvl = classifyLevel(msgType)
-    if not lvl then return end
-    -- skip our own plugin log lines to avoid feedback loops
-    if string.find(message, "[BloxSmith]", 1, true) then return end
-    table.insert(errorQueue, { source = "Roblox", level = lvl, message = message })
-    if #errorQueue > 50 then table.remove(errorQueue, 1) end
-end)
-
-local function flushErrors(manual)
-    local token = validToken()
-    if not token then if manual then log("Not connected.", "warn") end; return end
-    if #errorQueue == 0 then if manual then log("No errors to send.", "success") end; return end
-    local batch = {}
-    for _, e in ipairs(errorQueue) do table.insert(batch, e) end
-    table.clear(errorQueue)
-    local data, err = post("/api/public/plugin/error", { token = token, errors = batch }, { verbose = false })
-    if err then
-        log("Error upload failed: " .. err, "error")
-        -- requeue so we can retry
-        for _, e in ipairs(batch) do table.insert(errorQueue, e) end
-    else
-        log(("??? Sent %d Studio error(s) ??? AI will use these to fix on next message."):format(#batch), "success")
-    end
-end
-
-sendErrBtn.MouseButton1Click:Connect(function() flushErrors(true) end)
-autoErrBtn.MouseButton1Click:Connect(function()
-    AUTO_SEND_ERRORS = not AUTO_SEND_ERRORS
-    autoErrBtn.Text = "Auto-Send: " .. (AUTO_SEND_ERRORS and "ON" or "OFF")
-    autoErrBtn.BackgroundColor3 = AUTO_SEND_ERRORS and Color3.fromRGB(45,48,58) or Color3.fromRGB(80,50,50)
-    log("Auto error upload " .. (AUTO_SEND_ERRORS and "enabled" or "disabled"), "debug")
-end)
-
-organizeBtn.MouseButton1Click:Connect(function()
-    ChangeHistoryService:SetWaypoint("BloxSmith organize start")
-    local ok, result = pcall(organizeProject)
-    ChangeHistoryService:SetWaypoint("BloxSmith organize done")
-    if ok then
-        log(("Organized project ??? moved %d item(s)."):format((result and result.moved_count) or 0), "success")
-    else
-        log("Organize failed: " .. tostring(result), "error")
-    end
-end)
-
-autoFixBtn.MouseButton1Click:Connect(function()
-    ChangeHistoryService:SetWaypoint("BloxSmith auto-fix start")
-    local ok, result = pcall(autoFixProject)
-    ChangeHistoryService:SetWaypoint("BloxSmith auto-fix done")
-    if ok then
-        log(("Auto-fix complete ??? %d moved, %d fixed."):format((result and result.moved_count) or 0, (result and result.fixed_count) or 0), "success")
-    else
-        log("Auto-fix failed: " .. tostring(result), "error")
-    end
-end)
-
-task.spawn(function()
-    while true do
-        task.wait(15)
-        if AUTO_SEND_ERRORS and connected and #errorQueue > 0 and os.clock() - lastErrFlush > 10 then
-            lastErrFlush = os.clock()
-            pcall(flushErrors, false)
-        end
-    end
-end)
-
 ------------------------------------------------------------------- boot
 task.spawn(function()
-    if validToken() then
+    if plugin:GetSetting("token") then
         connected = true
         connectBtn.Text = "Disconnect"; connectBtn.BackgroundColor3 = Color3.fromRGB(220,90,90)
-        log("Restoring previous session???", "info"); pollOnce(true)
+        log("Restoring previous session…", "info"); pollOnce(true)
     else
-        clearToken() -- scrub any stale empty/garbage value
-        connected = false
         setStatus("not connected", Color3.fromRGB(200,200,210), "Click Connect to link.")
     end
     refreshInfo()
@@ -1625,20 +702,13 @@ task.spawn(function()
     while true do
         task.wait(POLL_INTERVAL)
         if connected then
-            -- Drain: keep polling immediately while the server has work queued.
-            for _ = 1, 8 do
-                local ok, errOrCount = pcall(pollOnce)
-                if not ok then
-                    log("Poll loop crashed: " .. tostring(errOrCount), "error")
-                    break
-                end
-                if (errOrCount or 0) == 0 then break end
-            end
+            local ok, err = pcall(pollOnce)
+            if not ok then log("Poll loop crashed: " .. tostring(err), "error") end
         end
     end
 end)
 
 log("BloxSmith v" .. PLUGIN_VERSION .. " loaded.", "success")
 log("API: " .. API_BASE, "debug")
-log("Studio " .. studioVersion() .. " ??? place " .. tostring(game.PlaceId or 0), "debug")
-log("Use Connect ??? approve in browser ??? builds execute here automatically.", "info")
+log("Studio " .. studioVersion() .. " — place " .. tostring(game.PlaceId or 0), "debug")
+log("Use Connect → approve in browser → builds execute here automatically.", "info")
