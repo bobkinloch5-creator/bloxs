@@ -274,6 +274,15 @@ function qualityTier(score: number): "excellent" | "good" | "usable" {
   return "usable";
 }
 
+function stableHash(value: string): number {
+  let hash = 2166136261;
+  for (let i = 0; i < value.length; i += 1) {
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
 function isAllowedCreator(creatorName: string): boolean {
   const c = creatorName.trim();
   if (!c) return false;
@@ -321,23 +330,45 @@ export async function searchRobloxToolbox(
     return { ...row, signals: qualitySignals(row) };
   };
 
-  const rank = (rows: ToolboxResult[]) =>
-    rows
+  const rank = (rows: ToolboxResult[]) => {
+    const ranked = rows
       .map(enrich)
       .filter((r) => rejectionReason(r) === null)
-      .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
-      .slice(0, safeLimit)
-      .map((row, _, ranked) => {
-        const fallbackIds = ranked
-          .filter((candidate) => candidate.id !== row.id && candidate.assetType === row.assetType)
-          .slice(0, 3)
-          .map((candidate) => candidate.id);
-        return {
-          ...row,
-          fallbackIds,
-          insertPayload: fallbackIds.length ? { asset_id: row.id, fallback_ids: fallbackIds } : { asset_id: row.id },
-        };
-      });
+      .sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+    if (ranked.length === 0) return [];
+
+    // Avoid returning the exact same top asset forever while staying inside the
+    // best safe/free matches. The first result rotates through a small elite
+    // band, and fallback_ids still contain the neighboring good candidates.
+    const topScore = ranked[0]?.score ?? 0;
+    const topBand = ranked
+      .slice(0, Math.min(8, ranked.length))
+      .filter((row, index) =>
+        index < Math.min(4, ranked.length) ||
+        ((topScore - (row.score ?? 0)) <= 0.08 && (row.safety ?? 0) >= 0.7 && (row.relevance ?? 0) >= 0.3)
+      );
+    const rotateEveryFiveMinutes = Math.floor(Date.now() / (5 * 60 * 1000));
+    const seed = stableHash(`${keyword}|${category}|${rotateEveryFiveMinutes}`);
+    const offset = topBand.length > 1 ? seed % topBand.length : 0;
+    const rotatedTop = topBand.slice(offset).concat(topBand.slice(0, offset));
+    const topIds = new Set(topBand.map((row) => row.id));
+    const diversified = [
+      ...rotatedTop,
+      ...ranked.filter((row) => !topIds.has(row.id)),
+    ].slice(0, safeLimit);
+
+    return diversified.map((row) => {
+      const fallbackIds = diversified
+        .filter((candidate) => candidate.id !== row.id && candidate.assetType === row.assetType)
+        .slice(0, 4)
+        .map((candidate) => candidate.id);
+      return {
+        ...row,
+        fallbackIds,
+        insertPayload: fallbackIds.length ? { asset_id: row.id, fallback_ids: fallbackIds } : { asset_id: row.id },
+      };
+    });
+  };
 
   // 1. Current Creator Store / Toolbox search endpoint observed on
   // create.roblox.com/store/category/3d. It works as an unauthenticated GET
@@ -546,6 +577,6 @@ export async function searchRobloxToolboxSet(
     readyCount,
     missingRequired,
     insertionRule:
-      "For each asset category, choose request.best or another high score result. Emit insert_asset with payload.asset_id from result.id and payload.fallback_ids from result.fallbackIds. Add folder_name, tags, position, rotation/yaw, and scale. If a required request is missing, do not fake it with parts; ask before fallback geometry.",
+      "For each asset category, choose request.best or another high score result. The returned list is safely varied among top matches, so do not force the same old asset every time. Emit insert_asset with payload.asset_id from result.id and payload.fallback_ids from result.fallbackIds. Add folder_name, tags, position, rotation/yaw, and scale. If a required request is missing, do not fake it with parts; ask before fallback geometry.",
   };
 }

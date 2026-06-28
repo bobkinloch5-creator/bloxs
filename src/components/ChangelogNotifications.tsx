@@ -1,9 +1,21 @@
 import { useEffect, useRef, useState } from "react";
 import { Bell, Box, CheckCircle2, ImageIcon, ShieldCheck, Sparkles, Wrench } from "lucide-react";
 
-const CHANGELOG_VERSION = "2026-06-28-toolbox-ui-reliability";
+const CHANGELOG_VERSION = "2026-06-28-full-builder-toolbox-variety";
 
 const CHANGELOG_ITEMS = [
+  {
+    title: "Full Roblox builder brain",
+    date: "Jun 28",
+    icon: Sparkles,
+    body: "BloxSmith now has stronger instructions for complete maps, obbies, tycoons, zombie survival, racing, simulators, roleplay towns, dungeons, arenas, horror maps, pet worlds, scripts, UI, scanning, fixing, and polish.",
+  },
+  {
+    title: "More varied real Toolbox assets",
+    date: "Jun 28",
+    icon: Box,
+    body: "Safe Toolbox searches now rotate among top matching free/public assets and pass extra fallback IDs, so city, town, forest, vehicle, weapon, NPC, and prop requests should not keep reusing the same asset every time.",
+  },
   {
     title: "Toolbox Only Mode is now the default",
     date: "Jun 28",
