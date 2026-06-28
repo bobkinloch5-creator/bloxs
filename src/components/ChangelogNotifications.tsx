@@ -1,9 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { Bell, Box, CheckCircle2, ImageIcon, ShieldCheck, Sparkles, Wrench } from "lucide-react";
 
-const CHANGELOG_VERSION = "2026-06-28-toolbox-proof-builder-polish";
+const CHANGELOG_VERSION = "2026-06-28-complete-builder-controls";
 
 const CHANGELOG_ITEMS = [
+  {
+    title: "Complete builder controls",
+    date: "Jun 28",
+    icon: Sparkles,
+    body: "Added build quality modes, starter game packs, one-click fix buttons, full game checklist, and asset preview actions for Insert, Replace, and Search Again.",
+  },
   {
     title: "Toolbox insertion proof",
     date: "Jun 28",

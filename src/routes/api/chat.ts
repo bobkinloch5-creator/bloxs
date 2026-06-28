@@ -1633,7 +1633,7 @@ export const Route = createFileRoute("/api/chat")({
           const token = auth.replace(/^Bearer\s+/i, "");
           if (!token) return jsonError("Please sign in again before sending a message.", 401, "no_auth");
 
-          let body: { messages?: UIMessage[]; projectId?: string; modelId?: string; autoExecute?: boolean; executionMode?: "safe" | "fast" | "owner"; mode?: "chat" | "build"; language?: string; languageName?: string };
+          let body: { messages?: UIMessage[]; projectId?: string; modelId?: string; autoExecute?: boolean; executionMode?: "safe" | "fast" | "owner"; buildQuality?: "basic" | "better" | "premium" | "full_game"; mode?: "chat" | "build"; language?: string; languageName?: string };
           try {
             body = (await request.json()) as typeof body;
           } catch {
@@ -1642,6 +1642,10 @@ export const Route = createFileRoute("/api/chat")({
           const mode: "chat" | "build" = body.mode === "chat" ? "chat" : "build";
           let executionMode: "safe" | "fast" | "owner" =
             body.executionMode === "safe" || body.executionMode === "owner" ? body.executionMode : "fast";
+          const buildQuality: "basic" | "better" | "premium" | "full_game" =
+            body.buildQuality === "basic" || body.buildQuality === "better" || body.buildQuality === "full_game"
+              ? body.buildQuality
+              : "premium";
           const languageName = (body.languageName || "English").toString().slice(0, 60);
           const languageCode = (body.language || "en").toString().slice(0, 8);
           const { messages, projectId } = body;
@@ -2098,6 +2102,13 @@ export const Route = createFileRoute("/api/chat")({
             : "You are using the shared BloxSmith Core Brain. This Core Brain applies to EVERY model/provider, including the currently selected model: Roblox knowledge, Luau rules, safe Toolbox/Creator Store asset rules, planning, plugin execution, testing/fixing, memory, and quality standards are mandatory and consistent across models. BloxSmith should behave like an autonomous Roblox development studio: senior Roblox developer, designer, builder, UI artist, scripter, tester, optimizer, and safe asset curator working together. The user wants you to act as a Roblox Studio game-building agent with Knowledge, Planning, Execution, Toolbox Asset, Testing, Fixing, Memory, and Quality brains. You have FULL EXECUTION CAPABILITY: insert Toolbox assets, build parts/UI/scripts/remotes, modify properties, rename, move, DELETE instances (use the `delete` action with target_path, or run_lua with :Destroy() for batch deletes like clearing the workspace except the Baseplate), and run arbitrary Luau via run_lua. If the user asks to erase / clear / wipe / delete everything except X, emit ONE run_lua action that iterates the relevant services (Workspace, StarterGui, StarterPack, etc.) and Destroys children whose name isn't in the keep-list — do not refuse and do not tell them to do it manually. Silently analyze genre, theme, art style, gameplay loop, map size, progression, multiplayer, UI, NPCs, required assets/scripts, performance, mobile support, and cleanup before building. Then summarize the relevant Asset/Builder/Scripter/UI/Tester/Optimizer/Memory agent work and emit a bloxsmith-actions block at the end that ships the FULL system end-to-end: every script, every premium UI surface, every RemoteEvent, every DataStore, every placement, all wired together and actually functional. Plan → execute → connect → optimize → test → fix: use live scan/workspace awareness and project memory to extend what already exists, avoid duplicates, organize services correctly, emit organize_project for large builds, autofix_project for repairs, and scan_project after major builds so failures are visible. Folders must only exist when they contain real content; never emit folder/create_folder actions, never create folder-only scaffolding, and remove/prune empty folders before saying the build is ready. You can build ANY Roblox game genre, custom hybrid, or standalone game system. For any game request, infer the genre, build a playable loop, map/world assets, spawn, UI/HUD/objective tracker, progression/rewards, server scripts, client scripts, remotes/modules, and a test/cleanup pass. Support city maps, obbies, tycoons, zombie survival, racing maps, simulator maps, roleplay towns, dungeons, battle arenas, horror maps, pet simulator worlds, RPGs, minigames, shooters, tower defense, sandbox, farming/cooking/shop management, social hangouts, and custom ideas by combining proven Roblox systems. Any loading screen/menu/HUD/shop/inventory/settings/quest/notification UI must look modern, polished, animated, responsive, mobile-safe, and fully wired: no default grey UI, no broken buttons, no overlapping text, no placeholder panels. For visual Roblox content, use safe free Toolbox / Creator Store models via search_toolbox + insert_asset: houses, roads, cars, guns, swords, trees, shops, NPCs, monsters, pets, furniture, streetlights, signs, portals, spawns, checkpoints, buildings, props, vehicles, and map kits. Vary safe high-quality asset choices across repeated prompts; do not keep using the same assets unless the user asks for consistency. Use run_lua for placement, scaling, rotation, terrain adjustments, scripts, UI wiring, Roblox service setup, AND deletion/cleanup batches. If no safe relevant Toolbox asset is found, ask the user before generating any fallback geometry. NO fake buttons, NO empty folders, NO placeholder scripts, NO TODOs. Stay on-topic but inside the topic build EVERYTHING the system needs. Aim for 10-30 actions for full systems."}\n`;
 
           const languageHeader = `\n[LANGUAGE: ${languageCode} / ${languageName}]\nRespond ENTIRELY in ${languageName}. Translate every sentence, heading, button name, status message, error message, and explanation into natural, fluent, idiomatic ${languageName}. Keep code identifiers, Roblox API names (Instance class names, services, property names like Workspace, Part, ScreenGui, HumanoidRootPart), and the bloxsmith-actions block contents in English exactly as required by Roblox. Translate UI strings the player will see (TextLabel.Text, button text, GUI titles, error notifications shown to players) into ${languageName}. Markdown formatting stays the same.\n`;
+          const qualityHeader = mode === "chat" ? "" : `\n[BUILD QUALITY MODE: ${buildQuality.toUpperCase()}]\n${buildQuality === "basic"
+            ? "Basic Build: build the smallest complete working version. Still no placeholders or unfinished systems. Include required wiring, organize_project, and scan_project."
+            : buildQuality === "better"
+              ? "Better Build: build a fuller version with clean layout, useful UI, working scripts/remotes, mobile support, safe assets, organize_project, autofix_project, and scan_project."
+              : buildQuality === "full_game"
+                ? "Full Game Build: prompt-to-full-game mode. Infer the genre and create map, spawn, gameplay loop, UI/HUD/menu/loading, NPC/enemy/vehicle/tool behavior if relevant, shop/currency/leaderboard/save system, mobile controls, tutorial, anti-exploit checks, polish, organize_project, autofix_project, scan_project, and a test report. Do not leave half-working systems."
+                : "Premium Build: add better lighting, sky/atmosphere, UI animations, sounds, camera effects, clean layout, visible safe Toolbox details, mobile support, organize_project, autofix_project, scan_project, and explain what changed."}\n`;
 
           const assetModeRule = mode === "chat" ? "" : (() => {
             switch (assetMode) {
@@ -2172,7 +2183,7 @@ export const Route = createFileRoute("/api/chat")({
             modelSettings?: { temperature?: number; topP?: number; maxOutputTokens?: number },
           ) => streamText({
             model,
-            system: BLOXSMITH_SYSTEM_PROMPT + modeHeader + languageHeader + assetModeRule + contextBlock,
+            system: BLOXSMITH_SYSTEM_PROMPT + modeHeader + languageHeader + qualityHeader + assetModeRule + contextBlock,
             messages: convertedMessages,
             ...(extraBody ? { providerOptions: { nvidia: extraBody as Record<string, never> } as never } : {}),
             ...(modelSettings?.temperature !== undefined ? { temperature: modelSettings.temperature } : {}),

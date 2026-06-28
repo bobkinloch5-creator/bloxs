@@ -36,6 +36,7 @@ export const Route = createFileRoute("/_authenticated/project/$projectId")({
 
 type Theme = "default" | "grey" | "light";
 type ExecutionMode = "safe" | "fast" | "owner";
+type BuildQuality = "basic" | "better" | "premium" | "full_game";
 
 const QUICK_PROMPTS = [
   { label: "Zombie survival", icon: Sparkles, prompt: "Build a zombie survival map with waves, shop, guns, safe zone, health UI, leaderboard, DataStore saving, and a scan_project check at the end." },
@@ -55,6 +56,16 @@ const COMPOSER_ACTIONS = [
   { label: "Toolbox Assets", icon: Box, mode: "build" as const, prompt: "Search Roblox Toolbox/Creator Store for safe free assets that match this project, insert real models with names/ids, place them cleanly, and organize them. Do not use placeholder geometry." },
   { label: "Scan Game", icon: ScanLine, command: "scan_project" as const },
   { label: "Fix All", icon: Wrench, command: "fix_all" as const },
+  { label: "Fix Scripts", icon: FileCode, mode: "build" as const, prompt: "Fix only broken Roblox scripts, LocalScripts, ModuleScripts, bad Luau syntax, missing ends/braces, unsafe JSON-style table syntax, broken RemoteEvent references, and runtime errors. Validate scripts, queue autofix_project, then scan_project. Do not add unrelated features." },
+  { label: "Fix UI", icon: LayoutDashboard, mode: "build" as const, prompt: "Fix only UI problems: blank screens, unwired buttons, overlapping text, missing LocalScripts, mobile scaling, close/open buttons, shop/menu/inventory panels, and animations. Test every button, queue autofix_project, then scan_project." },
+  { label: "Fix Map", icon: Hammer, mode: "build" as const, prompt: "Fix only map issues using real safe Toolbox assets when replacements are needed: floating assets, bad spacing, roads alignment, buildings on ground, cars on roads, NPCs on walkable surfaces, signs facing players, spawn flow, and safe zones. Organize and scan afterward." },
+  { label: "Fix Assets", icon: Box, mode: "build" as const, prompt: "Fix only Toolbox asset issues: broken/private/invisible/oversized/duplicate/unsafe assets, missing textures or meshes, bad names, hidden scripts, missing Humanoids, and missing PrimaryParts. Replace failed assets with another safe free public Toolbox asset. Organize and scan afterward." },
+  { label: "Fix Mobile", icon: Gauge, mode: "build" as const, prompt: "Make the game mobile friendly: large touch buttons, clean UI scaling, no overlapping menus, simple settings, mobile controls, low graphics mode, and performance checks. Test UI and queue scan_project." },
+  { label: "Empty Folders", icon: Folder, command: "organize_project" as const },
+  { label: "Duplicates", icon: RotateCcw, mode: "build" as const, prompt: "Remove duplicate BloxSmith assets and duplicate systems safely, keeping the newest working version. Do not delete unique user content. Organize project and scan afterward." },
+  { label: "Anchor All", icon: ShieldCheck, mode: "build" as const, prompt: "Anchor all static map, building, prop, road, tree, sign, and decoration BaseParts that should not move. Do not anchor tools, vehicles that need driving, characters, NPC rigs, or physics gameplay objects. Organize and scan afterward." },
+  { label: "Organize", icon: Folder, command: "organize_project" as const },
+  { label: "Test Game", icon: PlayCircle, mode: "build" as const, prompt: "Create a playable test report: verify player spawn/movement, UI buttons, enemies/NPC behavior, shop/currency/save systems, mobile layout, script errors, asset visibility, performance, and whether the game is ready to test. Fix obvious failures, then scan_project." },
   { label: "Playtest", icon: PlayCircle, mode: "build" as const, prompt: "Run a playtest-style audit using the latest scan/errors. Add scan_project, report problems found, and fix obvious breakages with safe actions." },
   { label: "Improve Map", icon: Hammer, mode: "build" as const, prompt: "Improve the existing map using safe free Toolbox assets only: better placement, lighting, spawn flow, signs, props, organization, and scan_project. Avoid procedural placeholder maps." },
   { label: "Make Premium", icon: Crown, mode: "build" as const, prompt: "Make this game feel premium and ready for release: professional loading screen, main menu, animated Play button, polished settings/shop/inventory/HUD/tutorial UI, mobile-safe layout, notification popups, smooth transitions, lighting, sky/atmosphere, camera effects, sounds, particles, cleanup, organize_project, and scan_project. No ugly default UI or unfinished screens." },
@@ -63,20 +74,20 @@ const COMPOSER_ACTIONS = [
 ];
 
 const GAME_TEMPLATES = [
-  { label: "Obby", prompt: "Build a complete obby template with safe Toolbox obby/parkour assets, checkpoints, kill parts, stage saving, leaderboard, HUD, and finish reward." },
-  { label: "Tycoon", prompt: "Build a complete tycoon template with safe Toolbox tycoon/building assets, droppers, conveyors, collectors, upgrade pads, cash saving, shop UI, and rebirth-ready structure." },
+  { label: "Zombie Survival Pack", prompt: "Prompt-to-full-game mode: build a complete Zombie Survival Pack with safe Toolbox map/enemy/weapon assets, spawn area, safe zone, waves, zombies that move and damage players, gun shop, coins, leaderboard, loading screen, mobile controls, DataStore saving, tutorial, anti-exploit checks, polish, organize_project, test report, and scan_project." },
+  { label: "Obby Pack", prompt: "Build a complete Obby Pack with safe Toolbox obby/parkour assets, checkpoints, kill parts, stage saving, leaderboard, HUD, mobile controls, finish reward, tutorial, organize_project, test report, and scan_project." },
+  { label: "City Roleplay Pack", prompt: "Build a complete City Roleplay Pack with safe Toolbox roads/buildings/cars/NPCs/shops/streetlights/signs, jobs/teams, vehicle spawns, main menu, mobile controls, map labels, organize_project, test report, and scan_project." },
+  { label: "Tycoon Pack", prompt: "Build a complete Tycoon Pack with safe Toolbox tycoon/building assets, droppers, conveyors, collectors, upgrade pads, cash saving, shop UI, rebirth-ready structure, anti-exploit checks, mobile support, organize_project, test report, and scan_project." },
   { label: "Simulator", prompt: "Build a simulator template with safe assets, collection tool, currency, rebirths, upgrade shop, daily rewards, codes, DataStore saving, and mobile HUD." },
-  { label: "Pet Simulator", prompt: "Build a pet simulator template with eggs, hatching, weighted rarities, pet inventory, pet followers, coin multipliers, shop UI, trading-ready storage, and saving." },
-  { label: "Zombie Survival", prompt: "Build a zombie survival template with waves, safe zone, gun shop, zombie NPC AI, rewards, health UI, leaderboard, DataStore saving, and scan_project." },
-  { label: "Racing", prompt: "Build a racing template with safe Toolbox track/vehicle assets, laps, checkpoints, race timer, leaderboard, vehicle spawning, and mobile controls." },
+  { label: "Racing Pack", prompt: "Build a complete Racing Pack with safe Toolbox track/vehicle assets, enter-and-drive vehicle flow, laps, checkpoints, race timer, leaderboard, vehicle spawning, mobile controls, organize_project, test report, and scan_project." },
+  { label: "Pet Simulator Pack", prompt: "Build a complete Pet Simulator Pack with safe Toolbox pets/eggs/world assets, hatching, weighted rarities, pet inventory, pet followers, coin multipliers, shop UI, trading-ready storage, saving, mobile support, organize_project, test report, and scan_project." },
+  { label: "Dungeon RPG Pack", prompt: "Build a complete Dungeon RPG Pack with safe dungeon/enemy/NPC assets, quests, combat, loot, inventory, boss room, XP/levels, saving, mobile UI, organize_project, test report, and scan_project." },
+  { label: "Horror Escape Pack", prompt: "Build a complete Horror Escape Pack with safe horror/house/corridor assets, flashlight, objectives, monster AI, jumpscare UI, sounds, lighting, checkpoints, mobile support, organize_project, test report, and scan_project." },
+  { label: "Police Chase Pack", prompt: "Build a complete Police Chase Pack with safe city/road/police car assets, teams, wanted system, drivable vehicles, jail/safe zone, rewards, objective UI, mobile support, organize_project, test report, and scan_project." },
+  { label: "Fighting Arena Pack", prompt: "Build a complete Fighting Arena Pack with safe arena/weapon assets, combat system, rounds, score UI, rewards, server hit validation, anti-exploit checks, mobile controls, organize_project, test report, and scan_project." },
   { label: "BedWars Style", prompt: "Build a BedWars-style template with safe arena/island assets, teams, beds, generators, item shop, round win logic, respawns, and anti-exploit validation." },
-  { label: "Fighting Arena", prompt: "Build a fighting arena template with safe arena/weapon assets, combat system, rounds, score UI, rewards, and server hit validation." },
   { label: "City Builder", prompt: "Build a city builder template with safe building/road assets, plot system, placement grid, catalog UI, server placement validation, and saving." },
-  { label: "Roleplay City", prompt: "Build a roleplay city template with safe city/road/building assets, teams/jobs, vehicles, spawn lobby, map labels, and role UI." },
-  { label: "Dungeon RPG", prompt: "Build a dungeon RPG template with safe dungeon/enemy/NPC assets, quests, combat, loot, inventory, boss room, XP/levels, and saving." },
   { label: "Tower Defense", prompt: "Build a tower defense template with safe map/tower/enemy assets, path waypoints, wave manager, tower placement, cash rewards, base health UI, and saving." },
-  { label: "Police Chase", prompt: "Build a police chase template with safe city/road/police car assets, teams, wanted system, vehicle spawns, jail/safe zone, rewards, and objective UI." },
-  { label: "Horror Escape", prompt: "Build a horror escape template with safe horror/house/corridor assets, flashlight, objectives, monster AI, jumpscare UI, sounds, lighting, and checkpoints." },
   { label: "Cooking Game", prompt: "Build a cooking game template with safe cafe/kitchen/food assets, customers, order queue, recipes, timers, earnings, upgrades, shop UI, and saving." },
 ];
 
@@ -182,6 +193,12 @@ function ProjectPage() {
     localStorage.setItem("bs-execution-mode", executionMode);
     localStorage.setItem("bs-auto-execute", autoExecute ? "1" : "0");
   }, [executionMode, autoExecute]);
+  const [buildQuality, setBuildQuality] = useState<BuildQuality>(() => {
+    if (typeof window === "undefined") return "premium";
+    const stored = localStorage.getItem("bs-build-quality") as BuildQuality | null;
+    return stored === "basic" || stored === "better" || stored === "premium" || stored === "full_game" ? stored : "premium";
+  });
+  useEffect(() => { localStorage.setItem("bs-build-quality", buildQuality); }, [buildQuality]);
   const { lang: uiLang, t: tr } = useLang();
   const aiLanguageName = LANGUAGES.find((l) => l.code === uiLang)?.aiName ?? "English";
   const clearQueueFn = useServerFn(clearActionQueue);
@@ -304,12 +321,12 @@ function ProjectPage() {
             { type: "file", mediaType: att.mediaType, url: att.dataUrl } as any,
           ],
         } as any,
-        { body: { projectId, modelId, mode: att.build ? effectiveMode : "chat", executionMode, language: uiLang, languageName: aiLanguageName } },
+        { body: { projectId, modelId, mode: att.build ? effectiveMode : "chat", executionMode, buildQuality, language: uiLang, languageName: aiLanguageName } },
       );
     } else {
       sendMessage(
         { text: value },
-        { body: { projectId, modelId, mode: effectiveMode, executionMode, language: uiLang, languageName: aiLanguageName } },
+        { body: { projectId, modelId, mode: effectiveMode, executionMode, buildQuality, language: uiLang, languageName: aiLanguageName } },
       );
     }
     setInput("");
@@ -322,7 +339,7 @@ function ProjectPage() {
     if (busy) return;
     sendMessage(
       { text: "Push the plan you just described to Roblox Studio now — emit the bloxsmith-actions block and execute it." },
-      { body: { projectId, modelId, mode: "build" as const, executionMode: executionMode === "safe" ? "fast" : executionMode, language: uiLang, languageName: aiLanguageName } },
+      { body: { projectId, modelId, mode: "build" as const, executionMode: executionMode === "safe" ? "fast" : executionMode, buildQuality, language: uiLang, languageName: aiLanguageName } },
     );
   }
 
@@ -643,6 +660,8 @@ function ProjectPage() {
               onAttachFile={attachImageFile}
               executionMode={executionMode}
               setExecutionMode={setExecutionMode}
+              buildQuality={buildQuality}
+              setBuildQuality={setBuildQuality}
               autoExecute={autoExecute}
               onPushToStudio={pushToStudio}
             />
@@ -1260,7 +1279,7 @@ function Composer({
   onSubmit, onStop, onAction, modelId, setModelId,
   ttsEnabled, setTtsEnabled, voiceSpeaking, voiceLoading, voiceError, onVoiceTranscript,
   attachment, setAttachment, onAttachFile,
-  executionMode, setExecutionMode, autoExecute, onPushToStudio,
+  executionMode, setExecutionMode, buildQuality, setBuildQuality, autoExecute, onPushToStudio,
 }: any) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { t } = useLang();
@@ -1514,6 +1533,35 @@ function Composer({
               </div>
             )}
 
+            {mode === "build" && (
+              <div className="ml-1 inline-flex overflow-hidden rounded-lg border text-[11px] font-bold" style={{ borderColor: "var(--bs-border)" }} title="Build quality mode controls how complete and polished BloxSmith should make the result.">
+                {([
+                  ["basic", Gauge, "Basic"],
+                  ["better", Sparkles, "Better"],
+                  ["premium", Crown, "Premium"],
+                  ["full_game", PlayCircle, "Full Game"],
+                ] as const).map(([key, Icon, label]) => {
+                  const active = buildQuality === key;
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setBuildQuality(key)}
+                      className="inline-flex items-center gap-1 px-2 py-1.5"
+                      style={{
+                        background: active ? "color-mix(in oklab, var(--bs-accent) 18%, transparent)" : "transparent",
+                        color: active ? "var(--bs-accent)" : "var(--bs-muted-fg)",
+                        borderRight: key === "full_game" ? "0" : "1px solid var(--bs-border)",
+                      }}
+                    >
+                      <Icon className="h-3 w-3" />
+                      <span className="hidden xl:inline">{label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
             {/* Push to Studio — runs the last drafted plan as real Roblox actions */}
             <button
               type="button"
@@ -1650,6 +1698,27 @@ function buildHealthReport(actions: any[] = [], pluginSession: any, pluginOnline
   };
 }
 
+function buildGameChecklist(actions: any[] = [], pluginSession: any) {
+  const scan = pluginSession?.last_scan ?? {};
+  const awareness = scan?.awareness ?? {};
+  const actionKinds = new Set(actions.map((a) => String(a.kind)));
+  const actionText = actions.map((a) => `${a.kind} ${a.name} ${JSON.stringify(a.payload ?? {})} ${JSON.stringify(a.result ?? {})}`).join(" ").toLowerCase();
+  const done = (test: boolean, readyDetail: string, pendingDetail: string) => ({ ok: test, detail: test ? readyDetail : pendingDetail });
+  return [
+    { label: "Map created", ...done(actionKinds.has("insert_asset") || /map|road|building|terrain|spawn/.test(actionText), "Map/asset work detected", "No map actions yet") },
+    { label: "UI created", ...done(["screengui", "gui", "frame", "textbutton", "textlabel", "imagelabel"].some((k) => actionKinds.has(k)) || /startergui|gameui|screen/.test(actionText), "UI actions detected", "No UI built yet") },
+    { label: "Scripts created", ...done(["script", "localscript", "modulescript"].some((k) => actionKinds.has(k)), "Runtime scripts queued", "No scripts queued yet") },
+    { label: "Assets inserted", ...done(actions.some((a) => a.kind === "insert_asset" && a.status === "done"), "Toolbox assets inserted", "No verified insert yet") },
+    { label: "Buttons connected", ...done(/activated|mousebutton1click|button|remoteevent/.test(actionText), "Button wiring detected", "No button wiring detected") },
+    { label: "NPCs working", ...done(/npc|zombie|enemy|humanoid|pathfinding|moveto/.test(actionText), "NPC/enemy logic detected", "No NPC logic detected") },
+    { label: "Currency working", ...done(/leaderstats|cash|coin|currency|xp|reward/.test(actionText), "Currency/reward logic detected", "No currency logic detected") },
+    { label: "Save system working", ...done(/datastore|updateasync|bindtoclose|playerremoving/.test(actionText), "Save/load logic detected", "No save system detected") },
+    { label: "Mobile support added", ...done(/touchenabled|mobile|uiscale|safe area|large button|contextactionservice/i.test(actionText), "Mobile support detected", "No mobile support detected") },
+    { label: "Errors scanned", ...done(actions.some((a) => a.kind === "scan_project" && a.status === "done") || !!pluginSession?.last_scan_at, "Scan completed", "Run Scan Game") },
+    { label: "Game ready to test", ...done(!!pluginSession?.last_scan_at && Array.isArray(awareness?.issues) && awareness.issues.length === 0, "No scan issues shown", "Needs scan or fixes") },
+  ];
+}
+
 function timelineState(done: boolean, active: boolean, failed = false) {
   if (failed) return "failed";
   if (done) return "done";
@@ -1697,6 +1766,7 @@ function RightSidebar({
   const health = buildHealthReport(actions ?? [], pluginSession, pluginOnline);
   const tone = healthTone(health.score);
   const timeline = buildExecutionTimeline(actions ?? [], busy);
+  const checklist = buildGameChecklist(actions ?? [], pluginSession);
   const issues = health.issues;
   const lastScanAt = pluginSession?.last_scan_at ? new Date(pluginSession.last_scan_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : null;
   return (
@@ -1837,6 +1907,43 @@ function RightSidebar({
         </div>
       </div>
 
+      {/* Full game checklist */}
+      <div className="bs-card rounded-2xl p-4">
+        <div className="flex items-center justify-between">
+          <div className="text-sm font-semibold">Full Game Checklist</div>
+          <CheckCircle2 className="h-3.5 w-3.5" style={{ color: "var(--bs-primary)" }} />
+        </div>
+        <div className="mt-3 grid gap-1.5">
+          {checklist.map((item) => (
+            <div key={item.label} className="flex items-center gap-2 rounded-lg border px-2 py-1.5" style={{ borderColor: "var(--bs-border)", background: "var(--bs-card-2)" }}>
+              {item.ok ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--bs-success)" }} /> : <AlertCircle className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--bs-muted-fg)" }} />}
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-[11px] font-bold">{item.label}</div>
+                <div className="truncate text-[10px]" style={{ color: "var(--bs-muted-fg)" }}>{item.detail}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* One-click fixes */}
+      <div className="bs-card rounded-2xl p-4">
+        <div className="flex items-center justify-between">
+          <div className="text-sm font-semibold">One-Click Fixes</div>
+          <Wrench className="h-3.5 w-3.5" style={{ color: "var(--bs-warning)" }} />
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-1.5">
+          {["Fix Scripts", "Fix UI", "Fix Map", "Fix Assets", "Fix Mobile", "Empty Folders", "Duplicates", "Anchor All", "Organize", "Test Game"].map((label) => {
+            const action = COMPOSER_ACTIONS.find((a: any) => a.label === label);
+            return (
+              <button key={label} type="button" onClick={() => onAction?.(action)} className="rounded-lg border px-2 py-1.5 text-left text-[11px] font-semibold" style={{ borderColor: "var(--bs-border)", background: "var(--bs-card-2)" }}>
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Execution timeline */}
       <div className="bs-card rounded-2xl p-4">
         <div className="flex items-center justify-between">
@@ -1966,6 +2073,34 @@ function RightSidebar({
                         }}
                       >
                         {a.result.safety_status}
+                      </span>
+                    )}
+                    {a.kind === "insert_asset" && assetId && (
+                      <span className="mt-1 flex flex-wrap gap-1">
+                        <button
+                          type="button"
+                          onClick={() => onPrompt?.(`Insert this exact safe Toolbox asset into Roblox Studio now: asset ID ${assetId}. Use asset_name "${assetName || a.name}", folder_name based on category, ground_snap true, allow_duplicates false, no_scripts true, then scan_project.`)}
+                          className="rounded-md border px-1.5 py-0.5 text-[9px] font-bold"
+                          style={{ borderColor: "var(--bs-border)", background: "var(--bs-card)" }}
+                        >
+                          Insert
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onPrompt?.(`Replace the Toolbox asset ${assetName || a.name} (${assetId}) with another matching safe free/public Roblox Toolbox asset. Search again, avoid duplicates, use fallback_ids, ground-snap it, remove the broken/old version if needed, and scan_project.`)}
+                          className="rounded-md border px-1.5 py-0.5 text-[9px] font-bold"
+                          style={{ borderColor: "var(--bs-border)", background: "var(--bs-card)" }}
+                        >
+                          Replace
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onPrompt?.(`Search again for safer better matching Roblox Toolbox assets like "${assetName || a.name}". Show/insert a different free public asset with thumbnail/name/creator/id/category metadata, no scripts, no duplicates, and clean placement.`)}
+                          className="rounded-md border px-1.5 py-0.5 text-[9px] font-bold"
+                          style={{ borderColor: "var(--bs-border)", background: "var(--bs-card)" }}
+                        >
+                          Search Again
+                        </button>
                       </span>
                     )}
                     {a.status === "failed" && a.error && (
