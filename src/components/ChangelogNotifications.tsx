@@ -1,9 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { Bell, Box, CheckCircle2, ImageIcon, ShieldCheck, Sparkles, Wrench } from "lucide-react";
 
-const CHANGELOG_VERSION = "2026-06-28-smarter-brain-agents";
+const CHANGELOG_VERSION = "2026-06-28-function-catalog";
 
 const CHANGELOG_ITEMS = [
+  {
+    title: "50 real builder functions",
+    date: "Jun 28",
+    icon: Sparkles,
+    body: "Added a full BloxSmith function catalog with direct controls for full games, maps, quests, currency, shops, saves, gamepasses, enemies, weapons, vehicles, pets, teleports, rounds, admin tools, performance, safety scans, updates, project memory, and final reports.",
+  },
   {
     title: "Smarter Roblox brain",
     date: "Jun 28",
