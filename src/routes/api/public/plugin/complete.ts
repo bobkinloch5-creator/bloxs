@@ -201,14 +201,17 @@ export const Route = createFileRoute("/api/public/plugin/complete")({
               const payload = (r.payload && typeof r.payload === "object" ? r.payload : {}) as Record<string, unknown>;
               return r.status === "done" && r.kind === "insert_asset" && (payload._original_asset_id || Array.isArray(payload._attempted_ids));
             }) ?? false;
-            const failed = (rows?.filter((r) => r.status === "failed") ?? []).filter((r) => {
+            const rawFailed = rows?.filter((r) => r.status === "failed") ?? [];
+            const failed = rawFailed.filter((r) => {
               if (!hasReplacementSuccess || r.kind !== "insert_asset") return true;
               return !/not authorized|unauthorized|permission denied|\b403\b|forbidden|InsertService|private|moderated|off ?sale/i.test(String(r.error ?? ""));
             });
+            const ignoredFailed = rawFailed.length - failed.length;
             const done = rows?.filter((r) => r.status === "done").length ?? 0;
             const pending = rows?.filter((r) => r.status !== "done" && r.status !== "failed").length ?? 0;
+            const effectiveTotal = Math.max(0, total - ignoredFailed);
             // Keep the message in "sending" while a queued fallback is still pending.
-            const nextStatus = pending > 0 ? "sending" : (failed.length > 0 ? "failed" : (total > 0 && done === total ? "done" : "sending"));
+            const nextStatus = pending > 0 ? "sending" : (failed.length > 0 ? "failed" : (effectiveTotal > 0 && done >= effectiveTotal ? "done" : "sending"));
             const errorText = nextStatus === "failed"
               ? failed.map((r) => r.error ? `❌ ${humanizeInsertError(String(r.error))}` : null).filter(Boolean).slice(0, 5).join("\n") || "Studio reported one or more action failures."
               : null;
