@@ -38,7 +38,7 @@ export const MODELS: ModelOption[] = [
     id: "nvidia/nemotron-3-ultra-550b-a55b",
     upstreamId: "nvidia/nemotron-3-ultra-550b-a55b",
     gateway: "nvidia",
-    label: "BloxSmith Super AI ⚡",
+    label: "Nemotron 3 Ultra 550B",
     provider: "NVIDIA",
     via: "NVIDIA NIM",
     tier: "premium",
