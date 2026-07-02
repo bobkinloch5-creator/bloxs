@@ -5,7 +5,7 @@
 // Attach button accepts images + Roblox files. No duplicate image controls.
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -387,6 +387,14 @@ export function WorkspaceChat({
     }
   }
 
+  const handleVoiceUtterance = useCallback((text: string) => {
+    // Voice utterances always go to Build mode so they execute in Studio
+    setMode("build");
+    setTimeout(() => {
+      submit(text);
+    }, 0);
+  }, [token, status, activeProjectId, onRequestNewProject, createMut, sendMessage]);
+
   async function submit(override?: string) {
 
     const text = (override ?? prompt).trim();
@@ -670,11 +678,7 @@ export function WorkspaceChat({
         <div className="flex min-w-0 flex-wrap items-center gap-1.5">
           {/* 🎙️ NVIDIA Voice Build Button — speak to BloxSmith, it builds in Studio and speaks back */}
           <VoiceBuildButton
-            onUtterance={(text) => {
-              // Voice utterances always go to Build mode so they execute in Studio
-              setMode("build");
-              setTimeout(() => submit(text), 0);
-            }}
+            onUtterance={handleVoiceUtterance}
             setTtsEnabled={setTtsEnabled}
             disabled={busy}
           />
