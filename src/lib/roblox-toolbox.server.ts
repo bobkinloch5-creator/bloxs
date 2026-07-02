@@ -123,7 +123,7 @@ const SEARCH_CACHE_TTL_MS = 10 * 60_000; // 10 min — Toolbox results don't chu
 type SearchOut = { source: "live" | "fallback" | "none"; results: ToolboxResult[]; searchedTerms: string[]; scanned: number; page: number; hasMore: boolean };
 const searchCache = new Map<string, { at: number; value: SearchOut }>();
 function pruneRuntimeBlocked(value: SearchOut): SearchOut {
-  const allowed = value.results.filter((r) => !isAssetBlacklisted(r.id));
+  const allowed = value.results.filter((r) => !isAssetBlacklisted(r.id) && !isLikelyCloudAssetId(r.id));
   const allowedIds = new Set(allowed.map((r) => r.id));
   const results = allowed.map((r) => {
     const fallbackIds = (r.fallbackIds ?? []).filter((id) => allowedIds.has(id) && !isAssetBlacklisted(id));
