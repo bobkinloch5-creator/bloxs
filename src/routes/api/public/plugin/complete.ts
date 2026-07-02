@@ -1,13 +1,26 @@
 // Plugin POST: report action result (done | failed).
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
-import { blacklistAssetIds } from "@/lib/roblox-toolbox.server";
+import { blacklistAssetIds, isAssetBlacklisted, searchRobloxToolbox, validateAssetIds } from "@/lib/roblox-toolbox.server";
 
 function admin() {
   return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
     auth: { persistSession: false },
   });
 }
+
+// Turn Roblox's raw InsertService error into a short, user-friendly reason.
+function humanizeInsertError(raw: string): string {
+  const m = raw.toLowerCase();
+  if (/not authorized|unauthorized/.test(m)) return "User is not authorized to access this asset (private or owner-only).";
+  if (/moderated|content deleted|removed by moderator/.test(m)) return "Asset has been moderated by Roblox.";
+  if (/off ?sale|no longer for sale/.test(m)) return "Asset is off-sale and can't be inserted.";
+  if (/does not exist|not found|404/.test(m)) return "Asset no longer exists.";
+  if (/private/.test(m)) return "Asset is private.";
+  if (/insertservice/.test(m)) return "Roblox InsertService rejected the asset.";
+  return raw.slice(0, 240);
+}
+
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
