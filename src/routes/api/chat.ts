@@ -2390,17 +2390,9 @@ export const Route = createFileRoute("/api/chat")({
               const label = singlePhysicalAssetLabel(userText, "asset");
               const finderMatch = TOOLBOX_ASSET_FINDER_CATEGORIES.find((c) => c.test.test(userText));
               const query = finderMatch?.keyword || label;
-              const found = await searchRobloxToolbox(query, "Model", 6, { singleAssetOnly: true });
+              const found = await searchRobloxToolbox(query, "Model", 12, { singleAssetOnly: true });
               const top = found.results[0];
               if (top) {
-                const fastCharge = await chargeCredits(supabase, userId, creditCostForTier(requested.credits));
-                if (!fastCharge.ok) {
-                  return jsonError(
-                    fastCharge.message ?? "Out of credits.",
-                    fastCharge.code === "banned" ? 403 : 402,
-                    fastCharge.code ?? "no_credits",
-                  );
-                }
                 const folder = finderMatch?.folder ? `BloxSmith_${finderMatch.folder}` : "BloxSmith_Assets";
                 const insertAction = {
                   kind: "insert_asset" as const,
@@ -2408,7 +2400,7 @@ export const Route = createFileRoute("/api/chat")({
                   name: cleanSingleAssetActionName(label),
                   payload: {
                     asset_id: top.id,
-                    fallback_ids: (top.fallbackIds ?? found.results.slice(1, 4).map((r) => r.id)).slice(0, 3),
+                    fallback_ids: (top.fallbackIds ?? found.results.slice(1, 8).map((r) => r.id)).slice(0, 6),
                     asset_name: top.name,
                     creator_name: top.creatorName,
                     source_query: query,
@@ -2426,8 +2418,27 @@ export const Route = createFileRoute("/api/chat")({
                     stop_after_insert: true,
                     ground_snap: true,
                     _bloxsmith: { source: "chat_fastpath", execution_mode: "fast", single_asset_mode: true },
-                  },
+                  } as Record<string, unknown>,
                 };
+                // Validate against Roblox (IsPublicDomain + toolbox-details)
+                // BEFORE charging or queuing — otherwise Studio errors with
+                // "User is not authorized to access Asset".
+                const candidates: Array<Record<string, unknown>> = [insertAction as unknown as Record<string, unknown>];
+                await sanitizeInsertAssetActions(candidates).catch(() => null);
+                if (candidates.length === 0) {
+                  console.info("[chat/fastpath] no authorized asset, falling back to AI turn", { query });
+                  throw new Error("fastpath_no_authorized_asset");
+                }
+                const finalInsert = candidates[0] as typeof insertAction;
+                const finalAssetId = Number((finalInsert.payload as { asset_id?: number }).asset_id);
+                const fastCharge = await chargeCredits(supabase, userId, creditCostForTier(requested.credits));
+                if (!fastCharge.ok) {
+                  return jsonError(
+                    fastCharge.message ?? "Out of credits.",
+                    fastCharge.code === "banned" ? 403 : 402,
+                    fastCharge.code ?? "no_credits",
+                  );
+                }
                 const replyText = `Adding a ${label} to your workspace from the Toolbox — queued for Studio now.`;
                 const { data: msgRow } = await supabase
                   .from("chat_messages")
@@ -2438,7 +2449,7 @@ export const Route = createFileRoute("/api/chat")({
                     content: `${replyText}\n\n_Queued 1 Studio action. Waiting for the Roblox Studio plugin to confirm execution before this build is marked complete._`,
                     status: "sending",
                     model: activeModelId,
-                    actions: [insertAction],
+                    actions: [finalInsert],
                   })
                   .select("id")
                   .single();
@@ -2446,10 +2457,10 @@ export const Route = createFileRoute("/api/chat")({
                   project_id: projectId,
                   user_id: userId,
                   message_id: msgRow?.id ?? null,
-                  kind: insertAction.kind,
-                  parent_path: insertAction.parent_path,
-                  name: insertAction.name,
-                  payload: insertAction.payload,
+                  kind: finalInsert.kind,
+                  parent_path: finalInsert.parent_path,
+                  name: finalInsert.name,
+                  payload: finalInsert.payload,
                   position: 0,
                 });
                 await supabase.from("build_history").insert({
@@ -2462,7 +2473,7 @@ export const Route = createFileRoute("/api/chat")({
                   applied: false,
                 });
                 console.info("[chat/fastpath] queued toolbox insert", {
-                  projectId, userId, query, assetId: top.id, actionName: insertAction.name,
+                  projectId, userId, query, assetId: finalAssetId, actionName: finalInsert.name,
                 });
                 const encoder = new TextEncoder();
                 const words = replyText.split(" ");
