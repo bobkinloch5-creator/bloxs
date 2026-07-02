@@ -3307,9 +3307,14 @@ export const Route = createFileRoute("/api/chat")({
               onError: (err) => {
                 console.error("[chat] stream error", err);
                 if (err instanceof Error) {
-                  if (/402|credit/i.test(err.message)) return "AI credits are exhausted. Add more credits in Settings → Plans.";
-                  if (/429|rate/i.test(err.message)) return "AI is rate-limited right now. Wait a few seconds and try again.";
-                  return `AI request failed: ${err.message}`;
+                  const msg = err.message;
+                  if (/402|credit/i.test(msg)) return "AI credits are exhausted. Add more credits in Settings → Plans.";
+                  if (/429|rate.?limit/i.test(msg)) return "AI is rate-limited right now. Wait a few seconds and try again.";
+                  if (/ResourceExhausted|worker.*limit|request limit reached|capacity|overloaded|503/i.test(msg))
+                    return `The ${modelChoice.meta.label ?? "AI"} model is at capacity right now. Try again in a few seconds, or pick a different model in Settings.`;
+                  if (/timeout|timed out|ETIMEDOUT/i.test(msg)) return "The AI took too long to respond. Try again in a moment.";
+                  if (/fetch failed|ECONNRESET|ENOTFOUND|network/i.test(msg)) return "Couldn't reach the AI gateway. Check your connection and retry.";
+                  return `AI request failed: ${msg}`;
                 }
                 return "AI request failed.";
               },
