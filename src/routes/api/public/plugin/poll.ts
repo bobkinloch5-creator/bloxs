@@ -122,7 +122,7 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
           }
 
           if (actions.length > 0) {
-            const before = actions.map((a) => ({ id: a.id, payload: a.payload }));
+            const before = actions.map((a) => ({ id: a.id, message_id: a.message_id, payload: a.payload }));
             const report: InsertSanitizeReport = { dropped: [], replaced: [] };
             await sanitizeInsertAssetActions(actions as unknown as Array<Record<string, unknown>>, report);
             const survivingIds = new Set(actions.map((a) => a.id));
@@ -133,7 +133,7 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
                 .in("id", droppedIds);
               const affectedMessageIds = [...new Set(before
                 .filter((row) => droppedIds.includes(row.id))
-                .map((row) => actions.find((a) => a.id === row.id)?.message_id)
+                .map((row) => row.message_id)
                 .filter((id): id is string => typeof id === "string" && id.length > 0))];
               await Promise.all(affectedMessageIds.map(async (messageId) => {
                 const { data: rows } = await sb.from("plugin_actions")
