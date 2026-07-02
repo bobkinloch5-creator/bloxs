@@ -7,7 +7,11 @@ export type LuauIssue = {
   message: string;
 };
 
-const OPENERS = /\b(function|if|for|while|do|repeat)\b/g;
+// NOTE: `do` is intentionally NOT here — in Luau, `for ... do ... end` and
+// `while ... do ... end` share a single `end` with the `for`/`while` opener,
+// so counting `do` separately double-reports opens and false-fires on valid
+// loops. Bare `do ... end` blocks are rare and not worth the false positives.
+const OPENERS = /\b(function|if|for|while|repeat)\b/g;
 const CLOSERS = /\b(end|until)\b/g;
 
 const STRIP_STRINGS = [
@@ -31,13 +35,13 @@ export function validateLuau(rawSource: string): LuauIssue[] {
 
   const opens = (src.match(OPENERS) ?? []).length;
   const closes = (src.match(CLOSERS) ?? []).length;
-  // `then` opens an `if`, but the `if` opener already counts; do/while/repeat all close with end/until.
   if (opens !== closes) {
     issues.push({
       severity: opens > closes ? "error" : "warn",
       message: `Unbalanced blocks: ${opens} open keyword(s) vs ${closes} closer(s).`,
     });
   }
+
 
   const parens = balance(src, "(", ")");
   if (parens !== 0) issues.push({ severity: "error", message: `Unbalanced parentheses (${parens > 0 ? "+" : ""}${parens}).` });

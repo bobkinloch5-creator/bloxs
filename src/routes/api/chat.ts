@@ -2995,6 +2995,63 @@ export const Route = createFileRoute("/api/chat")({
                   console.warn("[chat] memory parse failed", memErr);
                 }
 
+                // ── Final no-creation rescue ──────────────────────────────────
+                // If build mode ended up with only cleanup/no-op actions (organize,
+                // scan, rename) after all the mode filters, force a Toolbox rescue so
+                // the user actually sees the thing they asked for. This prevents the
+                // "Build verified · done 3/3" pill from lying when every real create
+                // step got stripped upstream.
+                if (mode === "build" && actions.length > 0) {
+                  const CREATE_KINDS = new Set([
+                    "insert_asset","part","model","terrain",
+                    "screengui","gui","frame","textlabel","textbutton","imagelabel","tool",
+                    "script","localscript","modulescript",
+                    "remoteevent","remotefunction","bindableevent",
+                    "sound","team","leaderstats",
+                  ]);
+                  const CREATING_RUN_LUA = /Instance\.new\("(Part|MeshPart|WedgePart|Model|SpawnLocation|Folder|Sound)"\)|InsertService|:LoadAsset|Terrain:(Fill|Set)|BloxSmith_Generate_Procedural_Assets/i;
+                  const hasCreation = actions.some((a: any) => {
+                    if (CREATE_KINDS.has(a.kind)) return true;
+                    if (a.kind === "run_lua") {
+                      const src = String(a.payload?.source ?? "");
+                      if (CREATING_RUN_LUA.test(src)) return true;
+                      if (/^BloxSmith_Generate_Procedural_Assets$/i.test(String(a.name || ""))) return true;
+                    }
+                    return false;
+                  });
+                  if (!hasCreation) {
+                    try {
+                      const rescue = (await toolboxAssetFinderStudioActions(userText)).map(normalizePluginAction);
+                      if (rescue.length > 0) {
+                        actions = [...rescue, ...actions];
+                        cleanContent = `${cleanContent.trim()}\n\n_Rescue: the plan only contained cleanup actions and would not have created anything visible, so BloxSmith queued a safe free Toolbox asset for your request instead._`;
+                        console.warn("[chat] no-creation rescue triggered", { projectId, userId, model: usedModelId });
+                      } else if (proceduralFallbackAllowed) {
+                        const proc = proceduralEnvironmentStudioActions(userText, languageName).map(normalizePluginAction);
+                        if (proc.length > 0) {
+                          actions = [...proc, ...actions];
+                          cleanContent = `${cleanContent.trim()}\n\n_Rescue: no Toolbox match found, so BloxSmith queued a procedural build so your request is not silently skipped._`;
+                        }
+                      }
+                    } catch (rescueErr) {
+                      console.warn("[chat] no-creation rescue failed", rescueErr);
+                    }
+                  }
+                }
+
+                // Drop actions the local Luau validator flagged as fatal so the
+                // Studio plugin cannot mark broken scripts as "done".
+                actions = actions.filter((a: any) => {
+                  if (a?.payload?._needs_retry === true) {
+                    console.warn("[chat] dropping action with fatal Luau issues", {
+                      name: a?.name, kind: a?.kind,
+                      issues: a?.payload?._luau_issues,
+                    });
+                    return false;
+                  }
+                  return true;
+                });
+
                 actions = actions.map(withExecutionMetadata);
                 console.info("[chat] actions generated", {
                   mode,
