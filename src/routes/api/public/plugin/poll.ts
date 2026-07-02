@@ -132,10 +132,10 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
                 .update({ status: "failed", error: "No authorized InsertService-compatible Toolbox asset found.", completed_at: new Date().toISOString() })
                 .in("id", droppedIds);
             }
-            await Promise.all(actions.map((a) => {
+            await Promise.all(actions.map(async (a) => {
               const old = before.find((row) => row.id === a.id);
-              if (JSON.stringify(old?.payload ?? null) === JSON.stringify(a.payload ?? null)) return Promise.resolve();
-              return sb.from("plugin_actions").update({ payload: a.payload }).eq("id", a.id).then(() => undefined);
+              if (JSON.stringify(old?.payload ?? null) === JSON.stringify(a.payload ?? null)) return;
+              await sb.from("plugin_actions").update({ payload: a.payload }).eq("id", a.id);
             }));
             if (report.dropped.length > 0 || report.replaced.length > 0) {
               console.info("[plugin/poll] sanitized insert assets before Studio", {
