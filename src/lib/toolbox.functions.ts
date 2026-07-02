@@ -139,13 +139,25 @@ export const queueToolboxInsert = createServerFn({ method: "POST" })
     });
     });
 
-    // Validate every asset ID against Roblox's toolbox-details API and the
-    // runtime blacklist. Unauthorized/private/deleted IDs are swapped for a
-    // live-search rescue keyed off source_query; hopeless rows drop cleanly
-    // instead of failing the whole Studio insert with "not authorized".
+    // Fast path: these asset IDs came directly from a fresh searchRobloxToolbox
+    // response that already applied blacklist + paid/private filtering. Re-running
+    // the full network validation here added 1-3s per insert for no gain — the
+    // Studio plugin already handles per-asset InsertService failures gracefully,
+    // and the in-memory blacklist absorbs anything that fails at runtime. Keep
+    // only an O(1) blacklist filter so obviously bad IDs never queue.
     const report: InsertSanitizeReport = { dropped: [], replaced: [] };
-    await sanitizeInsertAssetActions(rows as unknown as Array<Record<string, unknown>>, report).catch(() => null);
-    const insertable = rows.filter((r) => r && r.kind);
+    const insertable = rows.filter((r) => {
+      const id = Number((r.payload as { asset_id?: number })?.asset_id);
+      if (!Number.isFinite(id) || id <= 0) {
+        report.dropped.push({ name: r.name, asset_id: null, reason: "missing_asset_id" });
+        return false;
+      }
+      if (isAssetBlacklisted(id)) {
+        report.dropped.push({ name: r.name, asset_id: id, reason: assetBlacklistReason(id) ?? "blacklisted" });
+        return false;
+      }
+      return true;
+    });
     if (insertable.length === 0) {
       const first = report.dropped[0];
       return {
