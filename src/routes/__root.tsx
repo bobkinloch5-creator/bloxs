@@ -12,6 +12,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { RobloxBackdrop } from "../components/RobloxBackdrop";
+import { GlobalErrorGuard } from "@/components/GlobalErrorGuard";
 import { LanguageProvider } from "../lib/i18n";
 import { HelpModeProvider } from "@/components/SmartTooltip";
 import { Toaster } from "@/components/ui/sonner";
