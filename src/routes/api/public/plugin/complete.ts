@@ -1,13 +1,26 @@
 // Plugin POST: report action result (done | failed).
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
-import { blacklistAssetIds } from "@/lib/roblox-toolbox.server";
+import { blacklistAssetIds, isAssetBlacklisted, searchRobloxToolbox, validateAssetIds } from "@/lib/roblox-toolbox.server";
 
 function admin() {
   return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
     auth: { persistSession: false },
   });
 }
+
+// Turn Roblox's raw InsertService error into a short, user-friendly reason.
+function humanizeInsertError(raw: string): string {
+  const m = raw.toLowerCase();
+  if (/not authorized|unauthorized/.test(m)) return "User is not authorized to access this asset (private or owner-only).";
+  if (/moderated|content deleted|removed by moderator/.test(m)) return "Asset has been moderated by Roblox.";
+  if (/off ?sale|no longer for sale/.test(m)) return "Asset is off-sale and can't be inserted.";
+  if (/does not exist|not found|404/.test(m)) return "Asset no longer exists.";
+  if (/private/.test(m)) return "Asset is private.";
+  if (/insertservice/.test(m)) return "Roblox InsertService rejected the asset.";
+  return raw.slice(0, 240);
+}
+
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -87,6 +100,64 @@ export const Route = createFileRoute("/api/public/plugin/complete")({
                   if (Number.isFinite(primary) && primary > 0) bad.push(primary);
                 }
                 if (bad.length > 0) blacklistAssetIds(bad, "studio_insert_unauthorized");
+
+                // ── AUTO-FALLBACK ──
+                // Live-search Toolbox for a fresh similar asset and queue it
+                // as a new plugin_action so the plugin retries automatically
+                // on its next poll. Never re-use blacklisted IDs.
+                try {
+                  const query = String(
+                    payload.source_query ?? payload.asset_name ?? action.payload && (action as { name?: string }).name ?? "",
+                  ).trim();
+                  const attempted = Array.isArray((payload as { _attempted_ids?: unknown })._attempted_ids)
+                    ? ((payload as { _attempted_ids: unknown[] })._attempted_ids as unknown[]).map((n) => Number(n)).filter((n) => Number.isFinite(n))
+                    : [];
+                  attempted.push(...bad);
+                  if (query && attempted.length < 6) {
+                    const found = await searchRobloxToolbox(query, "Model", 12, {
+                      singleAssetOnly: Boolean((payload as { single_asset_only?: boolean }).single_asset_only),
+                    });
+                    const candidateIds = found.results
+                      .map((r) => r.id)
+                      .filter((id) => !attempted.includes(id) && !isAssetBlacklisted(id));
+                    const verdict = candidateIds.length > 0
+                      ? await validateAssetIds(candidateIds).catch(() => ({ valid: candidateIds, blocked: [], reasons: {} }))
+                      : { valid: [], blocked: [], reasons: {} };
+                    const safeSet = new Set(verdict.valid);
+                    const safe = found.results.filter((r) => safeSet.has(r.id));
+                    const pick = safe[0];
+                    if (pick) {
+                      const nextPayload: Record<string, unknown> = {
+                        ...payload,
+                        asset_id: pick.id,
+                        fallback_ids: (pick.fallbackIds ?? safe.slice(1, 6).map((r) => r.id)).filter((id) => !attempted.includes(id) && safeSet.has(id)).slice(0, 5),
+                        asset_name: pick.name,
+                        creator_name: pick.creatorName,
+                        _attempted_ids: attempted,
+                        _replacement_reason: humanizeInsertError(it.error),
+                        _original_asset_id: bad[0] ?? null,
+                      };
+                      await sb.from("plugin_actions").insert({
+                        project_id: action.project_id,
+                        user_id: profile.id,
+                        message_id: action.message_id ?? null,
+                        kind: "insert_asset",
+                        parent_path: (action as { parent_path?: string }).parent_path ?? "Workspace/BloxSmith_Assets",
+                        name: (action as { name?: string }).name ?? pick.name,
+                        payload: nextPayload,
+                        position: 0,
+                      });
+                      console.info("[plugin/complete] auto-requeued fallback asset", {
+                        userId: profile.id, projectId: action.project_id,
+                        original: bad[0], replacement: pick.id, query,
+                      });
+                    } else {
+                      console.warn("[plugin/complete] no authorized fallback found", { query, tried: attempted.length });
+                    }
+                  }
+                } catch (fbErr) {
+                  console.warn("[plugin/complete] auto-fallback failed", fbErr);
+                }
               }
             }
           }));
@@ -99,10 +170,13 @@ export const Route = createFileRoute("/api/public/plugin/complete")({
             const total = rows?.length ?? 0;
             const failed = rows?.filter((r) => r.status === "failed") ?? [];
             const done = rows?.filter((r) => r.status === "done").length ?? 0;
-            const nextStatus = failed.length > 0 ? "failed" : (total > 0 && done === total ? "done" : "sending");
-            const errorText = failed.length > 0
-              ? failed.map((r) => r.error).filter(Boolean).slice(0, 5).join("\n") || "Studio reported one or more action failures."
+            const pending = rows?.filter((r) => r.status !== "done" && r.status !== "failed").length ?? 0;
+            // Keep the message in "sending" while a queued fallback is still pending.
+            const nextStatus = pending > 0 ? "sending" : (failed.length > 0 ? "failed" : (total > 0 && done === total ? "done" : "sending"));
+            const errorText = nextStatus === "failed"
+              ? failed.map((r) => r.error ? `❌ ${humanizeInsertError(String(r.error))}` : null).filter(Boolean).slice(0, 5).join("\n") || "Studio reported one or more action failures."
               : null;
+
             await sb.from("chat_messages")
               .update({ status: nextStatus, error: errorText })
               .eq("id", messageId)
