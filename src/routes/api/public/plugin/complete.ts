@@ -73,6 +73,24 @@ export const Route = createFileRoute("/api/public/plugin/complete")({
               .maybeSingle();
             if (action?.message_id) affectedMessageIds.add(action.message_id);
             if (action?.project_id) affectedProjectIds.add(action.project_id);
+            if (status === "done" && action?.kind === "insert_asset" && it.result && typeof it.result === "object") {
+              const result = it.result as Record<string, unknown>;
+              const used = Number(result.asset_id ?? result.assetId);
+              const attempts = Array.isArray(result.insert_attempts) ? result.insert_attempts as Array<Record<string, unknown>> : [];
+              const failedIds = attempts
+                .map((attempt) => ({ id: Number(attempt.asset_id ?? attempt.assetId), response: String(attempt.insertservice_response ?? "") }))
+                .filter((attempt) => Number.isFinite(attempt.id) && attempt.id > 0 && attempt.id !== used && attempt.response && attempt.response !== "ok")
+                .map((attempt) => attempt.id);
+              if (failedIds.length > 0) {
+                blacklistAssetIds(failedIds, "studio_insert_failed_before_fallback_success");
+                console.info("[plugin/complete] blacklisted failed insert candidates after fallback success", {
+                  userId: profile.id,
+                  projectId: action.project_id,
+                  usedAssetId: used,
+                  failedIds,
+                });
+              }
+            }
             if (status === "failed" && it.error && action) {
               await sb.from("studio_errors").insert({
                 user_id: profile.id, project_id: action.project_id,

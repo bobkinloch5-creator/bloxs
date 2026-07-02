@@ -1035,6 +1035,7 @@ end
 -- Session-scoped cache of successful LoadAsset results — re-cloning is far
 -- cheaper than another HTTP round-trip, and Roblox rate-limits InsertService.
 local _assetCache = {}
+local _assetDenylist = {}
 local _SUSPICIOUS_SCRIPT = {
 	"require%s*%(%s*%d+", "getfenv", "setfenv", "loadstring%s*%(", "HttpGet",
 	"HttpService", "MarketplaceService:PromptPurchase", "BindToClose",
@@ -1070,6 +1071,9 @@ local function quarantineScripts(root, mode)
 end
 
 local function tryLoadAsset(numId)
+	if _assetDenylist[numId] then
+		return false, "blocked in current BloxSmith session: " .. tostring(_assetDenylist[numId])
+	end
 	if _assetCache[numId] then
 		local ok, clone = pcall(function() return _assetCache[numId]:Clone() end)
 		if ok and clone then return true, clone end
@@ -1081,7 +1085,12 @@ local function tryLoadAsset(numId)
 		_assetCache[numId] = snap
 		return true, model
 	end
-	return false, tostring(model)
+	local err = tostring(model)
+	local low = string.lower(err)
+	if low:find("not authorized") or low:find("unauthorized") or low:find("permission") or low:find("403") or low:find("private") or low:find("moderated") then
+		_assetDenylist[numId] = err
+	end
+	return false, err
 end
 
 local function jsonSafe(v)
