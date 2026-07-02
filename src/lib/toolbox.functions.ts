@@ -143,7 +143,7 @@ export const queueToolboxInsert = createServerFn({ method: "POST" })
     // assets that appear public in search. Promote safe fallbacks or drop the
     // action so unauthorized IDs never reach Studio from the picker.
     const report: InsertSanitizeReport = { dropped: [], replaced: [] };
-    const insertable = rows as Array<Record<string, unknown>>;
+    const insertable = rows as Array<(typeof rows)[number] & Record<string, unknown>>;
     await sanitizeInsertAssetActions(insertable, report);
     if (insertable.length === 0) {
       const first = report.dropped[0];
