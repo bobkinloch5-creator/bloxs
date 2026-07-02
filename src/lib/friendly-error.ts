@@ -26,6 +26,7 @@ export function friendlyError(err: unknown, opts: FriendlyErrorOptions = {}): st
   else if (/project not found/i.test(msg)) friendly = "Project not found — refresh the page and try again.";
   else if (/credits.*exhausted|402/i.test(msg)) friendly = "AI credits exhausted on this workspace. Add credits to keep building.";
   else if (/rate.?limit|429/i.test(msg)) friendly = "AI gateway is rate-limited. Try again in a moment.";
+  else if (/ResourceExhausted|worker.*limit|request limit reached|capacity|overloaded|503/i.test(msg)) friendly = "The AI model is at capacity right now. Try again in a few seconds, or switch to a different model.";
   else if (/unauthorized|401|forbidden|403/i.test(msg)) friendly = "Your session expired. Sign in again and retry.";
   else if (/not paired|no plugin|plugin offline|studio offline/i.test(msg)) friendly = "Roblox Studio plugin isn't paired. Open Studio and click Sync, then retry.";
   else if (/timeout|timed out/i.test(msg)) friendly = "Request timed out. Try again in a moment.";
