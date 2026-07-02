@@ -2373,6 +2373,128 @@ export const Route = createFileRoute("/api/chat")({
             });
           }
 
+          // ── INSTANT TOOLBOX FAST-PATH ──
+          // "add a house / insert a car / spawn a zombie / give me a tree from
+          // toolbox" — skip the full AI turn entirely. Live-search Roblox
+          // Toolbox for the requested thing, queue an insert_asset in the
+          // plugin queue, persist the assistant message, and stream a short
+          // confirmation. Cuts a ~5-15s AI+planning round trip down to <1s.
+          if (
+            mode === "build" &&
+            projectId &&
+            userText &&
+            isSinglePhysicalAssetRequest(userText) &&
+            assetMode !== "procedural"
+          ) {
+            try {
+              const label = singlePhysicalAssetLabel(userText, "asset");
+              const finderMatch = TOOLBOX_ASSET_FINDER_CATEGORIES.find((c) => c.test.test(userText));
+              const query = finderMatch?.keyword || label;
+              const found = await searchRobloxToolbox(query, "Model", 6, { singleAssetOnly: true });
+              const top = found.results[0];
+              if (top) {
+                const fastCharge = await chargeCredits(supabase, userId, creditCostForTier(requested.credits));
+                if (!fastCharge.ok) {
+                  return jsonError(
+                    fastCharge.message ?? "Out of credits.",
+                    fastCharge.code === "banned" ? 403 : 402,
+                    fastCharge.code ?? "no_credits",
+                  );
+                }
+                const folder = finderMatch?.folder ? `BloxSmith_${finderMatch.folder}` : "BloxSmith_Assets";
+                const insertAction = {
+                  kind: "insert_asset" as const,
+                  parent_path: `Workspace/${folder}`,
+                  name: cleanSingleAssetActionName(label),
+                  payload: {
+                    asset_id: top.id,
+                    fallback_ids: (top.fallbackIds ?? found.results.slice(1, 4).map((r) => r.id)).slice(0, 3),
+                    asset_name: top.name,
+                    creator_name: top.creatorName,
+                    source_query: query,
+                    toolbox_only: true,
+                    free_only: true,
+                    no_scripts: true,
+                    strip_scripts: true,
+                    disable_procedural_fallback: true,
+                    single_asset_only: true,
+                    extract_single: true,
+                    exact_quantity: 1,
+                    max_children: 25,
+                    max_scripts: 0,
+                    reject_pack_names: true,
+                    stop_after_insert: true,
+                    ground_snap: true,
+                    _bloxsmith: { source: "chat_fastpath", execution_mode: "fast", single_asset_mode: true },
+                  },
+                };
+                const replyText = `Adding a ${label} to your workspace from the Toolbox — queued for Studio now.`;
+                const { data: msgRow } = await supabase
+                  .from("chat_messages")
+                  .insert({
+                    project_id: projectId,
+                    user_id: userId,
+                    role: "assistant",
+                    content: `${replyText}\n\n_Queued 1 Studio action. Waiting for the Roblox Studio plugin to confirm execution before this build is marked complete._`,
+                    status: "sending",
+                    model: activeModelId,
+                    actions: [insertAction],
+                  })
+                  .select("id")
+                  .single();
+                await supabase.from("plugin_actions").insert({
+                  project_id: projectId,
+                  user_id: userId,
+                  message_id: msgRow?.id ?? null,
+                  kind: insertAction.kind,
+                  parent_path: insertAction.parent_path,
+                  name: insertAction.name,
+                  payload: insertAction.payload,
+                  position: 0,
+                });
+                await supabase.from("build_history").insert({
+                  project_id: projectId,
+                  user_id: userId,
+                  prompt: userText,
+                  model: activeModelId,
+                  files_count: 1,
+                  plugin_status: "Queued",
+                  applied: false,
+                });
+                console.info("[chat/fastpath] queued toolbox insert", {
+                  projectId, userId, query, assetId: top.id, actionName: insertAction.name,
+                });
+                const encoder = new TextEncoder();
+                const words = replyText.split(" ");
+                const stream = new ReadableStream({
+                  async start(controller) {
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "start" })}\n\n`));
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "start-step" })}\n\n`));
+                    const textId = "fp-text-1";
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "text-start", id: textId })}\n\n`));
+                    for (const w of words) {
+                      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "text-delta", id: textId, delta: `${w} ` })}\n\n`));
+                    }
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "text-end", id: textId })}\n\n`));
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "finish-step" })}\n\n`));
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "finish" })}\n\n`));
+                    controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
+                    controller.close();
+                  },
+                });
+                return new Response(stream, {
+                  headers: {
+                    "Content-Type": "text/event-stream",
+                    "Cache-Control": "no-cache, no-transform",
+                    "x-vercel-ai-ui-message-stream": "v1",
+                  },
+                });
+              }
+            } catch (e) {
+              console.error("[chat/fastpath] toolbox fast-path failed, falling back to full AI turn", e);
+            }
+          }
+
           let modelChoice;
           try {
             modelChoice = getProviderModel(activeModelId);
