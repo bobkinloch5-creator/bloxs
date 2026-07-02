@@ -2,6 +2,7 @@
 // Also updates plugin_sessions heartbeat.
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
+import { sanitizeInsertAssetActions, type InsertSanitizeReport } from "@/lib/roblox-toolbox.server";
 
 function admin() {
   return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
@@ -117,6 +118,31 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
               const retry = await retryQ;
               if (retry.error) return json({ error: retry.error.message }, 500);
               actions = retry.data ?? [];
+            }
+          }
+
+          if (actions.length > 0) {
+            const before = actions.map((a) => ({ id: a.id, payload: a.payload }));
+            const report: InsertSanitizeReport = { dropped: [], replaced: [] };
+            await sanitizeInsertAssetActions(actions as unknown as Array<Record<string, unknown>>, report);
+            const survivingIds = new Set(actions.map((a) => a.id));
+            const droppedIds = before.filter((a) => !survivingIds.has(a.id)).map((a) => a.id);
+            if (droppedIds.length > 0) {
+              await sb.from("plugin_actions")
+                .update({ status: "failed", error: "No authorized InsertService-compatible Toolbox asset found.", completed_at: new Date().toISOString() })
+                .in("id", droppedIds);
+            }
+            await Promise.all(actions.map((a) => {
+              const old = before.find((row) => row.id === a.id);
+              if (JSON.stringify(old?.payload ?? null) === JSON.stringify(a.payload ?? null)) return Promise.resolve();
+              return sb.from("plugin_actions").update({ payload: a.payload }).eq("id", a.id).then(() => undefined);
+            }));
+            if (report.dropped.length > 0 || report.replaced.length > 0) {
+              console.info("[plugin/poll] sanitized insert assets before Studio", {
+                userId: profile.id,
+                dropped: report.dropped,
+                replaced: report.replaced,
+              });
             }
           }
 

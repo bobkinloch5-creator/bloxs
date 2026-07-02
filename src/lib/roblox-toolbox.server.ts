@@ -813,7 +813,7 @@ export async function sanitizeInsertAssetActions(
   let verdict: { valid: number[]; blocked: number[]; reasons: Record<number, string> };
   if (allIds.size > 0) {
     try { verdict = await validateAssetIds(Array.from(allIds)); }
-    catch { verdict = { valid: Array.from(allIds).filter((id) => !isAssetBlacklisted(id)), blocked: [], reasons: {} }; }
+    catch { verdict = { valid: [], blocked: Array.from(allIds), reasons: Object.fromEntries(Array.from(allIds).map((id) => [id, "validation_unavailable"])) }; }
   } else {
     verdict = { valid: [], blocked: [], reasons: {} };
   }
@@ -864,7 +864,7 @@ export async function sanitizeInsertAssetActions(
         });
         const rescueIds = res.results.map((r) => r.id).filter((id) => !isAssetBlacklisted(id));
         const rescueVerdict = rescueIds.length > 0
-          ? await validateAssetIds(rescueIds).catch(() => ({ valid: rescueIds, blocked: [], reasons: {} }))
+          ? await validateAssetIds(rescueIds).catch(() => ({ valid: [], blocked: rescueIds, reasons: {} }))
           : { valid: [], blocked: [], reasons: {} };
         const safeSet = new Set(rescueVerdict.valid);
         const safe = res.results.filter((r) => safeSet.has(r.id));

@@ -3,7 +3,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { searchRobloxToolbox, sanitizeInsertAssetActions, type InsertSanitizeReport, type ToolboxCategory, type ToolboxResult } from "@/lib/roblox-toolbox.server";
+import { searchRobloxToolbox, sanitizeInsertAssetActions, testAssetAuthorization, type InsertSanitizeReport, type ToolboxCategory, type ToolboxResult } from "@/lib/roblox-toolbox.server";
 
 const SearchInput = z.object({
   query: z.string().min(2).max(120),
@@ -43,6 +43,11 @@ export const searchToolboxAssets = createServerFn({ method: "POST" })
     }));
     return { source: out.source, query: data.query, category: cat, results, scanned: out.scanned, page: out.page, hasMore: out.hasMore };
   });
+
+export const testToolboxAssetAuthorization = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ assetId: z.number().int().positive() }).parse(input))
+  .handler(async ({ data }) => testAssetAuthorization(data.assetId));
 
 const InsertInput = z.object({
   projectId: z.string().uuid(),

@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { normalizePluginAction } from "@/lib/plugin-actions";
+import { sanitizeInsertAssetActions } from "@/lib/roblox-toolbox.server";
 
 export const listMessages = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -256,8 +257,11 @@ export const queuePreparedStudioActions = createServerFn({ method: "POST" })
       return { ok: true, count: recent?.length ?? 0, alreadyQueued: true };
     }
 
+    const sanitizedActions = normalizedActions as Array<typeof normalizedActions[number] & Record<string, unknown>>;
+    await sanitizeInsertAssetActions(sanitizedActions as unknown as Array<Record<string, unknown>>);
+
     const { error } = await context.supabase.from("plugin_actions").insert(
-      normalizedActions.map((action, i) => ({
+      sanitizedActions.map((action, i) => ({
         project_id: data.projectId,
         user_id: context.userId,
         kind: action.kind,
@@ -280,7 +284,7 @@ export const queuePreparedStudioActions = createServerFn({ method: "POST" })
       })),
     );
     if (error) throw new Error(error.message);
-    return { ok: true, count: normalizedActions.length };
+    return { ok: true, count: sanitizedActions.length };
   });
 
 export const clearMessages = createServerFn({ method: "POST" })
