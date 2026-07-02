@@ -2460,7 +2460,7 @@ export const Route = createFileRoute("/api/chat")({
                   files_count: 1,
                   plugin_status: "Queued",
                   applied: false,
-                }).catch(() => null);
+                });
                 console.info("[chat/fastpath] queued toolbox insert", {
                   projectId, userId, query, assetId: top.id, actionName: insertAction.name,
                 });
