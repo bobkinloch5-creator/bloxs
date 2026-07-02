@@ -287,6 +287,14 @@ function Dashboard() {
               />
             </section>
 
+            {/* Persistent project memory — everything the AI remembers about this project */}
+            {activeProjectId && (
+              <section id="memory">
+                <ProjectMemoryCard projectId={activeProjectId} />
+              </section>
+            )}
+
+
 
             {/* Quick Actions */}
             <section>
