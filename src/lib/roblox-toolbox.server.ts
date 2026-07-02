@@ -1,4 +1,4 @@
-﻿// Server-only helper: search Roblox's public toolbox/marketplace for free assets
+// Server-only helper: search Roblox's public toolbox/marketplace for free assets
 // matching a keyword. Returns a small list of { id, name, creatorName, creatorType,
 // thumbnail, relevance, safety }.
 // Best-effort â€” Roblox occasionally changes these endpoints; we try the public
@@ -386,13 +386,16 @@ function rejectionReason(r: ToolboxResult, opts: { strict?: boolean } = {}): str
   if ((r.relevance ?? 0) < 0.18) return "low_relevance";
   if ((r.safety ?? 0) < 0.62) return "low_safety";
   const isRoblox = r.creatorName.trim().toLowerCase() === "roblox";
-  // Strict mode (single-asset insert): clamp script counts and pack-style names hard.
+  // Strict mode (single-asset insert): only reject packs and truly script-heavy models.
+  // We do NOT reject on hasScripts alone — many legitimate Roblox Toolbox assets include
+  // helper scripts. The plugin-side no_scripts / strip_scripts flags disable them safely.
   if (opts.strict) {
     if (looksLikePack(r.name)) return "looks_like_pack";
-    if (r.hasScripts || (r.scriptCount ?? 0) > 0) return "has_scripts";
-    if (r.hasScripts && !isRoblox && (r.scriptCount ?? 1) > 5) return "too_many_scripts";
+    // Only reject if script count is very high (> 5) or explicitly malicious.
+    if (!isRoblox && (r.scriptCount ?? 0) > 5) return "too_many_scripts";
   }
-  if (r.hasScripts && !isRoblox && (r.scriptCount ?? 1) > 3) return "script_heavy";
+  // Non-strict: block only clearly script-heavy third-party assets.
+  if (!isRoblox && (r.scriptCount ?? 0) > 8) return "script_heavy";
   return null;
 }
 
@@ -539,17 +542,18 @@ async function isAssetPublicDomain(id: number): Promise<boolean | null> {
       headers: { Accept: "application/json" },
       signal: AbortSignal.timeout(6000),
     });
-    if (!res.ok) return null;
+    if (!res.ok) return null; // fail-open: let Studio InsertService be the judge
     const j = (await res.json().catch(() => null)) as any;
     if (!j) return null;
     if (typeof j.IsPublicDomain === "boolean") return j.IsPublicDomain;
     if (typeof j.isPublicDomain === "boolean") return j.isPublicDomain;
-    // Free + on-sale is a strong proxy when the flag isn't returned.
+    // Only block on an EXPLICIT paid signal. If IsForSale is missing or
+    // PriceInRobux is null/zero we treat the asset as accessible.
     const priceInRobux = typeof j.PriceInRobux === "number" ? j.PriceInRobux : null;
+    if (priceInRobux !== null && priceInRobux > 0) return false; // paid
     const isForSale = typeof j.IsForSale === "boolean" ? j.IsForSale : null;
-    if (isForSale === false) return false;
-    if (priceInRobux != null && priceInRobux > 0) return false;
-    return null;
+    if (isForSale === false && priceInRobux === null) return null; // ambiguous — fail open
+    return null; // unknown → let Studio decide
   } catch {
     return null;
   }

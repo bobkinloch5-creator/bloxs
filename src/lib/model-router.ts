@@ -32,24 +32,27 @@ const TASK_PREF: Record<AutoTask, { ids: string[]; reason: string }> = {
     ids: [
       "nvidia/nemotron-3-ultra-550b-a55b",
       "nvidia/deepseek-v4-pro",
+      "nvidia/gpt-oss-120b",
+      "nvidia/qwen3-coder-480b-a35b-instruct",
+      "nvidia/nemotron-super-49b",
+      "nvidia/llama-4-maverick-17b",
       "quatarly/claude-opus-4-6-thinking",
       "quatarly/claude-sonnet-4-6-thinking",
-      "quatarly/gemini-3.1-pro",
-      "nvidia/qwen3-coder-480b-a35b-instruct",
       "lovable/gemini-3.5-flash",
-      "quatarly/claude-haiku-4-5",
     ],
-    reason: "Picked the strongest NVIDIA reasoning model available — best at breaking the Roblox idea into a clean build graph.",
+    reason: "Picked the strongest NVIDIA reasoning model — best at breaking the Roblox idea into a clean build graph.",
   },
   scripting: {
     ids: [
       "nvidia/qwen3-coder-480b-a35b-instruct",
       "nvidia/deepseek-v4-flash",
+      "nvidia/deepseek-v4-pro",
       "nvidia/nemotron-3-ultra-550b-a55b",
+      "nvidia/mixtral-8x22b",
+      "nvidia/llama-3.1-nemotron-70b",
+      "nvidia/nemotron-super-49b",
       "quatarly/gpt-5.1-codex",
-      "quatarly/claude-sonnet-4-6-thinking",
       "lovable/gemini-3.5-flash",
-      "quatarly/claude-haiku-4-5",
     ],
     reason: "Chose an NVIDIA coding-specialist model — best at producing complete, runnable Luau.",
   },
@@ -57,20 +60,22 @@ const TASK_PREF: Record<AutoTask, { ids: string[]; reason: string }> = {
     ids: [
       "nvidia/nemotron-3-ultra-550b-a55b",
       "nvidia/qwen3-coder-480b-a35b-instruct",
+      "nvidia/llama-4-maverick-17b",
+      "nvidia/google-gemma-4-31b-it",
+      "nvidia/minimax-m3",
       "lovable/gemini-3-flash-preview",
       "lovable/gemini-3.5-flash",
-      "quatarly/claude-sonnet-4-6-thinking",
-      "quatarly/claude-haiku-4-5",
     ],
-    reason: "Chose a multimodal fast model — best at modern ScreenGui layout and mobile-safe UI.",
+    reason: "Chose a multimodal NVIDIA model — best at modern ScreenGui layout and mobile-safe UI.",
   },
   assets: {
     ids: [
       "nvidia/nemotron-3-ultra-550b-a55b",
+      "nvidia/llama-4-maverick-17b",
       "nvidia/minimax-m3",
       "nvidia/deepseek-v4-flash",
+      "nvidia/nemotron-super-49b",
       "lovable/gemini-3-flash-preview",
-      "quatarly/claude-haiku-4-5",
     ],
     reason: "Chose an NVIDIA model — strong at ranking safe Toolbox assets and planning insert payloads.",
   },
@@ -79,9 +84,11 @@ const TASK_PREF: Record<AutoTask, { ids: string[]; reason: string }> = {
       "nvidia/deepseek-v4-pro",
       "nvidia/qwen3-coder-480b-a35b-instruct",
       "nvidia/nemotron-3-ultra-550b-a55b",
+      "nvidia/mixtral-8x22b",
+      "nvidia/llama-3.1-nemotron-70b",
+      "nvidia/nemotron-super-49b",
       "quatarly/claude-sonnet-4-6-thinking",
       "lovable/gemini-3.5-flash",
-      "quatarly/claude-haiku-4-5",
     ],
     reason: "Chose a deliberate NVIDIA reasoning/coding model — best at tracing nil-index and event-wiring bugs.",
   },
@@ -89,36 +96,45 @@ const TASK_PREF: Record<AutoTask, { ids: string[]; reason: string }> = {
     ids: [
       "nvidia/nemotron-3-ultra-550b-a55b",
       "nvidia/deepseek-v4-flash",
+      "nvidia/nemotron-super-49b",
+      "nvidia/mixtral-8x22b",
       "quatarly/claude-sonnet-4-6-thinking",
       "lovable/gemini-3.5-flash",
-      "quatarly/claude-haiku-4-5",
     ],
-    reason: "Chose a careful model — best at spotting laggy loops, unanchored parts, and heavy particles.",
+    reason: "Chose a careful NVIDIA model — best at spotting laggy loops, unanchored parts, and heavy particles.",
   },
   testing: {
     ids: [
       "nvidia/deepseek-v4-flash",
+      "nvidia/nemotron-super-49b",
+      "nvidia/llama-4-maverick-17b",
       "nvidia/nemotron-3-ultra-550b-a55b",
       "lovable/gemini-3-flash-preview",
       "lovable/gpt-5-nano",
-      "quatarly/claude-haiku-4-5",
     ],
-    reason: "Chose a fast model — playtest smoke checks don't need deep reasoning.",
+    reason: "Chose a fast NVIDIA model — playtest smoke checks don't need deep reasoning.",
   },
   shortedit: {
     ids: [
       "nvidia/deepseek-v4-flash",
+      "nvidia/nemotron-super-49b",
+      "nvidia/mixtral-8x22b",
       "nvidia/qwen3-coder-480b-a35b-instruct",
+      "nvidia/llama-4-maverick-17b",
       "lovable/gpt-5-nano",
       "lovable/gemini-2.5-flash-lite",
-      "lovable/gemini-3-flash-preview",
-      "quatarly/claude-haiku-4-5",
     ],
-    reason: "Chose the lowest-latency model — small edits don't need a heavyweight.",
+    reason: "Chose the lowest-latency NVIDIA model — small edits don't need a heavyweight.",
   },
   vision: {
-    ids: ["nvidia/nemotron-3-ultra-550b-a55b", "nvidia/minimax-m3", "lovable/gemini-3-flash-preview", "quatarly/claude-haiku-4-5"],
-    reason: "Chose an NVIDIA model — uses injected vision summaries plus asset metadata for Roblox builds.",
+    ids: [
+      "nvidia/llama-4-maverick-17b",
+      "nvidia/nemotron-3-ultra-550b-a55b",
+      "nvidia/minimax-m3",
+      "nvidia/google-gemma-4-31b-it",
+      "lovable/gemini-3-flash-preview",
+    ],
+    reason: "Chose an NVIDIA multimodal model — uses injected vision summaries plus asset metadata for Roblox builds.",
   },
 };
 
@@ -179,3 +195,15 @@ export const TASK_LABELS: Record<AutoTask, string> = {
   shortedit: "Short edits & retries",
   vision: "Screenshot / vision",
 };
+
+// ── NVIDIA Super AI Ensemble ──────────────────────────────────────────────
+// Returns every NVIDIA Working model sorted: premium first, then balanced.
+// Used by the website's Super AI panel to show the full ensemble.
+export function getSuperAiEnsemble(): ModelOption[] {
+  return MODELS
+    .filter((m) => m.gateway === "nvidia" && isSelectable(m))
+    .sort((a, b) => {
+      const tierOrder = { premium: 0, balanced: 1, fast: 2 };
+      return (tierOrder[a.tier] ?? 2) - (tierOrder[b.tier] ?? 2);
+    });
+}
