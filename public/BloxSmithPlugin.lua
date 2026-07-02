@@ -1084,6 +1084,11 @@ local function tryLoadAsset(numId)
 	return false, tostring(model)
 end
 
+local function jsonSafe(v)
+	local ok, encoded = pcall(function() return HttpService:JSONEncode(v) end)
+	return ok and encoded or tostring(v)
+end
+
 -- Names that almost always indicate a multi-asset bundle / showcase scene.
 -- Single-asset inserts must reject these to avoid dumping a whole prop pack
 -- into Workspace when the user asked for one object.
@@ -1146,13 +1151,39 @@ function Actions.insert_asset(a)
 	if #candidates == 0 then return false, "missing assetId" end
 
 	local model, usedId, lastErr
+	local attempts = {}
 	for _, cid in ipairs(candidates) do
+		appendLog(("InsertService attempt assetId=%d name=%s creator=%s type=%s public=%s verified=%s retry=%d"):format(
+			cid,
+			tostring(payload.asset_name or payload.name or name or "unknown"),
+			tostring(payload.creator_name or "unknown"),
+			tostring(payload.asset_type or payload.requested_asset_type or "Model"),
+			tostring(payload.is_public or payload.free_only or payload.toolbox_only or "unknown"),
+			tostring(payload.is_verified or (payload.preview and payload.preview.verifiedCreator) or false),
+			#attempts
+		), "debug")
 		local ok, res = tryLoadAsset(cid)
+		table.insert(attempts, {
+			asset_id = cid,
+			asset_name = tostring(payload.asset_name or payload.name or name or "unknown"),
+			creator = tostring(payload.creator_name or "unknown"),
+			asset_type = tostring(payload.asset_type or payload.requested_asset_type or "Model"),
+			is_public = payload.is_public or payload.free_only or payload.toolbox_only,
+			is_verified = payload.is_verified or (payload.preview and payload.preview.verifiedCreator) or false,
+			insertservice_response = ok and "ok" or tostring(res),
+			http_response = tostring(res),
+			retry_count = #attempts,
+		})
 		if ok then model = res; usedId = cid; break end
 		lastErr = res
 	end
 	if not model then
-		return false, ("InsertService failed for %d candidates: %s"):format(#candidates, tostring(lastErr or "unknown"))
+		return false, ("InsertService failed for %d candidates: %s | attempted_ids=%s | diagnostics=%s"):format(
+			#candidates,
+			tostring(lastErr or "unknown"),
+			table.concat(candidates, ","),
+			jsonSafe(attempts)
+		)
 	end
 
 	-- Script quarantine — honor toolbox_only / no_scripts / strict modes.
@@ -1290,7 +1321,7 @@ function Actions.insert_asset(a)
 	appendLog(("Inserted asset %d → %s (safety:%s, scripts:%d, sus:%d)"):format(
 		usedId, fullPath(placed), safetyStatus, scriptCount, suspiciousCount
 	))
-	return true, nil, placed, { asset_id = usedId, safety_status = safetyStatus, script_count = scriptCount, suspicious_count = suspiciousCount, fallback_used = usedId ~= primary }
+	return true, nil, placed, { asset_id = usedId, attempted_ids = candidates, insert_attempts = attempts, safety_status = safetyStatus, script_count = scriptCount, suspicious_count = suspiciousCount, fallback_used = usedId ~= primary }
 end
 
 function Actions.set_properties(a)
