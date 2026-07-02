@@ -193,11 +193,18 @@ export const Route = createFileRoute("/api/public/plugin/complete")({
 
           for (const messageId of affectedMessageIds) {
             const { data: rows } = await sb.from("plugin_actions")
-              .select("status, error")
+              .select("status, error, kind, payload")
               .eq("message_id", messageId)
               .eq("user_id", profile.id);
             const total = rows?.length ?? 0;
-            const failed = rows?.filter((r) => r.status === "failed") ?? [];
+            const hasReplacementSuccess = rows?.some((r) => {
+              const payload = (r.payload && typeof r.payload === "object" ? r.payload : {}) as Record<string, unknown>;
+              return r.status === "done" && r.kind === "insert_asset" && (payload._original_asset_id || Array.isArray(payload._attempted_ids));
+            }) ?? false;
+            const failed = (rows?.filter((r) => r.status === "failed") ?? []).filter((r) => {
+              if (!hasReplacementSuccess || r.kind !== "insert_asset") return true;
+              return !/not authorized|unauthorized|permission denied|\b403\b|forbidden|InsertService|private|moderated|off ?sale/i.test(String(r.error ?? ""));
+            });
             const done = rows?.filter((r) => r.status === "done").length ?? 0;
             const pending = rows?.filter((r) => r.status !== "done" && r.status !== "failed").length ?? 0;
             // Keep the message in "sending" while a queued fallback is still pending.
