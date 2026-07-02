@@ -515,7 +515,7 @@ export const MODELS: ModelOption[] = [
 
 ];
 
-export const DEFAULT_MODEL_ID = "nvidia/nemotron-3-ultra-550b-a55b";
+export const DEFAULT_MODEL_ID = "nvidia/gpt-oss-120b";
 export const FALLBACK_MODEL_ID = "nvidia/deepseek-v4-flash";
 
 export function findModel(id: string): ModelOption {
