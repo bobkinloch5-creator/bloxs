@@ -307,6 +307,18 @@ const PACK_PATTERNS = [
   /\bmega\b/i,
   /\btemplate\b/i,
   /\bstarter\s*(place|game|kit)\b/i,
+  // Extra patterns found in real search results:
+  /\bsound\s*kit\b/i,
+  /\bmusic\s*kit\b/i,
+  /\bface\s*pack\b/i,
+  /\btexture\s*kit\b/i,
+  /\blighting\s*kit\b/i,
+  /\begg\s*pets?\s*kit\b/i,
+  /\brigs?\s*(kit|pack)\b/i,
+  /\bmesh\s*(kit|pack)\b/i,
+  /\bclassic\s*build(ing)?\s*kit\b/i,
+  /\bstud\s*surface\b/i,
+  /\bold\s*roblox\s*(blocks?|kit)\b/i,
 ];
 
 export function looksLikePack(name: string): boolean {
@@ -386,12 +398,14 @@ function rejectionReason(r: ToolboxResult, opts: { strict?: boolean } = {}): str
   if ((r.relevance ?? 0) < 0.18) return "low_relevance";
   if ((r.safety ?? 0) < 0.62) return "low_safety";
   const isRoblox = r.creatorName.trim().toLowerCase() === "roblox";
-  // Strict mode (single-asset insert): only reject packs and truly script-heavy models.
-  // We do NOT reject on hasScripts alone — many legitimate Roblox Toolbox assets include
-  // helper scripts. The plugin-side no_scripts / strip_scripts flags disable them safely.
+  // Always reject pack/kit-style names — they are multi-asset bundles that
+  // dump dozens of unrelated objects into Studio and often fail to insert
+  // because they are group-owned or have restricted permissions.
+  if (looksLikePack(r.name)) return "looks_like_pack";
+  // Strict mode (single-asset insert): only reject truly script-heavy models.
+  // We do NOT reject on hasScripts alone — many legitimate Roblox Toolbox assets
+  // include helper scripts. The plugin-side no_scripts/strip_scripts flags handle them.
   if (opts.strict) {
-    if (looksLikePack(r.name)) return "looks_like_pack";
-    // Only reject if script count is very high (> 5) or explicitly malicious.
     if (!isRoblox && (r.scriptCount ?? 0) > 5) return "too_many_scripts";
   }
   // Non-strict: block only clearly script-heavy third-party assets.

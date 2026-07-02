@@ -96,9 +96,9 @@ async function tryNvidiaMagpieTts(input: string, request: Request): Promise<Resp
 
 /**
  * Chatterbox TTS — Resemble.AI multilingual model hosted on NVIDIA NIM.
- * Expressive, natural voices in 23 languages. Tried as a second NVIDIA option
- * when Magpie is unavailable or not configured.
+ * The most human-sounding option: expressive, natural, warm voice in 23 languages.
  * API: https://integrate.api.nvidia.com/v1/audio/speech  (OpenAI-compatible)
+ * Tried FIRST — produces the most realistic human-like voice.
  */
 async function tryNvidiaChatterboxTts(input: string, request: Request): Promise<Response | null> {
   if (process.env.NVIDIA_CHATTERBOX_ENABLED === "false") return null;
@@ -115,8 +115,13 @@ async function tryNvidiaChatterboxTts(input: string, request: Request): Promise<
       body: JSON.stringify({
         model: "resembleai/chatterbox-multilingual-tts",
         input,
-        voice: "default",
+        // "default" gives a warm, confident American English assistant voice
+        voice: process.env.NVIDIA_CHATTERBOX_VOICE || "default",
         response_format: "wav",
+        // Expressiveness: 0=flat, 1=natural, >1=theatrical. 0.9 is warm & clear.
+        exaggeration: parseFloat(process.env.NVIDIA_TTS_EXAGGERATION || "0.9"),
+        // Guidance scale: higher = closer to the reference voice. 3 is balanced.
+        cfg_weight: parseFloat(process.env.NVIDIA_TTS_CFG_WEIGHT || "3"),
       }),
       signal: request.signal,
     });
@@ -177,12 +182,13 @@ export const Route = createFileRoute("/api/voice")({
             return jsonError(charge.message ?? "Out of credits.", 402, charge.code ?? "no_credits");
           }
 
-          const nvidiaVoice = await tryNvidiaMagpieTts(input, request);
-          if (nvidiaVoice) return nvidiaVoice;
-
-          // Second NVIDIA option: Chatterbox multilingual TTS (Resemble.AI NIM)
+          // 1. NVIDIA Chatterbox (Resemble.AI) — most human-sounding, tried first
           const chatterboxVoice = await tryNvidiaChatterboxTts(input, request);
           if (chatterboxVoice) return chatterboxVoice;
+
+          // 2. NVIDIA Magpie TTS — multilingual fallback
+          const nvidiaVoice = await tryNvidiaMagpieTts(input, request);
+          if (nvidiaVoice) return nvidiaVoice;
 
           const apiKey = process.env.LOVABLE_API_KEY;
           if (!apiKey && !process.env.ELEVENLABS_API_KEY) {

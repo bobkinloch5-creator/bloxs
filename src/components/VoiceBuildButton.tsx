@@ -11,13 +11,9 @@ type Props = {
 
 /**
  * Hands-free voice loop for the project chat:
- *  • Continuously listens via the browser SpeechRecognition API
+ *  • Listens via the browser SpeechRecognition API on explicit Start click
  *  • Auto-sends each finalized utterance into the chat (which then builds in Studio)
  *  • Auto-enables BloxSmith TTS so the assistant's reply is spoken back through speakers
- *
- * No separate conversational-agent account required — this uses the same
- * /api/voice route as chat replies, preferring NVIDIA voice when configured
- * and falling back to the existing TTS providers.
  */
 export function VoiceBuildButton({ onUtterance, setTtsEnabled, disabled }: Props) {
   const [open, setOpen] = useState(false);
@@ -27,6 +23,9 @@ export function VoiceBuildButton({ onUtterance, setTtsEnabled, disabled }: Props
   const [interim, setInterim] = useState<string>("");
   const recRef = useRef<any>(null);
   const wantOnRef = useRef(false);
+  // Keep onUtterance in a ref so the recognition callback never captures a stale version
+  const onUtteranceRef = useRef(onUtterance);
+  useEffect(() => { onUtteranceRef.current = onUtterance; }, [onUtterance]);
 
   const getSR = () =>
     (typeof window !== "undefined" &&
@@ -37,34 +36,44 @@ export function VoiceBuildButton({ onUtterance, setTtsEnabled, disabled }: Props
   const stop = useCallback(() => {
     wantOnRef.current = false;
     try { recRef.current?.stop(); } catch {}
+    recRef.current = null;
     setListening(false);
   }, []);
 
+  // start() must only be called from a real click handler — browsers block
+  // getUserMedia inside useEffect because it lacks a user-gesture signal.
   const start = useCallback(async () => {
     setError(null);
+    setLastHeard("");
+    setInterim("");
+
     const SR = getSR();
     if (!SR) {
       setError("Voice input isn't supported here. Try Chrome, Edge, or Brave.");
       return;
     }
+
+    // Request mic permission — MUST come from a direct click event.
     try {
       await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch (e: any) {
-      setError(
-        e?.name === "NotAllowedError"
-          ? "Microphone permission was blocked. Enable it in your browser site settings."
-          : e?.name === "NotFoundError"
-          ? "No microphone was detected on this device."
-          : "Could not access the microphone.",
-      );
+      if (e?.name === "NotAllowedError" || e?.name === "PermissionDeniedError") {
+        setError("Microphone blocked. Click the 🔒 icon in your browser address bar and allow mic access, then try again.");
+      } else if (e?.name === "NotFoundError") {
+        setError("No microphone detected on this device.");
+      } else {
+        setError("Could not access the microphone. Check your browser settings.");
+      }
       return;
     }
+
     try {
       const rec = new SR();
       rec.lang = navigator.language || "en-US";
       rec.interimResults = true;
       rec.continuous = true;
       rec.maxAlternatives = 1;
+
       rec.onresult = (e: any) => {
         let finalText = "";
         let interimText = "";
@@ -78,28 +87,31 @@ export function VoiceBuildButton({ onUtterance, setTtsEnabled, disabled }: Props
           const t = finalText.trim();
           setLastHeard(t);
           setInterim("");
-          onUtterance(t);
+          onUtteranceRef.current(t);
         }
       };
+
       rec.onerror = (ev: any) => {
         if (ev?.error === "not-allowed" || ev?.error === "service-not-allowed") {
-          setError("Microphone permission was blocked. Enable it in your browser site settings.");
+          setError("Microphone blocked. Enable it in your browser site settings.");
           wantOnRef.current = false;
           setListening(false);
         } else if (ev?.error === "no-speech" || ev?.error === "aborted") {
-          // benign — recogniser will restart via onend
+          // Benign — recognizer restarts via onend
         } else {
           setError(`Voice error: ${ev?.error ?? "unknown"}`);
         }
       };
+
       rec.onend = () => {
-        // restart if user still wants to listen (continuous mode often ends after pauses)
         if (wantOnRef.current) {
+          // Restart automatically — continuous mode ends after pauses
           try { rec.start(); } catch {}
         } else {
           setListening(false);
         }
       };
+
       wantOnRef.current = true;
       rec.start();
       recRef.current = rec;
@@ -108,18 +120,17 @@ export function VoiceBuildButton({ onUtterance, setTtsEnabled, disabled }: Props
       setError(e?.message ?? "Could not start voice recognition.");
       setListening(false);
     }
-  }, [onUtterance]);
+  }, []); // stable — uses refs, no deps needed
 
-  // Open ↔ enable TTS so the AI speaks its replies aloud
+  // Enable TTS when panel opens
   useEffect(() => {
     if (open) setTtsEnabled?.(true);
   }, [open, setTtsEnabled]);
 
-  // Auto-start when panel opens, auto-stop when it closes
+  // Stop recognition when panel closes
   useEffect(() => {
-    if (open && !listening) void start();
-    if (!open && listening) stop();
-  }, [open, listening, start, stop]);
+    if (!open) stop();
+  }, [open, stop]);
 
   // Cleanup on unmount
   useEffect(() => () => stop(), [stop]);
@@ -162,7 +173,9 @@ export function VoiceBuildButton({ onUtterance, setTtsEnabled, disabled }: Props
               </div>
 
               <div className="text-center text-xs" style={{ color: "var(--bs-muted-fg)" }}>
-                {listening ? "Speak — your words are sent to BloxSmith and built in Studio" : "Tap Start to begin hands-free voice"}
+                {listening
+                  ? "🎙️ Listening — speak and BloxSmith will build it in Studio"
+                  : "Click Start, allow mic access, then speak"}
               </div>
 
               {(interim || lastHeard) && (
@@ -183,19 +196,28 @@ export function VoiceBuildButton({ onUtterance, setTtsEnabled, disabled }: Props
 
               <div className="flex gap-2">
                 {!listening ? (
-                  <button onClick={start} className="bs-send-btn flex h-9 items-center gap-1.5 px-4 text-xs font-semibold">
+                  <button
+                    type="button"
+                    onClick={start}
+                    className="bs-send-btn flex h-9 items-center gap-1.5 px-4 text-xs font-semibold"
+                  >
                     <Mic className="h-3.5 w-3.5" /> Start
                   </button>
                 ) : (
-                  <button onClick={stop} className="bs-quick" style={{ borderColor: "var(--bs-danger)", color: "var(--bs-danger)" }}>
+                  <button
+                    type="button"
+                    onClick={stop}
+                    className="bs-quick"
+                    style={{ borderColor: "var(--bs-danger)", color: "var(--bs-danger)" }}
+                  >
                     <MicOff className="h-3.5 w-3.5" /> Mute
                   </button>
                 )}
-                <button onClick={() => setOpen(false)} className="bs-quick">Close</button>
+                <button type="button" onClick={() => setOpen(false)} className="bs-quick">Close</button>
               </div>
 
               <p className="text-center text-[10px] text-white/40">
-                Each thing you say is auto-sent into the chat. BloxSmith speaks its reply back through your speakers.
+                Everything you say is sent to BloxSmith. It builds in Studio and speaks its reply back.
               </p>
             </div>
           </div>
