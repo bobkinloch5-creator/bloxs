@@ -107,7 +107,7 @@ export const Route = createFileRoute("/api/public/plugin/complete")({
                 // on its next poll. Never re-use blacklisted IDs.
                 try {
                   const query = String(
-                    payload.source_query ?? payload.asset_name ?? action.payload && (action as { name?: string }).name ?? "",
+                    payload.source_query ?? payload.asset_name ?? (action as { name?: string }).name ?? "",
                   ).trim();
                   const attempted = Array.isArray((payload as { _attempted_ids?: unknown })._attempted_ids)
                     ? ((payload as { _attempted_ids: unknown[] })._attempted_ids as unknown[]).map((n) => Number(n)).filter((n) => Number.isFinite(n))
