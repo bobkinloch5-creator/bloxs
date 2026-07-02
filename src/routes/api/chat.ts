@@ -2887,6 +2887,33 @@ export const Route = createFileRoute("/api/chat")({
                 }).select("id").single();
 
                 if (actions.length > 0 && mode === "build") {
+                  // AI-emitted insert_asset actions often carry hallucinated
+                  // asset_ids. Resolve each one via a fresh live Toolbox search
+                  // keyed on source_query/asset_name so Studio actually receives
+                  // a real, currently-available free asset instead of a 401.
+                  const resolveCache = new Map<string, { id: number; fallbacks: number[] } | null>();
+                  for (const a of actions as Array<{ kind?: string; name?: string; payload?: Record<string, unknown> }>) {
+                    if (a?.kind !== "insert_asset") continue;
+                    const p = a.payload ?? (a.payload = {});
+                    const q = String(p.source_query ?? p.asset_name ?? a.name ?? "").trim();
+                    if (!q) continue;
+                    const key = q.toLowerCase();
+                    let hit = resolveCache.get(key);
+                    if (hit === undefined) {
+                      try {
+                        const res = await searchRobloxToolbox(q, "Model", 6, { singleAssetOnly: Boolean(p.single_asset_only) });
+                        const top = res.results[0];
+                        hit = top ? { id: top.id, fallbacks: (top.fallbackIds ?? res.results.slice(1, 4).map((r) => r.id)).slice(0, 3) } : null;
+                      } catch { hit = null; }
+                      resolveCache.set(key, hit);
+                    }
+                    if (hit) {
+                      const original = Number(p.asset_id);
+                      if (Number.isFinite(original) && original !== hit.id) p._original_asset_id = original;
+                      p.asset_id = hit.id;
+                      p.fallback_ids = hit.fallbacks;
+                    }
+                  }
                   // Validate every insert_asset against Roblox's toolbox-details
                   // API and the runtime blacklist before Studio ever sees it.
                   await sanitizeInsertAssetActions(actions as unknown as Array<Record<string, unknown>>).catch(() => null);
