@@ -94,6 +94,55 @@ async function tryNvidiaMagpieTts(input: string, request: Request): Promise<Resp
   });
 }
 
+/**
+ * Chatterbox TTS — Resemble.AI multilingual model hosted on NVIDIA NIM.
+ * Expressive, natural voices in 23 languages. Tried as a second NVIDIA option
+ * when Magpie is unavailable or not configured.
+ * API: https://integrate.api.nvidia.com/v1/audio/speech  (OpenAI-compatible)
+ */
+async function tryNvidiaChatterboxTts(input: string, request: Request): Promise<Response | null> {
+  if (process.env.NVIDIA_CHATTERBOX_ENABLED === "false") return null;
+  const key = getNvidiaKey();
+  if (!key || key.startsWith("nvapi-REPLACE")) return null;
+
+  try {
+    const upstream = await fetch("https://integrate.api.nvidia.com/v1/audio/speech", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${key}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "resembleai/chatterbox-multilingual-tts",
+        input,
+        voice: "default",
+        response_format: "wav",
+      }),
+      signal: request.signal,
+    });
+
+    if (!upstream.ok || !upstream.body) {
+      const detail = await upstream.text().catch(() => "");
+      console.warn("[voice] NVIDIA Chatterbox TTS unavailable", upstream.status, detail.slice(0, 200));
+      return null;
+    }
+
+    const contentType = upstream.headers.get("content-type") || "audio/wav";
+    return new Response(upstream.body, {
+      headers: {
+        "Content-Type": contentType.startsWith("audio/") ? contentType : "audio/wav",
+        "Cache-Control": "no-cache, no-transform",
+        "X-Accel-Buffering": "no",
+        "X-Voice-Provider": "nvidia-chatterbox",
+      },
+    });
+  } catch (e: any) {
+    if (e?.name === "AbortError") return null;
+    console.warn("[voice] Chatterbox fetch error", e?.message);
+    return null;
+  }
+}
+
 export const Route = createFileRoute("/api/voice")({
   server: {
     handlers: {
@@ -130,6 +179,10 @@ export const Route = createFileRoute("/api/voice")({
 
           const nvidiaVoice = await tryNvidiaMagpieTts(input, request);
           if (nvidiaVoice) return nvidiaVoice;
+
+          // Second NVIDIA option: Chatterbox multilingual TTS (Resemble.AI NIM)
+          const chatterboxVoice = await tryNvidiaChatterboxTts(input, request);
+          if (chatterboxVoice) return chatterboxVoice;
 
           const apiKey = process.env.LOVABLE_API_KEY;
           if (!apiKey && !process.env.ELEVENLABS_API_KEY) {

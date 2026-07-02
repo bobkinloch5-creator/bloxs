@@ -21,6 +21,8 @@ import { improvePrompt } from "@/lib/improve.functions";
 import { saveProjectAsset } from "@/lib/project-assets.functions";
 import { Link } from "@tanstack/react-router";
 import { Plug } from "lucide-react";
+import { VoiceBuildButton } from "@/components/VoiceBuildButton";
+import { useBloxSmithSpeaker } from "@/components/VoiceControls";
 
 
 // Strip internal machinery from what the user sees in chat.
@@ -187,6 +189,15 @@ export function WorkspaceChat({
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [token, setToken] = useState<string | null>(null);
   const [enhancing, setEnhancing] = useState(false);
+  // 🎙️ NVIDIA Voice — TTS enabled state persisted across sessions
+  const [ttsEnabled, setTtsEnabled] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("bs:tts-enabled") === "1";
+  });
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem("bs:tts-enabled", ttsEnabled ? "1" : "0");
+  }, [ttsEnabled]);
   // 🌍 Procedural Generation toggle — when ON, BloxSmith may intelligently expand
   // the build (terrain, foliage, roads, decorations) to match the theme. When OFF
   // (default), only the exact thing the user asked for is built — no extras.
@@ -198,6 +209,9 @@ export function WorkspaceChat({
     if (typeof window === "undefined") return;
     window.localStorage.setItem("bs:procedural-generation", proceduralGeneration ? "1" : "0");
   }, [proceduralGeneration]);
+
+  // NVIDIA-powered TTS speaker — speaks AI replies back through the user's speakers
+  const speaker = useBloxSmithSpeaker(ttsEnabled);
 
   const modeRef = useRef<HTMLDivElement | null>(null);
   const attachInputRef = useRef<HTMLInputElement | null>(null);
@@ -276,6 +290,20 @@ export function WorkspaceChat({
     id: activeProjectId ?? "no-project",
     transport,
     onError: (e) => toast.error(e?.message || "The AI request failed."),
+    onFinish: (msg) => {
+      // Auto-speak the final AI reply through NVIDIA TTS when voice is enabled
+      if (ttsEnabled && msg.role === "assistant") {
+        const rawText = (msg.parts ?? []).map((p: any) => p.type === "text" ? p.text : "").join("");
+        const cleaned = rawText
+          .replace(/```[\s\S]*?```/g, " ")
+          .replace(/<bloxsmith-actions>[\s\S]*?<\/bloxsmith-actions>/gi, " ")
+          .replace(/[#*_`>]/g, " ")
+          .replace(/\s+/g, " ")
+          .trim()
+          .slice(0, 1200);
+        if (cleaned) speaker.speak(cleaned);
+      }
+    },
   });
   const [stopped, setStopped] = useState(false);
 
@@ -640,6 +668,16 @@ export function WorkspaceChat({
 
       <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 sm:flex sm:flex-wrap sm:justify-between sm:gap-3">
         <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+          {/* 🎙️ NVIDIA Voice Build Button — speak to BloxSmith, it builds in Studio and speaks back */}
+          <VoiceBuildButton
+            onUtterance={(text) => {
+              // Voice utterances always go to Build mode so they execute in Studio
+              setMode("build");
+              setTimeout(() => submit(text), 0);
+            }}
+            setTtsEnabled={setTtsEnabled}
+            disabled={busy}
+          />
           <button
             type="button"
             onClick={pickFiles}
