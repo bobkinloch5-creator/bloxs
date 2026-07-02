@@ -261,9 +261,6 @@ export function WorkspaceChat({
       },
       body: () => ({
         projectId: activeProjectId,
-        mode, // "chat" or "build" — the server treats them differently
-      body: () => ({
-        projectId: activeProjectId,
         // Read the live ref, not the state var, so a synchronous mode flip in
         // the same click (Image button → "chat") is honored on the very next
         // send instead of leaking the previous render's mode.
