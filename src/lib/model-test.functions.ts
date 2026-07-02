@@ -101,7 +101,7 @@ function classifyHealth(args: {
 }
 
 async function assertOwner(context: { supabase: any; userId: string }) {
-  const { data: isOwner } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "owner" });
+  const { data: isOwner } = await context.supabase.rpc("current_user_has_role", { _role: "owner" });
   if (!isOwner) throw new Error("Not authorized");
 }
 

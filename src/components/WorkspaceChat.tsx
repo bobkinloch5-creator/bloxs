@@ -184,6 +184,11 @@ export function WorkspaceChat({
 
   const [prompt, setPrompt] = useState("");
   const [mode, setMode] = useState<Mode>("build");
+  // Live mirror of `mode` — read by the transport body and by submit()'s
+  // plugin/project gates so a synchronous flip (e.g. the Image button) takes
+  // effect immediately, without waiting for React to flush the state update.
+  const liveModeRef = useRef<Mode>("build");
+  useEffect(() => { liveModeRef.current = mode; }, [mode]);
   const [buildMode, setBuildMode] = useState<"Smart Build" | "Fast Build" | "Deep Build">("Smart Build");
   const [modeOpen, setModeOpen] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
@@ -256,7 +261,10 @@ export function WorkspaceChat({
       },
       body: () => ({
         projectId: activeProjectId,
-        mode, // "chat" or "build" — the server treats them differently
+        // Read the live ref, not the state var, so a synchronous mode flip in
+        // the same click (Image button → "chat") is honored on the very next
+        // send instead of leaking the previous render's mode.
+        mode: liveModeRef.current,
         buildQuality: buildMode === "Deep Build" ? "full_game" : buildMode === "Fast Build" ? "basic" : "premium",
         executionMode: buildMode === "Fast Build" ? "fast" : "safe",
         proceduralGeneration,
@@ -396,17 +404,21 @@ export function WorkspaceChat({
     }, 0);
   }, [token, status, activeProjectId, onRequestNewProject, createMut, sendMessage]);
 
-  async function submit(override?: string) {
+  async function submit(override?: string, overrideMode?: Mode) {
 
     const text = (override ?? prompt).trim();
     if (!text) { toast.error("Type a message first."); return; }
     if (!token) { toast.error("Please sign in again."); return; }
     if (status === "submitted" || status === "streaming") return;
 
+    // Use the live mode ref (or an explicit override from the caller) so a
+    // synchronous mode flip in the same click cycle is honored on this send.
+    const effectiveMode: Mode = overrideMode ?? liveModeRef.current;
+
     // Build mode is a no-op if the Studio plugin isn't connected — actions
     // would just pile up in the queue with nothing polling for them. Block
     // the send, tell the user exactly why, and point them at /plugin.
-    if (mode === "build" && !pluginOnline) {
+    if (effectiveMode === "build" && !pluginOnline) {
       toast.error("Roblox Studio plugin isn't connected — install and open the BloxSmith plugin in Studio, then try Build again.");
       return;
     }
@@ -414,7 +426,7 @@ export function WorkspaceChat({
     // Only Build needs a project. If none is active, prompt for the new-project
     // modal instead of silently spinning one up from the prompt text.
     let pid = activeProjectId;
-    if (!pid && mode === "build") {
+    if (!pid && effectiveMode === "build") {
       if (onRequestNewProject) {
         onRequestNewProject();
         toast.info("Create a project first — the details help the AI build the right game.");
@@ -695,7 +707,12 @@ export function WorkspaceChat({
             type="button"
             onClick={() => {
               // Image generation is a Chat Mode feature — never trigger Build /
-              // Studio actions from this button. Force chat mode before sending.
+              // Studio actions from this button. Flip the live mode ref
+              // synchronously (so this send goes out as chat), mirror it into
+              // React state for UI, and pass an explicit "chat" override to
+              // submit() so its plugin/project gates use chat semantics even
+              // if the state hasn't flushed yet.
+              liveModeRef.current = "chat";
               if (mode !== "chat") setMode("chat");
               const trimmed = prompt.trim();
               if (!trimmed) {
@@ -708,9 +725,7 @@ export function WorkspaceChat({
               }
               const alreadyImage = /^(generate|create|make|design|draw)\b[^\n]*\b(image|logo|thumbnail|icon|banner|art)\b/i.test(trimmed);
               const finalText = alreadyImage ? trimmed : `Generate an image: ${trimmed}`;
-              // Defer the send by one tick so the mode state flush lands first
-              // and the request goes out with mode: "chat".
-              setTimeout(() => submit(finalText), 0);
+              submit(finalText, "chat");
             }}
             disabled={busy}
             className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg border border-fuchsia-400/40 bg-fuchsia-500/10 px-3 py-2 text-xs font-semibold text-fuchsia-100 transition hover:bg-fuchsia-500/20 hover:border-fuchsia-400/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
