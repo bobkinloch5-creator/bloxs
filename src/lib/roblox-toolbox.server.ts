@@ -859,8 +859,9 @@ export async function sanitizeInsertAssetActions(
     let rescue = rescueCache.get(query.toLowerCase());
     if (rescue === undefined) {
       try {
-        const res = await searchRobloxToolbox(query, "Model", 8, {
+        const res = await searchRobloxToolbox(query, "Model", 24, {
           singleAssetOnly: Boolean(p.single_asset_only),
+          page: Math.min(8, Math.floor(cleanFallbacks.length / 8)),
         });
         const rescueIds = res.results.map((r) => r.id).filter((id) => !isAssetBlacklisted(id));
         const rescueVerdict = rescueIds.length > 0
@@ -975,9 +976,11 @@ export async function searchRobloxToolbox(
       ...ranked.filter((row) => !topIds.has(row.id)),
     ];
     const start = page * safeLimit;
-    const end = start + safeLimit;
+    const returnEnd = start + safeLimit;
+    const validationEnd = start + Math.min(Math.max(safeLimit * 5, safeLimit), 50);
+    const end = validationEnd;
     const diversified = diversifiedAll.slice(start, end);
-    (rank as unknown as { _hasMore?: boolean })._hasMore = diversifiedAll.length > end;
+    (rank as unknown as { _hasMore?: boolean })._hasMore = diversifiedAll.length > returnEnd;
 
     const chosenIds = diversified.slice(0, Math.min(4, diversified.length)).map((row) => row.id);
     recentAssetsByKey.set(usageKey, Array.from(new Set([...chosenIds, ...(recentAssetsByKey.get(usageKey) ?? [])])).slice(0, RECENT_ASSET_LIMIT));
@@ -1206,7 +1209,7 @@ export async function searchRobloxToolbox(
         }
       } catch { /* best-effort */ }
       const hasMore = (rank as unknown as { _hasMore?: boolean })._hasMore ?? false;
-      const out = { source: "live" as const, results: insertableRanked, searchedTerms: activeTerms, scanned: liveRows.size, page, hasMore };
+      const out = { source: "live" as const, results: insertableRanked.slice(0, safeLimit), searchedTerms: activeTerms, scanned: liveRows.size, page, hasMore };
       cacheSet(cacheKey, out);
       return out;
     }

@@ -131,9 +131,10 @@ export const Route = createFileRoute("/api/public/plugin/complete")({
                     ? ((payload as { _attempted_ids: unknown[] })._attempted_ids as unknown[]).map((n) => Number(n)).filter((n) => Number.isFinite(n))
                     : [];
                   attempted.push(...bad);
-                  if (query && attempted.length < 6) {
-                    const found = await searchRobloxToolbox(query, "Model", 12, {
+                  if (query && attempted.length < 30) {
+                    const found = await searchRobloxToolbox(query, "Model", 24, {
                       singleAssetOnly: Boolean((payload as { single_asset_only?: boolean }).single_asset_only),
+                      page: Math.min(8, Math.floor(attempted.length / 12)),
                     });
                     const candidateIds = found.results
                       .map((r) => r.id)
