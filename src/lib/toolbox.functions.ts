@@ -3,7 +3,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { searchRobloxToolbox, isAssetBlacklisted, assetBlacklistReason, type InsertSanitizeReport, type ToolboxCategory, type ToolboxResult } from "@/lib/roblox-toolbox.server";
+import { searchRobloxToolbox, sanitizeInsertAssetActions, testAssetAuthorization, type InsertSanitizeReport, type ToolboxCategory, type ToolboxResult } from "@/lib/roblox-toolbox.server";
 
 const SearchInput = z.object({
   query: z.string().min(2).max(120),
@@ -43,6 +43,11 @@ export const searchToolboxAssets = createServerFn({ method: "POST" })
     }));
     return { source: out.source, query: data.query, category: cat, results, scanned: out.scanned, page: out.page, hasMore: out.hasMore };
   });
+
+export const testToolboxAssetAuthorization = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ assetId: z.number().int().positive() }).parse(input))
+  .handler(async ({ data }) => testAssetAuthorization(data.assetId));
 
 const InsertInput = z.object({
   projectId: z.string().uuid(),
@@ -139,25 +144,12 @@ export const queueToolboxInsert = createServerFn({ method: "POST" })
     });
     });
 
-    // Fast path: these asset IDs came directly from a fresh searchRobloxToolbox
-    // response that already applied blacklist + paid/private filtering. Re-running
-    // the full network validation here added 1-3s per insert for no gain — the
-    // Studio plugin already handles per-asset InsertService failures gracefully,
-    // and the in-memory blacklist absorbs anything that fails at runtime. Keep
-    // only an O(1) blacklist filter so obviously bad IDs never queue.
+    // Validate before queuing: Studio InsertService rejects many Creator Store
+    // assets that appear public in search. Promote safe fallbacks or drop the
+    // action so unauthorized IDs never reach Studio from the picker.
     const report: InsertSanitizeReport = { dropped: [], replaced: [] };
-    const insertable = rows.filter((r) => {
-      const id = Number((r.payload as { asset_id?: number })?.asset_id);
-      if (!Number.isFinite(id) || id <= 0) {
-        report.dropped.push({ name: r.name, asset_id: null, reason: "missing_asset_id" });
-        return false;
-      }
-      if (isAssetBlacklisted(id)) {
-        report.dropped.push({ name: r.name, asset_id: id, reason: assetBlacklistReason(id) ?? "blacklisted" });
-        return false;
-      }
-      return true;
-    });
+    const insertable = [...rows];
+    await sanitizeInsertAssetActions(insertable as unknown as Array<Record<string, unknown>>, report);
     if (insertable.length === 0) {
       const first = report.dropped[0];
       return {

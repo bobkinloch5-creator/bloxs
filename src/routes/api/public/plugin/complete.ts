@@ -13,6 +13,7 @@ function admin() {
 function humanizeInsertError(raw: string): string {
   const m = raw.toLowerCase();
   if (/not authorized|unauthorized/.test(m)) return "User is not authorized to access this asset (private or owner-only).";
+  if (/permission denied|\b403\b|forbidden/.test(m)) return "Roblox denied permission to insert this asset.";
   if (/moderated|content deleted|removed by moderator/.test(m)) return "Asset has been moderated by Roblox.";
   if (/off ?sale|no longer for sale/.test(m)) return "Asset is off-sale and can't be inserted.";
   if (/does not exist|not found|404/.test(m)) return "Asset no longer exists.";
@@ -69,10 +70,28 @@ export const Route = createFileRoute("/api/public/plugin/complete")({
               .update({ status, error: it.error ?? null, result: it.result ?? null, completed_at: now })
               .eq("id", it.action_id)
               .eq("user_id", profile.id)
-              .select("project_id, message_id, kind, payload")
+              .select("project_id, message_id, kind, parent_path, name, payload")
               .maybeSingle();
             if (action?.message_id) affectedMessageIds.add(action.message_id);
             if (action?.project_id) affectedProjectIds.add(action.project_id);
+            if (status === "done" && action?.kind === "insert_asset" && it.result && typeof it.result === "object") {
+              const result = it.result as Record<string, unknown>;
+              const used = Number(result.asset_id ?? result.assetId);
+              const attempts = Array.isArray(result.insert_attempts) ? result.insert_attempts as Array<Record<string, unknown>> : [];
+              const failedIds = attempts
+                .map((attempt) => ({ id: Number(attempt.asset_id ?? attempt.assetId), response: String(attempt.insertservice_response ?? "") }))
+                .filter((attempt) => Number.isFinite(attempt.id) && attempt.id > 0 && attempt.id !== used && attempt.response && attempt.response !== "ok")
+                .map((attempt) => attempt.id);
+              if (failedIds.length > 0) {
+                blacklistAssetIds(failedIds, "studio_insert_failed_before_fallback_success");
+                console.info("[plugin/complete] blacklisted failed insert candidates after fallback success", {
+                  userId: profile.id,
+                  projectId: action.project_id,
+                  usedAssetId: used,
+                  failedIds,
+                });
+              }
+            }
             if (status === "failed" && it.error && action) {
               await sb.from("studio_errors").insert({
                 user_id: profile.id, project_id: action.project_id,
@@ -83,7 +102,7 @@ export const Route = createFileRoute("/api/public/plugin/complete")({
               // from the error message when possible, else the primary). Never
               // blacklist fallback IDs — those haven't been tried yet and the
               // plugin should retry them on the next attempt.
-              if (action.kind === "insert_asset" && /not authorized|InsertService|failed to load asset|asset.*(private|deleted|moderated|off ?sale|unauthorized)/i.test(it.error)) {
+              if (action.kind === "insert_asset" && /not authorized|unauthorized|permission denied|\b403\b|forbidden|InsertService|failed to load asset|asset.*(private|deleted|moderated|off ?sale|unauthorized)/i.test(it.error)) {
                 const payload = (action.payload ?? {}) as Record<string, unknown>;
                 const bad: number[] = [];
                 // Prefer an ID mentioned in the error message (Roblox's error
@@ -113,15 +132,16 @@ export const Route = createFileRoute("/api/public/plugin/complete")({
                     ? ((payload as { _attempted_ids: unknown[] })._attempted_ids as unknown[]).map((n) => Number(n)).filter((n) => Number.isFinite(n))
                     : [];
                   attempted.push(...bad);
-                  if (query && attempted.length < 6) {
-                    const found = await searchRobloxToolbox(query, "Model", 12, {
+                  if (query && attempted.length < 30) {
+                    const found = await searchRobloxToolbox(query, "Model", 24, {
                       singleAssetOnly: Boolean((payload as { single_asset_only?: boolean }).single_asset_only),
+                      page: Math.min(8, Math.floor(attempted.length / 12)),
                     });
                     const candidateIds = found.results
                       .map((r) => r.id)
                       .filter((id) => !attempted.includes(id) && !isAssetBlacklisted(id));
                     const verdict = candidateIds.length > 0
-                      ? await validateAssetIds(candidateIds).catch(() => ({ valid: candidateIds, blocked: [], reasons: {} }))
+                      ? await validateAssetIds(candidateIds).catch(() => ({ valid: [], blocked: candidateIds, reasons: {} }))
                       : { valid: [], blocked: [], reasons: {} };
                     const safeSet = new Set(verdict.valid);
                     const safe = found.results.filter((r) => safeSet.has(r.id));
@@ -150,6 +170,15 @@ export const Route = createFileRoute("/api/public/plugin/complete")({
                       console.info("[plugin/complete] auto-requeued fallback asset", {
                         userId: profile.id, projectId: action.project_id,
                         original: bad[0], replacement: pick.id, query,
+                        assetId: pick.id,
+                        assetName: pick.name,
+                        creator: pick.creatorName,
+                        assetType: pick.assetType ?? "Model",
+                        isPublic: pick.free !== false,
+                        isVerified: !!pick.verifiedCreator,
+                        insertServiceResponse: "queued_after_previous_authorization_failure",
+                        httpResponse: "validated_before_queue",
+                        retryCount: attempted.length,
                       });
                     } else {
                       console.warn("[plugin/complete] no authorized fallback found", { query, tried: attempted.length });
@@ -164,15 +193,25 @@ export const Route = createFileRoute("/api/public/plugin/complete")({
 
           for (const messageId of affectedMessageIds) {
             const { data: rows } = await sb.from("plugin_actions")
-              .select("status, error")
+              .select("status, error, kind, payload")
               .eq("message_id", messageId)
               .eq("user_id", profile.id);
             const total = rows?.length ?? 0;
-            const failed = rows?.filter((r) => r.status === "failed") ?? [];
+            const hasReplacementSuccess = rows?.some((r) => {
+              const payload = (r.payload && typeof r.payload === "object" ? r.payload : {}) as Record<string, unknown>;
+              return r.status === "done" && r.kind === "insert_asset" && (payload._original_asset_id || Array.isArray(payload._attempted_ids));
+            }) ?? false;
+            const rawFailed = rows?.filter((r) => r.status === "failed") ?? [];
+            const failed = rawFailed.filter((r) => {
+              if (!hasReplacementSuccess || r.kind !== "insert_asset") return true;
+              return !/not authorized|unauthorized|permission denied|\b403\b|forbidden|InsertService|private|moderated|off ?sale/i.test(String(r.error ?? ""));
+            });
+            const ignoredFailed = rawFailed.length - failed.length;
             const done = rows?.filter((r) => r.status === "done").length ?? 0;
             const pending = rows?.filter((r) => r.status !== "done" && r.status !== "failed").length ?? 0;
+            const effectiveTotal = Math.max(0, total - ignoredFailed);
             // Keep the message in "sending" while a queued fallback is still pending.
-            const nextStatus = pending > 0 ? "sending" : (failed.length > 0 ? "failed" : (total > 0 && done === total ? "done" : "sending"));
+            const nextStatus = pending > 0 ? "sending" : (failed.length > 0 ? "failed" : (effectiveTotal > 0 && done >= effectiveTotal ? "done" : "sending"));
             const errorText = nextStatus === "failed"
               ? failed.map((r) => r.error ? `❌ ${humanizeInsertError(String(r.error))}` : null).filter(Boolean).slice(0, 5).join("\n") || "Studio reported one or more action failures."
               : null;

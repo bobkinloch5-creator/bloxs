@@ -1,5 +1,5 @@
 -- ============================================================
--- BloxSmith Ultimate Plugin v2.1.1
+-- BloxSmith Ultimate Plugin v2.1.2
 -- Fully connected to bloxsmith.pro backend API.
 --
 -- API endpoints used:
@@ -41,7 +41,7 @@ end
 ----------------------------------------------------------------
 -- CONFIG
 ----------------------------------------------------------------
-local PLUGIN_VERSION  = "2.1.1"
+local PLUGIN_VERSION  = "2.1.2"
 local API_BASE        = "https://bloxsmith.pro"
 local POLL_SECONDS    = 1        -- how often to call /poll for actions
 local PAIR_POLL_SEC   = 2        -- how often to poll for pair approval
@@ -1035,6 +1035,7 @@ end
 -- Session-scoped cache of successful LoadAsset results — re-cloning is far
 -- cheaper than another HTTP round-trip, and Roblox rate-limits InsertService.
 local _assetCache = {}
+local _assetDenylist = {}
 local _SUSPICIOUS_SCRIPT = {
 	"require%s*%(%s*%d+", "getfenv", "setfenv", "loadstring%s*%(", "HttpGet",
 	"HttpService", "MarketplaceService:PromptPurchase", "BindToClose",
@@ -1070,6 +1071,9 @@ local function quarantineScripts(root, mode)
 end
 
 local function tryLoadAsset(numId)
+	if _assetDenylist[numId] then
+		return false, "blocked in current BloxSmith session: " .. tostring(_assetDenylist[numId])
+	end
 	if _assetCache[numId] then
 		local ok, clone = pcall(function() return _assetCache[numId]:Clone() end)
 		if ok and clone then return true, clone end
@@ -1081,7 +1085,17 @@ local function tryLoadAsset(numId)
 		_assetCache[numId] = snap
 		return true, model
 	end
-	return false, tostring(model)
+	local err = tostring(model)
+	local low = string.lower(err)
+	if low:find("not authorized") or low:find("unauthorized") or low:find("permission") or low:find("403") or low:find("private") or low:find("moderated") then
+		_assetDenylist[numId] = err
+	end
+	return false, err
+end
+
+local function jsonSafe(v)
+	local ok, encoded = pcall(function() return HttpService:JSONEncode(v) end)
+	return ok and encoded or tostring(v)
 end
 
 -- Names that almost always indicate a multi-asset bundle / showcase scene.
@@ -1146,13 +1160,39 @@ function Actions.insert_asset(a)
 	if #candidates == 0 then return false, "missing assetId" end
 
 	local model, usedId, lastErr
+	local attempts = {}
 	for _, cid in ipairs(candidates) do
+		appendLog(("InsertService attempt assetId=%d name=%s creator=%s type=%s public=%s verified=%s retry=%d"):format(
+			cid,
+			tostring(payload.asset_name or payload.name or name or "unknown"),
+			tostring(payload.creator_name or "unknown"),
+			tostring(payload.asset_type or payload.requested_asset_type or "Model"),
+			tostring(payload.is_public or payload.free_only or payload.toolbox_only or "unknown"),
+			tostring(payload.is_verified or (payload.preview and payload.preview.verifiedCreator) or false),
+			#attempts
+		), "debug")
 		local ok, res = tryLoadAsset(cid)
+		table.insert(attempts, {
+			asset_id = cid,
+			asset_name = tostring(payload.asset_name or payload.name or name or "unknown"),
+			creator = tostring(payload.creator_name or "unknown"),
+			asset_type = tostring(payload.asset_type or payload.requested_asset_type or "Model"),
+			is_public = payload.is_public or payload.free_only or payload.toolbox_only,
+			is_verified = payload.is_verified or (payload.preview and payload.preview.verifiedCreator) or false,
+			insertservice_response = ok and "ok" or tostring(res),
+			http_response = tostring(res),
+			retry_count = #attempts,
+		})
 		if ok then model = res; usedId = cid; break end
 		lastErr = res
 	end
 	if not model then
-		return false, ("InsertService failed for %d candidates: %s"):format(#candidates, tostring(lastErr or "unknown"))
+		return false, ("InsertService failed for %d candidates: %s | attempted_ids=%s | diagnostics=%s"):format(
+			#candidates,
+			tostring(lastErr or "unknown"),
+			table.concat(candidates, ","),
+			jsonSafe(attempts)
+		)
 	end
 
 	-- Script quarantine — honor toolbox_only / no_scripts / strict modes.
@@ -1290,7 +1330,7 @@ function Actions.insert_asset(a)
 	appendLog(("Inserted asset %d → %s (safety:%s, scripts:%d, sus:%d)"):format(
 		usedId, fullPath(placed), safetyStatus, scriptCount, suspiciousCount
 	))
-	return true, nil, placed, { asset_id = usedId, safety_status = safetyStatus, script_count = scriptCount, suspicious_count = suspiciousCount, fallback_used = usedId ~= primary }
+	return true, nil, placed, { asset_id = usedId, attempted_ids = candidates, insert_attempts = attempts, safety_status = safetyStatus, script_count = scriptCount, suspicious_count = suspiciousCount, fallback_used = usedId ~= primary }
 end
 
 function Actions.set_properties(a)
@@ -2224,6 +2264,7 @@ end
 local function isRecoverable(errMsg)
 	if type(errMsg) ~= "string" then return false end
 	local e = errMsg:lower()
+	if e:find("not authorized") or e:find("unauthorized") or e:find("permission") or e:find("403") or e:find("private") or e:find("moderated") then return false end
 	if e:find("bad parent") then return true end
 	if e:find("timeout") or e:find("rate") or e:find("temporar") then return true end
 	if e:find("loadasset") or e:find("insertservice") then return true end
