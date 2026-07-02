@@ -348,6 +348,11 @@ const SINGLE_UI_NOUNS = /\b(button|label|textlabel|textbox|frame|screengui|gui|p
 const PACK_KEYWORDS = /\b(pack|kit|bundle|collection|set|props?|library|showcase|demo|mega|template|full\s*map|full\s*game|full\s*system|map|world|entire\s+game|whole\s+game|tycoon|obby|simulator|neighborhood|village|city|town|arena|dungeon)\b/i;
 const QUANTITY_ONE = /\b(1|one|single|just|only)\b/i;
 const ARTICLE_A = /\b(a|an)\s+/i;
+const MAX_CLASSIC_INSERTSERVICE_ASSET_ID = 100_000_000_000;
+
+function isLikelyCloudAssetId(id: number): boolean {
+  return Number.isFinite(id) && id > MAX_CLASSIC_INSERTSERVICE_ASSET_ID;
+}
 
 function hasPositivePackIntent(prompt: string): boolean {
   for (const match of prompt.matchAll(new RegExp(PACK_KEYWORDS.source, "gi"))) {
@@ -407,6 +412,7 @@ function looksLikeJunk(name: string): boolean {
 }
 
 function rejectionReason(r: ToolboxResult, opts: { strict?: boolean } = {}): string | null {
+  if (isLikelyCloudAssetId(r.id)) return "cloud_asset_not_insertservice_compatible";
   if (r.free === false) return "not_free";
   if (looksLikeJunk(r.name)) return "suspicious_name";
   if (!isAllowedCreator(r.creatorName)) return "untrusted_creator";
@@ -707,7 +713,8 @@ export async function validateAssetIds(ids: number[]): Promise<{ valid: number[]
     const p = productById.get(id);
     const assetTypeId = d?.assetTypeId ?? p?.assetTypeId;
     let reason: string | null = null;
-    if (assetTypeId !== 10) reason = assetTypeId ? `not_model_asset_type_${assetTypeId}` : "unknown_asset_type";
+    if (isLikelyCloudAssetId(id)) reason = "cloud_asset_not_insertservice_compatible";
+    else if (assetTypeId !== 10) reason = assetTypeId ? `not_model_asset_type_${assetTypeId}` : "unknown_asset_type";
     else if (d?.isPublished === false) reason = "not_published";
     else if (d?.isPurchasable === false) reason = "not_purchasable";
     else if (d?.isFree === false) reason = "paid_asset";
@@ -730,7 +737,7 @@ export async function validateAssetIds(ids: number[]): Promise<{ valid: number[]
     if (reason) {
       blocked.push(id);
       reasons[id] = reason;
-      if (["not_public_domain", "visibility_restricted", "paid_asset", "not_published", "not_purchasable"].includes(reason) || reason.startsWith("not_model_asset_type")) {
+      if (["cloud_asset_not_insertservice_compatible", "not_public_domain", "visibility_restricted", "paid_asset", "not_published", "not_purchasable"].includes(reason) || reason.startsWith("not_model_asset_type")) {
         blacklistAssetIds([id], reason);
       }
     } else {
@@ -923,12 +930,13 @@ export async function searchRobloxToolbox(
     const relevance = Math.max(relevanceScore(keyword, r.name), relevanceScore(r.sourceQuery ?? keyword, r.name));
     const safety = safetyScore(r.creatorName, r.name, { ...r, relevance });
     const trustedBoost = r.creatorName.trim().toLowerCase() === "roblox" ? 0.08 : 0;
+    const classicInsertBoost = isLikelyCloudAssetId(r.id) ? -0.5 : 0.14;
     const recentlyUsed = recentIds.has(r.id);
     const reusePenalty = recentlyUsed ? 0.08 : 0;
     // Cross-term consensus: assets that match multiple expanded queries are nearly always on-topic.
     const hits = termHitCount.get(r.id) ?? 0;
     const multiHitBoost = hits >= 3 ? 0.12 : hits === 2 ? 0.07 : 0;
-    const score = Math.max(0, Math.min(1, relevance * 0.54 + safety * 0.42 + trustedBoost + multiHitBoost - reusePenalty));
+    const score = Math.max(0, Math.min(1, relevance * 0.5 + safety * 0.36 + trustedBoost + classicInsertBoost + multiHitBoost - reusePenalty));
     const profile = libraryProfileFor(keyword, r.name);
     const row = {
       ...r,
