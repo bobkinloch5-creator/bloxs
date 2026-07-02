@@ -2264,6 +2264,7 @@ end
 local function isRecoverable(errMsg)
 	if type(errMsg) ~= "string" then return false end
 	local e = errMsg:lower()
+	if e:find("not authorized") or e:find("unauthorized") or e:find("permission") or e:find("403") or e:find("private") or e:find("moderated") then return false end
 	if e:find("bad parent") then return true end
 	if e:find("timeout") or e:find("rate") or e:find("temporar") then return true end
 	if e:find("loadasset") or e:find("insertservice") then return true end
