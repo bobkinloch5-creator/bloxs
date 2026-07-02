@@ -121,7 +121,7 @@ export const Route = createFileRoute("/api/public/plugin/complete")({
                       .map((r) => r.id)
                       .filter((id) => !attempted.includes(id) && !isAssetBlacklisted(id));
                     const verdict = candidateIds.length > 0
-                      ? await validateAssetIds(candidateIds).catch(() => ({ valid: candidateIds, blocked: [], reasons: {} }))
+                      ? await validateAssetIds(candidateIds).catch(() => ({ valid: [], blocked: candidateIds, reasons: {} }))
                       : { valid: [], blocked: [], reasons: {} };
                     const safeSet = new Set(verdict.valid);
                     const safe = found.results.filter((r) => safeSet.has(r.id));
@@ -150,6 +150,15 @@ export const Route = createFileRoute("/api/public/plugin/complete")({
                       console.info("[plugin/complete] auto-requeued fallback asset", {
                         userId: profile.id, projectId: action.project_id,
                         original: bad[0], replacement: pick.id, query,
+                        assetId: pick.id,
+                        assetName: pick.name,
+                        creator: pick.creatorName,
+                        assetType: pick.assetType ?? "Model",
+                        isPublic: pick.free !== false,
+                        isVerified: !!pick.verifiedCreator,
+                        insertServiceResponse: "queued_after_previous_authorization_failure",
+                        httpResponse: "validated_before_queue",
+                        retryCount: attempted.length,
                       });
                     } else {
                       console.warn("[plugin/complete] no authorized fallback found", { query, tried: attempted.length });

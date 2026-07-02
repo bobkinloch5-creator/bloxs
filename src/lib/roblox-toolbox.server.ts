@@ -1184,16 +1184,29 @@ export async function searchRobloxToolbox(
   if (liveRows.size > 0) {
     const ranked = rank(Array.from(liveRows.values()));
     if (ranked.length > 0) {
+      const verdict = await validateAssetIds(ranked.map((r) => r.id)).catch(() => ({ valid: [], blocked: ranked.map((r) => r.id), reasons: {} }));
+      const validIds = new Set(verdict.valid);
+      const insertableRanked = ranked.filter((r) => validIds.has(r.id) && !isAssetBlacklisted(r.id));
+      const insertableIds = new Set(insertableRanked.map((r) => r.id));
+      for (const r of insertableRanked) {
+        r.fallbackIds = (r.fallbackIds ?? []).filter((id) => insertableIds.has(id) && !isAssetBlacklisted(id));
+        if (r.insertPayload) r.insertPayload.fallback_ids = r.fallbackIds;
+      }
+      if (insertableRanked.length === 0) {
+        const empty = { source: "none" as const, results: [], searchedTerms: activeTerms, scanned: liveRows.size, page, hasMore: false };
+        cacheSet(cacheKey, empty);
+        return empty;
+      }
       // Swap placeholder thumbnails for real CDN URLs before returning.
       try {
-        const thumbs = await resolveThumbnails(ranked.map((r) => r.id));
-        for (const r of ranked) {
+        const thumbs = await resolveThumbnails(insertableRanked.map((r) => r.id));
+        for (const r of insertableRanked) {
           const real = thumbs.get(r.id);
           if (real) r.thumbnail = real;
         }
       } catch { /* best-effort */ }
       const hasMore = (rank as unknown as { _hasMore?: boolean })._hasMore ?? false;
-      const out = { source: "live" as const, results: ranked, searchedTerms: activeTerms, scanned: liveRows.size, page, hasMore };
+      const out = { source: "live" as const, results: insertableRanked, searchedTerms: activeTerms, scanned: liveRows.size, page, hasMore };
       cacheSet(cacheKey, out);
       return out;
     }
