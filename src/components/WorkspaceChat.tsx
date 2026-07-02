@@ -404,17 +404,21 @@ export function WorkspaceChat({
     }, 0);
   }, [token, status, activeProjectId, onRequestNewProject, createMut, sendMessage]);
 
-  async function submit(override?: string) {
+  async function submit(override?: string, overrideMode?: Mode) {
 
     const text = (override ?? prompt).trim();
     if (!text) { toast.error("Type a message first."); return; }
     if (!token) { toast.error("Please sign in again."); return; }
     if (status === "submitted" || status === "streaming") return;
 
+    // Use the live mode ref (or an explicit override from the caller) so a
+    // synchronous mode flip in the same click cycle is honored on this send.
+    const effectiveMode: Mode = overrideMode ?? liveModeRef.current;
+
     // Build mode is a no-op if the Studio plugin isn't connected — actions
     // would just pile up in the queue with nothing polling for them. Block
     // the send, tell the user exactly why, and point them at /plugin.
-    if (mode === "build" && !pluginOnline) {
+    if (effectiveMode === "build" && !pluginOnline) {
       toast.error("Roblox Studio plugin isn't connected — install and open the BloxSmith plugin in Studio, then try Build again.");
       return;
     }
@@ -422,7 +426,7 @@ export function WorkspaceChat({
     // Only Build needs a project. If none is active, prompt for the new-project
     // modal instead of silently spinning one up from the prompt text.
     let pid = activeProjectId;
-    if (!pid && mode === "build") {
+    if (!pid && effectiveMode === "build") {
       if (onRequestNewProject) {
         onRequestNewProject();
         toast.info("Create a project first — the details help the AI build the right game.");
