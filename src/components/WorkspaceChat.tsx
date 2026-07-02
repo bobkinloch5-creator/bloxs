@@ -184,6 +184,11 @@ export function WorkspaceChat({
 
   const [prompt, setPrompt] = useState("");
   const [mode, setMode] = useState<Mode>("build");
+  // Live mirror of `mode` — read by the transport body and by submit()'s
+  // plugin/project gates so a synchronous flip (e.g. the Image button) takes
+  // effect immediately, without waiting for React to flush the state update.
+  const liveModeRef = useRef<Mode>("build");
+  useEffect(() => { liveModeRef.current = mode; }, [mode]);
   const [buildMode, setBuildMode] = useState<"Smart Build" | "Fast Build" | "Deep Build">("Smart Build");
   const [modeOpen, setModeOpen] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
