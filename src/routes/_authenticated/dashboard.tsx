@@ -27,6 +27,7 @@ import { ChangelogNotifications } from "@/components/ChangelogNotifications";
 import { ProjectMenu } from "@/components/ProjectMenu";
 import { WorkspaceChat } from "@/components/WorkspaceChat";
 import { NewProjectModal } from "@/components/NewProjectModal";
+import { ProjectMemoryCard } from "@/components/ProjectMemoryCard";
 import robloxBg from "@/assets/backgrounds/roblox-dashboard.jpg";
 
 
