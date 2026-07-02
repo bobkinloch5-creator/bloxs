@@ -3,7 +3,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { searchRobloxToolbox, sanitizeInsertAssetActions, type InsertSanitizeReport, type ToolboxCategory, type ToolboxResult } from "@/lib/roblox-toolbox.server";
+import { searchRobloxToolbox, isAssetBlacklisted, assetBlacklistReason, type InsertSanitizeReport, type ToolboxCategory, type ToolboxResult } from "@/lib/roblox-toolbox.server";
 
 const SearchInput = z.object({
   query: z.string().min(2).max(120),
