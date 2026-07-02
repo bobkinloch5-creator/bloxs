@@ -192,7 +192,7 @@ async function tryFetch(url: string): Promise<unknown | null> {
         }
       } catch { /* ignore bad URLs */ }
     }
-    const res = await fetch(url, { headers, signal: AbortSignal.timeout(8000) });
+    const res = await fetch(url, { headers, signal: AbortSignal.timeout(2000) });
     if (!res.ok) return null;
     return (await res.json()) as unknown;
   } catch {
@@ -550,24 +550,39 @@ export function assetBlacklistReason(id: number): string | undefined {
 // public in the Creator Store search yet still have IsPublicDomain=false —
 // those are exactly the ones that fail in Studio with "User is not authorized
 // to access Asset". We check it here so bad IDs never reach the plugin.
+const publicDomainCache = new Map<number, boolean | null>();
+
 async function isAssetPublicDomain(id: number): Promise<boolean | null> {
+  const cached = publicDomainCache.get(id);
+  if (cached !== undefined) return cached;
+
   try {
     const res = await fetch(`https://economy.roblox.com/v2/assets/${id}/details`, {
       headers: { Accept: "application/json" },
-      signal: AbortSignal.timeout(6000),
+      signal: AbortSignal.timeout(1200),
     });
-    if (!res.ok) return null; // fail-open: let Studio InsertService be the judge
+    if (!res.ok) {
+      // Don't cache transient errors, but fail-open
+      return null; 
+    }
     const j = (await res.json().catch(() => null)) as any;
     if (!j) return null;
-    if (typeof j.IsPublicDomain === "boolean") return j.IsPublicDomain;
-    if (typeof j.isPublicDomain === "boolean") return j.isPublicDomain;
-    // Only block on an EXPLICIT paid signal. If IsForSale is missing or
-    // PriceInRobux is null/zero we treat the asset as accessible.
-    const priceInRobux = typeof j.PriceInRobux === "number" ? j.PriceInRobux : null;
-    if (priceInRobux !== null && priceInRobux > 0) return false; // paid
-    const isForSale = typeof j.IsForSale === "boolean" ? j.IsForSale : null;
-    if (isForSale === false && priceInRobux === null) return null; // ambiguous — fail open
-    return null; // unknown → let Studio decide
+    let verdict: boolean | null = null;
+    if (typeof j.IsPublicDomain === "boolean") verdict = j.IsPublicDomain;
+    else if (typeof j.isPublicDomain === "boolean") verdict = j.isPublicDomain;
+    else {
+      // Only block on an EXPLICIT paid signal. If IsForSale is missing or
+      // PriceInRobux is null/zero we treat the asset as accessible.
+      const priceInRobux = typeof j.PriceInRobux === "number" ? j.PriceInRobux : null;
+      if (priceInRobux !== null && priceInRobux > 0) verdict = false; // paid
+    }
+    
+    // Cache positive/negative results (limit cache size to 5000 items)
+    if (verdict !== null) {
+      if (publicDomainCache.size > 5000) publicDomainCache.clear();
+      publicDomainCache.set(id, verdict);
+    }
+    return verdict;
   } catch {
     return null;
   }
@@ -590,7 +605,7 @@ export async function validateAssetIds(ids: number[]): Promise<{ valid: number[]
     const chunk = toCheck.slice(i, i + 40);
     const url = `https://apis.roblox.com/toolbox-service/v1/items/details?assetIds=${chunk.join(",")}`;
     try {
-      const res = await fetch(url, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(8000) });
+      const res = await fetch(url, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(1500) });
       // Fail-open on API errors. If Roblox's toolbox-service is down or rate
       // limits us, don't block every asset — trust that the toolbox search
       // already surfaced them and let Studio's InsertService be the ultimate
@@ -599,18 +614,18 @@ export async function validateAssetIds(ids: number[]): Promise<{ valid: number[]
       const json = (await res.json().catch(() => null)) as any;
       const returnedIds = new Set<number>();
       if (json?.data && Array.isArray(json.data)) {
-        for (const item of json.data) {
-          const id = item.asset?.id; if (typeof id !== "number") continue;
-          returnedIds.add(id);
-          // Only block on EXPLICIT bad signals. Missing fields = assume OK.
-          if (typeof item.asset?.visibilityStatus === "number" && item.asset.visibilityStatus !== 0) { blocked.push(id); reasons[id] = "visibility_restricted"; continue; }
-          const qty = item.fiatProduct?.purchasePrice?.quantity;
-          const fiatPaid = item.fiatProduct?.isFree === false || (qty != null && typeof qty.significand === "number" && qty.significand > 0);
-          const classicPaid = item.product?.isFree === false || (typeof item.product?.price === "number" && item.product.price > 0);
-          if (fiatPaid || classicPaid) { blocked.push(id); reasons[id] = "paid_asset"; continue; }
-          if (item.fiatProduct?.published === false) { blocked.push(id); reasons[id] = "not_published"; continue; }
-          survivors.push(id);
-        }
+         for (const item of json.data) {
+           const id = item.asset?.id; if (typeof id !== "number") continue;
+           returnedIds.add(id);
+           // Only block on EXPLICIT bad signals. Missing fields = assume OK.
+           if (typeof item.asset?.visibilityStatus === "number" && item.asset.visibilityStatus !== 0) { blocked.push(id); reasons[id] = "visibility_restricted"; continue; }
+           const qty = item.fiatProduct?.purchasePrice?.quantity;
+           const fiatPaid = item.fiatProduct?.isFree === false || (qty != null && typeof qty.significand === "number" && qty.significand > 0);
+           const classicPaid = item.product?.isFree === false || (typeof item.product?.price === "number" && item.product.price > 0);
+           if (fiatPaid || classicPaid) { blocked.push(id); reasons[id] = "paid_asset"; continue; }
+           if (item.fiatProduct?.published === false) { blocked.push(id); reasons[id] = "not_published"; continue; }
+           survivors.push(id);
+         }
       }
       // IDs not present in the response are treated as survivors and get
       // handed to the IsPublicDomain check below.
@@ -619,17 +634,12 @@ export async function validateAssetIds(ids: number[]): Promise<{ valid: number[]
   }
 
   // Second pass: reject anything whose Marketplace ProductInfo explicitly
-  // says IsPublicDomain=false. These are the assets Studio's InsertService
-  // rejects with "User is not authorized to access Asset". Run in parallel
-  // chunks with a timeout so a slow Roblox endpoint doesn't stall the build.
+  // says IsPublicDomain=false. Run fully in parallel to prevent stalling.
   const uniqueSurvivors = Array.from(new Set(survivors));
   const publicDomainMap = new Map<number, boolean | null>();
-  const batchSize = 12;
-  for (let i = 0; i < uniqueSurvivors.length; i += batchSize) {
-    const batch = uniqueSurvivors.slice(i, i + batchSize);
-    const results = await Promise.all(batch.map((id) => isAssetPublicDomain(id)));
-    batch.forEach((id, idx) => publicDomainMap.set(id, results[idx]));
-  }
+  const results = await Promise.all(uniqueSurvivors.map((id) => isAssetPublicDomain(id)));
+  uniqueSurvivors.forEach((id, idx) => publicDomainMap.set(id, results[idx]));
+
   for (const id of uniqueSurvivors) {
     const flag = publicDomainMap.get(id);
     if (flag === false) {
