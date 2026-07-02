@@ -30,9 +30,9 @@ export interface ModelPick {
 const TASK_PREF: Record<AutoTask, { ids: string[]; reason: string }> = {
   planning: {
     ids: [
+      "nvidia/gpt-oss-120b",
       "nvidia/nemotron-3-ultra-550b-a55b",
       "nvidia/deepseek-v4-pro",
-      "nvidia/gpt-oss-120b",
       "nvidia/qwen3-coder-480b-a35b-instruct",
       "nvidia/nemotron-super-49b",
       "nvidia/llama-4-maverick-17b",
@@ -44,6 +44,7 @@ const TASK_PREF: Record<AutoTask, { ids: string[]; reason: string }> = {
   },
   scripting: {
     ids: [
+      "nvidia/gpt-oss-120b",
       "nvidia/qwen3-coder-480b-a35b-instruct",
       "nvidia/deepseek-v4-flash",
       "nvidia/deepseek-v4-pro",
@@ -58,6 +59,7 @@ const TASK_PREF: Record<AutoTask, { ids: string[]; reason: string }> = {
   },
   ui: {
     ids: [
+      "nvidia/gpt-oss-120b",
       "nvidia/nemotron-3-ultra-550b-a55b",
       "nvidia/qwen3-coder-480b-a35b-instruct",
       "nvidia/llama-4-maverick-17b",
@@ -70,6 +72,7 @@ const TASK_PREF: Record<AutoTask, { ids: string[]; reason: string }> = {
   },
   assets: {
     ids: [
+      "nvidia/gpt-oss-120b",
       "nvidia/nemotron-3-ultra-550b-a55b",
       "nvidia/llama-4-maverick-17b",
       "nvidia/minimax-m3",
@@ -81,6 +84,7 @@ const TASK_PREF: Record<AutoTask, { ids: string[]; reason: string }> = {
   },
   bugfix: {
     ids: [
+      "nvidia/gpt-oss-120b",
       "nvidia/deepseek-v4-pro",
       "nvidia/qwen3-coder-480b-a35b-instruct",
       "nvidia/nemotron-3-ultra-550b-a55b",
@@ -94,6 +98,7 @@ const TASK_PREF: Record<AutoTask, { ids: string[]; reason: string }> = {
   },
   performance: {
     ids: [
+      "nvidia/gpt-oss-120b",
       "nvidia/nemotron-3-ultra-550b-a55b",
       "nvidia/deepseek-v4-flash",
       "nvidia/nemotron-super-49b",
@@ -105,6 +110,7 @@ const TASK_PREF: Record<AutoTask, { ids: string[]; reason: string }> = {
   },
   testing: {
     ids: [
+      "nvidia/gpt-oss-120b",
       "nvidia/deepseek-v4-flash",
       "nvidia/nemotron-super-49b",
       "nvidia/llama-4-maverick-17b",
@@ -116,6 +122,7 @@ const TASK_PREF: Record<AutoTask, { ids: string[]; reason: string }> = {
   },
   shortedit: {
     ids: [
+      "nvidia/gpt-oss-120b",
       "nvidia/deepseek-v4-flash",
       "nvidia/nemotron-super-49b",
       "nvidia/mixtral-8x22b",
@@ -128,6 +135,7 @@ const TASK_PREF: Record<AutoTask, { ids: string[]; reason: string }> = {
   },
   vision: {
     ids: [
+      "nvidia/gpt-oss-120b",
       "nvidia/llama-4-maverick-17b",
       "nvidia/nemotron-3-ultra-550b-a55b",
       "nvidia/minimax-m3",

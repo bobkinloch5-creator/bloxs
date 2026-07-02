@@ -38,7 +38,7 @@ export const MODELS: ModelOption[] = [
     id: "nvidia/nemotron-3-ultra-550b-a55b",
     upstreamId: "nvidia/nemotron-3-ultra-550b-a55b",
     gateway: "nvidia",
-    label: "BloxSmith Super AI ⚡",
+    label: "Nemotron 3 Ultra 550B",
     provider: "NVIDIA",
     via: "NVIDIA NIM",
     tier: "premium",
@@ -484,17 +484,17 @@ export const MODELS: ModelOption[] = [
     id: "nvidia/gpt-oss-120b",
     upstreamId: "openai/gpt-oss-120b",
     gateway: "nvidia",
-    label: "GPT-OSS 120B",
+    label: "BloxSmith Super AI ⚡",
     provider: "OpenAI",
     via: "NVIDIA NIM",
     tier: "premium",
-    speed: "Medium",
+    speed: "Fast",
     quality: "Best",
-    credits: "High",
+    credits: "Medium",
     status: "Working",
-    bestFor: "Heavy Luau code with an open-weights OpenAI model.",
-    description: "OpenAI OSS 120B via NVIDIA NIM.",
-    modelSettings: { temperature: 1, topP: 1, maxOutputTokens: 4096 },
+    bestFor: "The main Roblox builder brain: planning, tool use, Luau, UI, bug fixing, and full-game builds. High throughput — rarely rate-limited.",
+    description: "OpenAI GPT-OSS 120B via Build.NVIDIA.com — high-capacity endpoint with much better concurrency limits than Nemotron 3 Ultra.",
+    modelSettings: { temperature: 0.45, topP: 0.95, maxOutputTokens: 8192 },
   },
   {
     id: "nvidia/minimax-m3",
@@ -515,7 +515,7 @@ export const MODELS: ModelOption[] = [
 
 ];
 
-export const DEFAULT_MODEL_ID = "nvidia/nemotron-3-ultra-550b-a55b";
+export const DEFAULT_MODEL_ID = "nvidia/gpt-oss-120b";
 export const FALLBACK_MODEL_ID = "nvidia/deepseek-v4-flash";
 
 export function findModel(id: string): ModelOption {
