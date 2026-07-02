@@ -707,7 +707,12 @@ export function WorkspaceChat({
             type="button"
             onClick={() => {
               // Image generation is a Chat Mode feature — never trigger Build /
-              // Studio actions from this button. Force chat mode before sending.
+              // Studio actions from this button. Flip the live mode ref
+              // synchronously (so this send goes out as chat), mirror it into
+              // React state for UI, and pass an explicit "chat" override to
+              // submit() so its plugin/project gates use chat semantics even
+              // if the state hasn't flushed yet.
+              liveModeRef.current = "chat";
               if (mode !== "chat") setMode("chat");
               const trimmed = prompt.trim();
               if (!trimmed) {
@@ -720,9 +725,7 @@ export function WorkspaceChat({
               }
               const alreadyImage = /^(generate|create|make|design|draw)\b[^\n]*\b(image|logo|thumbnail|icon|banner|art)\b/i.test(trimmed);
               const finalText = alreadyImage ? trimmed : `Generate an image: ${trimmed}`;
-              // Defer the send by one tick so the mode state flush lands first
-              // and the request goes out with mode: "chat".
-              setTimeout(() => submit(finalText), 0);
+              submit(finalText, "chat");
             }}
             disabled={busy}
             className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg border border-fuchsia-400/40 bg-fuchsia-500/10 px-3 py-2 text-xs font-semibold text-fuchsia-100 transition hover:bg-fuchsia-500/20 hover:border-fuchsia-400/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
