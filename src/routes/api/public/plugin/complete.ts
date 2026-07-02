@@ -13,6 +13,7 @@ function admin() {
 function humanizeInsertError(raw: string): string {
   const m = raw.toLowerCase();
   if (/not authorized|unauthorized/.test(m)) return "User is not authorized to access this asset (private or owner-only).";
+  if (/permission denied|\b403\b|forbidden/.test(m)) return "Roblox denied permission to insert this asset.";
   if (/moderated|content deleted|removed by moderator/.test(m)) return "Asset has been moderated by Roblox.";
   if (/off ?sale|no longer for sale/.test(m)) return "Asset is off-sale and can't be inserted.";
   if (/does not exist|not found|404/.test(m)) return "Asset no longer exists.";
@@ -101,7 +102,7 @@ export const Route = createFileRoute("/api/public/plugin/complete")({
               // from the error message when possible, else the primary). Never
               // blacklist fallback IDs — those haven't been tried yet and the
               // plugin should retry them on the next attempt.
-              if (action.kind === "insert_asset" && /not authorized|InsertService|failed to load asset|asset.*(private|deleted|moderated|off ?sale|unauthorized)/i.test(it.error)) {
+              if (action.kind === "insert_asset" && /not authorized|unauthorized|permission denied|\b403\b|forbidden|InsertService|failed to load asset|asset.*(private|deleted|moderated|off ?sale|unauthorized)/i.test(it.error)) {
                 const payload = (action.payload ?? {}) as Record<string, unknown>;
                 const bad: number[] = [];
                 // Prefer an ID mentioned in the error message (Roblox's error
