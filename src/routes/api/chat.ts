@@ -84,6 +84,19 @@ function neutralizePrematureBuildSuccess(text: string) {
     .replace(/\b(?:executed|completed)\s+(?:in|inside)\s+(?:Roblox\s+)?Studio\b/gi, "sent to Studio for verification");
 }
 
+function stripImageFilePartsFromMessages(messages: UIMessage[]): UIMessage[] {
+  return messages.map((m) => {
+    const parts = (m.parts ?? []) as Array<Record<string, unknown>>;
+    if (!parts.length) return m;
+    const stripped = parts.map((p) =>
+      p?.type === "file" && typeof (p as any).mediaType === "string" && ((p as any).mediaType as string).startsWith("image/")
+        ? { type: "text", text: "[image attached — analyzed separately when image vision is available]" }
+        : p,
+    );
+    return { ...m, parts: stripped } as typeof m;
+  });
+}
+
 function recoveryStudioActions(userText: string) {
   const safePrompt = userText.trim().slice(0, 240) || "BloxSmith auto-execute recovery build";
   const source = `
@@ -2279,7 +2292,7 @@ export const Route = createFileRoute("/api/chat")({
                 chargeLite.code ?? "no_credits",
               );
             }
-            const convertedLite = await convertToModelMessages(messages);
+            const convertedLite = await convertToModelMessages(stripImageFilePartsFromMessages(messages));
             const systemLite =
               BLOXSMITH_SYSTEM_PROMPT +
               `\n\nMODE: CHAT (no project open) — help the user plan, brainstorm, and refine ideas for their Roblox game. Do NOT emit build actions, file outputs, or plugin_actions. Keep replies conversational. Reply in ${languageName} (${languageCode}).`;
@@ -2652,16 +2665,7 @@ export const Route = createFileRoute("/api/chat")({
           // of tokens and trigger `Provider returned error` (upstream 400: context too
           // large). Replace each image part with a short text marker so conversation
           // continuity is preserved without re-sending the pixels.
-          const messagesForModel = messages.map((m) => {
-            const parts = (m.parts ?? []) as Array<Record<string, unknown>>;
-            if (!parts.length) return m;
-            const stripped = parts.map((p) =>
-              p?.type === "file" && typeof (p as any).mediaType === "string" && ((p as any).mediaType as string).startsWith("image/")
-                ? { type: "text", text: "[image attached — analyzed via vision above]" }
-                : p,
-            );
-            return { ...m, parts: stripped } as typeof m;
-          });
+          const messagesForModel = stripImageFilePartsFromMessages(messages);
           const convertedMessages = await convertToModelMessages(messagesForModel);
 
           const withExecutionMetadata = (action: any) => ({
