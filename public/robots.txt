@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+
+Disallow: /dashboard
+Disallow: /admin
+Disallow: /_authenticated
+Disallow: /api/
+
+Sitemap: https://bloxsmith.pro/sitemap.xml

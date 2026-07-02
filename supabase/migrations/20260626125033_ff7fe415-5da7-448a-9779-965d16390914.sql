@@ -1,0 +1,1 @@
+ALTER TABLE public.model_generations ALTER COLUMN project_id DROP NOT NULL;

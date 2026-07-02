@@ -1,0 +1,1 @@
+ALTER TABLE public.plugin_sessions ADD COLUMN IF NOT EXISTS last_scan jsonb, ADD COLUMN IF NOT EXISTS last_scan_at timestamptz;
