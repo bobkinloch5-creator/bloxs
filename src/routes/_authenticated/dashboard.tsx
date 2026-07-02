@@ -27,6 +27,7 @@ import { ChangelogNotifications } from "@/components/ChangelogNotifications";
 import { ProjectMenu } from "@/components/ProjectMenu";
 import { WorkspaceChat } from "@/components/WorkspaceChat";
 import { NewProjectModal } from "@/components/NewProjectModal";
+import { ProjectMemoryCard } from "@/components/ProjectMemoryCard";
 import robloxBg from "@/assets/backgrounds/roblox-dashboard.jpg";
 
 
@@ -285,6 +286,14 @@ function Dashboard() {
                 onRequestNewProject={() => setNewProjectOpen(true)}
               />
             </section>
+
+            {/* Persistent project memory — everything the AI remembers about this project */}
+            {activeProjectId && (
+              <section id="memory">
+                <ProjectMemoryCard projectId={activeProjectId} />
+              </section>
+            )}
+
 
 
             {/* Quick Actions */}
