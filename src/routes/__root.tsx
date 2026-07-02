@@ -188,6 +188,7 @@ function RootComponent() {
           <RobloxBackdrop />
           <BetaBanner />
           <Toaster richColors closeButton position="top-right" />
+          <GlobalErrorGuard />
           {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
           <Outlet />
         </HelpModeProvider>
