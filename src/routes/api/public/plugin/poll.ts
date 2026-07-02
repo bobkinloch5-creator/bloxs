@@ -131,6 +131,23 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
               await sb.from("plugin_actions")
                 .update({ status: "failed", error: "No authorized InsertService-compatible Toolbox asset found.", completed_at: new Date().toISOString() })
                 .in("id", droppedIds);
+              const affectedMessageIds = [...new Set(before
+                .filter((row) => droppedIds.includes(row.id))
+                .map((row) => actions.find((a) => a.id === row.id)?.message_id)
+                .filter((id): id is string => typeof id === "string" && id.length > 0))];
+              await Promise.all(affectedMessageIds.map(async (messageId) => {
+                const { data: rows } = await sb.from("plugin_actions")
+                  .select("status")
+                  .eq("message_id", messageId)
+                  .eq("user_id", profile.id);
+                const remaining = rows?.some((row) => row.status !== "done" && row.status !== "failed") ?? false;
+                if (!remaining) {
+                  await sb.from("chat_messages")
+                    .update({ status: "failed", error: "No authorized InsertService-compatible Toolbox asset was found for that request." })
+                    .eq("id", messageId)
+                    .eq("user_id", profile.id);
+                }
+              }));
             }
             await Promise.all(actions.map(async (a) => {
               const old = before.find((row) => row.id === a.id);
