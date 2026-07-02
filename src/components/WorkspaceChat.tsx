@@ -23,6 +23,7 @@ import { Link } from "@tanstack/react-router";
 import { Plug } from "lucide-react";
 import { VoiceBuildButton } from "@/components/VoiceBuildButton";
 import { useBloxSmithSpeaker } from "@/components/VoiceControls";
+import { friendlyError } from "@/lib/friendly-error";
 
 
 // Strip internal machinery from what the user sees in chat.
@@ -102,8 +103,8 @@ function GeneratedImageCard({
       await saveFn({ data: { project_id: projectId, kind: kindFromPrompt, prompt: prompt.slice(0, 2000), data_url: url } });
       setSaved(true);
       toast.success("Saved to project images.");
-    } catch (e: any) {
-      toast.error(e?.message || "Couldn't save the image.");
+    } catch (e) {
+      toast.error(friendlyError(e, { fallback: "Couldn't save the image." }));
     } finally {
       setSaving(false);
     }
@@ -297,7 +298,7 @@ export function WorkspaceChat({
   const { messages, sendMessage, status, error, setMessages, stop } = useChat({
     id: activeProjectId ?? "no-project",
     transport,
-    onError: (e) => toast.error(e?.message || "The AI request failed."),
+    onError: (e) => toast.error(friendlyError(e, { fallback: "The AI request failed." })),
     onFinish: (evt) => {
       // Auto-speak the final AI reply through NVIDIA TTS when voice is enabled
       const msg = (evt as { message?: { role?: string; parts?: Array<{ type?: string; text?: string }> } })?.message;
@@ -327,7 +328,7 @@ export function WorkspaceChat({
       qc.invalidateQueries({ queryKey: ["plugin-actions", activeProjectId] });
       toast.success("Chat cleared.");
     },
-    onError: (e: any) => toast.error(e?.message || "Failed to clear chat."),
+    onError: (e) => toast.error(friendlyError(e, { fallback: "Failed to clear chat." })),
   });
   const handleClearChat = () => {
     if (messages.length === 0) return;
@@ -389,8 +390,8 @@ export function WorkspaceChat({
       } else {
         toast.error("Couldn't improve the prompt.");
       }
-    } catch (e: any) {
-      toast.error(e?.message || "Improve failed.");
+    } catch (e) {
+      toast.error(friendlyError(e, { fallback: "Improve failed." }));
     } finally {
       setEnhancing(false);
     }
@@ -435,8 +436,8 @@ export function WorkspaceChat({
       try {
         const created = await createMut.mutateAsync({ name: text.slice(0, 60), description: text });
         pid = created.id;
-      } catch (e: any) {
-        toast.error(e?.message || "Could not create a project.");
+      } catch (e) {
+        toast.error(friendlyError(e, { fallback: "Could not create a project." }));
         return;
       }
     }
@@ -456,8 +457,8 @@ export function WorkspaceChat({
     setStopped(false);
     try {
       await sendMessage({ text: finalText, files: imageParts as any });
-    } catch (e: any) {
-      toast.error(e?.message || "Send failed.");
+    } catch (e) {
+      toast.error(friendlyError(e, { fallback: "Send failed." }));
     }
   }
 
@@ -611,7 +612,7 @@ export function WorkspaceChat({
           )}
           {error && (
             <div className="mt-2 rounded-lg border border-rose-500/40 bg-rose-500/15 px-3 py-2 text-xs text-rose-100">
-              {error.message}
+              {friendlyError(error, { fallback: "The AI request failed." })}
             </div>
           )}
           {isBuild && executionStatus && executionStatus.state !== "idle" && (

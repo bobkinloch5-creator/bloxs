@@ -12,6 +12,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { RobloxBackdrop } from "../components/RobloxBackdrop";
+import { GlobalErrorGuard } from "@/components/GlobalErrorGuard";
 import { LanguageProvider } from "../lib/i18n";
 import { HelpModeProvider } from "@/components/SmartTooltip";
 import { Toaster } from "@/components/ui/sonner";
@@ -188,6 +189,7 @@ function RootComponent() {
           <RobloxBackdrop />
           <BetaBanner />
           <Toaster richColors closeButton position="top-right" />
+          <GlobalErrorGuard />
           {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
           <Outlet />
         </HelpModeProvider>
