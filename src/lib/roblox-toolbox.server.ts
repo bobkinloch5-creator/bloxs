@@ -416,8 +416,11 @@ function rejectionReason(r: ToolboxResult, opts: { strict?: boolean } = {}): str
   if (r.free === false) return "not_free";
   if (looksLikeJunk(r.name)) return "suspicious_name";
   if (!isAllowedCreator(r.creatorName)) return "untrusted_creator";
-  if ((r.relevance ?? 0) < 0.18) return "low_relevance";
-  if ((r.safety ?? 0) < 0.62) return "low_safety";
+  // Lowered from 0.18 → 0.10: partial-match results are still usable.
+  if ((r.relevance ?? 0) < 0.10) return "low_relevance";
+  // Lowered from 0.62 → 0.50: assets with a few helper scripts or lower vote
+  // counts are still insertable; the plugin strips scripts server-side anyway.
+  if ((r.safety ?? 0) < 0.50) return "low_safety";
   const isRoblox = r.creatorName.trim().toLowerCase() === "roblox";
   // Always reject pack/kit-style names — they are multi-asset bundles that
   // dump dozens of unrelated objects into Studio and often fail to insert
@@ -493,7 +496,9 @@ function stableHash(value: string): number {
 
 function isAllowedCreator(creatorName: string): boolean {
   const c = creatorName.trim();
-  if (!c) return false;
+  // Fail-open: if the Toolbox API didn't return a creator name, don't block the
+  // asset — just let it through. Many valid Creator Store assets omit it.
+  if (!c) return true;
   if (looksLikeJunk(c)) return false;
   if (/robux|scam|hack|exploit|admin|loader|virus|infected/i.test(c)) return false;
   return true;
@@ -719,7 +724,11 @@ export async function validateAssetIds(ids: number[]): Promise<{ valid: number[]
     else if (d?.isPurchasable === false) reason = "not_purchasable";
     else if (d?.isFree === false) reason = "paid_asset";
     else if (d?.isPublic === false) reason = "visibility_restricted";
-    else if (p?.isPublicDomain !== true) reason = p?.isPublicDomain === false ? "not_public_domain" : `unknown_insert_authorization_${p?.httpStatus ?? http[id] ?? "no_response"}`;
+    // NOTE: isPublicDomain check intentionally removed. The economy API returns
+    // IsPublicDomain=false for virtually all modern free Creator Store assets,
+    // causing them to be wrongly blacklisted. The toolbox-details checks above
+    // (isFree, isPurchasable, isPublished, isPublic) are the correct authority.
+    // Studio's InsertService is the final judge.
 
     console.info("[toolbox/validate] asset authorization", {
       assetId: id,
@@ -737,7 +746,8 @@ export async function validateAssetIds(ids: number[]): Promise<{ valid: number[]
     if (reason) {
       blocked.push(id);
       reasons[id] = reason;
-      if (["cloud_asset_not_insertservice_compatible", "not_public_domain", "visibility_restricted", "paid_asset", "not_published", "not_purchasable"].includes(reason) || reason.startsWith("not_model_asset_type")) {
+      // "not_public_domain" intentionally excluded — no longer a rejection reason.
+      if (["cloud_asset_not_insertservice_compatible", "visibility_restricted", "paid_asset", "not_published", "not_purchasable"].includes(reason) || reason.startsWith("not_model_asset_type")) {
         blacklistAssetIds([id], reason);
       }
     } else {
