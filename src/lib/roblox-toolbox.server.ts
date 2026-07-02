@@ -122,11 +122,26 @@ const RECENT_ASSET_LIMIT = 18;
 const SEARCH_CACHE_TTL_MS = 10 * 60_000; // 10 min — Toolbox results don't churn fast.
 type SearchOut = { source: "live" | "fallback" | "none"; results: ToolboxResult[]; searchedTerms: string[]; scanned: number; page: number; hasMore: boolean };
 const searchCache = new Map<string, { at: number; value: SearchOut }>();
+function pruneRuntimeBlocked(value: SearchOut): SearchOut {
+  const allowed = value.results.filter((r) => !isAssetBlacklisted(r.id));
+  const allowedIds = new Set(allowed.map((r) => r.id));
+  const results = allowed.map((r) => {
+    const fallbackIds = (r.fallbackIds ?? []).filter((id) => allowedIds.has(id) && !isAssetBlacklisted(id));
+    return {
+      ...r,
+      fallbackIds,
+      insertPayload: r.insertPayload
+        ? { ...r.insertPayload, fallback_ids: fallbackIds }
+        : r.insertPayload,
+    };
+  });
+  return { ...value, results };
+}
 function cacheGet(key: string): SearchOut | null {
   const hit = searchCache.get(key);
   if (!hit) return null;
   if (Date.now() - hit.at > SEARCH_CACHE_TTL_MS) { searchCache.delete(key); return null; }
-  return hit.value;
+  return pruneRuntimeBlocked(hit.value);
 }
 function cacheSet(key: string, value: SearchOut) {
   if (searchCache.size > 200) searchCache.clear();
@@ -552,40 +567,123 @@ export function assetBlacklistReason(id: number): string | undefined {
 // to access Asset". We check it here so bad IDs never reach the plugin.
 const publicDomainCache = new Map<number, boolean | null>();
 
+type ProductInfo = {
+  assetId: number;
+  name?: string;
+  assetTypeId?: number;
+  isPublicDomain: boolean | null;
+  isForSale?: boolean | null;
+  priceInRobux?: number | null;
+  httpStatus?: number;
+  error?: string;
+};
+
+async function fetchProductInfo(id: number): Promise<ProductInfo> {
+  let httpStatus: number | undefined;
+  try {
+    const res = await fetch(`https://economy.roblox.com/v2/assets/${id}/details`, {
+      headers: { Accept: "application/json", "User-Agent": "BloxSmith/1.0" },
+      signal: AbortSignal.timeout(2200),
+    });
+    httpStatus = res.status;
+    if (!res.ok) {
+      return { assetId: id, isPublicDomain: null, httpStatus, error: `http_${res.status}` };
+    }
+    const j = (await res.json().catch(() => null)) as any;
+    if (!j) return { assetId: id, isPublicDomain: null, httpStatus, error: "bad_json" };
+    let isPublicDomain: boolean | null = null;
+    if (typeof j.IsPublicDomain === "boolean") isPublicDomain = j.IsPublicDomain;
+    else if (typeof j.isPublicDomain === "boolean") isPublicDomain = j.isPublicDomain;
+    return {
+      assetId: id,
+      name: typeof j.Name === "string" ? j.Name : undefined,
+      assetTypeId: typeof j.AssetTypeId === "number" ? j.AssetTypeId : undefined,
+      isPublicDomain,
+      isForSale: typeof j.IsForSale === "boolean" ? j.IsForSale : null,
+      priceInRobux: typeof j.PriceInRobux === "number" ? j.PriceInRobux : null,
+      httpStatus,
+    };
+  } catch (e) {
+    return { assetId: id, isPublicDomain: null, httpStatus, error: e instanceof Error ? e.message : "fetch_failed" };
+  }
+}
+
 async function isAssetPublicDomain(id: number): Promise<boolean | null> {
   const cached = publicDomainCache.get(id);
   if (cached !== undefined) return cached;
 
-  try {
-    const res = await fetch(`https://economy.roblox.com/v2/assets/${id}/details`, {
-      headers: { Accept: "application/json" },
-      signal: AbortSignal.timeout(1200),
-    });
-    if (!res.ok) {
-      // Don't cache transient errors, but fail-open
-      return null; 
-    }
-    const j = (await res.json().catch(() => null)) as any;
-    if (!j) return null;
-    let verdict: boolean | null = null;
-    if (typeof j.IsPublicDomain === "boolean") verdict = j.IsPublicDomain;
-    else if (typeof j.isPublicDomain === "boolean") verdict = j.isPublicDomain;
-    else {
-      // Only block on an EXPLICIT paid signal. If IsForSale is missing or
-      // PriceInRobux is null/zero we treat the asset as accessible.
-      const priceInRobux = typeof j.PriceInRobux === "number" ? j.PriceInRobux : null;
-      if (priceInRobux !== null && priceInRobux > 0) verdict = false; // paid
-    }
-    
-    // Cache positive/negative results (limit cache size to 5000 items)
-    if (verdict !== null) {
-      if (publicDomainCache.size > 5000) publicDomainCache.clear();
-      publicDomainCache.set(id, verdict);
-    }
-    return verdict;
-  } catch {
-    return null;
+  const info = await fetchProductInfo(id);
+  const verdict = info.isPublicDomain;
+  if (verdict !== null) {
+    if (publicDomainCache.size > 5000) publicDomainCache.clear();
+    publicDomainCache.set(id, verdict);
   }
+  return verdict;
+}
+
+type ToolboxDetailInfo = {
+  id: number;
+  name?: string;
+  assetTypeId?: number;
+  assetType?: string;
+  creatorName?: string;
+  creatorType?: string;
+  isVerified?: boolean;
+  isEndorsed?: boolean;
+  isPublic?: boolean | null;
+  isFree?: boolean | null;
+  isPublished?: boolean | null;
+  isPurchasable?: boolean | null;
+  visibilityStatus?: number;
+  httpStatus?: number;
+  httpResponse?: string;
+};
+
+async function fetchToolboxDetailInfo(ids: number[]): Promise<{ details: Map<number, ToolboxDetailInfo>; http: Record<number, string> }> {
+  const details = new Map<number, ToolboxDetailInfo>();
+  const http: Record<number, string> = {};
+  const unique = Array.from(new Set(ids)).filter((id) => Number.isFinite(id) && id > 0).slice(0, 120);
+  for (let i = 0; i < unique.length; i += 40) {
+    const chunk = unique.slice(i, i + 40);
+    const url = `https://apis.roblox.com/toolbox-service/v1/items/details?assetIds=${chunk.join(",")}`;
+    try {
+      const headers: Record<string, string> = { Accept: "application/json", "User-Agent": "BloxSmith/1.0" };
+      const key = process.env.ROBLOX_OPEN_CLOUD_API_KEY;
+      if (key) headers["x-api-key"] = key;
+      const res = await fetch(url, { headers, signal: AbortSignal.timeout(2200) });
+      for (const id of chunk) http[id] = `toolbox_${res.status}`;
+      if (!res.ok) continue;
+      const json = (await res.json().catch(() => null)) as any;
+      if (!json?.data || !Array.isArray(json.data)) continue;
+      for (const item of json.data) {
+        const id = Number(item.asset?.id);
+        if (!Number.isFinite(id) || id <= 0) continue;
+        const qty = item.fiatProduct?.purchasePrice?.quantity;
+        const fiatPaid = item.fiatProduct?.isFree === false || (qty != null && typeof qty.significand === "number" && qty.significand > 0);
+        const classicPaid = item.product?.isFree === false || (typeof item.product?.price === "number" && item.product.price > 0);
+        details.set(id, {
+          id,
+          name: item.asset?.name,
+          assetTypeId: item.asset?.typeId,
+          assetType: item.asset?.typeId === 10 ? "Model" : String(item.asset?.typeId ?? "unknown"),
+          creatorName: item.creator?.name,
+          creatorType: item.creator?.type === 2 ? "Group" : "User",
+          isVerified: item.creator?.isVerifiedCreator === true,
+          isEndorsed: item.asset?.isEndorsed === true,
+          isPublic: typeof item.asset?.visibilityStatus === "number" ? item.asset.visibilityStatus < 2 : null,
+          isFree: !(fiatPaid || classicPaid),
+          isPublished: item.fiatProduct?.published !== false,
+          isPurchasable: item.fiatProduct?.purchasable !== false,
+          visibilityStatus: item.asset?.visibilityStatus,
+          httpStatus: 200,
+          httpResponse: "toolbox_200",
+        });
+      }
+    } catch (e) {
+      for (const id of chunk) http[id] = e instanceof Error ? e.message : "toolbox_fetch_failed";
+    }
+  }
+  return { details, http };
 }
 
 export async function validateAssetIds(ids: number[]): Promise<{ valid: number[]; blocked: number[]; reasons: Record<number, string> }> {
@@ -600,58 +698,83 @@ export async function validateAssetIds(ids: number[]): Promise<{ valid: number[]
       toCheck.push(id);
     }
   }
-  const survivors: number[] = [];
-  for (let i = 0; i < toCheck.length; i += 40) {
-    const chunk = toCheck.slice(i, i + 40);
-    const url = `https://apis.roblox.com/toolbox-service/v1/items/details?assetIds=${chunk.join(",")}`;
-    try {
-      const res = await fetch(url, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(1500) });
-      // Fail-open on API errors. If Roblox's toolbox-service is down or rate
-      // limits us, don't block every asset — trust that the toolbox search
-      // already surfaced them and let Studio's InsertService be the ultimate
-      // judge. The blacklist will catch any that genuinely can't be inserted.
-      if (!res.ok) { for (const id of chunk) survivors.push(id); continue; }
-      const json = (await res.json().catch(() => null)) as any;
-      const returnedIds = new Set<number>();
-      if (json?.data && Array.isArray(json.data)) {
-         for (const item of json.data) {
-           const id = item.asset?.id; if (typeof id !== "number") continue;
-           returnedIds.add(id);
-           // Only block on EXPLICIT bad signals. Missing fields = assume OK.
-           if (typeof item.asset?.visibilityStatus === "number" && item.asset.visibilityStatus !== 0) { blocked.push(id); reasons[id] = "visibility_restricted"; continue; }
-           const qty = item.fiatProduct?.purchasePrice?.quantity;
-           const fiatPaid = item.fiatProduct?.isFree === false || (qty != null && typeof qty.significand === "number" && qty.significand > 0);
-           const classicPaid = item.product?.isFree === false || (typeof item.product?.price === "number" && item.product.price > 0);
-           if (fiatPaid || classicPaid) { blocked.push(id); reasons[id] = "paid_asset"; continue; }
-           if (item.fiatProduct?.published === false) { blocked.push(id); reasons[id] = "not_published"; continue; }
-           survivors.push(id);
-         }
-      }
-      // IDs not present in the response are treated as survivors and get
-      // handed to the IsPublicDomain check below.
-      for (const id of chunk) { if (!returnedIds.has(id)) survivors.push(id); }
-    } catch { for (const id of chunk) survivors.push(id); }
-  }
+  const { details, http } = await fetchToolboxDetailInfo(toCheck);
+  const productInfos = await Promise.all(toCheck.map((id) => fetchProductInfo(id)));
+  const productById = new Map(productInfos.map((info) => [info.assetId, info]));
 
-  // Second pass: reject anything whose Marketplace ProductInfo explicitly
-  // says IsPublicDomain=false. Run fully in parallel to prevent stalling.
-  const uniqueSurvivors = Array.from(new Set(survivors));
-  const publicDomainMap = new Map<number, boolean | null>();
-  const results = await Promise.all(uniqueSurvivors.map((id) => isAssetPublicDomain(id)));
-  uniqueSurvivors.forEach((id, idx) => publicDomainMap.set(id, results[idx]));
+  for (const id of toCheck) {
+    const d = details.get(id);
+    const p = productById.get(id);
+    const assetTypeId = d?.assetTypeId ?? p?.assetTypeId;
+    let reason: string | null = null;
+    if (assetTypeId !== 10) reason = assetTypeId ? `not_model_asset_type_${assetTypeId}` : "unknown_asset_type";
+    else if (d?.isPublished === false) reason = "not_published";
+    else if (d?.isPurchasable === false) reason = "not_purchasable";
+    else if (d?.isFree === false) reason = "paid_asset";
+    else if (d?.isPublic === false) reason = "visibility_restricted";
+    else if (p?.isPublicDomain !== true) reason = p?.isPublicDomain === false ? "not_public_domain" : `unknown_insert_authorization_${p?.httpStatus ?? http[id] ?? "no_response"}`;
 
-  for (const id of uniqueSurvivors) {
-    const flag = publicDomainMap.get(id);
-    if (flag === false) {
+    console.info("[toolbox/validate] asset authorization", {
+      assetId: id,
+      assetName: d?.name ?? p?.name ?? null,
+      creator: d?.creatorName ?? null,
+      assetType: assetTypeId ?? null,
+      isPublic: d?.isPublic ?? null,
+      isVerified: d?.isVerified ?? false,
+      insertServiceResponse: reason ? "blocked_before_studio" : "metadata_allows_insertservice",
+      httpResponse: `${d?.httpResponse ?? http[id] ?? "toolbox_missing"}; economy_${p?.httpStatus ?? "none"}`,
+      retryCount: 0,
+      reason,
+    });
+
+    if (reason) {
       blocked.push(id);
-      reasons[id] = "not_public_domain";
-      // Persist in in-memory blacklist so future turns skip it too.
-      blacklistAssetIds([id], "not_public_domain");
+      reasons[id] = reason;
+      if (["not_public_domain", "visibility_restricted", "paid_asset", "not_published", "not_purchasable"].includes(reason) || reason.startsWith("not_model_asset_type")) {
+        blacklistAssetIds([id], reason);
+      }
     } else {
       valid.push(id);
     }
   }
   return { valid, blocked, reasons };
+}
+
+export async function testAssetAuthorization(assetId: number): Promise<{
+  assetId: number;
+  canInsertServiceAccess: boolean;
+  authorizationStatus: "authorized" | "blocked";
+  failureReason: string | null;
+  assetName: string | null;
+  creator: string | null;
+  assetType: string | number | null;
+  isPublic: boolean | null;
+  isVerified: boolean;
+  httpResponse: string;
+}> {
+  const id = Number(assetId);
+  if (!Number.isFinite(id) || id <= 0) {
+    return { assetId: id, canInsertServiceAccess: false, authorizationStatus: "blocked", failureReason: "invalid_asset_id", assetName: null, creator: null, assetType: null, isPublic: null, isVerified: false, httpResponse: "invalid" };
+  }
+  const [{ details, http }, product, verdict] = await Promise.all([
+    fetchToolboxDetailInfo([id]),
+    fetchProductInfo(id),
+    validateAssetIds([id]),
+  ]);
+  const d = details.get(id);
+  const reason = verdict.reasons[id] ?? null;
+  return {
+    assetId: id,
+    canInsertServiceAccess: verdict.valid.includes(id),
+    authorizationStatus: verdict.valid.includes(id) ? "authorized" : "blocked",
+    failureReason: reason,
+    assetName: d?.name ?? product.name ?? null,
+    creator: d?.creatorName ?? null,
+    assetType: d?.assetType ?? product.assetTypeId ?? null,
+    isPublic: d?.isPublic ?? (product.isPublicDomain === true ? true : product.isPublicDomain === false ? false : null),
+    isVerified: d?.isVerified ?? false,
+    httpResponse: `${d?.httpResponse ?? http[id] ?? "toolbox_missing"}; economy_${product.httpStatus ?? "none"}`,
+  };
 }
 
 // ── Shared insert-asset sanitizer ────────────────────────────────────────
