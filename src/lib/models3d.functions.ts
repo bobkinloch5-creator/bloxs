@@ -128,8 +128,8 @@ export const getModelStatus = createServerFn({ method: "GET" })
     // Role checks are the single source of truth — no hardcoded emails.
     let isAdmin = false;
     try {
-      const { data: adminFlag } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
-      const { data: ownerFlag } = await supabase.rpc("has_role", { _user_id: userId, _role: "owner" });
+      const { data: adminFlag } = await supabase.rpc("current_user_has_role", { _role: "admin" });
+      const { data: ownerFlag } = await supabase.rpc("current_user_has_role", { _role: "owner" });
       if (adminFlag || ownerFlag) isAdmin = true;
     } catch {}
 
