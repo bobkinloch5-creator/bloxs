@@ -40,7 +40,7 @@ function wavFromPcm16(bytes: Uint8Array, sampleRate = 44100) {
   view.setUint16(34, 16, true);
   write(36, "data");
   view.setUint32(40, bytes.byteLength, true);
-  return new Blob([header, bytes], { type: "audio/wav" });
+  return new Blob([header, bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer], { type: "audio/wav" });
 }
 
 async function tryNvidiaMagpieTts(input: string, request: Request): Promise<Response | null> {

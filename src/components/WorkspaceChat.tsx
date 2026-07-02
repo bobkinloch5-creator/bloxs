@@ -290,10 +290,11 @@ export function WorkspaceChat({
     id: activeProjectId ?? "no-project",
     transport,
     onError: (e) => toast.error(e?.message || "The AI request failed."),
-    onFinish: (msg) => {
+    onFinish: (evt) => {
       // Auto-speak the final AI reply through NVIDIA TTS when voice is enabled
-      if (ttsEnabled && msg.role === "assistant") {
-        const rawText = (msg.parts ?? []).map((p: any) => p.type === "text" ? p.text : "").join("");
+      const msg = (evt as { message?: { role?: string; parts?: Array<{ type?: string; text?: string }> } })?.message;
+      if (ttsEnabled && msg?.role === "assistant") {
+        const rawText = (msg.parts ?? []).map((p) => p?.type === "text" ? (p.text ?? "") : "").join("");
         const cleaned = rawText
           .replace(/```[\s\S]*?```/g, " ")
           .replace(/<bloxsmith-actions>[\s\S]*?<\/bloxsmith-actions>/gi, " ")
