@@ -1,5 +1,6 @@
 import { Component, type ReactNode } from "react";
 import { AlertCircle, RotateCcw } from "lucide-react";
+import { friendlyError } from "@/lib/friendly-error";
 
 type Props = { children: ReactNode; label?: string; fallback?: ReactNode };
 type State = { error: Error | null };
@@ -26,7 +27,7 @@ export class ErrorBoundary extends Component<Props, State> {
   render() {
     if (!this.state.error) return this.props.children;
     if (this.props.fallback) return this.props.fallback;
-    const message = friendlyMessage(this.state.error);
+    const message = friendlyError(this.state.error, { fallback: "This section hit an unexpected error. Try again in a moment." });
     return (
       <div
         className="flex items-start gap-3 rounded-2xl border p-4 text-sm"
@@ -56,11 +57,3 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 }
 
-function friendlyMessage(err: Error): string {
-  const raw = err?.message || "";
-  if (!raw) return "This section hit an unexpected error. Try again in a moment.";
-  if (/network|fetch|failed to fetch/i.test(raw)) return "Network hiccup — check your connection and retry.";
-  if (/unauthor|401|forbid|403/i.test(raw)) return "Your session expired. Please sign in again.";
-  if (/rate|429|quota/i.test(raw)) return "You're going a bit fast — wait a few seconds and retry.";
-  return raw.length > 200 ? raw.slice(0, 200) + "…" : raw;
-}
