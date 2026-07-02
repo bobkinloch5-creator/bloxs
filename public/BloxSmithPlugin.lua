@@ -1,5 +1,5 @@
 -- ============================================================
--- BloxSmith Ultimate Plugin v2.1.1
+-- BloxSmith Ultimate Plugin v2.1.2
 -- Fully connected to bloxsmith.pro backend API.
 --
 -- API endpoints used:
@@ -41,7 +41,7 @@ end
 ----------------------------------------------------------------
 -- CONFIG
 ----------------------------------------------------------------
-local PLUGIN_VERSION  = "2.1.1"
+local PLUGIN_VERSION  = "2.1.2"
 local API_BASE        = "https://bloxsmith.pro"
 local POLL_SECONDS    = 1        -- how often to call /poll for actions
 local PAIR_POLL_SEC   = 2        -- how often to poll for pair approval
