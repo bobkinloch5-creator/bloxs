@@ -1855,6 +1855,10 @@ export type Database = {
         Args: { _project_id: string; _user_id: string }
         Returns: boolean
       }
+      current_user_has_role: {
+        Args: { _role: Database["public"]["Enums"]["app_role"] }
+        Returns: boolean
+      }
       get_my_plugin_token: { Args: never; Returns: string }
       has_role: {
         Args: {
