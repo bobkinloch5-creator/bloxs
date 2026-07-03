@@ -243,74 +243,8 @@ function fallbackUiConcept({ prompt, style = "Modern" }: UiConceptArgs) {
   return svgDataUrl(svg);
 }
 
-async function generateGeminiImage(prompt: string): Promise<string | null> {
-  const key = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY;
-  if (!key) return null;
-  const model = process.env.GEMINI_IMAGE_MODEL || "gemini-2.0-flash-preview-image-generation";
-  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      generationConfig: { responseModalities: ["TEXT", "IMAGE"] },
-    }),
-  });
-  if (!response.ok) return null;
-  const json = await response.json() as {
-    candidates?: Array<{ content?: { parts?: Array<{ inlineData?: { mimeType?: string; data?: string } }> } }>;
-  };
-  const image = json.candidates?.flatMap((c) => c.content?.parts ?? []).find((p) => p.inlineData?.data)?.inlineData;
-  return image?.data ? `data:${image.mimeType || "image/png"};base64,${image.data}` : null;
-}
-
-async function generateOpenAiImage(prompt: string): Promise<string | null> {
-  const key = process.env.OPENAI_API_KEY;
-  if (!key) return null;
-  const response = await fetch("https://api.openai.com/v1/images/generations", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: process.env.OPENAI_IMAGE_MODEL || "gpt-image-1",
-      prompt,
-      size: "1536x1024",
-      quality: process.env.OPENAI_IMAGE_QUALITY || "medium",
-      output_format: "png",
-    }),
-  });
-  if (!response.ok) return null;
-  const json = await response.json() as { data?: Array<{ b64_json?: string; url?: string }> };
-  const first = json.data?.[0];
-  if (first?.b64_json) return `data:image/png;base64,${first.b64_json}`;
-  if (first?.url) return first.url;
-  return null;
-}
-
 export async function generateUiConceptImage(args: UiConceptArgs): Promise<string> {
-  const style = args.style ?? "Modern";
-  const variation = Math.floor(Math.random() * 1_000_000);
-  const prompt = `Premium Roblox game UI concept art, polished AAA Roblox interface, not a website, not a wireframe.
-Style: ${style}. Request: ${args.prompt}. Variation seed: ${variation}.
-Create a fresh unique layout every time with strong hierarchy, crisp spacing, professional typography, rich icons, beautiful buttons, responsive mobile-safe composition, and Roblox game feel.
-Make it specific to the requested screen type: loading screen, main menu, HUD, shop, inventory, gamepass UI, quest UI, health/XP/currency display, or settings.
-Avoid generic dark frosted-glass templates, empty panels, placeholder boxes, blurry text, broken labels, bland colors, clutter, overlap, and low-effort mockups.
-The image is only a concept; BloxSmith will rebuild it as real Roblox ScreenGui objects.`;
-
-  try {
-    const geminiImage = await generateGeminiImage(prompt);
-    if (geminiImage) return geminiImage;
-  } catch {
-    // Try the next provider, then the high-quality randomized local fallback.
-  }
-
-  try {
-    const openAiImage = await generateOpenAiImage(prompt);
-    if (openAiImage) return openAiImage;
-  } catch {
-    // Fall back to generated SVG below.
-  }
-
+  // NVIDIA-only mode: never call paid image providers. Use the rich local SVG
+  // concept generator so UI requests still return a usable preview.
   return fallbackUiConcept(args);
 }
