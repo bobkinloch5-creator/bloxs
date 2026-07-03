@@ -512,8 +512,25 @@ export const MODELS: ModelOption[] = [
     description: "MiniMax M3 routed through NVIDIA Integrate. Multimodal: accepts image_url and video_url.",
     modelSettings: { temperature: 1.0, topP: 0.95, maxOutputTokens: 8192 },
   },
+  {
+    id: "nvidia/glm-5.2",
+    upstreamId: "z-ai/glm-5.2",
+    gateway: "nvidia",
+    label: "GLM 5.2",
+    provider: "Z.AI",
+    via: "NVIDIA NIM",
+    tier: "premium",
+    speed: "Medium",
+    quality: "Best",
+    credits: "Medium",
+    status: "Working",
+    bestFor: "Strong Roblox reasoning, Luau code, and full-game builds via Z.AI's newest GLM.",
+    description: "Z.AI GLM 5.2 routed through NVIDIA Integrate (build.nvidia.com).",
+    modelSettings: { temperature: 1.0, topP: 1.0, maxOutputTokens: 16384 },
+  },
 
 ];
+
 
 export const DEFAULT_MODEL_ID = "lovable/gemini-3-flash-preview";
 export const FALLBACK_MODEL_ID = "lovable/gemini-3.5-flash";
