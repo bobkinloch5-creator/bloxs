@@ -1070,6 +1070,54 @@ local function quarantineScripts(root, mode)
 	return count, suspicious
 end
 
+local function wrapGinsertObjects(numId, objects)
+ 	if type(objects) ~= "table" or #objects == 0 then
+ 		return nil, "ginsert returned no objects"
+ 	end
+ 	local container = Instance.new("Model")
+ 	container.Name = "BloxSmith_GInsert_" .. tostring(numId)
+ 	local moved = 0
+ 	for _, obj in ipairs(objects) do
+ 		if typeof(obj) == "Instance" then
+ 			obj.Parent = container
+ 			moved = moved + 1
+ 		end
+ 	end
+ 	if moved == 0 then
+ 		pcall(function() container:Destroy() end)
+ 		return nil, "ginsert returned no instances"
+ 	end
+ 	return container
+ end
+
+local function tryGinsertAsset(numId)
+ 	-- Roblox Studio's command-bar style insertion path. In some Studio/plugin
+ 	-- contexts this can load public Toolbox assets that InsertService rejects.
+ 	if type(ginsert) == "function" then
+ 		local ok, result = pcall(function() return ginsert(numId) end)
+ 		if ok and typeof(result) == "Instance" then
+ 			local container = Instance.new("Model")
+ 			container.Name = "BloxSmith_GInsert_" .. tostring(numId)
+ 			result.Parent = container
+ 			return container, "ginsert"
+ 		elseif ok and type(result) == "table" then
+ 			local wrapped, err = wrapGinsertObjects(numId, result)
+ 			if wrapped then return wrapped, "ginsert" end
+ 			return nil, err
+ 		elseif not ok then
+ 			return nil, tostring(result)
+ 		end
+ 	end
+
+ 	local ok, objects = pcall(function() return game:GetObjects("rbxassetid://" .. tostring(numId)) end)
+ 	if ok then
+ 		local wrapped, err = wrapGinsertObjects(numId, objects)
+ 		if wrapped then return wrapped, "game:GetObjects" end
+ 		return nil, err
+ 	end
+ 	return nil, tostring(objects)
+ end
+
 local function tryLoadAsset(numId)
 	if _assetDenylist[numId] then
 		return false, "blocked in current BloxSmith session: " .. tostring(_assetDenylist[numId])
@@ -1078,14 +1126,21 @@ local function tryLoadAsset(numId)
 		local ok, clone = pcall(function() return _assetCache[numId]:Clone() end)
 		if ok and clone then return true, clone end
 	end
+	local gModel, gSourceOrErr = tryGinsertAsset(numId)
+	if gModel then
+		local snap = gModel:Clone()
+		snap.Parent = nil
+		_assetCache[numId] = snap
+		return true, gModel, gSourceOrErr
+	end
 	local ok, model = pcall(function() return InsertService:LoadAsset(numId) end)
 	if ok and model then
 		local snap = model:Clone()
 		snap.Parent = nil
 		_assetCache[numId] = snap
-		return true, model
+		return true, model, "InsertService"
 	end
-	local err = tostring(model)
+	local err = "ginsert failed: " .. tostring(gSourceOrErr) .. " | InsertService failed: " .. tostring(model)
 	local low = string.lower(err)
 	if low:find("not authorized") or low:find("unauthorized") or low:find("permission") or low:find("403") or low:find("private") or low:find("moderated") then
 		_assetDenylist[numId] = err
@@ -1162,7 +1217,7 @@ function Actions.insert_asset(a)
 	local model, usedId, lastErr
 	local attempts = {}
 	for _, cid in ipairs(candidates) do
-		appendLog(("InsertService attempt assetId=%d name=%s creator=%s type=%s public=%s verified=%s retry=%d"):format(
+		appendLog(("ginsert attempt assetId=%d name=%s creator=%s type=%s public=%s verified=%s retry=%d"):format(
 			cid,
 			tostring(payload.asset_name or payload.name or name or "unknown"),
 			tostring(payload.creator_name or "unknown"),
@@ -1171,7 +1226,7 @@ function Actions.insert_asset(a)
 			tostring(payload.is_verified or (payload.preview and payload.preview.verifiedCreator) or false),
 			#attempts
 		), "debug")
-		local ok, res = tryLoadAsset(cid)
+		local ok, res, loader = tryLoadAsset(cid)
 		table.insert(attempts, {
 			asset_id = cid,
 			asset_name = tostring(payload.asset_name or payload.name or name or "unknown"),
@@ -1179,6 +1234,8 @@ function Actions.insert_asset(a)
 			asset_type = tostring(payload.asset_type or payload.requested_asset_type or "Model"),
 			is_public = payload.is_public or payload.free_only or payload.toolbox_only,
 			is_verified = payload.is_verified or (payload.preview and payload.preview.verifiedCreator) or false,
+			loader = loader or "ginsert+InsertService",
+			ginsert_response = ok and "ok" or tostring(res),
 			insertservice_response = ok and "ok" or tostring(res),
 			http_response = tostring(res),
 			retry_count = #attempts,
@@ -1187,7 +1244,7 @@ function Actions.insert_asset(a)
 		lastErr = res
 	end
 	if not model then
-		return false, ("InsertService failed for %d candidates: %s | attempted_ids=%s | diagnostics=%s"):format(
+		return false, ("ginsert/GetObjects/InsertService failed for %d candidates: %s | attempted_ids=%s | diagnostics=%s"):format(
 			#candidates,
 			tostring(lastErr or "unknown"),
 			table.concat(candidates, ","),
