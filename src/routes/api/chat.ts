@@ -212,7 +212,7 @@ function isDestructiveEditRequest(userText: string) {
 
 function isClearProjectKeepBaseplateRequest(userText: string) {
   const text = userText.toLowerCase();
-  return isDestructiveEditRequest(userText) && /\bbase\s*plate\b|\bbaseplate\b/.test(text) && /\bkeep|except|only|preserve|leave\b/.test(text);
+  return isDestructiveEditRequest(userText) && /\b(?:base\s*plate|baseplate)\b/.test(text) && /\b(?:keep|except|only|preserve|leave)\b/.test(text);
 }
 
 function clearProjectKeepBaseplateStudioActions(userText: string) {
