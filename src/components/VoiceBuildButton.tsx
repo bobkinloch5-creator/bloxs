@@ -9,10 +9,13 @@ type Props = {
   disabled?: boolean;
 };
 
+type MicDevice = { deviceId: string; label: string };
+
 /**
  * Hands-free voice loop for the project chat:
  *  • Listens via the browser SpeechRecognition API on explicit Start click
- *  • Auto-sends each finalized utterance into the chat (which then builds in Studio)
+ *  • Auto-follows the OS default input device (or a specific one the user picks)
+ *  • Refreshes automatically when devices are plugged/unplugged or the OS default changes
  *  • Auto-enables BloxSmith TTS so the assistant's reply is spoken back through speakers
  */
 export function VoiceBuildButton({ onUtterance, setTtsEnabled, disabled }: Props) {
@@ -21,7 +24,12 @@ export function VoiceBuildButton({ onUtterance, setTtsEnabled, disabled }: Props
   const [error, setError] = useState<string | null>(null);
   const [lastHeard, setLastHeard] = useState<string>("");
   const [interim, setInterim] = useState<string>("");
+  const [devices, setDevices] = useState<MicDevice[]>([]);
+  // "" = follow the OS default input device automatically
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string>("");
+  const [activeMicLabel, setActiveMicLabel] = useState<string>("");
   const recRef = useRef<any>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const wantOnRef = useRef(false);
   // Keep onUtterance in a ref so the recognition callback never captures a stale version
   const onUtteranceRef = useRef(onUtterance);
@@ -33,10 +41,73 @@ export function VoiceBuildButton({ onUtterance, setTtsEnabled, disabled }: Props
         (window as any).webkitSpeechRecognition)) ||
     null;
 
+  const refreshDevices = useCallback(async () => {
+    try {
+      if (!navigator.mediaDevices?.enumerateDevices) return;
+      const list = await navigator.mediaDevices.enumerateDevices();
+      const mics: MicDevice[] = list
+        .filter((d) => d.kind === "audioinput")
+        .map((d, i) => ({
+          deviceId: d.deviceId,
+          label: d.label || `Microphone ${i + 1}`,
+        }));
+      setDevices(mics);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  // Track device changes (mic plugged/unplugged, OS default switched)
+  useEffect(() => {
+    refreshDevices();
+    const md = navigator.mediaDevices;
+    if (!md?.addEventListener) return;
+    const handler = () => {
+      refreshDevices();
+      // If listening and user is following the system default, restart the
+      // capture stream so we pick up the newly-selected default device.
+      if (wantOnRef.current && selectedDeviceId === "") {
+        restartCapture().catch(() => {});
+      }
+    };
+    md.addEventListener("devicechange", handler);
+    return () => md.removeEventListener("devicechange", handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshDevices, selectedDeviceId]);
+
+  // Open a mic stream honouring the user's selection (or the OS default).
+  // Keeping this stream alive while SpeechRecognition runs hints the browser
+  // to route recognition audio through the same device on Chromium.
+  const openMicStream = useCallback(async () => {
+    const constraints: MediaStreamConstraints = {
+      audio: selectedDeviceId
+        ? { deviceId: { exact: selectedDeviceId }, echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+        : { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+    };
+    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    const track = stream.getAudioTracks()[0];
+    const settings = track?.getSettings?.();
+    const label = track?.label || devices.find((d) => d.deviceId === settings?.deviceId)?.label || "System default mic";
+    setActiveMicLabel(label);
+    return stream;
+  }, [selectedDeviceId, devices]);
+
+  const restartCapture = useCallback(async () => {
+    try { streamRef.current?.getTracks().forEach((t) => t.stop()); } catch {}
+    streamRef.current = null;
+    try {
+      streamRef.current = await openMicStream();
+    } catch {
+      // ignore — recognition will still try the OS default
+    }
+  }, [openMicStream]);
+
   const stop = useCallback(() => {
     wantOnRef.current = false;
     try { recRef.current?.stop(); } catch {}
     recRef.current = null;
+    try { streamRef.current?.getTracks().forEach((t) => t.stop()); } catch {}
+    streamRef.current = null;
     setListening(false);
   }, []);
 
@@ -53,14 +124,16 @@ export function VoiceBuildButton({ onUtterance, setTtsEnabled, disabled }: Props
       return;
     }
 
-    // Request mic permission — MUST come from a direct click event.
+    // Request mic on the selected (or default) device — MUST come from a direct click event.
     try {
-      await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = await openMicStream();
+      // labels are only exposed after permission is granted — refresh now
+      refreshDevices();
     } catch (e: any) {
       if (e?.name === "NotAllowedError" || e?.name === "PermissionDeniedError") {
         setError("Microphone blocked. Click the 🔒 icon in your browser address bar and allow mic access, then try again.");
-      } else if (e?.name === "NotFoundError") {
-        setError("No microphone detected on this device.");
+      } else if (e?.name === "NotFoundError" || e?.name === "OverconstrainedError") {
+        setError("Selected microphone isn't available. Switch to another mic or 'System default'.");
       } else {
         setError("Could not access the microphone. Check your browser settings.");
       }
@@ -120,12 +193,21 @@ export function VoiceBuildButton({ onUtterance, setTtsEnabled, disabled }: Props
       setError(e?.message ?? "Could not start voice recognition.");
       setListening(false);
     }
-  }, []); // stable — uses refs, no deps needed
+  }, [openMicStream, refreshDevices]);
+
+  // If the user changes mic while already listening, re-open the capture stream on the new device.
+  useEffect(() => {
+    if (wantOnRef.current) restartCapture().catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDeviceId]);
 
   // Enable TTS when panel opens
   useEffect(() => {
-    if (open) setTtsEnabled?.(true);
-  }, [open, setTtsEnabled]);
+    if (open) {
+      setTtsEnabled?.(true);
+      refreshDevices();
+    }
+  }, [open, setTtsEnabled, refreshDevices]);
 
   // Stop recognition when panel closes
   useEffect(() => {
@@ -178,6 +260,32 @@ export function VoiceBuildButton({ onUtterance, setTtsEnabled, disabled }: Props
                   : "Click Start, allow mic access, then speak"}
               </div>
 
+              {/* Mic picker — defaults to the OS default input device */}
+              <div className="w-full">
+                <label className="mb-1 flex items-center justify-between text-[10px] font-bold uppercase tracking-[0.18em] text-white/40">
+                  <span>Input device</span>
+                  {listening && activeMicLabel && (
+                    <span className="normal-case tracking-normal text-emerald-300/80" title={activeMicLabel}>
+                      ● {activeMicLabel.length > 28 ? activeMicLabel.slice(0, 26) + "…" : activeMicLabel}
+                    </span>
+                  )}
+                </label>
+                <select
+                  value={selectedDeviceId}
+                  onChange={(e) => setSelectedDeviceId(e.target.value)}
+                  className="w-full rounded-lg border bg-white/[0.03] px-2 py-1.5 text-xs text-white/90 outline-none"
+                  style={{ borderColor: "var(--bs-border)" }}
+                >
+                  <option value="">System default (auto-follow)</option>
+                  {devices.map((d) => (
+                    <option key={d.deviceId} value={d.deviceId}>{d.label}</option>
+                  ))}
+                </select>
+                <p className="mt-1 text-[10px] text-white/35">
+                  Auto-follows whatever mic your OS is currently using (webcam, headset, speakers combo, etc.). Pick a specific device to override.
+                </p>
+              </div>
+
               {(interim || lastHeard) && (
                 <div className="w-full rounded-lg border bg-white/[0.03] px-3 py-2 text-xs" style={{ borderColor: "var(--bs-border)" }}>
                   <div className="mb-0.5 text-[10px] font-bold uppercase tracking-[0.18em] text-white/40">
@@ -226,3 +334,4 @@ export function VoiceBuildButton({ onUtterance, setTtsEnabled, disabled }: Props
     </>
   );
 }
+
