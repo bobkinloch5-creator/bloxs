@@ -6,7 +6,6 @@ import { getProviderModel, getFallbackModel } from "@/lib/ai-gateway.server";
 import { BLOXSMITH_SYSTEM_PROMPT, parseActions } from "@/lib/bloxsmith-prompt";
 import { DEFAULT_MODEL_ID, findModel, isSelectable } from "@/lib/models";
 import { detectSingleAssetIntent, searchRobloxToolbox, searchRobloxToolboxSet, sanitizeInsertAssetActions, type ToolboxCategory, type ToolboxSetRequest } from "@/lib/roblox-toolbox.server";
-import { chargeCredits } from "@/lib/credits.server";
 import { describeImageWithNvidiaPaliGemma } from "@/lib/nvidia-vision.server";
 import { generateUiConceptImage } from "@/lib/ui-concept-image.server";
 import { generateGeneralImage, isUiConceptRequest } from "@/lib/general-image.server";
@@ -2433,15 +2432,6 @@ export const Route = createFileRoute("/api/chat")({
             } catch (e) {
               return jsonError(e instanceof Error ? e.message : "Model unavailable", 500, "provider_init_failed");
             }
-            const baseCostLite = 0;
-            const chargeLite = await chargeCredits(supabase, userId, baseCostLite);
-            if (!chargeLite.ok) {
-              return jsonError(
-                chargeLite.message ?? "Out of credits.",
-                chargeLite.code === "banned" ? 403 : 402,
-                chargeLite.code ?? "no_credits",
-              );
-            }
             const convertedLite = await convertToModelMessages(stripImageFilePartsFromMessages(messages));
             const systemLite =
               BLOXSMITH_SYSTEM_PROMPT +
@@ -2541,14 +2531,6 @@ export const Route = createFileRoute("/api/chat")({
           // action block. If the user explicitly says to keep only Baseplate,
           // queue a deterministic Studio cleanup command immediately.
           if (mode === "build" && projectId && userText && isClearProjectKeepBaseplateRequest(userText)) {
-            const clearCharge = await chargeCredits(supabase, userId, 0);
-            if (!clearCharge.ok) {
-              return jsonError(
-                clearCharge.message ?? "Out of credits.",
-                clearCharge.code === "banned" ? 403 : 402,
-                clearCharge.code ?? "no_credits",
-              );
-            }
             const actions = clearProjectKeepBaseplateStudioActions(userText).map(normalizePluginAction).map((action: any) => ({
               ...action,
               payload: {
@@ -2683,14 +2665,6 @@ export const Route = createFileRoute("/api/chat")({
                 }
                 const finalInsert = candidates[0] as typeof insertAction;
                 const finalAssetId = Number((finalInsert.payload as { asset_id?: number }).asset_id);
-                const fastCharge = await chargeCredits(supabase, userId, 0);
-                if (!fastCharge.ok) {
-                  return jsonError(
-                    fastCharge.message ?? "Out of credits.",
-                    fastCharge.code === "banned" ? 403 : 402,
-                    fastCharge.code ?? "no_credits",
-                  );
-                }
                 const replyText = `Adding a ${label} to your workspace from the Toolbox — queued for Studio now.`;
                 const { data: msgRow } = await supabase
                   .from("chat_messages")
@@ -2764,20 +2738,6 @@ export const Route = createFileRoute("/api/chat")({
           } catch (e) {
             return jsonError(e instanceof Error ? e.message : "Model unavailable", 500, "provider_init_failed");
           }
-
-          // ── CREDIT GATE ──
-          // Charge upfront based on the model's tier; if a build is produced,
-          // we charge a small bonus inside onFinish.
-          const baseCost = 0;
-          const charge = await chargeCredits(supabase, userId, baseCost);
-          if (!charge.ok) {
-            return jsonError(
-              charge.message ?? "Out of credits.",
-              charge.code === "banned" ? 403 : 402,
-              charge.code ?? "no_credits",
-            );
-          }
-
 
           // ── MEMORY + STUDIO CONTEXT (parallel with vision + UI concept) ──
           // Pull project metadata, recent builds, latest game scan, recent errors,
