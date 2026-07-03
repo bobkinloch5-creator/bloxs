@@ -256,12 +256,32 @@ for _, child in ipairs(Workspace:GetChildren()) do
       child:Clear()
       clearedTerrain = true
     end)
-  elseif child.Name ~= "Baseplate" then
+  elseif string.lower(child.Name) ~= "baseplate" then
     destroyChild(child)
   end
 end
 
 local baseplate = Workspace:FindFirstChild("Baseplate")
+if not baseplate then
+  for _, child in ipairs(Workspace:GetChildren()) do
+    if string.lower(child.Name) == "baseplate" then
+      baseplate = child
+      child.Name = "Baseplate"
+      break
+    end
+  end
+end
+if not baseplate then
+  baseplate = Instance.new("Part")
+  baseplate.Name = "Baseplate"
+  baseplate.Size = Vector3.new(2048, 1, 2048)
+  baseplate.Position = Vector3.new(0, 0, 0)
+  baseplate.Material = Enum.Material.Plastic
+  baseplate.Color = Color3.fromRGB(99, 95, 98)
+  baseplate.TopSurface = Enum.SurfaceType.Studs
+  baseplate.BottomSurface = Enum.SurfaceType.Inlet
+  baseplate.Parent = Workspace
+end
 if baseplate and baseplate:IsA("BasePart") then
   baseplate.Anchored = true
   baseplate.Locked = false
