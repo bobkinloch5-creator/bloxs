@@ -273,14 +273,15 @@ export function VoiceBuildButton({ onUtterance, setTtsEnabled, disabled }: Props
                 <select
                   value={selectedDeviceId}
                   onChange={(e) => setSelectedDeviceId(e.target.value)}
-                  className="w-full rounded-lg border bg-white/[0.03] px-2 py-1.5 text-xs text-white/90 outline-none"
+                  className="w-full rounded-lg border bg-white/[0.03] px-2 py-1.5 text-xs text-white/90 outline-none [color-scheme:dark]"
                   style={{ borderColor: "var(--bs-border)" }}
                 >
-                  <option value="">System default (auto-follow)</option>
+                  <option value="" style={{ background: "#0b1220", color: "#fff" }}>System default (auto-follow)</option>
                   {devices.map((d) => (
-                    <option key={d.deviceId} value={d.deviceId}>{d.label}</option>
+                    <option key={d.deviceId} value={d.deviceId} style={{ background: "#0b1220", color: "#fff" }}>{d.label}</option>
                   ))}
                 </select>
+
                 <p className="mt-1 text-[10px] text-white/35">
                   Auto-follows whatever mic your OS is currently using (webcam, headset, speakers combo, etc.). Pick a specific device to override.
                 </p>
