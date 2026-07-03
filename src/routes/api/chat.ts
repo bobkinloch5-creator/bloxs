@@ -48,11 +48,12 @@ Convert the request and response below into a concise, safe, executable BloxSmit
 
 Rules:
 - Output exactly one fenced block: \`\`\`bloxsmith-actions followed by a JSON array, then \`\`\`.
-- Supported kinds: insert_asset, run_lua, script, localscript, modulescript, screengui, remoteevent, remotefunction, part, terrain, setting, organize_project, autofix_project, scan_project.
+- Supported kinds: insert_asset, run_lua, script, localscript, modulescript, screengui, remoteevent, remotefunction, part, terrain, set_properties, rename, move, delete, setting, organize_project, autofix_project, scan_project.
 - Prefer insert_asset only when an asset id is explicitly present in the plan. Include payload.asset_id and payload.fallback_ids when known.
 - If Asset mode is procedural, do not emit insert_asset. Use run_lua/terrain/parts to generate original visible content in Studio.
-- Use run_lua for placement, safe cleanup, scripting, UI wiring, lighting, spawns, collision fixes, and validation helpers.
+- Use run_lua for placement, safe cleanup, scripting, UI wiring, lighting, spawns, collision fixes, batch deletes, and validation helpers.
 - Do not emit delete actions unless the user explicitly asked to delete or clear something.
+- If the user asks to erase/clear/wipe/delete everything except Baseplate, output exactly one run_lua action that deletes Workspace children except Baseplate, clears Terrain, clears StarterGui/StarterPack/StarterPlayer scripts/ReplicatedStorage/ServerScriptService/ServerStorage/Lighting/SoundService/Teams, then scan_project. Do not answer with manual instructions.
 - Never produce empty folders, placeholders, TODOs, comments pretending work is done, or unsupported action kinds.
 - End with autofix_project and scan_project for build/test reliability.
 - Language for player-facing UI strings: ${params.languageName}.
