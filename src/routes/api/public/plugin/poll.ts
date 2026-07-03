@@ -129,7 +129,7 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
             const droppedIds = before.filter((a) => !survivingIds.has(a.id)).map((a) => a.id);
             if (droppedIds.length > 0) {
               await sb.from("plugin_actions")
-                .update({ status: "failed", error: "No authorized InsertService-compatible Toolbox asset found.", completed_at: new Date().toISOString() })
+                .update({ status: "failed", error: "No authorized ginsert/GetObjects-compatible Toolbox asset found.", completed_at: new Date().toISOString() })
                 .in("id", droppedIds);
               const affectedMessageIds = [...new Set(before
                 .filter((row) => droppedIds.includes(row.id))
@@ -143,7 +143,7 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
                 const remaining = rows?.some((row) => row.status !== "done" && row.status !== "failed") ?? false;
                 if (!remaining) {
                   await sb.from("chat_messages")
-                    .update({ status: "failed", error: "No authorized InsertService-compatible Toolbox asset was found for that request." })
+                    .update({ status: "failed", error: "No authorized ginsert/GetObjects-compatible Toolbox asset was found for that request." })
                     .eq("id", messageId)
                     .eq("user_id", profile.id);
                 }

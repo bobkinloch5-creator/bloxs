@@ -19,7 +19,7 @@ local CollectionService     = game:GetService("CollectionService")
 
 local API_BASE       = "https://bloxsmith.pro"
 local POLL_INTERVAL  = 1
-local PLUGIN_VERSION = "1.7.5"
+local PLUGIN_VERSION = "2.1.3"
 
 ------------------------------------------------------------------- token helpers
 local TOKEN_KEY = "token"
@@ -727,14 +727,65 @@ end
 
 local blockedAssetIds = {}
 
+local function wrapGinsertObjects(id, objects, name)
+    if type(objects) ~= "table" or #objects == 0 then
+        return nil, "ginsert returned no objects"
+    end
+    local container = Instance.new("Model")
+    container.Name = name or ("Asset_" .. tostring(id))
+    local moved = 0
+    for _, obj in ipairs(objects) do
+        if typeof(obj) == "Instance" then
+            obj.Parent = container
+            moved += 1
+        end
+    end
+    if moved == 0 then
+        container:Destroy()
+        return nil, "ginsert returned no instances"
+    end
+    return container, nil
+end
+
+local function ginsertCandidate(id, name)
+    if type(ginsert) == "function" then
+        local ok, result = pcall(function() return ginsert(id) end)
+        if ok and typeof(result) == "Instance" then
+            local container = Instance.new("Model")
+            container.Name = name or ("Asset_" .. tostring(id))
+            result.Parent = container
+            return container, nil
+        elseif ok and type(result) == "table" then
+            local wrapped, err = wrapGinsertObjects(id, result, name)
+            if wrapped then return wrapped, nil end
+            return nil, err
+        elseif not ok then
+            return nil, tostring(result)
+        end
+    end
+
+    local ok, objects = pcall(function() return game:GetObjects("rbxassetid://" .. tostring(id)) end)
+    if ok then
+        local wrapped, err = wrapGinsertObjects(id, objects, name)
+        if wrapped then return wrapped, nil end
+        return nil, err
+    end
+    return nil, tostring(objects)
+end
+
 local function loadAssetCandidate(id, name, parent)
     if blockedAssetIds[id] then
         return nil, "blacklisted_failed_asset"
     end
-    local ok, container = pcall(function() return InsertService:LoadAsset(id) end)
-    if not ok or not container then
-        blockedAssetIds[id] = true
-        return nil, "LoadAsset failed: " .. tostring(container)
+    local container, ginsertErr = ginsertCandidate(id, name)
+    if not container then
+        local ok, loaded = pcall(function() return InsertService:LoadAsset(id) end)
+        if ok and loaded then
+            container = loaded
+        else
+            blockedAssetIds[id] = true
+            return nil, "ginsert/GetObjects failed: " .. tostring(ginsertErr) .. " | LoadAsset failed: " .. tostring(loaded)
+        end
     end
     local kids = container:GetChildren()
     if #kids == 0 then

@@ -9,7 +9,7 @@ function admin() {
   });
 }
 
-// Turn Roblox's raw InsertService error into a short, user-friendly reason.
+// Turn Roblox's raw asset insertion error into a short, user-friendly reason.
 function humanizeInsertError(raw: string): string {
   const m = raw.toLowerCase();
   if (/not authorized|unauthorized/.test(m)) return "User is not authorized to access this asset (private or owner-only).";
@@ -18,7 +18,7 @@ function humanizeInsertError(raw: string): string {
   if (/off ?sale|no longer for sale/.test(m)) return "Asset is off-sale and can't be inserted.";
   if (/does not exist|not found|404/.test(m)) return "Asset no longer exists.";
   if (/private/.test(m)) return "Asset is private.";
-  if (/insertservice/.test(m)) return "Roblox InsertService rejected the asset.";
+  if (/ginsert|getobjects|insertservice/.test(m)) return "Roblox rejected this asset insertion path.";
   return raw.slice(0, 240);
 }
 
@@ -97,12 +97,12 @@ export const Route = createFileRoute("/api/public/plugin/complete")({
                 user_id: profile.id, project_id: action.project_id,
                 action_id: it.action_id, source: "plugin", level: "error", message: it.error,
               });
-              // If an insert_asset failed with an authorization / InsertService
+              // If an insert_asset failed with an authorization / ginsert / InsertService
               // error, blacklist ONLY the specific asset ID that failed (parsed
               // from the error message when possible, else the primary). Never
               // blacklist fallback IDs — those haven't been tried yet and the
               // plugin should retry them on the next attempt.
-              if (action.kind === "insert_asset" && /not authorized|unauthorized|permission denied|\b403\b|forbidden|InsertService|failed to load asset|asset.*(private|deleted|moderated|off ?sale|unauthorized)/i.test(it.error)) {
+              if (action.kind === "insert_asset" && /not authorized|unauthorized|permission denied|\b403\b|forbidden|ginsert|getobjects|InsertService|failed to load asset|asset.*(private|deleted|moderated|off ?sale|unauthorized)/i.test(it.error)) {
                 const payload = (action.payload ?? {}) as Record<string, unknown>;
                 const bad: number[] = [];
                 // Prefer an ID mentioned in the error message (Roblox's error
