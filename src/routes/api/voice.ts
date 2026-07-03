@@ -5,7 +5,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
 
-const DEFAULT_VOICE = "alloy";
 const DEFAULT_NVIDIA_MAGPIE_TTS_URL =
   "https://877104f7-e885-42b9-8de8-f6e4c6303969.invocation.api.nvcf.nvidia.com/v1/audio/synthesize";
 
@@ -166,8 +165,6 @@ export const Route = createFileRoute("/api/voice")({
           if (!text) return jsonError("No text to speak.", 400, "missing_text");
           // Keep each request small for fast time-to-first-audio.
           const input = text.slice(0, 1200);
-          const voice = (body.voiceId || DEFAULT_VOICE).toString().slice(0, 64);
-
           const supabase = createClient(
             process.env.SUPABASE_URL!,
             process.env.SUPABASE_PUBLISHABLE_KEY!,
