@@ -4,7 +4,6 @@
 // ElevenLabs MP3 if available.
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
-import { chargeCredits, VOICE_COST } from "@/lib/credits.server";
 
 const DEFAULT_VOICE = "alloy";
 const DEFAULT_NVIDIA_MAGPIE_TTS_URL =
@@ -176,11 +175,6 @@ export const Route = createFileRoute("/api/voice")({
           );
           const { data: userData } = await supabase.auth.getUser();
           if (!userData.user) return jsonError("Session expired.", 401, "expired");
-
-          const charge = await chargeCredits(supabase, userData.user.id, VOICE_COST);
-          if (!charge.ok) {
-            return jsonError(charge.message ?? "Out of credits.", 402, charge.code ?? "no_credits");
-          }
 
           // 1. NVIDIA Chatterbox (Resemble.AI) — most human-sounding, tried first
           const chatterboxVoice = await tryNvidiaChatterboxTts(input, request);
