@@ -2451,7 +2451,7 @@ export const Route = createFileRoute("/api/chat")({
               onError: (err) => {
                 console.error("[chat/lite] stream error", err);
                 if (err instanceof Error) {
-                  if (/402|credit/i.test(err.message)) return "AI credits are exhausted. Add more credits in Settings → Plans.";
+                  if (/402|credit/i.test(err.message)) return "NVIDIA GLM is unavailable right now. Try again in a moment.";
                   if (/429|rate/i.test(err.message)) return "AI is rate-limited right now. Wait a few seconds and try again.";
                   return `AI request failed: ${err.message}`;
                 }
@@ -3546,7 +3546,7 @@ export const Route = createFileRoute("/api/chat")({
                 console.error("[chat] stream error", err);
                 if (err instanceof Error) {
                   const msg = err.message;
-                  if (/402|credit/i.test(msg)) return "AI credits are exhausted. Add more credits in Settings → Plans.";
+                  if (/402|credit/i.test(msg)) return "NVIDIA GLM is unavailable right now. Try again in a moment.";
                   if (/429|rate.?limit/i.test(msg)) return "AI is rate-limited right now. Wait a few seconds and try again.";
                   if (/ResourceExhausted|worker.*limit|request limit reached|capacity|overloaded|503/i.test(msg))
                     return `The ${modelChoice.meta.label ?? "AI"} model is at capacity right now. Try again in a few seconds, or pick a different model in Settings.`;
