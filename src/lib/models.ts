@@ -181,7 +181,8 @@ export const MODELS: ModelOption[] = [
     speed: "Fast",
     quality: "Great",
     credits: "Low",
-    status: "Working",
+    status: "Coming Soon",
+
     bestFor: "Fast everyday Roblox builds, scripts, UI, and fixes.",
     description: "Default low-latency model path for BloxSmith builds.",
     modelSettings: { temperature: 0.35, maxOutputTokens: 2400 },
@@ -197,7 +198,8 @@ export const MODELS: ModelOption[] = [
     speed: "Fast",
     quality: "Great",
     credits: "Low",
-    status: "Working",
+    status: "Coming Soon",
+
     bestFor: "Fast coding and agentic Roblox workflows.",
     description: "High-efficiency Gemini model through the fast Lovable AI path.",
     modelSettings: { temperature: 0.35, maxOutputTokens: 2600 },
@@ -213,7 +215,8 @@ export const MODELS: ModelOption[] = [
     speed: "Fast",
     quality: "Good",
     credits: "Low",
-    status: "Working",
+    status: "Coming Soon",
+
     bestFor: "Quick edits, prompt improvement, short scripts, and cheap retries.",
     description: "Lowest-latency option for simple Roblox tasks.",
     modelSettings: { temperature: 0.25, maxOutputTokens: 1800 },
@@ -532,8 +535,9 @@ export const MODELS: ModelOption[] = [
 ];
 
 
-export const DEFAULT_MODEL_ID = "lovable/gemini-3-flash-preview";
-export const FALLBACK_MODEL_ID = "lovable/gemini-3.5-flash";
+export const DEFAULT_MODEL_ID = "nvidia/glm-5.2";
+export const FALLBACK_MODEL_ID = "nvidia/glm-5.2";
+
 
 export function findModel(id: string): ModelOption {
   return MODELS.find((m) => m.id === id) ?? MODELS[0];
