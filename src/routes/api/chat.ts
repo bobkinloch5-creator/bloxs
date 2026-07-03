@@ -6,7 +6,7 @@ import { getProviderModel, getFallbackModel } from "@/lib/ai-gateway.server";
 import { BLOXSMITH_SYSTEM_PROMPT, parseActions } from "@/lib/bloxsmith-prompt";
 import { DEFAULT_MODEL_ID, findModel, isSelectable } from "@/lib/models";
 import { detectSingleAssetIntent, searchRobloxToolbox, searchRobloxToolboxSet, sanitizeInsertAssetActions, type ToolboxCategory, type ToolboxSetRequest } from "@/lib/roblox-toolbox.server";
-import { chargeCredits, creditCostForTier, BUILD_ACTIONS_BONUS } from "@/lib/credits.server";
+import { chargeCredits } from "@/lib/credits.server";
 import { describeImageWithNvidiaPaliGemma } from "@/lib/nvidia-vision.server";
 import { generateUiConceptImage } from "@/lib/ui-concept-image.server";
 import { generateGeneralImage, isUiConceptRequest } from "@/lib/general-image.server";
@@ -2435,7 +2435,7 @@ export const Route = createFileRoute("/api/chat")({
             } catch (e) {
               return jsonError(e instanceof Error ? e.message : "Model unavailable", 500, "provider_init_failed");
             }
-            const baseCostLite = creditCostForTier(requested.credits);
+            const baseCostLite = 0;
             const chargeLite = await chargeCredits(supabase, userId, baseCostLite);
             if (!chargeLite.ok) {
               return jsonError(
@@ -2543,7 +2543,7 @@ export const Route = createFileRoute("/api/chat")({
           // action block. If the user explicitly says to keep only Baseplate,
           // queue a deterministic Studio cleanup command immediately.
           if (mode === "build" && projectId && userText && isClearProjectKeepBaseplateRequest(userText)) {
-            const clearCharge = await chargeCredits(supabase, userId, creditCostForTier(requested.credits));
+            const clearCharge = await chargeCredits(supabase, userId, 0, { allowZero: true });
             if (!clearCharge.ok) {
               return jsonError(
                 clearCharge.message ?? "Out of credits.",
@@ -2685,7 +2685,7 @@ export const Route = createFileRoute("/api/chat")({
                 }
                 const finalInsert = candidates[0] as typeof insertAction;
                 const finalAssetId = Number((finalInsert.payload as { asset_id?: number }).asset_id);
-                const fastCharge = await chargeCredits(supabase, userId, creditCostForTier(requested.credits));
+                const fastCharge = await chargeCredits(supabase, userId, 0, { allowZero: true });
                 if (!fastCharge.ok) {
                   return jsonError(
                     fastCharge.message ?? "Out of credits.",
@@ -2770,7 +2770,7 @@ export const Route = createFileRoute("/api/chat")({
           // ── CREDIT GATE ──
           // Charge upfront based on the model's tier; if a build is produced,
           // we charge a small bonus inside onFinish.
-          const baseCost = creditCostForTier(requested.credits);
+          const baseCost = 0;
           const charge = await chargeCredits(supabase, userId, baseCost);
           if (!charge.ok) {
             return jsonError(
@@ -3362,11 +3362,7 @@ export const Route = createFileRoute("/api/chat")({
                   }
                 }
 
-                // Extra credit charge when the turn actually produces a build.
-                if (actions.length > 0 && mode === "build") {
-                  const bonus = BUILD_ACTIONS_BONUS + Math.min(4, Math.floor(actions.length / 8));
-                  await chargeCredits(supabase, userId, bonus).catch(() => null);
-                }
+                // NVIDIA GLM builds are not charged through BloxSmith credits.
 
                 const { data: currentProject } = await supabase
                   .from("projects")
