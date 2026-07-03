@@ -2530,7 +2530,22 @@ export const Route = createFileRoute("/api/chat")({
                 clearCharge.code ?? "no_credits",
               );
             }
-            const actions = clearProjectKeepBaseplateStudioActions(userText).map(normalizePluginAction).map(withExecutionMetadata);
+            const actions = clearProjectKeepBaseplateStudioActions(userText).map(normalizePluginAction).map((action: any) => ({
+              ...action,
+              payload: {
+                ...(action.payload ?? {}),
+                _bloxsmith: {
+                  execution_mode: executionMode,
+                  structured: true,
+                  safe_mode_preview: executionMode === "safe",
+                  owner_mode: executionMode === "owner",
+                  no_empty_folders: true,
+                  no_fake_assets: true,
+                  retry_failed_insertions: true,
+                  scan_inserted_scripts: true,
+                },
+              },
+            }));
             const replyText = "Clearing the project and keeping only the Baseplate — queued for Studio now.";
             const { data: msgRow } = await supabase
               .from("chat_messages")
