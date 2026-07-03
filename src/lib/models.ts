@@ -181,7 +181,7 @@ export const MODELS: ModelOption[] = [
     speed: "Fast",
     quality: "Great",
     credits: "Low",
-    status: "Working",
+    status: "Coming Soon",
     bestFor: "Fast everyday Roblox builds, scripts, UI, and fixes.",
     description: "Default low-latency model path for BloxSmith builds.",
     modelSettings: { temperature: 0.35, maxOutputTokens: 2400 },
