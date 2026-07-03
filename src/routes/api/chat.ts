@@ -2530,7 +2530,7 @@ export const Route = createFileRoute("/api/chat")({
           // Clear / wipe requests must not depend on the LLM choosing the right
           // action block. If the user explicitly says to keep only Baseplate,
           // queue a deterministic Studio cleanup command immediately.
-          if (mode === "build" && projectId && userText && isClearProjectKeepBaseplateRequest(userText)) {
+          if (projectId && userText && isClearProjectKeepBaseplateRequest(userText)) {
             const actions = clearProjectKeepBaseplateStudioActions(userText).map(normalizePluginAction).map((action: any) => ({
               ...action,
               payload: {
