@@ -204,6 +204,137 @@ end
   ];
 }
 
+function isDestructiveEditRequest(userText: string) {
+  const text = userText.toLowerCase();
+  return /\b(erase|clear|wipe|delete|remove|destroy)\b/.test(text) &&
+    /\b(everything|all|workspace|project|map|objects?|instances?|children)\b/.test(text);
+}
+
+function isClearProjectKeepBaseplateRequest(userText: string) {
+  const text = userText.toLowerCase();
+  return isDestructiveEditRequest(userText) && /\bbase\s*plate\b|\bbaseplate\b/.test(text) && /\bkeep|except|only|preserve|leave\b/.test(text);
+}
+
+function clearProjectKeepBaseplateStudioActions(userText: string) {
+  const safePrompt = userText.trim().slice(0, 240) || "clear project and keep only Baseplate";
+  const source = `
+local Workspace = game:GetService("Workspace")
+local Lighting = game:GetService("Lighting")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ReplicatedFirst = game:GetService("ReplicatedFirst")
+local ServerScriptService = game:GetService("ServerScriptService")
+local ServerStorage = game:GetService("ServerStorage")
+local StarterGui = game:GetService("StarterGui")
+local StarterPack = game:GetService("StarterPack")
+local StarterPlayer = game:GetService("StarterPlayer")
+local SoundService = game:GetService("SoundService")
+local Teams = game:GetService("Teams")
+local ChangeHistoryService = game:GetService("ChangeHistoryService")
+
+local request = ${JSON.stringify(safePrompt)}
+local destroyed = 0
+local clearedTerrain = false
+
+local recording = nil
+pcall(function()
+  recording = ChangeHistoryService:TryBeginRecording("BloxSmith Clear Project Keep Baseplate")
+end)
+
+local function destroyChild(child)
+  if child then
+    local ok = pcall(function()
+      child:Destroy()
+    end)
+    if ok then destroyed += 1 end
+  end
+end
+
+for _, child in ipairs(Workspace:GetChildren()) do
+  if child:IsA("Terrain") then
+    pcall(function()
+      child:Clear()
+      clearedTerrain = true
+    end)
+  elseif child.Name ~= "Baseplate" then
+    destroyChild(child)
+  end
+end
+
+local baseplate = Workspace:FindFirstChild("Baseplate")
+if baseplate and baseplate:IsA("BasePart") then
+  baseplate.Anchored = true
+  baseplate.Locked = false
+  baseplate.Position = Vector3.new(0, 0, 0)
+  if baseplate.Size.Magnitude < 10 then
+    baseplate.Size = Vector3.new(2048, 1, 2048)
+  end
+end
+
+local servicesToClear = {
+  Lighting,
+  ReplicatedStorage,
+  ReplicatedFirst,
+  ServerScriptService,
+  ServerStorage,
+  StarterGui,
+  StarterPack,
+  SoundService,
+  Teams,
+}
+
+for _, service in ipairs(servicesToClear) do
+  for _, child in ipairs(service:GetChildren()) do
+    destroyChild(child)
+  end
+end
+
+for _, folderName in ipairs({ "StarterPlayerScripts", "StarterCharacterScripts" }) do
+  local folder = StarterPlayer:FindFirstChild(folderName)
+  if folder then
+    for _, child in ipairs(folder:GetChildren()) do
+      destroyChild(child)
+    end
+  end
+end
+
+pcall(function()
+  Lighting.ClockTime = 14
+  Lighting.Brightness = 2
+  Lighting.Ambient = Color3.fromRGB(128, 128, 128)
+  Lighting.OutdoorAmbient = Color3.fromRGB(128, 128, 128)
+  Lighting.FogEnd = 100000
+end)
+
+Workspace:SetAttribute("BloxSmithLastClearRequest", request)
+Workspace:SetAttribute("BloxSmithKeptOnlyBaseplate", true)
+Workspace:SetAttribute("BloxSmithDestroyedCount", destroyed)
+Workspace:SetAttribute("BloxSmithTerrainCleared", clearedTerrain)
+
+pcall(function()
+  if recording then
+    ChangeHistoryService:FinishRecording(recording, Enum.FinishRecordingOperation.Commit)
+  end
+end)
+
+print(string.format("[BloxSmith] Cleared project content, kept Baseplate, destroyed %d instance(s).", destroyed))
+`;
+
+  return [
+    {
+      kind: "run_lua",
+      parent_path: "Workspace",
+      name: "BloxSmith_Clear_Project_Keep_Baseplate",
+      payload: { source, destructive: true, keep: ["Workspace.Baseplate"] },
+    },
+    {
+      kind: "scan_project",
+      parent_path: "Workspace",
+      name: "BloxSmith_Scan_After_Clear_Baseplate",
+      payload: { reason: "verify_project_was_cleared_and_baseplate_remains" },
+    },
+  ];
+}
+
 function isGrassRequest(userText: string) {
   return /\b(grass|grassy|lawn|turf|field|ground\s+cover|realistic\s+ground)\b/i.test(userText);
 }
@@ -2295,7 +2426,7 @@ export const Route = createFileRoute("/api/chat")({
             const convertedLite = await convertToModelMessages(stripImageFilePartsFromMessages(messages));
             const systemLite =
               BLOXSMITH_SYSTEM_PROMPT +
-              `\n\nMODE: CHAT (no project open) — help the user plan, brainstorm, and refine ideas for their Roblox game. Do NOT emit build actions, file outputs, or plugin_actions. Keep replies conversational. Reply in ${languageName} (${languageCode}).`;
+              `\n\nMODE: CHAT (no project open) — help the user plan, brainstorm, and refine ideas for their Roblox game. Do NOT emit build actions, file outputs, or plugin_actions. Keep replies conversational. Reply in ${languageName} (${languageCode}). If the user asks to delete, erase, clear, or modify their Roblox project, NEVER say BloxSmith only has Toolbox/search capability. Say BloxSmith can do that in Build Mode through the Studio plugin, and ask them to switch to Build Mode / open a project if needed.`;
             const liteResult = streamText({
               model: modelChoiceLite.model,
               system: systemLite,
@@ -2383,6 +2514,80 @@ export const Route = createFileRoute("/api/chat")({
               content: userText,
               status: "done",
               image_url: userImageUrl,
+            });
+          }
+
+          // ── INSTANT DESTRUCTIVE EDIT FAST-PATH ─────────────────────────
+          // Clear / wipe requests must not depend on the LLM choosing the right
+          // action block. If the user explicitly says to keep only Baseplate,
+          // queue a deterministic Studio cleanup command immediately.
+          if (mode === "build" && projectId && userText && isClearProjectKeepBaseplateRequest(userText)) {
+            const clearCharge = await chargeCredits(supabase, userId, creditCostForTier(requested.credits));
+            if (!clearCharge.ok) {
+              return jsonError(
+                clearCharge.message ?? "Out of credits.",
+                clearCharge.code === "banned" ? 403 : 402,
+                clearCharge.code ?? "no_credits",
+              );
+            }
+            const actions = clearProjectKeepBaseplateStudioActions(userText).map(normalizePluginAction).map(withExecutionMetadata);
+            const replyText = "Clearing the project and keeping only the Baseplate — queued for Studio now.";
+            const { data: msgRow } = await supabase
+              .from("chat_messages")
+              .insert({
+                project_id: projectId,
+                user_id: userId,
+                role: "assistant",
+                content: `${replyText}\n\n_Queued ${actions.length} Studio action(s). Waiting for the Roblox Studio plugin to confirm execution before this build is marked complete._`,
+                status: "sending",
+                model: activeModelId,
+                actions,
+              })
+              .select("id")
+              .single();
+            await supabase.from("plugin_actions").insert(
+              actions.map((action, i) => ({
+                project_id: projectId,
+                user_id: userId,
+                message_id: msgRow?.id ?? null,
+                kind: action.kind,
+                parent_path: action.parent_path,
+                name: action.name,
+                payload: action.payload,
+                position: i,
+              })),
+            );
+            await supabase.from("build_history").insert({
+              project_id: projectId,
+              user_id: userId,
+              prompt: userText,
+              model: activeModelId,
+              files_count: actions.length,
+              plugin_status: "Queued",
+              applied: false,
+            });
+            console.info("[chat/fastpath] queued clear project keep baseplate", { projectId, userId, actionCount: actions.length });
+            const encoder = new TextEncoder();
+            const stream = new ReadableStream({
+              async start(controller) {
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "start" })}\n\n`));
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "start-step" })}\n\n`));
+                const textId = "clear-text-1";
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "text-start", id: textId })}\n\n`));
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "text-delta", id: textId, delta: replyText })}\n\n`));
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "text-end", id: textId })}\n\n`));
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "finish-step" })}\n\n`));
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "finish" })}\n\n`));
+                controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
+                controller.close();
+              },
+            });
+            return new Response(stream, {
+              headers: {
+                "Content-Type": "text/event-stream",
+                "Cache-Control": "no-cache, no-transform",
+                "x-vercel-ai-ui-message-stream": "v1",
+              },
             });
           }
 
@@ -2909,7 +3114,7 @@ export const Route = createFileRoute("/api/chat")({
                 // When Procedural Generation is OFF, users expect Toolbox assets — never
                 // procedural blocks/terrain. Strip any procedural-shaped actions and, if
                 // no insert_asset remains, force a Toolbox search on the cleaned prompt.
-                if (mode === "build" && !proceduralFallbackAllowed && !proceduralModeActive && !isRobloxSystemRequest(userText)) {
+                if (mode === "build" && !proceduralFallbackAllowed && !proceduralModeActive && !isRobloxSystemRequest(userText) && !isDestructiveEditRequest(userText)) {
                   const isProceduralRunLua = (a: any) => {
                     if (a.kind !== "run_lua") return false;
                     const name = String(a.name || "");
@@ -2994,11 +3199,13 @@ export const Route = createFileRoute("/api/chat")({
                     "sound","team","leaderstats",
                   ]);
                   const CREATING_RUN_LUA = /Instance\.new\("(Part|MeshPart|WedgePart|Model|SpawnLocation|Folder|Sound)"\)|InsertService|:LoadAsset|Terrain:(Fill|Set)|BloxSmith_Generate_Procedural_Assets/i;
+                  const DESTRUCTIVE_RUN_LUA = /:Destroy\(|:ClearAllChildren\(|Terrain:Clear\(|BloxSmith_Clear_Project_Keep_Baseplate/i;
                   const hasCreation = actions.some((a: any) => {
-                    if (CREATE_KINDS.has(a.kind)) return true;
+                    if (CREATE_KINDS.has(a.kind) || ["delete", "set_properties", "rename", "move"].includes(a.kind)) return true;
                     if (a.kind === "run_lua") {
                       const src = String(a.payload?.source ?? "");
                       if (CREATING_RUN_LUA.test(src)) return true;
+                      if (DESTRUCTIVE_RUN_LUA.test(src)) return true;
                       if (/^BloxSmith_Generate_Procedural_Assets$/i.test(String(a.name || ""))) return true;
                     }
                     return false;
