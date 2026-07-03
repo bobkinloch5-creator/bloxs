@@ -120,6 +120,30 @@ export const Route = createFileRoute("/api/public/plugin/complete")({
                 }
                 if (bad.length > 0) blacklistAssetIds(bad, "studio_insert_unauthorized");
 
+                // Sibling fallbacks came from the same search response and
+                // frequently share the same creator / distribution setting
+                // as the primary — if the primary is InsertService-locked,
+                // the siblings usually are too. Soft-blacklist them so we
+                // don't cycle the same cohort. The next auto-fallback below
+                // will search fresh candidates.
+                const siblingRaw = Array.isArray((payload as { fallback_ids?: unknown }).fallback_ids)
+                  ? ((payload as { fallback_ids: unknown[] }).fallback_ids as unknown[])
+                  : Array.isArray((payload as { fallbackIds?: unknown }).fallbackIds)
+                    ? ((payload as { fallbackIds: unknown[] }).fallbackIds as unknown[])
+                    : [];
+                const siblings = siblingRaw
+                  .map((n) => Number(n))
+                  .filter((n) => Number.isFinite(n) && n > 0 && !bad.includes(n));
+                if (siblings.length > 0) {
+                  blacklistAssetIds(siblings, "sibling_of_unauthorized_primary");
+                  console.info("[plugin/complete] soft-blacklisted sibling fallback_ids after auth failure", {
+                    userId: profile.id,
+                    projectId: action.project_id,
+                    primary: bad,
+                    siblings,
+                  });
+                }
+
                 // ── AUTO-FALLBACK ──
                 // Live-search Toolbox for a fresh similar asset and queue it
                 // as a new plugin_action so the plugin retries automatically
@@ -131,7 +155,7 @@ export const Route = createFileRoute("/api/public/plugin/complete")({
                   const attempted = Array.isArray((payload as { _attempted_ids?: unknown })._attempted_ids)
                     ? ((payload as { _attempted_ids: unknown[] })._attempted_ids as unknown[]).map((n) => Number(n)).filter((n) => Number.isFinite(n))
                     : [];
-                  attempted.push(...bad);
+                  attempted.push(...bad, ...siblings);
                   if (query && attempted.length < 30) {
                     const found = await searchRobloxToolbox(query, "Model", 24, {
                       singleAssetOnly: Boolean((payload as { single_asset_only?: boolean }).single_asset_only),
