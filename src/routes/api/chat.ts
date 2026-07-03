@@ -6,7 +6,6 @@ import { getProviderModel, getFallbackModel } from "@/lib/ai-gateway.server";
 import { BLOXSMITH_SYSTEM_PROMPT, parseActions } from "@/lib/bloxsmith-prompt";
 import { DEFAULT_MODEL_ID, findModel, isSelectable } from "@/lib/models";
 import { detectSingleAssetIntent, searchRobloxToolbox, searchRobloxToolboxSet, sanitizeInsertAssetActions, type ToolboxCategory, type ToolboxSetRequest } from "@/lib/roblox-toolbox.server";
-import { chargeCredits, creditCostForTier, BUILD_ACTIONS_BONUS } from "@/lib/credits.server";
 import { describeImageWithNvidiaPaliGemma } from "@/lib/nvidia-vision.server";
 import { generateUiConceptImage } from "@/lib/ui-concept-image.server";
 import { generateGeneralImage, isUiConceptRequest } from "@/lib/general-image.server";
@@ -2382,8 +2381,6 @@ export const Route = createFileRoute("/api/chat")({
           const requestedId = body.modelId || DEFAULT_MODEL_ID;
           const requestedCandidate = findModel(requestedId);
           const activeModelId = isSelectable(requestedCandidate) ? requestedId : DEFAULT_MODEL_ID;
-          const requested = findModel(activeModelId);
-
           const supabase = createClient(
             process.env.SUPABASE_URL!,
             process.env.SUPABASE_PUBLISHABLE_KEY!,
@@ -2435,15 +2432,6 @@ export const Route = createFileRoute("/api/chat")({
             } catch (e) {
               return jsonError(e instanceof Error ? e.message : "Model unavailable", 500, "provider_init_failed");
             }
-            const baseCostLite = creditCostForTier(requested.credits);
-            const chargeLite = await chargeCredits(supabase, userId, baseCostLite);
-            if (!chargeLite.ok) {
-              return jsonError(
-                chargeLite.message ?? "Out of credits.",
-                chargeLite.code === "banned" ? 403 : 402,
-                chargeLite.code ?? "no_credits",
-              );
-            }
             const convertedLite = await convertToModelMessages(stripImageFilePartsFromMessages(messages));
             const systemLite =
               BLOXSMITH_SYSTEM_PROMPT +
@@ -2463,7 +2451,7 @@ export const Route = createFileRoute("/api/chat")({
               onError: (err) => {
                 console.error("[chat/lite] stream error", err);
                 if (err instanceof Error) {
-                  if (/402|credit/i.test(err.message)) return "AI credits are exhausted. Add more credits in Settings → Plans.";
+                  if (/402|credit/i.test(err.message)) return "NVIDIA GLM is unavailable right now. Try again in a moment.";
                   if (/429|rate/i.test(err.message)) return "AI is rate-limited right now. Wait a few seconds and try again.";
                   return `AI request failed: ${err.message}`;
                 }
@@ -2543,14 +2531,6 @@ export const Route = createFileRoute("/api/chat")({
           // action block. If the user explicitly says to keep only Baseplate,
           // queue a deterministic Studio cleanup command immediately.
           if (mode === "build" && projectId && userText && isClearProjectKeepBaseplateRequest(userText)) {
-            const clearCharge = await chargeCredits(supabase, userId, creditCostForTier(requested.credits));
-            if (!clearCharge.ok) {
-              return jsonError(
-                clearCharge.message ?? "Out of credits.",
-                clearCharge.code === "banned" ? 403 : 402,
-                clearCharge.code ?? "no_credits",
-              );
-            }
             const actions = clearProjectKeepBaseplateStudioActions(userText).map(normalizePluginAction).map((action: any) => ({
               ...action,
               payload: {
@@ -2685,14 +2665,6 @@ export const Route = createFileRoute("/api/chat")({
                 }
                 const finalInsert = candidates[0] as typeof insertAction;
                 const finalAssetId = Number((finalInsert.payload as { asset_id?: number }).asset_id);
-                const fastCharge = await chargeCredits(supabase, userId, creditCostForTier(requested.credits));
-                if (!fastCharge.ok) {
-                  return jsonError(
-                    fastCharge.message ?? "Out of credits.",
-                    fastCharge.code === "banned" ? 403 : 402,
-                    fastCharge.code ?? "no_credits",
-                  );
-                }
                 const replyText = `Adding a ${label} to your workspace from the Toolbox — queued for Studio now.`;
                 const { data: msgRow } = await supabase
                   .from("chat_messages")
@@ -2766,20 +2738,6 @@ export const Route = createFileRoute("/api/chat")({
           } catch (e) {
             return jsonError(e instanceof Error ? e.message : "Model unavailable", 500, "provider_init_failed");
           }
-
-          // ── CREDIT GATE ──
-          // Charge upfront based on the model's tier; if a build is produced,
-          // we charge a small bonus inside onFinish.
-          const baseCost = creditCostForTier(requested.credits);
-          const charge = await chargeCredits(supabase, userId, baseCost);
-          if (!charge.ok) {
-            return jsonError(
-              charge.message ?? "Out of credits.",
-              charge.code === "banned" ? 403 : 402,
-              charge.code ?? "no_credits",
-            );
-          }
-
 
           // ── MEMORY + STUDIO CONTEXT (parallel with vision + UI concept) ──
           // Pull project metadata, recent builds, latest game scan, recent errors,
@@ -3362,11 +3320,7 @@ export const Route = createFileRoute("/api/chat")({
                   }
                 }
 
-                // Extra credit charge when the turn actually produces a build.
-                if (actions.length > 0 && mode === "build") {
-                  const bonus = BUILD_ACTIONS_BONUS + Math.min(4, Math.floor(actions.length / 8));
-                  await chargeCredits(supabase, userId, bonus).catch(() => null);
-                }
+                // NVIDIA GLM builds are not charged through BloxSmith credits.
 
                 const { data: currentProject } = await supabase
                   .from("projects")
@@ -3592,7 +3546,7 @@ export const Route = createFileRoute("/api/chat")({
                 console.error("[chat] stream error", err);
                 if (err instanceof Error) {
                   const msg = err.message;
-                  if (/402|credit/i.test(msg)) return "AI credits are exhausted. Add more credits in Settings → Plans.";
+                  if (/402|credit/i.test(msg)) return "NVIDIA GLM is unavailable right now. Try again in a moment.";
                   if (/429|rate.?limit/i.test(msg)) return "AI is rate-limited right now. Wait a few seconds and try again.";
                   if (/ResourceExhausted|worker.*limit|request limit reached|capacity|overloaded|503/i.test(msg))
                     return `The ${modelChoice.meta.label ?? "AI"} model is at capacity right now. Try again in a few seconds, or pick a different model in Settings.`;

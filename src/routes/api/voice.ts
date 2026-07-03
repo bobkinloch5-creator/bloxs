@@ -4,9 +4,7 @@
 // ElevenLabs MP3 if available.
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
-import { chargeCredits, VOICE_COST } from "@/lib/credits.server";
 
-const DEFAULT_VOICE = "alloy";
 const DEFAULT_NVIDIA_MAGPIE_TTS_URL =
   "https://877104f7-e885-42b9-8de8-f6e4c6303969.invocation.api.nvcf.nvidia.com/v1/audio/synthesize";
 
@@ -167,8 +165,6 @@ export const Route = createFileRoute("/api/voice")({
           if (!text) return jsonError("No text to speak.", 400, "missing_text");
           // Keep each request small for fast time-to-first-audio.
           const input = text.slice(0, 1200);
-          const voice = (body.voiceId || DEFAULT_VOICE).toString().slice(0, 64);
-
           const supabase = createClient(
             process.env.SUPABASE_URL!,
             process.env.SUPABASE_PUBLISHABLE_KEY!,
@@ -176,11 +172,6 @@ export const Route = createFileRoute("/api/voice")({
           );
           const { data: userData } = await supabase.auth.getUser();
           if (!userData.user) return jsonError("Session expired.", 401, "expired");
-
-          const charge = await chargeCredits(supabase, userData.user.id, VOICE_COST);
-          if (!charge.ok) {
-            return jsonError(charge.message ?? "Out of credits.", 402, charge.code ?? "no_credits");
-          }
 
           // 1. NVIDIA Chatterbox (Resemble.AI) — most human-sounding, tried first
           const chatterboxVoice = await tryNvidiaChatterboxTts(input, request);
@@ -190,102 +181,7 @@ export const Route = createFileRoute("/api/voice")({
           const nvidiaVoice = await tryNvidiaMagpieTts(input, request);
           if (nvidiaVoice) return nvidiaVoice;
 
-          const apiKey = process.env.LOVABLE_API_KEY;
-          if (!apiKey && !process.env.ELEVENLABS_API_KEY) {
-            return jsonError("Voice not configured.", 500, "voice_not_configured");
-          }
-
-          // Forward the gateway SSE body straight to the browser.
-          // PCM (24kHz 16-bit mono) so the client can decode + play chunk by chunk.
-          let upstream: Response;
-          try {
-            if (!apiKey) throw new Error("Lovable voice key missing.");
-            upstream = await fetch("https://ai.gateway.lovable.dev/v1/audio/speech", {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${apiKey}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                model: "openai/gpt-4o-mini-tts",
-                input,
-                voice,
-                stream_format: "sse",
-                response_format: "pcm",
-                speed: 1.0,
-                instructions:
-                  "Sound like a friendly Roblox game-building assistant. Speak clearly with confident, upbeat energy.",
-              }),
-              signal: request.signal,
-            });
-          } catch (err) {
-            if (request.signal.aborted) return new Response(null, { status: 499 });
-            upstream = new Response("Lovable voice unavailable", { status: 503 });
-          }
-
-          if (!upstream.ok || !upstream.body) {
-            const detail = await upstream.text().catch(() => "");
-
-            // Auto-fallback to ElevenLabs on credit exhaustion / rate limit /
-            // gateway disabled. Keeps voice working even when the Lovable AI
-            // TTS budget runs out. ElevenLabs returns MP3 — we forward it
-            // verbatim and let the client's audio element handle it.
-            const elevenKey = process.env.ELEVENLABS_API_KEY;
-            const shouldFallback =
-              elevenKey && (upstream.status === 402 || upstream.status === 429 || upstream.status === 403 || upstream.status === 503);
-            if (shouldFallback) {
-              try {
-                const elevenVoiceId = "JBFqnCBsd6RMkjVDRZzb"; // friendly default
-                const eleven = await fetch(
-                  `https://api.elevenlabs.io/v1/text-to-speech/${elevenVoiceId}/stream?output_format=mp3_44100_128`,
-                  {
-                    method: "POST",
-                    headers: {
-                      "xi-api-key": elevenKey,
-                      "Content-Type": "application/json",
-                      Accept: "audio/mpeg",
-                    },
-                    body: JSON.stringify({
-                      text: input,
-                      model_id: "eleven_turbo_v2_5",
-                      voice_settings: { stability: 0.4, similarity_boost: 0.75 },
-                    }),
-                    signal: request.signal,
-                  },
-                );
-                if (eleven.ok && eleven.body) {
-                  return new Response(eleven.body, {
-                    headers: {
-                      "Content-Type": "audio/mpeg",
-                      "Cache-Control": "no-cache, no-transform",
-                      "X-Accel-Buffering": "no",
-                      "X-Voice-Provider": "elevenlabs",
-                    },
-                  });
-                }
-              } catch (e) {
-                console.error("[voice] ElevenLabs fallback failed", e);
-              }
-            }
-
-            return jsonError(
-              detail.slice(0, 200) || "TTS upstream failed",
-              upstream.status,
-              upstream.status === 402 ? "credits_exhausted" :
-              upstream.status === 429 ? "rate_limited" :
-              upstream.status === 403 ? "voice_disabled" :
-              "tts_failed",
-            );
-          }
-
-          return new Response(upstream.body, {
-            headers: {
-              "Content-Type": "text/event-stream",
-              "Cache-Control": "no-cache, no-transform",
-              "X-Accel-Buffering": "no",
-              "X-Voice-Provider": "lovable",
-            },
-          });
+          return jsonError("NVIDIA voice is unavailable right now.", 503, "nvidia_voice_unavailable");
 
         } catch (e) {
           console.error("[voice] fatal", e);

@@ -1,6 +1,4 @@
-// Smart model router: pick the best AI model for each BloxSmith task from the
-// MODELS catalog. Falls back gracefully when premium models are gated.
-// Used by Auto Genius Mode to assign a specialist model per task.
+// Smart model router: every task uses the single enabled NVIDIA GLM 5.2 model.
 
 import { MODELS, isSelectable, DEFAULT_MODEL_ID, type ModelOption } from "./models";
 
@@ -25,124 +23,43 @@ export interface ModelPick {
   fellBack: boolean;
 }
 
-// Preference ranking per task. The router walks the list and returns the first
-// SELECTABLE model. If none match, it falls back to DEFAULT_MODEL_ID.
+// Preference ranking per task. Only GLM 5.2 is exposed.
 const TASK_PREF: Record<AutoTask, { ids: string[]; reason: string }> = {
   planning: {
-    ids: [
-      "nvidia/gpt-oss-120b",
-      "nvidia/nemotron-3-ultra-550b-a55b",
-      "nvidia/deepseek-v4-pro",
-      "nvidia/qwen3-coder-480b-a35b-instruct",
-      "nvidia/nemotron-super-49b",
-      "nvidia/llama-4-maverick-17b",
-      "quatarly/claude-opus-4-6-thinking",
-      "quatarly/claude-sonnet-4-6-thinking",
-      "lovable/gemini-3.5-flash",
-    ],
-    reason: "Picked the strongest NVIDIA reasoning model — best at breaking the Roblox idea into a clean build graph.",
+    ids: [DEFAULT_MODEL_ID],
+    reason: "Using NVIDIA GLM 5.2 for Roblox planning and build graphs.",
   },
   scripting: {
-    ids: [
-      "nvidia/gpt-oss-120b",
-      "nvidia/qwen3-coder-480b-a35b-instruct",
-      "nvidia/deepseek-v4-flash",
-      "nvidia/deepseek-v4-pro",
-      "nvidia/nemotron-3-ultra-550b-a55b",
-      "nvidia/mixtral-8x22b",
-      "nvidia/llama-3.1-nemotron-70b",
-      "nvidia/nemotron-super-49b",
-      "quatarly/gpt-5.1-codex",
-      "lovable/gemini-3.5-flash",
-    ],
-    reason: "Chose an NVIDIA coding-specialist model — best at producing complete, runnable Luau.",
+    ids: [DEFAULT_MODEL_ID],
+    reason: "Using NVIDIA GLM 5.2 for complete, runnable Luau.",
   },
   ui: {
-    ids: [
-      "nvidia/gpt-oss-120b",
-      "nvidia/nemotron-3-ultra-550b-a55b",
-      "nvidia/qwen3-coder-480b-a35b-instruct",
-      "nvidia/llama-4-maverick-17b",
-      "nvidia/google-gemma-4-31b-it",
-      "nvidia/minimax-m3",
-      "lovable/gemini-3-flash-preview",
-      "lovable/gemini-3.5-flash",
-    ],
-    reason: "Chose a multimodal NVIDIA model — best at modern ScreenGui layout and mobile-safe UI.",
+    ids: [DEFAULT_MODEL_ID],
+    reason: "Using NVIDIA GLM 5.2 for ScreenGui layout and mobile-safe UI.",
   },
   assets: {
-    ids: [
-      "nvidia/gpt-oss-120b",
-      "nvidia/nemotron-3-ultra-550b-a55b",
-      "nvidia/llama-4-maverick-17b",
-      "nvidia/minimax-m3",
-      "nvidia/deepseek-v4-flash",
-      "nvidia/nemotron-super-49b",
-      "lovable/gemini-3-flash-preview",
-    ],
-    reason: "Chose an NVIDIA model — strong at ranking safe Toolbox assets and planning insert payloads.",
+    ids: [DEFAULT_MODEL_ID],
+    reason: "Using NVIDIA GLM 5.2 for safe Toolbox asset planning.",
   },
   bugfix: {
-    ids: [
-      "nvidia/gpt-oss-120b",
-      "nvidia/deepseek-v4-pro",
-      "nvidia/qwen3-coder-480b-a35b-instruct",
-      "nvidia/nemotron-3-ultra-550b-a55b",
-      "nvidia/mixtral-8x22b",
-      "nvidia/llama-3.1-nemotron-70b",
-      "nvidia/nemotron-super-49b",
-      "quatarly/claude-sonnet-4-6-thinking",
-      "lovable/gemini-3.5-flash",
-    ],
-    reason: "Chose a deliberate NVIDIA reasoning/coding model — best at tracing nil-index and event-wiring bugs.",
+    ids: [DEFAULT_MODEL_ID],
+    reason: "Using NVIDIA GLM 5.2 for bug tracing and event wiring fixes.",
   },
   performance: {
-    ids: [
-      "nvidia/gpt-oss-120b",
-      "nvidia/nemotron-3-ultra-550b-a55b",
-      "nvidia/deepseek-v4-flash",
-      "nvidia/nemotron-super-49b",
-      "nvidia/mixtral-8x22b",
-      "quatarly/claude-sonnet-4-6-thinking",
-      "lovable/gemini-3.5-flash",
-    ],
-    reason: "Chose a careful NVIDIA model — best at spotting laggy loops, unanchored parts, and heavy particles.",
+    ids: [DEFAULT_MODEL_ID],
+    reason: "Using NVIDIA GLM 5.2 for performance review.",
   },
   testing: {
-    ids: [
-      "nvidia/gpt-oss-120b",
-      "nvidia/deepseek-v4-flash",
-      "nvidia/nemotron-super-49b",
-      "nvidia/llama-4-maverick-17b",
-      "nvidia/nemotron-3-ultra-550b-a55b",
-      "lovable/gemini-3-flash-preview",
-      "lovable/gpt-5-nano",
-    ],
-    reason: "Chose a fast NVIDIA model — playtest smoke checks don't need deep reasoning.",
+    ids: [DEFAULT_MODEL_ID],
+    reason: "Using NVIDIA GLM 5.2 for playtest checks.",
   },
   shortedit: {
-    ids: [
-      "nvidia/gpt-oss-120b",
-      "nvidia/deepseek-v4-flash",
-      "nvidia/nemotron-super-49b",
-      "nvidia/mixtral-8x22b",
-      "nvidia/qwen3-coder-480b-a35b-instruct",
-      "nvidia/llama-4-maverick-17b",
-      "lovable/gpt-5-nano",
-      "lovable/gemini-2.5-flash-lite",
-    ],
-    reason: "Chose the lowest-latency NVIDIA model — small edits don't need a heavyweight.",
+    ids: [DEFAULT_MODEL_ID],
+    reason: "Using NVIDIA GLM 5.2 for short edits.",
   },
   vision: {
-    ids: [
-      "nvidia/gpt-oss-120b",
-      "nvidia/llama-4-maverick-17b",
-      "nvidia/nemotron-3-ultra-550b-a55b",
-      "nvidia/minimax-m3",
-      "nvidia/google-gemma-4-31b-it",
-      "lovable/gemini-3-flash-preview",
-    ],
-    reason: "Chose an NVIDIA multimodal model — uses injected vision summaries plus asset metadata for Roblox builds.",
+    ids: [DEFAULT_MODEL_ID],
+    reason: "Using NVIDIA GLM 5.2 with injected vision summaries for Roblox builds.",
   },
 };
 
@@ -171,7 +88,7 @@ export function pickModelForTask(task: AutoTask): ModelPick {
     provider: chosen.provider,
     via: chosen.via,
     reason: fellBack
-      ? `${pref.reason} (Premium specialist unavailable — auto-fell back to ${chosen.label}.)`
+      ? `${pref.reason} (Using ${chosen.label}.)`
       : pref.reason,
     fellBack,
   };
