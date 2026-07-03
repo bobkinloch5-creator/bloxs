@@ -62,7 +62,7 @@ async function embedOnce(input: string): Promise<number[]> {
   const chain = providers();
   if (chain.length === 0) {
     throw new EmbeddingError(
-      "No embedding provider is configured. Add LOVABLE_API_KEY, QUATARLY_API_KEY, or NVIDIA_API_KEY.",
+      "No embedding provider is configured. Add NVIDIA_API_KEY.",
     );
   }
 
