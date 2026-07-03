@@ -2382,8 +2382,6 @@ export const Route = createFileRoute("/api/chat")({
           const requestedId = body.modelId || DEFAULT_MODEL_ID;
           const requestedCandidate = findModel(requestedId);
           const activeModelId = isSelectable(requestedCandidate) ? requestedId : DEFAULT_MODEL_ID;
-          const requested = findModel(activeModelId);
-
           const supabase = createClient(
             process.env.SUPABASE_URL!,
             process.env.SUPABASE_PUBLISHABLE_KEY!,
@@ -2543,7 +2541,7 @@ export const Route = createFileRoute("/api/chat")({
           // action block. If the user explicitly says to keep only Baseplate,
           // queue a deterministic Studio cleanup command immediately.
           if (mode === "build" && projectId && userText && isClearProjectKeepBaseplateRequest(userText)) {
-            const clearCharge = await chargeCredits(supabase, userId, 0, { allowZero: true });
+            const clearCharge = await chargeCredits(supabase, userId, 0);
             if (!clearCharge.ok) {
               return jsonError(
                 clearCharge.message ?? "Out of credits.",
@@ -2685,7 +2683,7 @@ export const Route = createFileRoute("/api/chat")({
                 }
                 const finalInsert = candidates[0] as typeof insertAction;
                 const finalAssetId = Number((finalInsert.payload as { asset_id?: number }).asset_id);
-                const fastCharge = await chargeCredits(supabase, userId, 0, { allowZero: true });
+                const fastCharge = await chargeCredits(supabase, userId, 0);
                 if (!fastCharge.ok) {
                   return jsonError(
                     fastCharge.message ?? "Out of credits.",
