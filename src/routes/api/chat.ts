@@ -2540,44 +2540,44 @@ export const Route = createFileRoute("/api/chat")({
           }
 
 
-          // ── MEMORY + STUDIO CONTEXT ──
+          // ── MEMORY + STUDIO CONTEXT (parallel with vision + UI concept) ──
           // Pull project metadata, recent builds, latest game scan, recent errors,
           // and existing queued actions so the AI knows what already exists and
           // doesn't rebuild or duplicate things across turns.
-          let contextBlock = "";
-          try {
-            const [{ data: session }, { data: recentErrors }, { data: recentBuilds }, { data: existingActions }, { data: memories }] = await Promise.all([
-              supabase
-                .from("plugin_sessions")
-                .select("last_scan, last_scan_at, online")
-                .eq("user_id", userId)
-                .maybeSingle(),
-              supabase
-                .from("studio_errors")
-                .select("level, source, message, created_at")
-                .eq("user_id", userId)
-                .order("created_at", { ascending: false })
-                .limit(15),
-              supabase
-                .from("build_history")
-                .select("prompt, files_count, created_at")
-                .eq("project_id", projectId)
-                .order("created_at", { ascending: false })
-                .limit(10),
-              supabase
-                .from("plugin_actions")
-                .select("kind, name, parent_path, status")
-                .eq("project_id", projectId)
-                .order("created_at", { ascending: false })
-                .limit(40),
-              supabase
-                .from("project_memory")
-                .select("key, value, kind, importance")
-                .eq("project_id", projectId)
-                .order("importance", { ascending: false })
-                .order("updated_at", { ascending: false })
-                .limit(30),
+          // Vision + UI concept generation used to run sequentially AFTER the DB
+          // fetch, blocking TTFB by up to 30s. Now they run concurrently and are
+          // bounded by hard timeouts so slow upstreams can't stall the stream.
+          const withTimeout = <T,>(p: Promise<T>, ms: number, label: string): Promise<T | null> =>
+            Promise.race<T | null>([
+              p.catch((e) => { console.warn(`[chat] ${label} failed`, e); return null; }),
+              new Promise<null>((resolve) => setTimeout(() => { console.warn(`[chat] ${label} timed out after ${ms}ms`); resolve(null); }, ms)),
             ]);
+
+          const uiConceptRequested = mode === "build" && /(\bgenerate ui\b|\bimage to roblox ui\b|\bimage-to-roblox ui\b|loading screen|main menu|play button|settings menu|shop ui|inventory ui|gamepass ui|quest ui|\bhud\b|health bar|xp bar|currency display|mobile controls)/i.test(userText);
+
+          let contextBlock = "";
+          let generatedUiConceptUrl: string | null = null;
+          try {
+            const [
+              ctxResult,
+              visionResult,
+              uiConceptResult,
+            ] = await Promise.all([
+              Promise.all([
+                supabase.from("plugin_sessions").select("last_scan, last_scan_at, online").eq("user_id", userId).maybeSingle(),
+                supabase.from("studio_errors").select("level, source, message, created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(15),
+                supabase.from("build_history").select("prompt, files_count, created_at").eq("project_id", projectId).order("created_at", { ascending: false }).limit(10),
+                supabase.from("plugin_actions").select("kind, name, parent_path, status").eq("project_id", projectId).order("created_at", { ascending: false }).limit(40),
+                supabase.from("project_memory").select("key, value, kind, importance").eq("project_id", projectId).order("importance", { ascending: false }).order("updated_at", { ascending: false }).limit(30),
+              ]),
+              imageParts.length > 0
+                ? withTimeout(describeImageWithNvidiaPaliGemma(imageParts), 6000, "NVIDIA PaliGemma vision")
+                : Promise.resolve(null),
+              uiConceptRequested
+                ? withTimeout(generateUiConceptImage({ prompt: userText, style: "Premium Roblox UI" }), 15000, "UI concept image")
+                : Promise.resolve(null),
+            ]);
+            const [{ data: session }, { data: recentErrors }, { data: recentBuilds }, { data: existingActions }, { data: memories }] = ctxResult;
 
             const parts: string[] = [];
             parts.push(
@@ -2630,33 +2630,16 @@ export const Route = createFileRoute("/api/chat")({
             );
 
             contextBlock = "\n\n---\nLIVE CONTEXT (auto-injected memory + Studio state):\n\n" + parts.join("\n\n---\n");
+
+            if (visionResult) {
+              contextBlock += `\n\n---\nNVIDIA PALIGEMMA VISION ANALYSIS:\n${visionResult}\nUse this as visual reference context only. Build with safe free Toolbox assets and clean Roblox systems; do not invent unsafe assets.`;
+            }
+            if (uiConceptResult) {
+              generatedUiConceptUrl = uiConceptResult;
+              contextBlock += `\n\n---\nAI IMAGE-TO-ROBLOX UI GENERATOR:\nA premium UI concept image has been generated and saved to this chat. Use it as the visual concept, then rebuild it as REAL Roblox UI: ScreenGui, Frames, Buttons, TextLabels, ImageLabels, UICorner, UIStroke, UIGradient, UIPadding, layouts, constraints, UIScale, LocalScripts, animations, remotes, and scan_project/autofix_project checks. Do not leave it as a flat image.`;
+            }
           } catch (e) {
             console.warn("[chat] failed to load studio context", e);
-          }
-
-          try {
-            if (imageParts.length > 0) {
-              const vision = await describeImageWithNvidiaPaliGemma(imageParts);
-              if (vision) {
-                contextBlock += `\n\n---\nNVIDIA PALIGEMMA VISION ANALYSIS:\n${vision}\nUse this as visual reference context only. Build with safe free Toolbox assets and clean Roblox systems; do not invent unsafe assets.`;
-              }
-            }
-          } catch (e) {
-            console.warn("[chat] NVIDIA PaliGemma vision analysis failed", e);
-          }
-
-          let generatedUiConceptUrl: string | null = null;
-          const uiConceptRequested = mode === "build" && /(\bgenerate ui\b|\bimage to roblox ui\b|\bimage-to-roblox ui\b|loading screen|main menu|play button|settings menu|shop ui|inventory ui|gamepass ui|quest ui|\bhud\b|health bar|xp bar|currency display|mobile controls)/i.test(userText);
-          if (uiConceptRequested) {
-            try {
-              generatedUiConceptUrl = await generateUiConceptImage({
-                prompt: userText,
-                style: "Premium Roblox UI",
-              });
-              contextBlock += `\n\n---\nAI IMAGE-TO-ROBLOX UI GENERATOR:\nA premium UI concept image has been generated and saved to this chat. Use it as the visual concept, then rebuild it as REAL Roblox UI: ScreenGui, Frames, Buttons, TextLabels, ImageLabels, UICorner, UIStroke, UIGradient, UIPadding, layouts, constraints, UIScale, LocalScripts, animations, remotes, and scan_project/autofix_project checks. Do not leave it as a flat image.`;
-            } catch (e) {
-              console.warn("[chat] UI concept image generation failed", e);
-            }
           }
 
           // Strip inline image file parts before sending to the LLM. We already run
@@ -2668,6 +2651,7 @@ export const Route = createFileRoute("/api/chat")({
           // continuity is preserved without re-sending the pixels.
           const messagesForModel = stripImageFilePartsFromMessages(messages);
           const convertedMessages = await convertToModelMessages(messagesForModel);
+
 
           const withExecutionMetadata = (action: any) => ({
             ...action,
