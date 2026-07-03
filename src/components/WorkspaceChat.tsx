@@ -190,6 +190,10 @@ export function WorkspaceChat({
   // effect immediately, without waiting for React to flush the state update.
   const liveModeRef = useRef<Mode>("build");
   useEffect(() => { liveModeRef.current = mode; }, [mode]);
+  const setComposerMode = useCallback((next: Mode) => {
+    liveModeRef.current = next;
+    setMode(next);
+  }, []);
   const [buildMode, setBuildMode] = useState<"Smart Build" | "Fast Build" | "Deep Build">("Smart Build");
   const [modeOpen, setModeOpen] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
@@ -399,9 +403,9 @@ export function WorkspaceChat({
 
   const handleVoiceUtterance = useCallback((text: string) => {
     // Voice utterances always go to Build mode so they execute in Studio
-    setMode("build");
+    setComposerMode("build");
     setTimeout(() => {
-      submit(text);
+      submit(text, "build");
     }, 0);
   }, [token, status, activeProjectId, onRequestNewProject, createMut, sendMessage]);
 
@@ -415,6 +419,7 @@ export function WorkspaceChat({
     // Use the live mode ref (or an explicit override from the caller) so a
     // synchronous mode flip in the same click cycle is honored on this send.
     const effectiveMode: Mode = overrideMode ?? liveModeRef.current;
+    liveModeRef.current = effectiveMode;
 
     // Build mode is a no-op if the Studio plugin isn't connected — actions
     // would just pile up in the queue with nothing polling for them. Block
@@ -478,7 +483,7 @@ export function WorkspaceChat({
         <div className="inline-flex rounded-xl border border-white/15 bg-black/30 p-1">
           <button
             type="button"
-            onClick={() => setMode("chat")}
+            onClick={() => setComposerMode("chat")}
             className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
               mode === "chat"
                 ? "bg-indigo-500 text-white shadow-[0_6px_18px_-8px_rgba(99,102,241,0.9)]"
@@ -490,7 +495,7 @@ export function WorkspaceChat({
           </button>
           <button
             type="button"
-            onClick={() => setMode("build")}
+            onClick={() => setComposerMode("build")}
             className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
               mode === "build"
                 ? "bg-indigo-500 text-white shadow-[0_6px_18px_-8px_rgba(99,102,241,0.9)]"
@@ -714,7 +719,7 @@ export function WorkspaceChat({
               // submit() so its plugin/project gates use chat semantics even
               // if the state hasn't flushed yet.
               liveModeRef.current = "chat";
-              if (mode !== "chat") setMode("chat");
+              if (mode !== "chat") setComposerMode("chat");
               const trimmed = prompt.trim();
               if (!trimmed) {
                 setPrompt("Generate an image of ");

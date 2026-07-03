@@ -1,7 +1,5 @@
-// Server-only AI provider factory. Routes each model to its gateway:
-// - "lovable"   → Lovable AI Gateway (fast default path)
-// - "quatarly"  → Quatarly unified API (legacy / fallback catalog)
-// - "nvidia"    → NVIDIA NIM / Build.NVIDIA.com
+// Server-only AI provider factory. BloxSmith is locked to NVIDIA NIM /
+// Build.NVIDIA.com so chat cannot fall back to paid gateway models.
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import {
   findModel,
@@ -16,27 +14,6 @@ type Provider = ReturnType<typeof createOpenAICompatible>;
 type LanguageModel = ReturnType<Provider>;
 
 function buildProvider(gateway: Gateway): Provider {
-  if (gateway === "lovable") {
-    const key = process.env.LOVABLE_API_KEY;
-    if (!key) throw new Error("Lovable AI is not configured — LOVABLE_API_KEY is missing.");
-    return createOpenAICompatible({
-      name: "lovable",
-      baseURL: "https://ai.gateway.lovable.dev/v1",
-      headers: {
-        "Lovable-API-Key": key,
-        "X-Lovable-AIG-SDK": "vercel-ai-sdk",
-      },
-    });
-  }
-  if (gateway === "quatarly") {
-    const key = process.env.QUATARLY_API_KEY || process.env.QUARTLY_API_KEY || process.env.QUATARY_API_KEY;
-    if (!key) throw new Error("Quatarly is not configured — set QUATARLY_API_KEY.");
-    return createOpenAICompatible({
-      name: "quatarly",
-      baseURL: "https://api.quatarly.cloud/v1",
-      headers: { Authorization: `Bearer ${key}` },
-    });
-  }
   if (gateway === "nvidia") {
     const key = process.env.NVIDIA_API_KEY || process.env.NIM_API_KEY || process.env.NGC_API_KEY;
     if (!key) throw new Error("NVIDIA NIM is not configured — set NVIDIA_API_KEY.");
