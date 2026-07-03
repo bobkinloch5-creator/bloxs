@@ -1,6 +1,5 @@
-// Embeddings client with multi-provider fallback.
-// Order: Lovable AI Gateway → NVIDIA (padded to 1536 dims).
-// All providers return OpenAI-compatible /v1/embeddings responses.
+// Embeddings client locked to NVIDIA (padded to 1536 dims).
+// The provider returns OpenAI-compatible /v1/embeddings responses.
 // We always return 1536-dim vectors so the pgvector schema stays stable.
 
 const TARGET_DIMS = 1536;
@@ -16,16 +15,6 @@ type Provider = {
 
 function providers(): Provider[] {
   return [
-    {
-      name: "lovable",
-      url: "https://ai.gateway.lovable.dev/v1/embeddings",
-      key: process.env.LOVABLE_API_KEY,
-      model: "google/gemini-embedding-001",
-      nativeDims: 1536,
-    },
-    // Quatarly does not expose a /v1/embeddings route (it 404s). Skip it
-    // entirely for embeddings — chat models remain routed there separately.
-
     {
       name: "nvidia",
       url: "https://integrate.api.nvidia.com/v1/embeddings",
@@ -82,9 +71,7 @@ async function embedOnce(input: string): Promise<number[]> {
   for (const p of chain) {
     let res: Response;
     try {
-      const headers: Record<string, string> = p.name === "lovable"
-        ? { "Content-Type": "application/json", "Lovable-API-Key": p.key!, "X-Lovable-AIG-SDK": "vercel-ai-sdk" }
-        : { "Content-Type": "application/json", Authorization: `Bearer ${p.key}` };
+      const headers: Record<string, string> = { "Content-Type": "application/json", Authorization: `Bearer ${p.key}` };
       res = await fetch(p.url, {
         method: "POST",
         headers,
