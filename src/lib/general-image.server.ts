@@ -4,8 +4,8 @@
 // ScreenGui / UI layout mockup. UI concept art still routes through
 // generateUiConceptImage which returns SVG mockups of GUI panels.
 //
-// Provider order: Lovable AI Gateway (openai/gpt-image-2) → optional Gemini
-// image → optional OpenAI direct. Returns a data: URL on success, or throws.
+// NVIDIA-only deployments do not call paid image gateways. For image requests,
+// return a local SVG concept placeholder so chat never spends Lovable credits.
 
 type GenArgs = {
   prompt: string;
@@ -54,38 +54,37 @@ function subjectHint(kind?: string): string {
   }
 }
 
-async function callLovableGateway(prompt: string, size: string): Promise<string | null> {
-  const key = process.env.LOVABLE_API_KEY;
-  if (!key) return null;
-  const res = await fetch("https://ai.gateway.lovable.dev/v1/images/generations", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "openai/gpt-image-2",
-      prompt,
-      size,
-      quality: "low",
-      n: 1,
-    }),
-  });
-  if (!res.ok) return null;
-  const json = (await res.json()) as { data?: Array<{ b64_json?: string; url?: string }> };
-  const first = json.data?.[0];
-  if (first?.b64_json) return `data:image/png;base64,${first.b64_json}`;
-  if (first?.url) return first.url;
-  return null;
+function escapeSvgText(input: string) {
+  return input.replace(/[<>&"]/g, (ch) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[ch] ?? ch));
+}
+
+function localConceptSvg(prompt: string, kind?: string): string {
+  const title = escapeSvgText((kind || "NVIDIA-only concept").replace(/_/g, " ").slice(0, 34));
+  const subtitle = escapeSvgText(prompt.replace(/\s+/g, " ").trim().slice(0, 92));
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#07131f"/><stop offset="1" stop-color="#10271f"/></linearGradient>
+    <linearGradient id="g" x1="0" x2="1"><stop stop-color="#76b900"/><stop offset="1" stop-color="#38d39f"/></linearGradient>
+    <filter id="shadow"><feDropShadow dx="0" dy="24" stdDeviation="32" flood-color="#000" flood-opacity=".45"/></filter>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <g opacity=".2"><rect x="112" y="180" width="800" height="560" rx="42" fill="#76b900"/><circle cx="792" cy="256" r="128" fill="#38d39f"/><circle cx="232" cy="734" r="170" fill="#76b900"/></g>
+  <g filter="url(#shadow)">
+    <rect x="134" y="238" width="756" height="548" rx="28" fill="#07111d" stroke="#ffffff" stroke-opacity=".12"/>
+    <rect x="188" y="308" width="648" height="250" rx="20" fill="url(#g)" opacity=".16"/>
+    <path d="M238 518 374 398l94 80 70-58 248 198H238z" fill="url(#g)" opacity=".72"/>
+    <circle cx="710" cy="370" r="52" fill="#f8fafc" opacity=".72"/>
+    <text x="512" y="654" text-anchor="middle" font-family="Inter,Arial,sans-serif" font-size="42" font-weight="900" fill="#f8fafc">${title}</text>
+    <text x="512" y="704" text-anchor="middle" font-family="Inter,Arial,sans-serif" font-size="22" fill="#cbd5e1">${subtitle}</text>
+    <text x="512" y="744" text-anchor="middle" font-family="Inter,Arial,sans-serif" font-size="18" fill="#76b900">NVIDIA-only mode · paid image gateway disabled</text>
+  </g>
+</svg>`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
 export async function generateGeneralImage(args: GenArgs): Promise<string> {
-  const size = args.size ?? "1024x1024";
   const prompt = `${args.prompt.trim()}${subjectHint(args.kind)}${styleHint(args.style)}`.slice(0, 1500);
-  try {
-    const url = await callLovableGateway(prompt, size);
-    if (url) return url;
-  } catch {
-    // fall through
-  }
-  throw new Error("Image generation is temporarily unavailable. Please try again in a moment.");
+  return localConceptSvg(prompt, args.kind);
 }
 
 // Heuristic: is the user actually asking for a Roblox GUI/ScreenGui mockup?
