@@ -3829,7 +3829,7 @@ export const Route = createFileRoute("/api/chat")({
               : assetMode === "procedural" && !userExplicitlyRequestedToolbox(userText)
                 ? { roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch, generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool }
                 : { search_toolbox: toolboxTool, search_toolbox_set: toolboxSetTool, roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch, generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool },
-            stopWhen: stepCountIs(50),
+            stopWhen: stepCountIs(mode === "chat" || buildQuality === "basic" ? 8 : 50),
             onFinish: async ({ text }) => {
               await persistFinish(usedModelId, notice)({ text });
             },
