@@ -3865,32 +3865,48 @@ export const Route = createFileRoute("/api/chat")({
             return streamPlainAssistantText(visibleText || result.text || "Done.", `gen-${usedModelId.replace(/[^a-z0-9]/gi, "-")}`);
           };
 
-          // Walk the fallback chain with an awaited generation call. Streaming errors
-          // happen after the HTTP response starts, so they cannot reliably trigger
-          // fallback. Awaiting here lets us retry before the UI receives a response.
+          // Stream the primary model immediately so the user sees progress as soon
+          // as tokens arrive. Only fall back if stream creation itself fails before
+          // the response starts; streamed upstream errors surface as clear UI text.
           const chain = getFallbackChain(modelChoice.meta.id);
           const isRetryable = (msg: string) =>
             /429|rate.?limit|ResourceExhausted|worker.*limit|request limit reached|capacity|overloaded|503|502|500|Too Many|fetch failed|ECONNRESET|ETIMEDOUT|timeout|timed out|Request too large|tokens per minute|TPM|reduce your message size|context.?length|context_length_exceeded|too many tokens|maximum context|token limit|payload too large|413/i.test(msg);
 
           try {
-            return await tryGenerate(modelChoice.model, modelChoice.meta.id, modelChoice.usedFallback
+            const result = tryStream(modelChoice.model, modelChoice.meta.id, modelChoice.usedFallback
               ? `_Switched to ${modelChoice.meta.label} because the selected model isn't available._`
               : null, modelChoice.extraBody, modelChoice.modelSettings);
+            return result.toUIMessageStreamResponse({
+              onError: (err) => {
+                const msg = err instanceof Error ? err.message : String(err);
+                if (/402|credit/i.test(msg)) return "The selected AI model is unavailable right now. Try again in a moment.";
+                if (/429|rate|capacity|overloaded|503|502|timeout/i.test(msg)) return "AI is busy right now. Wait a few seconds and try again.";
+                return `AI request failed: ${msg}`;
+              },
+            });
           } catch (primaryErr) {
             const firstMsg = primaryErr instanceof Error ? primaryErr.message : String(primaryErr);
             console.error("[chat] primary model failed, walking fallback chain", firstMsg);
 
-            // Try each fallback in order until one succeeds
+            // Try each fallback only when no response has started yet.
             for (const fb of chain) {
               try {
                 console.log(`[chat] trying fallback: ${fb.meta.label}`);
-                return await tryGenerate(
+                const fallbackResult = tryStream(
                   fb.model,
                   fb.meta.id,
                   `_Switched to ${fb.meta.label} (fallback — previous model was rate-limited or busy)._`,
                   fb.extraBody,
                   fb.modelSettings,
                 );
+                return fallbackResult.toUIMessageStreamResponse({
+                  onError: (err) => {
+                    const msg = err instanceof Error ? err.message : String(err);
+                    if (/402|credit/i.test(msg)) return "The selected AI model is unavailable right now. Try again in a moment.";
+                    if (/429|rate|capacity|overloaded|503|502|timeout/i.test(msg)) return "AI is busy right now. Wait a few seconds and try again.";
+                    return `AI request failed: ${msg}`;
+                  },
+                });
               } catch (fbErr) {
                 const fbMsg = fbErr instanceof Error ? fbErr.message : String(fbErr);
                 console.warn(`[chat] fallback ${fb.meta.label} failed`, fbMsg);
