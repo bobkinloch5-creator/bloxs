@@ -44,9 +44,9 @@ export const MODELS: ModelOption[] = [
     speed: "Fast",
     quality: "Best",
     credits: "Low",
-    status: "Working",
-    bestFor: "Reliable Roblox planning, Luau generation, UI fixes, and build actions without external key failures.",
-    description: "Default Lovable AI route for dependable BloxSmith builds and chat.",
+    status: "Coming Soon",
+    bestFor: "Reliable Roblox planning, Luau generation, UI fixes, and build actions.",
+    description: "Available when workspace AI credits are funded.",
     modelSettings: { temperature: 0.7, topP: 0.9, maxOutputTokens: 8192 },
   },
   {
@@ -60,9 +60,9 @@ export const MODELS: ModelOption[] = [
     speed: "Fast",
     quality: "Great",
     credits: "Low",
-    status: "Coming Soon",
-    bestFor: "Optional fast route when external provider keys are stable.",
-    description: "Temporarily disabled as a selectable route so failed external-key requests do not break builds.",
+    status: "Working",
+    bestFor: "Reliable Roblox planning, Luau generation, and build actions when NVIDIA is busy.",
+    description: "Fast Groq-hosted Llama 3.3 70B route used as the default.",
     modelSettings: { temperature: 0.7, topP: 0.9, maxOutputTokens: 8192 },
   },
   {
@@ -148,13 +148,12 @@ export const MODELS: ModelOption[] = [
 ];
 
 
-export const DEFAULT_MODEL_ID = "lovable/gemini-3-flash-preview";
-export const FALLBACK_MODEL_ID = "lovable/gemini-3-flash-preview";
+export const DEFAULT_MODEL_ID = "groq/llama-3.3-70b-versatile";
+export const FALLBACK_MODEL_ID = "groq/llama-3.3-70b-versatile";
 
 // Ordered chain of models to try when the primary model is rate-limited or at capacity.
 // Rotates across providers (Groq → NVIDIA family) so a 429 on one endpoint doesn't kill the request.
 export const FALLBACK_CHAIN: string[] = [
-  "lovable/gemini-3-flash-preview",
   "groq/llama-3.3-70b-versatile",
   "nvidia/llama-3.3-nemotron-super-49b",
   "nvidia/llama-3.1-nemotron-70b",
