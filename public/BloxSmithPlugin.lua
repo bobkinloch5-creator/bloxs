@@ -1414,7 +1414,7 @@ function Actions.insert_asset(a)
 	-- Second-pass extraction: if what we placed is still an oversized package
 	-- container, prefer a nested Model when one exists. Never reject — Toolbox
 	-- packages with many children are valid per Roblox docs.
-	if singleAsset then
+	if singleAsset and not preserveWhole then
 		local maxChildren = tonumber(payload.max_children) or 25
 		local descendantCount = #placed:GetDescendants()
 		local topChildren = #placed:GetChildren()
