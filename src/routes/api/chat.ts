@@ -97,6 +97,8 @@ Convert the request and response below into a concise, safe, executable BloxSmit
 
 Rules:
 - Output exactly one fenced block: \`\`\`bloxsmith-actions followed by a JSON array, then \`\`\`.
+- Exact scope is mandatory: convert ONLY what the user literally asked for. Do not add main menus, loading screens, splash/title screens, HUDs, shops, inventories, settings panels, tutorials, music, camera effects, RemoteEvents, ModuleScripts, leaderstats, DataStores, managers, folders, organize/autofix/scan, or polish unless the user explicitly requested that exact item.
+- For narrow requests like a speed boost, a button, or a script, emit only the minimum working script/UI element — typically 1 action, at most 3.
 - Supported kinds: insert_asset, run_lua, script, localscript, modulescript, screengui, remoteevent, remotefunction, part, terrain, set_properties, rename, move, delete, setting, organize_project, autofix_project, scan_project.
 - Prefer insert_asset only when an asset id is explicitly present in the plan. Include payload.asset_id and payload.fallback_ids when known.
 - If Asset mode is procedural, do not emit insert_asset. Use run_lua/terrain/parts to generate original visible content in Studio.
@@ -104,7 +106,7 @@ Rules:
 - Do not emit delete actions unless the user explicitly asked to delete or clear something.
 - If the user asks to erase/clear/wipe/delete everything except Baseplate, output exactly one run_lua action that deletes Workspace children except Baseplate, clears Terrain, clears StarterGui/StarterPack/StarterPlayer scripts/ReplicatedStorage/ServerScriptService/ServerStorage/Lighting/SoundService/Teams, then scan_project. Do not answer with manual instructions.
 - Never produce empty folders, placeholders, TODOs, comments pretending work is done, or unsupported action kinds.
-- End with autofix_project and scan_project for build/test reliability.
+- End with autofix_project and scan_project only for broad/full-system builds. Do not add them for single script/button/stat-tweak requests.
 - Language for player-facing UI strings: ${params.languageName}.
 - Asset mode: ${params.assetMode}.
 
