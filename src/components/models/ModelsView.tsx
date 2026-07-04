@@ -137,6 +137,9 @@ function AnimationControls({ viewerRef }: { viewerRef: React.MutableRefObject<HT
       </div>
     </div>
   );
+}
+
+
 
 function formatRemaining(ms: number) {
   if (ms <= 0) return "Ready";
