@@ -536,8 +536,11 @@ export function WorkspaceChat({
             value={selectedModel}
             onChange={(e) => setSelectedModel(e.target.value)}
             className="max-w-[220px] rounded-lg border border-white/15 bg-black/40 px-2 py-1.5 text-[11px] font-medium text-slate-100 hover:bg-black/60 focus:outline-none focus:ring-2 focus:ring-indigo-400/50"
-            title="Choose which AI model handles your next messages"
+            title="Choose which AI model handles your next messages. Auto picks the best model for what you're doing."
           >
+            <option value="auto" className="bg-slate-900 text-slate-100">
+              ⚡ Auto — pick best for task
+            </option>
             {availableModels.map((m) => (
               <option key={m.id} value={m.id} className="bg-slate-900 text-slate-100">
                 {m.label} · {m.provider}
