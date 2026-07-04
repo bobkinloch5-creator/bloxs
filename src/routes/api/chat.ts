@@ -3365,18 +3365,20 @@ export const Route = createFileRoute("/api/chat")({
                   }
                 }
 
-                // Drop actions the local Luau validator flagged as fatal so the
-                // Studio plugin cannot mark broken scripts as "done".
-                actions = actions.filter((a: any) => {
-                  if (a?.payload?._needs_retry === true) {
-                    console.warn("[chat] dropping action with fatal Luau issues", {
-                      name: a?.name, kind: a?.kind,
-                      issues: a?.payload?._luau_issues,
+                // Log Luau validator hits but DO NOT drop actions — the balance
+                // heuristic false-fires on plenty of valid generated scripts,
+                // and dropping actions here silently empties the Studio queue.
+                for (const a of actions as any[]) {
+                  if (a?.payload?._luau_issues?.length) {
+                    console.warn("[chat] Luau validator flagged action (kept)", {
+                      name: a?.name, kind: a?.kind, issues: a.payload._luau_issues,
                     });
-                    return false;
                   }
-                  return true;
-                });
+                  if (a?.payload) {
+                    delete a.payload._needs_retry;
+                    delete a.payload._luau_issues;
+                  }
+                }
 
                 actions = actions.map(withExecutionMetadata);
                 console.info("[chat] actions generated", {
