@@ -47,9 +47,9 @@ export const MODELS: ModelOption[] = [
     quality: "Best",
     credits: "Low",
     status: "Working",
-    bestFor: "Top-end NVIDIA reasoning model for complex full-game builds and Luau planning.",
+    bestFor: "Top-end NVIDIA reasoning model for complex full-game builds; slower, use only when needed.",
     description: "NVIDIA Llama 3.1 Nemotron Ultra 253B via build.nvidia.com.",
-    modelSettings: { temperature: 0.6, topP: 0.95, maxOutputTokens: 8192 },
+    modelSettings: { temperature: 0.45, topP: 0.9, maxOutputTokens: 4096 },
   },
   {
     id: "nvidia/llama-3.3-nemotron-super-49b",
@@ -63,9 +63,9 @@ export const MODELS: ModelOption[] = [
     quality: "Great",
     credits: "Low",
     status: "Working",
-    bestFor: "Default NVIDIA reasoning model — fast, high-quality Roblox planning and Luau code.",
+    bestFor: "High-quality reasoning fallback for larger Roblox plans when faster models need help.",
     description: "NVIDIA Nemotron Super 49B via build.nvidia.com.",
-    modelSettings: { temperature: 0.6, topP: 0.95, maxOutputTokens: 8192 },
+    modelSettings: { temperature: 0.45, topP: 0.9, maxOutputTokens: 4096 },
   },
   {
     id: "nvidia/llama-3.1-nemotron-70b",
@@ -81,7 +81,7 @@ export const MODELS: ModelOption[] = [
     status: "Working",
     bestFor: "Strong instruction-following NVIDIA model for Luau + build actions.",
     description: "NVIDIA Llama 3.1 Nemotron 70B via build.nvidia.com.",
-    modelSettings: { temperature: 0.6, topP: 0.95, maxOutputTokens: 8192 },
+    modelSettings: { temperature: 0.45, topP: 0.9, maxOutputTokens: 4096 },
   },
   {
     id: "nvidia/nemotron-4-340b",
@@ -131,7 +131,7 @@ export const MODELS: ModelOption[] = [
     status: "Working",
     bestFor: "Meta Llama 3.3 70B — solid all-around Roblox builder.",
     description: "Meta Llama 3.3 70B via NVIDIA build.nvidia.com.",
-    modelSettings: { temperature: 0.7, topP: 0.9, maxOutputTokens: 8192 },
+    modelSettings: { temperature: 0.45, topP: 0.9, maxOutputTokens: 4096 },
   },
   {
     id: "nvidia/llama-3.1-70b",
@@ -147,7 +147,7 @@ export const MODELS: ModelOption[] = [
     status: "Working",
     bestFor: "Meta Llama 3.1 70B fallback for general Roblox work.",
     description: "Meta Llama 3.1 70B via NVIDIA build.nvidia.com.",
-    modelSettings: { temperature: 0.7, topP: 0.9, maxOutputTokens: 8192 },
+    modelSettings: { temperature: 0.45, topP: 0.9, maxOutputTokens: 4096 },
   },
   {
     id: "nvidia/llama-3.1-8b",
@@ -161,9 +161,9 @@ export const MODELS: ModelOption[] = [
     quality: "Good",
     credits: "Low",
     status: "Working",
-    bestFor: "Fast lightweight fallback for simple builds.",
+    bestFor: "Very fast lightweight model for short edits, quick answers, and tiny build fixes.",
     description: "Meta Llama 3.1 8B via NVIDIA build.nvidia.com.",
-    modelSettings: { temperature: 0.7, topP: 0.9, maxOutputTokens: 4096 },
+    modelSettings: { temperature: 0.45, topP: 0.85, maxOutputTokens: 2048 },
   },
 
   // ─── Qwen on NVIDIA ────────────────────────────────────────────────────────
@@ -179,9 +179,9 @@ export const MODELS: ModelOption[] = [
     quality: "Great",
     credits: "Low",
     status: "Working",
-    bestFor: "Code-specialized model for Luau generation on NVIDIA.",
+    bestFor: "Fast code-specialized model for Luau generation, bug fixes, and build actions.",
     description: "Qwen 2.5 Coder 32B via NVIDIA build.nvidia.com.",
-    modelSettings: { temperature: 0.4, topP: 0.9, maxOutputTokens: 8192 },
+    modelSettings: { temperature: 0.35, topP: 0.85, maxOutputTokens: 3072 },
   },
   {
     id: "nvidia/qwen-2.5-72b",
@@ -197,7 +197,7 @@ export const MODELS: ModelOption[] = [
     status: "Working",
     bestFor: "Qwen 2.5 72B general instruction model for Roblox builds.",
     description: "Qwen 2.5 72B via NVIDIA build.nvidia.com.",
-    modelSettings: { temperature: 0.7, topP: 0.9, maxOutputTokens: 8192 },
+    modelSettings: { temperature: 0.45, topP: 0.9, maxOutputTokens: 4096 },
   },
 
   // ─── DeepSeek on NVIDIA ────────────────────────────────────────────────────
@@ -213,10 +213,9 @@ export const MODELS: ModelOption[] = [
     quality: "Best",
     credits: "Low",
     status: "Working",
-    bestFor: "Latest DeepSeek V4 Flash — fast responses with light reasoning for chat and Luau.",
-    description: "DeepSeek V4 Flash via NVIDIA build.nvidia.com (thinking + low reasoning for speed).",
-    extraBody: { chat_template_kwargs: { thinking: true, reasoning_effort: "low" } },
-    modelSettings: { temperature: 0.7, topP: 0.9, maxOutputTokens: 4096 },
+    bestFor: "Fast DeepSeek fallback for focused Roblox reasoning without long thinking output.",
+    description: "DeepSeek V4 Flash via NVIDIA build.nvidia.com tuned for low-latency replies.",
+    modelSettings: { temperature: 0.4, topP: 0.85, maxOutputTokens: 3072 },
   },
   {
     id: "nvidia/deepseek-r1",
@@ -232,7 +231,7 @@ export const MODELS: ModelOption[] = [
     status: "Working",
     bestFor: "DeepSeek R1 reasoning model for hard planning & Luau problem-solving.",
     description: "DeepSeek R1 via NVIDIA build.nvidia.com.",
-    modelSettings: { temperature: 0.6, topP: 0.7, maxOutputTokens: 8192 },
+    modelSettings: { temperature: 0.35, topP: 0.8, maxOutputTokens: 4096 },
   },
   {
     id: "nvidia/deepseek-v3",
@@ -248,7 +247,7 @@ export const MODELS: ModelOption[] = [
     status: "Working",
     bestFor: "DeepSeek V3 general model for Roblox builds.",
     description: "DeepSeek V3 via NVIDIA build.nvidia.com.",
-    modelSettings: { temperature: 0.7, topP: 0.9, maxOutputTokens: 8192 },
+    modelSettings: { temperature: 0.45, topP: 0.9, maxOutputTokens: 4096 },
   },
   {
     id: "nvidia/deepseek-r1-distill-llama-70b",
@@ -264,7 +263,7 @@ export const MODELS: ModelOption[] = [
     status: "Working",
     bestFor: "R1 reasoning distilled into a fast 70B fallback.",
     description: "DeepSeek R1 Distill Llama 70B via NVIDIA build.nvidia.com.",
-    modelSettings: { temperature: 0.6, topP: 0.9, maxOutputTokens: 8192 },
+    modelSettings: { temperature: 0.4, topP: 0.85, maxOutputTokens: 4096 },
   },
 
   // ─── Mistral / Microsoft / Writer on NVIDIA ────────────────────────────────
@@ -282,7 +281,7 @@ export const MODELS: ModelOption[] = [
     status: "Working",
     bestFor: "Mixtral 8x22B mixture-of-experts fallback.",
     description: "Mistral Mixtral 8x22B via NVIDIA build.nvidia.com.",
-    modelSettings: { temperature: 0.7, topP: 0.9, maxOutputTokens: 8192 },
+    modelSettings: { temperature: 0.45, topP: 0.9, maxOutputTokens: 4096 },
   },
   {
     id: "nvidia/mistral-large-2",
@@ -298,7 +297,7 @@ export const MODELS: ModelOption[] = [
     status: "Working",
     bestFor: "Mistral Large 2 for high-quality Luau + planning.",
     description: "Mistral Large 2 via NVIDIA build.nvidia.com.",
-    modelSettings: { temperature: 0.7, topP: 0.9, maxOutputTokens: 8192 },
+    modelSettings: { temperature: 0.45, topP: 0.9, maxOutputTokens: 4096 },
   },
   {
     id: "nvidia/phi-4",
@@ -312,9 +311,9 @@ export const MODELS: ModelOption[] = [
     quality: "Great",
     credits: "Low",
     status: "Working",
-    bestFor: "Microsoft Phi-4 small strong reasoning model.",
+    bestFor: "Fast small reasoning model for quick Roblox planning and simple fixes.",
     description: "Microsoft Phi-4 via NVIDIA build.nvidia.com.",
-    modelSettings: { temperature: 0.6, topP: 0.9, maxOutputTokens: 8192 },
+    modelSettings: { temperature: 0.4, topP: 0.85, maxOutputTokens: 2048 },
   },
   {
     id: "nvidia/gemma-3-27b",
@@ -328,9 +327,9 @@ export const MODELS: ModelOption[] = [
     quality: "Great",
     credits: "Low",
     status: "Working",
-    bestFor: "Google Gemma 3 27B general fallback via NVIDIA.",
+    bestFor: "Fast balanced model for responsive Roblox chat, UI ideas, and build planning.",
     description: "Google Gemma 3 27B via NVIDIA build.nvidia.com.",
-    modelSettings: { temperature: 0.7, topP: 0.9, maxOutputTokens: 8192 },
+    modelSettings: { temperature: 0.4, topP: 0.85, maxOutputTokens: 3072 },
   },
   {
     id: "nvidia/palmyra-creative-122b",
@@ -346,7 +345,7 @@ export const MODELS: ModelOption[] = [
     status: "Working",
     bestFor: "Writer Palmyra Creative for expressive UI/story content.",
     description: "Writer Palmyra Creative 122B via NVIDIA build.nvidia.com.",
-    modelSettings: { temperature: 0.8, topP: 0.9, maxOutputTokens: 8192 },
+    modelSettings: { temperature: 0.55, topP: 0.9, maxOutputTokens: 3072 },
   },
 
   // ─── Legacy Groq / Lovable — kept as Coming Soon (Groq free tier caps at 12K TPM
@@ -386,8 +385,8 @@ export const MODELS: ModelOption[] = [
 ];
 
 
-export const DEFAULT_MODEL_ID = "nvidia/llama-3.3-70b";
-export const FALLBACK_MODEL_ID = "nvidia/llama-3.3-nemotron-super-49b";
+export const DEFAULT_MODEL_ID = "nvidia/qwen-2.5-coder-32b";
+export const FALLBACK_MODEL_ID = "nvidia/qwen-2.5-coder-32b";
 
 // Ordered chain of models to try when the primary is rate-limited / at capacity.
 // Rotates across NVIDIA-hosted model families so a 429 on one endpoint routes
@@ -395,20 +394,20 @@ export const FALLBACK_MODEL_ID = "nvidia/llama-3.3-nemotron-super-49b";
 // Fastest-first: small/medium fast models handle most Roblox turns quickly.
 // Larger reasoning models are kept as later fallbacks for hard requests.
 export const FALLBACK_CHAIN: string[] = [
+  "nvidia/qwen-2.5-coder-32b",
+  "nvidia/gemma-3-27b",
+  "nvidia/phi-4",
+  "nvidia/llama-3.1-8b",
   "nvidia/llama-3.3-70b",
   "nvidia/deepseek-v4-flash",
-  "nvidia/qwen-2.5-coder-32b",
   "nvidia/llama-3.3-nemotron-super-49b",
-  "nvidia/llama-3.1-nemotron-70b",
   "nvidia/qwen-2.5-72b",
+  "nvidia/llama-3.1-nemotron-70b",
   "nvidia/mixtral-8x22b",
   "nvidia/deepseek-v3",
   "nvidia/deepseek-r1-distill-llama-70b",
   "nvidia/llama-3.1-70b",
   "nvidia/mistral-large-2",
-  "nvidia/gemma-3-27b",
-  "nvidia/phi-4",
-  "nvidia/llama-3.1-8b",
 ];
 
 export function findModel(id: string): ModelOption {
