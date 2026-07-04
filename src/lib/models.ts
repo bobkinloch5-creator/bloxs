@@ -46,9 +46,9 @@ export const MODELS: ModelOption[] = [
     speed: "Slow",
     quality: "Best",
     credits: "Low",
-    status: "Working",
-    bestFor: "Top-end NVIDIA reasoning model for complex full-game builds; slower, use only when needed.",
-    description: "NVIDIA Llama 3.1 Nemotron Ultra 253B via build.nvidia.com.",
+    status: "Coming Soon",
+    bestFor: "Currently unavailable on NVIDIA NIM.",
+    description: "NVIDIA Llama 3.1 Nemotron Ultra 253B — re-enable when provisioned.",
     modelSettings: { temperature: 0.45, topP: 0.9, maxOutputTokens: 4096 },
   },
   {
@@ -78,9 +78,9 @@ export const MODELS: ModelOption[] = [
     speed: "Medium",
     quality: "Great",
     credits: "Low",
-    status: "Working",
-    bestFor: "Strong instruction-following NVIDIA model for Luau + build actions.",
-    description: "NVIDIA Llama 3.1 Nemotron 70B via build.nvidia.com.",
+    status: "Coming Soon",
+    bestFor: "Currently unavailable on NVIDIA NIM.",
+    description: "NVIDIA Llama 3.1 Nemotron 70B — re-enable when provisioned.",
     modelSettings: { temperature: 0.45, topP: 0.9, maxOutputTokens: 4096 },
   },
   {
@@ -94,10 +94,26 @@ export const MODELS: ModelOption[] = [
     speed: "Slow",
     quality: "Best",
     credits: "Low",
-    status: "Working",
-    bestFor: "Very large NVIDIA reasoning model for deep planning.",
-    description: "NVIDIA Nemotron 4 340B via build.nvidia.com.",
+    status: "Coming Soon",
+    bestFor: "Currently unavailable on NVIDIA NIM.",
+    description: "NVIDIA Nemotron 4 340B — re-enable when provisioned.",
     modelSettings: { temperature: 0.5, topP: 0.95, maxOutputTokens: 4096 },
+  },
+  {
+    id: "nvidia/nemotron-nano-9b-v2",
+    upstreamId: "nvidia/nvidia-nemotron-nano-9b-v2",
+    gateway: "nvidia",
+    label: "Nemotron Nano 9B v2",
+    provider: "NVIDIA",
+    via: "NVIDIA NIM",
+    tier: "fast",
+    speed: "Fast",
+    quality: "Great",
+    credits: "Low",
+    status: "Working",
+    bestFor: "Very fast NVIDIA reasoning model for quick Roblox planning, chat, and small fixes.",
+    description: "NVIDIA Nemotron Nano 9B v2 via build.nvidia.com.",
+    modelSettings: { temperature: 0.4, topP: 0.85, maxOutputTokens: 2048 },
   },
 
   // ─── Meta Llama on NVIDIA ─────────────────────────────────────────────────
@@ -117,7 +133,6 @@ export const MODELS: ModelOption[] = [
     description: "Meta Llama 3.1 405B — re-enable when the endpoint is provisioned.",
     modelSettings: { temperature: 0.6, topP: 0.9, maxOutputTokens: 4096 },
   },
-
   {
     id: "nvidia/llama-3.3-70b",
     upstreamId: "meta/llama-3.3-70b-instruct",
@@ -170,25 +185,25 @@ export const MODELS: ModelOption[] = [
   // ─── Qwen on NVIDIA ────────────────────────────────────────────────────────
   {
     id: "nvidia/qwen-2.5-coder-32b",
-    upstreamId: "mistralai/codestral-22b-instruct-v0.1",
+    upstreamId: "qwen/qwen3-next-80b-a3b-instruct",
     gateway: "nvidia",
-    label: "Codestral 22B (Coder)",
-    provider: "Mistral",
+    label: "Qwen 3 Next 80B (Coder)",
+    provider: "Qwen",
     via: "NVIDIA NIM",
     tier: "balanced",
     speed: "Fast",
     quality: "Great",
     credits: "Low",
     status: "Working",
-    bestFor: "Fast code-specialized model for Luau generation, bug fixes, and build actions.",
-    description: "Mistral Codestral 22B via NVIDIA build.nvidia.com (code-tuned).",
+    bestFor: "Fast general-purpose Qwen model — strong Luau generation, bug fixes, and build actions.",
+    description: "Qwen 3 Next 80B via NVIDIA build.nvidia.com.",
     modelSettings: { temperature: 0.35, topP: 0.85, maxOutputTokens: 3072 },
   },
   {
     id: "nvidia/qwen-2.5-72b",
-    upstreamId: "qwen/qwen3-next-80b-a3b-instruct",
+    upstreamId: "qwen/qwen3.5-122b-a10b",
     gateway: "nvidia",
-    label: "Qwen 3 Next 80B",
+    label: "Qwen 3.5 122B",
     provider: "Qwen",
     via: "NVIDIA NIM",
     tier: "balanced",
@@ -196,11 +211,10 @@ export const MODELS: ModelOption[] = [
     quality: "Great",
     credits: "Low",
     status: "Working",
-    bestFor: "Qwen 3 Next 80B general instruction model for Roblox builds.",
-    description: "Qwen 3 Next 80B via NVIDIA build.nvidia.com.",
+    bestFor: "Qwen 3.5 122B general instruction model for Roblox builds.",
+    description: "Qwen 3.5 122B via NVIDIA build.nvidia.com.",
     modelSettings: { temperature: 0.45, topP: 0.9, maxOutputTokens: 4096 },
   },
-
 
   // ─── DeepSeek on NVIDIA ────────────────────────────────────────────────────
   {
@@ -268,14 +282,12 @@ export const MODELS: ModelOption[] = [
     modelSettings: { temperature: 0.4, topP: 0.85, maxOutputTokens: 4096 },
   },
 
-
   // ─── Mistral / Microsoft / Writer on NVIDIA ────────────────────────────────
   {
     id: "nvidia/mixtral-8x22b",
-    upstreamId: "mistralai/mixtral-8x22b-v0.1",
-
+    upstreamId: "mistralai/mistral-medium-3.5-128b",
     gateway: "nvidia",
-    label: "Mixtral 8x22B",
+    label: "Mistral Medium 3.5 128B",
     provider: "Mistral",
     via: "NVIDIA NIM",
     tier: "balanced",
@@ -283,15 +295,15 @@ export const MODELS: ModelOption[] = [
     quality: "Great",
     credits: "Low",
     status: "Working",
-    bestFor: "Mixtral 8x22B mixture-of-experts fallback.",
-    description: "Mistral Mixtral 8x22B via NVIDIA build.nvidia.com.",
+    bestFor: "Mistral Medium 3.5 general fallback for Roblox builds.",
+    description: "Mistral Medium 3.5 128B via NVIDIA build.nvidia.com.",
     modelSettings: { temperature: 0.45, topP: 0.9, maxOutputTokens: 4096 },
   },
   {
     id: "nvidia/mistral-large-2",
-    upstreamId: "mistralai/mistral-large-2-instruct",
+    upstreamId: "mistralai/mistral-small-4-119b-2603",
     gateway: "nvidia",
-    label: "Mistral Large 2",
+    label: "Mistral Small 4 119B",
     provider: "Mistral",
     via: "NVIDIA NIM",
     tier: "premium",
@@ -299,25 +311,40 @@ export const MODELS: ModelOption[] = [
     quality: "Great",
     credits: "Low",
     status: "Working",
-    bestFor: "Mistral Large 2 for high-quality Luau + planning.",
-    description: "Mistral Large 2 via NVIDIA build.nvidia.com.",
+    bestFor: "Mistral Small 4 for high-quality Luau + planning.",
+    description: "Mistral Small 4 119B via NVIDIA build.nvidia.com.",
     modelSettings: { temperature: 0.45, topP: 0.9, maxOutputTokens: 4096 },
+  },
+  {
+    id: "nvidia/ministral-14b",
+    upstreamId: "mistralai/ministral-14b-instruct-2512",
+    gateway: "nvidia",
+    label: "Ministral 14B",
+    provider: "Mistral",
+    via: "NVIDIA NIM",
+    tier: "fast",
+    speed: "Fast",
+    quality: "Good",
+    credits: "Low",
+    status: "Working",
+    bestFor: "Very fast Mistral model for quick Roblox chat and small edits.",
+    description: "Mistral Ministral 14B via NVIDIA build.nvidia.com.",
+    modelSettings: { temperature: 0.4, topP: 0.85, maxOutputTokens: 2048 },
   },
   {
     id: "nvidia/phi-4",
     upstreamId: "microsoft/phi-4-mini-instruct",
     gateway: "nvidia",
-
-    label: "Phi-4",
+    label: "Phi-4 Mini",
     provider: "Microsoft",
     via: "NVIDIA NIM",
     tier: "fast",
     speed: "Fast",
     quality: "Great",
     credits: "Low",
-    status: "Working",
-    bestFor: "Fast small reasoning model for quick Roblox planning and simple fixes.",
-    description: "Microsoft Phi-4 via NVIDIA build.nvidia.com.",
+    status: "Coming Soon",
+    bestFor: "Currently unavailable on NVIDIA NIM.",
+    description: "Microsoft Phi-4 Mini — re-enable when the endpoint is provisioned.",
     modelSettings: { temperature: 0.4, topP: 0.85, maxOutputTokens: 2048 },
   },
   {
@@ -325,7 +352,6 @@ export const MODELS: ModelOption[] = [
     upstreamId: "google/gemma-4-31b-it",
     gateway: "nvidia",
     label: "Gemma 4 31B",
-
     provider: "Google",
     via: "NVIDIA NIM",
     tier: "balanced",
@@ -334,7 +360,7 @@ export const MODELS: ModelOption[] = [
     credits: "Low",
     status: "Working",
     bestFor: "Fast balanced model for responsive Roblox chat, UI ideas, and build planning.",
-    description: "Google Gemma 3 27B via NVIDIA build.nvidia.com.",
+    description: "Google Gemma 4 31B via NVIDIA build.nvidia.com.",
     modelSettings: { temperature: 0.4, topP: 0.85, maxOutputTokens: 3072 },
   },
   {
@@ -348,14 +374,13 @@ export const MODELS: ModelOption[] = [
     speed: "Medium",
     quality: "Great",
     credits: "Low",
-    status: "Working",
-    bestFor: "Writer Palmyra Creative for expressive UI/story content.",
-    description: "Writer Palmyra Creative 122B via NVIDIA build.nvidia.com.",
+    status: "Coming Soon",
+    bestFor: "Currently unavailable on NVIDIA NIM.",
+    description: "Writer Palmyra Creative 122B — re-enable when the endpoint is provisioned.",
     modelSettings: { temperature: 0.55, topP: 0.9, maxOutputTokens: 3072 },
   },
 
-  // ─── Legacy Groq / Lovable — kept as Coming Soon (Groq free tier caps at 12K TPM
-  //     which is smaller than BloxSmith's system prompt, so it kept failing). ──
+  // ─── Legacy Groq / Lovable — kept as Coming Soon ─────────────────────────
   {
     id: "groq/llama-3.3-70b-versatile",
     upstreamId: "llama-3.3-70b-versatile",
@@ -389,6 +414,7 @@ export const MODELS: ModelOption[] = [
     modelSettings: { temperature: 0.7, topP: 0.9, maxOutputTokens: 8192 },
   },
 ];
+
 
 
 export const DEFAULT_MODEL_ID = "nvidia/qwen-2.5-coder-32b";
