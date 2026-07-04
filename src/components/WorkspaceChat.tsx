@@ -222,14 +222,16 @@ export function WorkspaceChat({
     window.localStorage.setItem("bs:procedural-generation", proceduralGeneration ? "1" : "0");
   }, [proceduralGeneration]);
 
-  // 🧠 Model selection — persisted across sessions. Falls back to default if
-  // the stored id is no longer Working / selectable.
+  // 🧠 Model selection — persisted across sessions. "auto" picks the best
+  // Working model for the current task (chat vs build). Any other value must
+  // be a Working selectable id, otherwise we fall back to auto.
   const availableModels = useMemo(() => MODELS.filter(isSelectable), []);
   const [selectedModel, setSelectedModel] = useState<string>(() => {
-    if (typeof window === "undefined") return DEFAULT_MODEL_ID;
+    if (typeof window === "undefined") return "auto";
     const saved = window.localStorage.getItem("bs:selected-model");
+    if (saved === "auto") return "auto";
     if (saved && MODELS.some((m) => m.id === saved && isSelectable(m))) return saved;
-    return DEFAULT_MODEL_ID;
+    return "auto";
   });
   useEffect(() => {
     if (typeof window === "undefined") return;
