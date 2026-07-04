@@ -215,9 +215,7 @@ async function tryLovableImage(prompt: string, size: string): Promise<string | n
 export async function generateGeneralImage(args: GenArgs): Promise<string> {
   const prompt = `${args.prompt.trim()}${subjectHint(args.kind)}${styleHint(args.style)}`.slice(0, 1500);
   const size = args.size ?? "1024x1024";
-  // Prefer real image generation via Lovable AI Gateway; fall back to NVIDIA image models, then SVG placeholder.
-  const lovImage = await tryLovableImage(prompt, size);
-  if (lovImage) return lovImage;
+  // NVIDIA-only: try real NVIDIA image generation, then fall back to local SVG placeholder.
   const nvImage = await tryNvidiaImage(prompt, size);
   if (nvImage) return nvImage;
   return localConceptSvg(prompt, args.kind);
