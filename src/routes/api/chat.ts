@@ -97,6 +97,8 @@ Convert the request and response below into a concise, safe, executable BloxSmit
 
 Rules:
 - Output exactly one fenced block: \`\`\`bloxsmith-actions followed by a JSON array, then \`\`\`.
+- Exact scope is mandatory: convert ONLY what the user literally asked for. Do not add main menus, loading screens, splash/title screens, HUDs, shops, inventories, settings panels, tutorials, music, camera effects, RemoteEvents, ModuleScripts, leaderstats, DataStores, managers, folders, organize/autofix/scan, or polish unless the user explicitly requested that exact item.
+- For narrow requests like a speed boost, a button, or a script, emit only the minimum working script/UI element — typically 1 action, at most 3.
 - Supported kinds: insert_asset, run_lua, script, localscript, modulescript, screengui, remoteevent, remotefunction, part, terrain, set_properties, rename, move, delete, setting, organize_project, autofix_project, scan_project.
 - Prefer insert_asset only when an asset id is explicitly present in the plan. Include payload.asset_id and payload.fallback_ids when known.
 - If Asset mode is procedural, do not emit insert_asset. Use run_lua/terrain/parts to generate original visible content in Studio.
@@ -104,7 +106,7 @@ Rules:
 - Do not emit delete actions unless the user explicitly asked to delete or clear something.
 - If the user asks to erase/clear/wipe/delete everything except Baseplate, output exactly one run_lua action that deletes Workspace children except Baseplate, clears Terrain, clears StarterGui/StarterPack/StarterPlayer scripts/ReplicatedStorage/ServerScriptService/ServerStorage/Lighting/SoundService/Teams, then scan_project. Do not answer with manual instructions.
 - Never produce empty folders, placeholders, TODOs, comments pretending work is done, or unsupported action kinds.
-- End with autofix_project and scan_project for build/test reliability.
+- End with autofix_project and scan_project only for broad/full-system builds. Do not add them for single script/button/stat-tweak requests.
 - Language for player-facing UI strings: ${params.languageName}.
 - Asset mode: ${params.assetMode}.
 
@@ -150,6 +152,8 @@ function stripImageFilePartsFromMessages(messages: UIMessage[]): UIMessage[] {
 const FAST_CHAT_SYSTEM_PROMPT = `You are BloxSmith, a friendly senior Roblox developer helping users plan, improve, and troubleshoot Roblox games. Keep replies short, direct, and useful. Do not expose internal tools, JSON, model/provider names, credits, IDs, or debug details. In chat mode, do not emit executable action blocks unless the user explicitly asks to build/apply now. If a request requires changing Roblox Studio, tell them to switch to Build Mode and resend.`;
 
 const FAST_BUILD_SYSTEM_PROMPT = `You are BloxSmith, an expert Roblox Studio game-building agent. Build real, playable Roblox results through structured Studio actions. Keep visible prose concise and human. Never expose internal tool names, raw payloads, debug details, model/provider names, or JSON except the hidden executable action block. Use modern Luau, server-authoritative gameplay, safe free Toolbox assets when Toolbox mode is active, clean organization, mobile-safe UI, no placeholders, no fake buttons, no empty folders, no invented asset IDs, and no deprecated APIs.
+
+EXACT-SCOPE LAW (highest priority): Create ONLY the files/instances/systems the user explicitly names. Do not add main menus, loading screens, splash/title screens, HUDs, shops, inventories, settings panels, tutorials, music, camera effects, remotes, ModuleScripts, leaderstats, DataStores, managers, folders, or extra polish unless the current user message asks for that exact thing. A request like "make a speed boost button" means create the speed boost button and its required Luau only — not a menu, not a loading screen, not a full UI package.
 
 COMPLETENESS CONTRACT (non-negotiable):
 - Enumerate every distinct feature/thing the user asked for in this turn. For EACH one, emit at least one concrete action (run_lua, insert_asset, part, script, screengui, remoteevent, set_properties, etc.) that actually creates or modifies it in Studio. Do not silently skip items.
@@ -511,6 +515,48 @@ function isSimpleSingleThingRequest(userText: string) {
     .split(/\s+/)
     .filter(Boolean);
   return nouns.length > 0 && nouns.length <= 3;
+}
+
+function isExplicitFullSystemRequest(userText: string) {
+  return /\b(full\s*(game|system|ui|gui|experience)|complete\s*(game|system|ui|gui|experience)|entire\s*(game|system|ui|gui|experience)|all[-\s]*in[-\s]*one|game\s*framework|core\s*systems|production\s*systems|round[-\s]*based\s*game|tycoon|simulator|rpg)\b/i.test(userText);
+}
+
+function isNarrowFeatureRequest(userText: string) {
+  const text = userText.toLowerCase().trim();
+  if (!text || isExplicitFullSystemRequest(text)) return false;
+  if (/\b(map|world|city|town|lobby|level|multiple|several|bunch|pack)\b/.test(text)) return false;
+  if (/\b(main\s*menu|loading\s*screen|load\s*screen|splash|title\s*screen|hud|shop\s*system|inventory\s*system|settings\s*menu)\b/.test(text)) return false;
+  if (/\b(button|script|local\s*script|server\s*script|module\s*script|remote\s*event|remoteevent|speed\s*boost|sprint|dash|double\s*jump|tool|door|checkpoint|timer|kill\s*brick|teleport)\b/.test(text)) return true;
+  return isSimpleSingleThingRequest(text);
+}
+
+function shouldUseGenericRobloxSystemGuard(userText: string, buildQuality?: "basic" | "better" | "premium" | "full_game") {
+  if (!isRobloxSystemRequest(userText)) return false;
+  if (isNarrowFeatureRequest(userText)) return false;
+  if (isExplicitFullSystemRequest(userText)) return true;
+  return buildQuality === "full_game" && isExplicitFullSystemRequest(userText);
+}
+
+function actionLooksLikeUnrequestedUiShell(action: any, userText: string) {
+  const text = userText.toLowerCase();
+  const requestedLoading = /\b(loading\s*screen|load\s*screen|loading\s*ui)\b/.test(text);
+  const requestedMenu = /\b(main\s*menu|title\s*screen|splash\s*screen|play\s*button|start\s*button)\b/.test(text);
+  const requestedHud = /\b(hud|heads[-\s]*up|health\s*bar|cash\s*display|coin\s*display|timer\s*display)\b/.test(text);
+  const requestedShop = /\b(shop\s*(ui|gui|screen|system|menu|panel)|store\s*(ui|gui|screen|system|menu|panel))\b/.test(text);
+  const requestedInventory = /\binventory\s*(ui|gui|screen|system|menu|panel)?\b/.test(text);
+  const requestedSettings = /\bsettings\s*(ui|gui|screen|menu|panel)?\b/.test(text);
+  const name = String(action?.name ?? "");
+  const source = String(action?.payload?.source ?? "");
+  const haystack = `${name}\n${source}`;
+
+  if (/BloxSmith_(Build_UI_And_Systems|Intent_Visibility_Guard|Build_Single_UI_Or_Script|Install_Production_Systems)/i.test(name)) return true;
+  if (!requestedLoading && /\b(LoadingScreen|Loading World|Loading City|Entering the Dark|Preparing your Roblox experience|ProgressBack|ProgressFill)\b/i.test(haystack)) return true;
+  if (!requestedMenu && /\b(MainMenu|MAIN MENU|PlayButton|StartButton|ShopButton|InventoryButton|SettingsButton|BloxSmith_Game_UI|BloxSmith_Visible_UI)\b/i.test(haystack)) return true;
+  if (!requestedHud && /\b(Name\s*=\s*["']HUD["']|TopStats|Health:\s*100|Coins:\s*0|Level:\s*1|leaderstats)\b/i.test(haystack)) return true;
+  if (!requestedShop && /\b(RequestShop|ShopButton|Add products, boosts, gamepasses, and upgrades here)\b/i.test(haystack)) return true;
+  if (!requestedInventory && /\b(RequestInventory|InventoryButton|Player items and rewards can appear here)\b/i.test(haystack)) return true;
+  if (!requestedSettings && /\b(SaveSettings|SettingsButton|Volume, graphics, and gameplay options are ready to wire)\b/i.test(haystack)) return true;
+  return false;
 }
 
 const TOOLBOX_ASSET_FINDER_CATEGORIES = [
@@ -3413,9 +3459,9 @@ export const Route = createFileRoute("/api/chat")({
                   }
                 }
 
-                if (mode === "build" && isRobloxSystemRequest(userText)) {
+                if (mode === "build" && shouldUseGenericRobloxSystemGuard(userText, buildQuality)) {
                   const systemActions = (
-                    isSimpleSingleThingRequest(userText)
+                    isNarrowFeatureRequest(userText)
                       ? simpleRobloxSystemStudioActions(userText, languageName)
                       : robloxSystemStudioActions(userText, languageName)
                   ).map(normalizePluginAction);
@@ -3435,7 +3481,7 @@ export const Route = createFileRoute("/api/chat")({
                   }
                 }
 
-                if (mode === "build") {
+                if (mode === "build" && !isNarrowFeatureRequest(userText)) {
                   const templateActions = productionSystemsStudioActions(userText).map(normalizePluginAction);
                   if (templateActions.length > 0) {
                     const templateNames = detectLuaTemplates(userText).map((t) => t.name).join(", ") || "core";
@@ -3502,13 +3548,31 @@ export const Route = createFileRoute("/api/chat")({
                   cleanContent = actions.length > 0
                     ? `${cleanContent.trim()}\n\n_Single asset scope: queued exactly one safe free Toolbox ${label} model only — no packs, scripts, props, decorations, terrain, UI, scans, or extra actions._`
                     : `${cleanContent.trim()}\n\n_No clean free authorized single ${label} model was found, so BloxSmith did not insert a pack or placeholder._`;
-                } else if (mode === "build" && isSimpleSingleThingRequest(userText)) {
+                } else if (mode === "build" && isNarrowFeatureRequest(userText)) {
+                  const requestedRemote = /\b(remote\s*event|remoteevent|remote\s*function|remotefunction|server\s*event|server[-\s]*authoritative|multiplayer|replicated)\b/i.test(userText);
+                  const requestedModule = /\b(module\s*script|modulescript|module)\b/i.test(userText);
+                  const requestedScan = /\b(scan|autofix|organize|verify|test)\b/i.test(userText);
+                  const requestedData = /\b(leaderstats?|data\s*store|datastore|save\s*data|currency|coins?|cash)\b/i.test(userText);
                   let keptInsertAsset = false;
                   actions = actions.filter((a) => {
+                    const source = String(a.payload?.source ?? "");
                     if ([
                       "BloxSmith_Intent_Visibility_Guard",
                       "BloxSmith_AutoExecute_Recovery",
+                      "BloxSmith_Build_UI_And_Systems",
+                      "BloxSmith_Scan_UI_And_Systems",
+                      "BloxSmith_Build_Single_UI_Or_Script",
+                      "BloxSmith_Scan_Single_UI_Or_Script",
+                      "BloxSmith_Install_Production_Systems",
+                      "BloxSmith_Scan_Production_Systems",
                     ].includes(a.name)) return false;
+                    if (actionLooksLikeUnrequestedUiShell(a, userText)) return false;
+                    if (!requestedScan && ["organize_project", "autofix_project", "scan_project"].includes(a.kind)) return false;
+                    if (!requestedRemote && ["remoteevent", "remotefunction", "bindableevent"].includes(a.kind)) return false;
+                    if (!requestedModule && a.kind === "modulescript") return false;
+                    if (!requestedRemote && /Instance\.new\("Remote(Event|Function)"\)/i.test(source)) return false;
+                    if (!requestedModule && /Instance\.new\("ModuleScript"\)/i.test(source)) return false;
+                    if (!requestedData && /\b(leaderstats|DataStoreService|GetDataStore|OrderedDataStore|MemoryStoreService)\b/i.test(source)) return false;
                     if (a.kind === "insert_asset") {
                       if (keptInsertAsset) return false;
                       keptInsertAsset = true;
@@ -3600,7 +3664,7 @@ export const Route = createFileRoute("/api/chat")({
                 // the user actually sees the thing they asked for. This prevents the
                 // "Build verified · done 3/3" pill from lying when every real create
                 // step got stripped upstream.
-                if (mode === "build") {
+                if (mode === "build" && !isNarrowFeatureRequest(userText)) {
                   const CREATE_KINDS = new Set([
                     "insert_asset","part","model","terrain",
                     "screengui","gui","frame","textlabel","textbutton","imagelabel","tool",
@@ -3779,13 +3843,16 @@ export const Route = createFileRoute("/api/chat")({
             : "STRICT MODE (ABSOLUTE, overrides every completeness instruction below): Build ONLY exactly what the user's current message names. Do NOT create main menus, loading screens, splash/title/intro screens, HUDs, notification toasts, camera effects, background music, sound libraries, particle FX, tutorial popups, settings panels, extra folders, controllers, managers, RemoteEvents, ModuleScripts, leaderstats, or DataStores unless the user's message explicitly asks for that thing by name. Do NOT modify or redesign existing UI. If the user asks for a script or a button, ship ONLY that script/button — typically 1-3 actions total, never a full-system build. Scripts are always original Luau written by YOU inside script/localscript/modulescript/run_lua actions — NEVER fetch code via search_toolbox or insert_asset (Toolbox is for visual/audio assets only). The 'build FULL system' / '10-30 actions' guidance below applies ONLY when the user's message itself names a full system (shop, tycoon, obby, inventory, quest system, round-based game, full game). For anything smaller, ship the minimum and offer more in a one-line follow-up. Before emitting the actions block, self-check: does every action correspond to something the user literally asked for? Drop anything that fails that test.\n\nYou are using the shared BloxSmith Core Brain. This Core Brain applies to EVERY model/provider, including the currently selected model: Roblox knowledge, Luau rules, safe Toolbox/Creator Store asset rules (for visual/audio only), planning, plugin execution, testing/fixing, memory, and quality standards are mandatory and consistent across models. You have FULL EXECUTION CAPABILITY: insert Toolbox assets (visual/audio only), build parts/UI/scripts/remotes, modify properties, rename, move, DELETE instances (use the `delete` action with target_path, or run_lua with :Destroy() for batch deletes like clearing the workspace except the Baseplate), and run arbitrary Luau via run_lua. If the user asks to erase / clear / wipe / delete everything except X, emit ONE run_lua action that iterates the relevant services and Destroys children whose name isn't in the keep-list — do not refuse. IMPORTANT: do NOT claim Roblox Studio already completed/succeeded until the plugin confirms execution; say the actions are queued/sent for Studio verification. Folders must only exist when they contain real content; never emit folder-only scaffolding. For visual Roblox content ONLY (not scripts/logic), use safe free Toolbox / Creator Store models via search_toolbox + insert_asset. Use run_lua for placement, scaling, rotation, scripts, UI wiring, and deletion/cleanup. If no safe relevant Toolbox asset is found for a visual, ask the user before generating fallback geometry. NO fake buttons, NO empty folders, NO placeholder scripts, NO TODOs."}\n`;
 
           const languageHeader = `\n[LANGUAGE: ${languageCode} / ${languageName}]\nRespond ENTIRELY in ${languageName}. Translate every sentence, heading, button name, status message, error message, and explanation into natural, fluent, idiomatic ${languageName}. Keep code identifiers, Roblox API names (Instance class names, services, property names like Workspace, Part, ScreenGui, HumanoidRootPart), and the bloxsmith-actions block contents in English exactly as required by Roblox. Translate UI strings the player will see (TextLabel.Text, button text, GUI titles, error notifications shown to players) into ${languageName}. Markdown formatting stays the same.\n`;
-          const qualityHeader = mode === "chat" ? "" : `\n[BUILD QUALITY MODE: ${buildQuality.toUpperCase()}]\n${buildQuality === "basic"
-            ? "Basic Build: build the smallest complete working version. Still no placeholders or unfinished systems. Include required wiring, organize_project, and scan_project."
-            : buildQuality === "better"
-              ? "Better Build: build a fuller version with clean layout, useful UI, working scripts/remotes, mobile support, safe assets, organize_project, autofix_project, and scan_project."
-              : buildQuality === "full_game"
-                ? "Full Game Build: prompt-to-full-game mode. Infer the genre and create map, spawn, gameplay loop, UI/HUD/menu/loading, NPC/enemy/vehicle/tool behavior if relevant, shop/currency/leaderboard/save system, mobile controls, tutorial, anti-exploit checks, polish, organize_project, autofix_project, scan_project, and a test report. Do not leave half-working systems."
-                : "Premium Build: add better lighting, sky/atmosphere, UI animations, sounds, camera effects, clean layout, visible safe Toolbox details, mobile support, organize_project, autofix_project, scan_project, and explain what changed."}\n`;
+          const narrowFeature = isNarrowFeatureRequest(userText);
+          const qualityHeader = mode === "chat" ? "" : `\n[BUILD QUALITY MODE: ${buildQuality.toUpperCase()}]\n${narrowFeature
+            ? "Narrow Feature Build: ignore the usual premium/full-game expansion. Ship only the exact requested feature and the minimum required Luau wiring. No menus, loading screens, HUDs, extra panels, remotes, modules, leaderstats, DataStores, sounds, camera effects, folders, scans, or polish unless explicitly named by the user."
+            : buildQuality === "basic"
+              ? "Basic Build: build the smallest complete working version. Still no placeholders or unfinished systems. Include required wiring, organize_project, and scan_project."
+              : buildQuality === "better"
+                ? "Better Build: build a fuller version only within the named request; do not add unrelated UI/screens/systems. Include clean layout, useful requested UI, working scripts/remotes only when required, mobile support when relevant, safe assets, organize_project, autofix_project, and scan_project."
+                : buildQuality === "full_game"
+                  ? "Full Game Build: prompt-to-full-game mode ONLY when the user explicitly asked for a full/complete game or full system. Then infer genre and create map, spawn, gameplay loop, UI/HUD/menu/loading, NPC/enemy/vehicle/tool behavior if relevant, shop/currency/leaderboard/save system, mobile controls, tutorial, anti-exploit checks, polish, organize_project, autofix_project, scan_project, and a test report. If the user did not explicitly ask for a full game/system, do not apply this expansion."
+                  : "Premium Build: improve quality only inside the requested scope. Do not add unrelated menus, loading screens, HUDs, sounds, camera effects, panels, systems, or extra assets. For a single feature, stay minimal and explain what changed."}\n`;
 
           const assetModeRule = mode === "chat" ? "" : (() => {
             switch (assetMode) {
