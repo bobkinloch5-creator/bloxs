@@ -23,43 +23,44 @@ export interface ModelPick {
   fellBack: boolean;
 }
 
-// Preference ranking per task. Default to the most reliable working model.
+// Preference ranking per task. Fastest reliable model for the task first, then
+// stronger fallbacks. Order matters: the first Working entry wins.
 const TASK_PREF: Record<AutoTask, { ids: string[]; reason: string }> = {
   planning: {
-    ids: [DEFAULT_MODEL_ID],
-    reason: "Using the reliable default AI route for Roblox planning and build graphs.",
+    ids: ["nvidia/llama-3.3-70b", "nvidia/llama-3.3-nemotron-super-49b", DEFAULT_MODEL_ID],
+    reason: "Auto: fast Llama 3.3 70B for quick Roblox planning.",
   },
   scripting: {
-    ids: [DEFAULT_MODEL_ID],
-    reason: "Using the reliable default AI route for complete, runnable Luau.",
+    ids: ["nvidia/qwen-2.5-coder-32b", "nvidia/deepseek-v4-flash", "nvidia/llama-3.3-70b", DEFAULT_MODEL_ID],
+    reason: "Auto: Qwen 2.5 Coder for complete runnable Luau.",
   },
   ui: {
-    ids: [DEFAULT_MODEL_ID],
-    reason: "Using the reliable default AI route for ScreenGui layout and mobile-safe UI.",
+    ids: ["nvidia/llama-3.3-70b", "nvidia/qwen-2.5-72b", DEFAULT_MODEL_ID],
+    reason: "Auto: fast general model for ScreenGui layout.",
   },
   assets: {
-    ids: [DEFAULT_MODEL_ID],
-    reason: "Using the reliable default AI route for safe Toolbox asset planning.",
+    ids: ["nvidia/llama-3.1-8b", "nvidia/phi-4", "nvidia/llama-3.3-70b"],
+    reason: "Auto: small fast model for Toolbox asset planning.",
   },
   bugfix: {
-    ids: [DEFAULT_MODEL_ID],
-    reason: "Using the reliable default AI route for bug tracing and event wiring fixes.",
+    ids: ["nvidia/qwen-2.5-coder-32b", "nvidia/deepseek-v4-flash", DEFAULT_MODEL_ID],
+    reason: "Auto: coder-tuned model for bug tracing and fixes.",
   },
   performance: {
-    ids: [DEFAULT_MODEL_ID],
-    reason: "Using the reliable default AI route for performance review.",
+    ids: ["nvidia/deepseek-v4-flash", "nvidia/llama-3.3-nemotron-super-49b", "nvidia/llama-3.3-70b"],
+    reason: "Auto: reasoning model for performance review.",
   },
   testing: {
-    ids: [DEFAULT_MODEL_ID],
-    reason: "Using the reliable default AI route for playtest checks.",
+    ids: ["nvidia/llama-3.3-70b", "nvidia/phi-4"],
+    reason: "Auto: fast model for playtest checks.",
   },
   shortedit: {
-    ids: [DEFAULT_MODEL_ID],
-    reason: "Using the reliable default AI route for short edits.",
+    ids: ["nvidia/llama-3.1-8b", "nvidia/phi-4", "nvidia/llama-3.3-70b"],
+    reason: "Auto: tiny fast model for short edits.",
   },
   vision: {
-    ids: [DEFAULT_MODEL_ID],
-    reason: "Using the reliable default AI route with injected vision summaries for Roblox builds.",
+    ids: ["nvidia/llama-3.3-70b", DEFAULT_MODEL_ID],
+    reason: "Auto: fast model with injected vision summaries.",
   },
 };
 
