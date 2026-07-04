@@ -820,29 +820,30 @@ export function WorkspaceChat({
                 const next = !proceduralGeneration;
                 setProceduralGeneration(next);
                 toast.success(next
-                  ? "🌍 Procedural Generation: ON — BloxSmith may expand builds with terrain, foliage, roads, and matching details."
-                  : "🌍 Procedural Generation: OFF — BloxSmith will build only exactly what you ask for."
+                  ? "🛠 From Scratch: ON — BloxSmith builds everything from primitives (no Toolbox models)."
+                  : "📦 From Scratch: OFF — BloxSmith uses safe free Toolbox / Creator Store assets."
                 );
               }}
               aria-pressed={proceduralGeneration}
               title={proceduralGeneration
-                ? "Procedural Generation is ON — click to disable. When ON, the AI may add supporting terrain, foliage, roads, and decorations to match the theme."
-                : "Procedural Generation is OFF — click to enable. When OFF, only the exact thing you ask for is built (no extras)."}
+                ? "From Scratch is ON — everything is built from parts, meshes, and terrain. Click to switch to Toolbox mode."
+                : "From Scratch is OFF — Toolbox mode. Safe free Creator Store assets are inserted. Click to build from scratch instead."}
               className={`inline-flex min-h-[40px] items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition ${
                 proceduralGeneration
                   ? "border-emerald-400/50 bg-emerald-500/15 text-emerald-100 hover:bg-emerald-500/25"
-                  : "border-white/20 bg-white/[0.06] text-slate-200 hover:bg-white/[0.12] hover:border-white/30"
+                  : "border-amber-400/40 bg-amber-500/10 text-amber-100 hover:bg-amber-500/20"
               }`}
             >
-              <span className="text-sm leading-none">🌍</span>
-              <span className="hidden sm:inline">Procedural</span>
+              <span className="text-sm leading-none">{proceduralGeneration ? "🛠" : "📦"}</span>
+              <span className="hidden sm:inline">{proceduralGeneration ? "From Scratch" : "Toolbox"}</span>
               <span className={`ml-1 rounded-full px-1.5 py-[1px] text-[9px] font-black uppercase tracking-wider ${
-                proceduralGeneration ? "bg-emerald-400/30 text-emerald-50" : "bg-white/10 text-slate-300"
+                proceduralGeneration ? "bg-emerald-400/30 text-emerald-50" : "bg-amber-400/30 text-amber-50"
               }`}>
                 {proceduralGeneration ? "On" : "Off"}
               </span>
             </button>
           )}
+
           {isBuild && (
             <div ref={modeRef} className="relative hidden sm:block">
               <button
