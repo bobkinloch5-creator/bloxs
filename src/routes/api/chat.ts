@@ -123,14 +123,24 @@ function stripImageFilePartsFromMessages(messages: UIMessage[]): UIMessage[] {
 
 const FAST_CHAT_SYSTEM_PROMPT = `You are BloxSmith, a friendly senior Roblox developer helping users plan, improve, and troubleshoot Roblox games. Keep replies short, direct, and useful. Do not expose internal tools, JSON, model/provider names, credits, IDs, or debug details. In chat mode, do not emit executable action blocks unless the user explicitly asks to build/apply now. If a request requires changing Roblox Studio, tell them to switch to Build Mode and resend.`;
 
-const FAST_BUILD_SYSTEM_PROMPT = `You are BloxSmith, an expert Roblox Studio game-building agent. Build real, playable Roblox results through structured Studio actions. Keep visible prose concise and human. Never expose internal tool names, raw payloads, debug details, model/provider names, or JSON except the hidden executable action block. Use modern Luau, server-authoritative gameplay, safe free Toolbox assets when Toolbox mode is active, clean organization, mobile-safe UI, no placeholders, no fake buttons, no empty folders, no invented asset IDs, and no deprecated APIs. For Build Mode, end with exactly one fenced \`\`\`bloxsmith-actions block containing the executable action JSON the app will strip from the visible chat. Include scan/autofix actions for meaningful builds and never claim Studio execution is complete until plugin verification confirms it.`;
+const FAST_BUILD_SYSTEM_PROMPT = `You are BloxSmith, an expert Roblox Studio game-building agent. Build real, playable Roblox results through structured Studio actions. Keep visible prose concise and human. Never expose internal tool names, raw payloads, debug details, model/provider names, or JSON except the hidden executable action block. Use modern Luau, server-authoritative gameplay, safe free Toolbox assets when Toolbox mode is active, clean organization, mobile-safe UI, no placeholders, no fake buttons, no empty folders, no invented asset IDs, and no deprecated APIs.
+
+COMPLETENESS CONTRACT (non-negotiable):
+- Enumerate every distinct feature/thing the user asked for in this turn. For EACH one, emit at least one concrete action (run_lua, insert_asset, part, script, screengui, remoteevent, set_properties, etc.) that actually creates or modifies it in Studio. Do not silently skip items.
+- If a request has multiple features ("invisible walls AND X AND Y"), each must appear in the bloxsmith-actions block. Prefer one run_lua per feature over prose descriptions.
+- For "invisible walls everywhere on the existing map": emit a run_lua that scans Workspace bounds (Terrain + baseplate + existing parts) and creates thin anchored, CanCollide=true, Transparency=1 parts around the perimeter, tall enough to block flight (default height 200), parented to a folder named "InvisibleWalls". Do not require Toolbox assets for this.
+- If something genuinely cannot be built (missing asset id, ambiguous, out of Studio's control), say so briefly in the visible prose AND still complete every other requested feature. Never drop a feature without stating why.
+
+For Build Mode, end with exactly one fenced \`\`\`bloxsmith-actions block containing the executable action JSON the app will strip from the visible chat. Include scan/autofix actions for meaningful builds and never claim Studio execution is complete until plugin verification confirms it.`;
+
 
 function trimMessagesForModel(messages: UIMessage[], mode: "chat" | "build"): UIMessage[] {
-  const maxMessages = mode === "chat" ? 8 : 5;
+  const maxMessages = mode === "chat" ? 12 : 10;
   const start = Math.max(0, messages.length - maxMessages);
   return messages.slice(start).map((m, i, recent) => {
     const isLatestUser = i === recent.length - 1 && m.role === "user";
-    const textLimit = isLatestUser ? 6000 : m.role === "assistant" ? 900 : 1600;
+    const textLimit = isLatestUser ? 12000 : m.role === "assistant" ? 1600 : 2400;
+
     const parts = (m.parts ?? []).map((p: any) => {
       if (p?.type !== "text" || typeof p.text !== "string" || p.text.length <= textLimit) return p;
       return { ...p, text: `[trimmed previous context]\n${p.text.slice(-textLimit)}` };
@@ -140,16 +150,19 @@ function trimMessagesForModel(messages: UIMessage[], mode: "chat" | "build"): UI
 }
 
 function capOutputTokens(modelSettings: { maxOutputTokens?: number } | undefined, mode: "chat" | "build", buildQuality?: "basic" | "better" | "premium" | "full_game") {
-  const requested = modelSettings?.maxOutputTokens ?? (mode === "chat" ? 650 : 2200);
+  const requested = modelSettings?.maxOutputTokens ?? (mode === "chat" ? 900 : 4096);
   const cap = mode === "chat"
-    ? 700
+    ? 1200
     : buildQuality === "full_game"
-      ? 3000
-      : buildQuality === "basic"
-        ? 1200
-        : 2200;
-  return Math.min(requested, cap);
+      ? 6000
+      : buildQuality === "premium"
+        ? 5000
+        : buildQuality === "basic"
+          ? 3000
+          : 4096;
+  return Math.max(requested, cap);
 }
+
 
 function wantsGeneratedImage(userText: string) {
   return /\b(generate|create|make|draw|design)\b.*\b(image|picture|thumbnail|icon|logo|badge|banner|concept art|promo|ui mockup|loading screen|menu mockup)\b/i.test(userText)
