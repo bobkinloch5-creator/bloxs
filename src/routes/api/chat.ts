@@ -3784,7 +3784,12 @@ export const Route = createFileRoute("/api/chat")({
             ? `_Switched to ${modelChoice.meta.label} because the selected model isn't available._`
             : null, modelChoice.extraBody, modelChoice.modelSettings);
 
-          // Wrap in fallback: if the stream errors before any tokens, retry with fallback.
+          // Walk the fallback chain: if the stream errors before any tokens with a rate-limit
+          // or capacity error, try the next model in the chain (Groq → NVIDIA family).
+          const chain = getFallbackChain(modelChoice.meta.id);
+          const isRetryable = (msg: string) =>
+            /429|rate.?limit|ResourceExhausted|worker.*limit|request limit reached|capacity|overloaded|503|Too Many/i.test(msg);
+
           try {
             return result.toUIMessageStreamResponse({
               onError: (err) => {
@@ -3792,9 +3797,9 @@ export const Route = createFileRoute("/api/chat")({
                 if (err instanceof Error) {
                   const msg = err.message;
                   if (/402|credit/i.test(msg)) return "The selected AI model is unavailable right now. Try again in a moment.";
-                  if (/429|rate.?limit/i.test(msg)) return "AI is rate-limited right now. Wait a few seconds and try again.";
+                  if (/429|rate.?limit/i.test(msg)) return "All AI models are rate-limited right now. Wait a few seconds and try again.";
                   if (/ResourceExhausted|worker.*limit|request limit reached|capacity|overloaded|503/i.test(msg))
-                    return `The ${modelChoice.meta.label ?? "AI"} model is at capacity right now. Try again in a few seconds, or pick a different model in Settings.`;
+                    return `All fallback models are at capacity right now. Try again in a few seconds, or pick a different model in Settings.`;
                   if (/timeout|timed out|ETIMEDOUT/i.test(msg)) return "The AI took too long to respond. Try again in a moment.";
                   if (/fetch failed|ECONNRESET|ENOTFOUND|network/i.test(msg)) return "Couldn't reach the AI gateway. Check your connection and retry.";
                   return `AI request failed: ${msg}`;
@@ -3803,17 +3808,39 @@ export const Route = createFileRoute("/api/chat")({
               },
             });
           } catch (streamErr) {
-            console.error("[chat] requested model failed, trying fallback", streamErr);
-            const fb = getFallbackModel();
-            result = tryStream(
-              fb.model,
-              fb.meta.id,
-              `_The selected model failed, so BloxSmith switched to ${fb.meta.label} (fallback)._`,
-              fb.extraBody,
-              fb.modelSettings,
+            const firstMsg = streamErr instanceof Error ? streamErr.message : String(streamErr);
+            console.error("[chat] primary model failed, walking fallback chain", firstMsg);
+
+            // Try each fallback in order until one succeeds
+            for (const fb of chain) {
+              try {
+                console.log(`[chat] trying fallback: ${fb.meta.label}`);
+                result = tryStream(
+                  fb.model,
+                  fb.meta.id,
+                  `_Switched to ${fb.meta.label} (fallback — previous model was rate-limited or busy)._`,
+                  fb.extraBody,
+                  fb.modelSettings,
+                );
+                return result.toUIMessageStreamResponse();
+              } catch (fbErr) {
+                const fbMsg = fbErr instanceof Error ? fbErr.message : String(fbErr);
+                console.warn(`[chat] fallback ${fb.meta.label} failed`, fbMsg);
+                if (!isRetryable(fbMsg)) {
+                  // Non-retryable error — stop walking the chain
+                  break;
+                }
+              }
+            }
+
+            // All fallbacks exhausted
+            return jsonError(
+              `All AI models are currently rate-limited or unavailable. Please wait a moment and try again. (${firstMsg})`,
+              429,
+              "all_models_rate_limited",
             );
-            return result.toUIMessageStreamResponse();
           }
+
         } catch (e) {
           console.error("[chat] fatal", e);
           return jsonError(e instanceof Error ? e.message : "Unknown error", 500, "fatal");
