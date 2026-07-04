@@ -60,9 +60,9 @@ export const MODELS: ModelOption[] = [
     speed: "Fast",
     quality: "Great",
     credits: "Low",
-    status: "Working",
-    bestFor: "Reliable Roblox planning, Luau generation, and build actions when NVIDIA is busy.",
-    description: "Fast Groq-hosted Llama 3.3 70B route used as the default.",
+    status: "Coming Soon",
+    bestFor: "Optional fast route when external provider keys are stable.",
+    description: "Temporarily disabled as a selectable route so failed external-key requests do not break builds.",
     modelSettings: { temperature: 0.7, topP: 0.9, maxOutputTokens: 8192 },
   },
   {
