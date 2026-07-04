@@ -6,9 +6,11 @@ import {
   isSelectable,
   DEFAULT_MODEL_ID,
   FALLBACK_MODEL_ID,
+  FALLBACK_CHAIN,
   type ModelOption,
   type Gateway,
 } from "./models";
+
 
 type Provider = ReturnType<typeof createOpenAICompatible>;
 type LanguageModel = ReturnType<Provider>;
