@@ -69,7 +69,6 @@ export const MODELS: ModelOption[] = [
 ];
 
 
-export const DEFAULT_MODEL_ID = "nvidia/glm-5.2";
 export const DEFAULT_MODEL_ID = "groq/llama-3.3-70b-versatile";
 export const FALLBACK_MODEL_ID = "groq/llama-3.3-70b-versatile";
 
