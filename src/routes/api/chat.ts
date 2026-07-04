@@ -3549,8 +3549,13 @@ export const Route = createFileRoute("/api/chat")({
                     ? `${cleanContent.trim()}\n\n_Single asset scope: queued exactly one safe free Toolbox ${label} model only — no packs, scripts, props, decorations, terrain, UI, scans, or extra actions._`
                     : `${cleanContent.trim()}\n\n_No clean free authorized single ${label} model was found, so BloxSmith did not insert a pack or placeholder._`;
                 } else if (mode === "build" && isNarrowFeatureRequest(userText)) {
+                  const requestedRemote = /\b(remote\s*event|remoteevent|remote\s*function|remotefunction|server\s*event|server[-\s]*authoritative|multiplayer|replicated)\b/i.test(userText);
+                  const requestedModule = /\b(module\s*script|modulescript|module)\b/i.test(userText);
+                  const requestedScan = /\b(scan|autofix|organize|verify|test)\b/i.test(userText);
+                  const requestedData = /\b(leaderstats?|data\s*store|datastore|save\s*data|currency|coins?|cash)\b/i.test(userText);
                   let keptInsertAsset = false;
                   actions = actions.filter((a) => {
+                    const source = String(a.payload?.source ?? "");
                     if ([
                       "BloxSmith_Intent_Visibility_Guard",
                       "BloxSmith_AutoExecute_Recovery",
@@ -3562,6 +3567,12 @@ export const Route = createFileRoute("/api/chat")({
                       "BloxSmith_Scan_Production_Systems",
                     ].includes(a.name)) return false;
                     if (actionLooksLikeUnrequestedUiShell(a, userText)) return false;
+                    if (!requestedScan && ["organize_project", "autofix_project", "scan_project"].includes(a.kind)) return false;
+                    if (!requestedRemote && ["remoteevent", "remotefunction", "bindableevent"].includes(a.kind)) return false;
+                    if (!requestedModule && a.kind === "modulescript") return false;
+                    if (!requestedRemote && /Instance\.new\("Remote(Event|Function)"\)/i.test(source)) return false;
+                    if (!requestedModule && /Instance\.new\("ModuleScript"\)/i.test(source)) return false;
+                    if (!requestedData && /\b(leaderstats|DataStoreService|GetDataStore|OrderedDataStore|MemoryStoreService)\b/i.test(source)) return false;
                     if (a.kind === "insert_asset") {
                       if (keptInsertAsset) return false;
                       keptInsertAsset = true;
