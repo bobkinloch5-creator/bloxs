@@ -1,12 +1,12 @@
-// Real model catalog. BloxSmith intentionally exposes only the NVIDIA GLM 5.2
-// route so requests never fall back to paid Lovable/Quatarly models.
+// Real model catalog. Keep a non-NVIDIA default so builds do not fail when
+// NVIDIA's public endpoint returns transient "Too Many Requests" errors.
 
-export type Provider = "OpenAI" | "Google" | "Anthropic" | "DeepSeek" | "Z.AI" | "MiniMax" | "NVIDIA" | "Qwen";
+export type Provider = "OpenAI" | "Google" | "Anthropic" | "DeepSeek" | "Z.AI" | "MiniMax" | "NVIDIA" | "Qwen" | "Groq";
 export type Speed = "Fast" | "Medium" | "Slow";
 export type Quality = "Good" | "Great" | "Best";
 export type Credits = "Low" | "Medium" | "High" | "Very High";
 export type Status = "Working" | "Coming Soon";
-export type Gateway = "nvidia";
+export type Gateway = "nvidia" | "groq";
 
 export interface ModelOption {
   id: string;          // unique id used in UI (also default upstream id)
@@ -34,6 +34,22 @@ export interface ModelOption {
 
 export const MODELS: ModelOption[] = [
   {
+    id: "groq/llama-3.3-70b-versatile",
+    upstreamId: "llama-3.3-70b-versatile",
+    gateway: "groq",
+    label: "Llama 3.3 70B",
+    provider: "Groq",
+    via: "Groq",
+    tier: "premium",
+    speed: "Fast",
+    quality: "Great",
+    credits: "Low",
+    status: "Working",
+    bestFor: "Reliable Roblox planning, Luau generation, and build actions when NVIDIA is busy.",
+    description: "Fast Groq-hosted Llama 3.3 70B route used as the default to avoid NVIDIA rate-limit failures.",
+    modelSettings: { temperature: 0.7, topP: 0.9, maxOutputTokens: 8192 },
+  },
+  {
     id: "nvidia/glm-5.2",
     upstreamId: "z-ai/glm-5.2",
     gateway: "nvidia",
@@ -44,7 +60,7 @@ export const MODELS: ModelOption[] = [
     speed: "Medium",
     quality: "Best",
     credits: "Low",
-    status: "Working",
+    status: "Coming Soon",
     bestFor: "Strong Roblox reasoning, Luau code, and full-game builds via Z.AI's newest GLM.",
     description: "Z.AI GLM 5.2 routed through NVIDIA Integrate (build.nvidia.com).",
     modelSettings: { temperature: 1.0, topP: 1.0, maxOutputTokens: 16384 },
@@ -54,7 +70,8 @@ export const MODELS: ModelOption[] = [
 
 
 export const DEFAULT_MODEL_ID = "nvidia/glm-5.2";
-export const FALLBACK_MODEL_ID = "nvidia/glm-5.2";
+export const DEFAULT_MODEL_ID = "groq/llama-3.3-70b-versatile";
+export const FALLBACK_MODEL_ID = "groq/llama-3.3-70b-versatile";
 
 
 export function findModel(id: string): ModelOption {
