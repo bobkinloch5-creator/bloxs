@@ -3455,9 +3455,9 @@ export const Route = createFileRoute("/api/chat")({
                   }
                 }
 
-                if (mode === "build" && isRobloxSystemRequest(userText)) {
+                if (mode === "build" && shouldUseGenericRobloxSystemGuard(userText, buildQuality)) {
                   const systemActions = (
-                    isSimpleSingleThingRequest(userText)
+                    isNarrowFeatureRequest(userText)
                       ? simpleRobloxSystemStudioActions(userText, languageName)
                       : robloxSystemStudioActions(userText, languageName)
                   ).map(normalizePluginAction);
@@ -3477,7 +3477,7 @@ export const Route = createFileRoute("/api/chat")({
                   }
                 }
 
-                if (mode === "build") {
+                if (mode === "build" && !isNarrowFeatureRequest(userText)) {
                   const templateActions = productionSystemsStudioActions(userText).map(normalizePluginAction);
                   if (templateActions.length > 0) {
                     const templateNames = detectLuaTemplates(userText).map((t) => t.name).join(", ") || "core";
@@ -3544,13 +3544,20 @@ export const Route = createFileRoute("/api/chat")({
                   cleanContent = actions.length > 0
                     ? `${cleanContent.trim()}\n\n_Single asset scope: queued exactly one safe free Toolbox ${label} model only — no packs, scripts, props, decorations, terrain, UI, scans, or extra actions._`
                     : `${cleanContent.trim()}\n\n_No clean free authorized single ${label} model was found, so BloxSmith did not insert a pack or placeholder._`;
-                } else if (mode === "build" && isSimpleSingleThingRequest(userText)) {
+                } else if (mode === "build" && isNarrowFeatureRequest(userText)) {
                   let keptInsertAsset = false;
                   actions = actions.filter((a) => {
                     if ([
                       "BloxSmith_Intent_Visibility_Guard",
                       "BloxSmith_AutoExecute_Recovery",
+                      "BloxSmith_Build_UI_And_Systems",
+                      "BloxSmith_Scan_UI_And_Systems",
+                      "BloxSmith_Build_Single_UI_Or_Script",
+                      "BloxSmith_Scan_Single_UI_Or_Script",
+                      "BloxSmith_Install_Production_Systems",
+                      "BloxSmith_Scan_Production_Systems",
                     ].includes(a.name)) return false;
+                    if (actionLooksLikeUnrequestedUiShell(a, userText)) return false;
                     if (a.kind === "insert_asset") {
                       if (keptInsertAsset) return false;
                       keptInsertAsset = true;
