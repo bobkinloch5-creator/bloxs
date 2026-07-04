@@ -257,8 +257,10 @@ export function normalizePluginAction(action: any) {
       .replace(/(?<!task\.)\bspawn\s*\(\s*function/g, "task.spawn(function")
       .replace(/(?<!task\.)\bdelay\s*\(/g, "task.delay(")
       .replace(/:connect\s*\(/g, ":Connect(")
-      // loadstring is disabled on Roblox — no-op it so scripts still parse.
-      .replace(/\bloadstring\s*\(/g, "--[[loadstring disabled]] function() end and (");
+      // loadstring is disabled on Roblox — replace calls with a nil-returning
+      // stub so the script still parses instead of throwing at load time.
+      .replace(/\bloadstring\s*\([^)]*\)/g, "(function() return nil end)()");
+
     payload.source = src;
     const issues = validateLuau(payload.source);
     if (issues.length) {
