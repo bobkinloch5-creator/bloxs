@@ -1,5 +1,5 @@
 -- ============================================================
--- BloxSmith Ultimate Plugin v2.1.4
+-- BloxSmith Ultimate Plugin v2.1.5
 -- Fully connected to bloxsmith.pro backend API.
 --
 -- API endpoints used:
@@ -41,7 +41,7 @@ end
 ----------------------------------------------------------------
 -- CONFIG
 ----------------------------------------------------------------
-local PLUGIN_VERSION  = "2.1.4"
+local PLUGIN_VERSION  = "2.1.5"
 local API_BASE        = "https://bloxsmith.pro"
 local POLL_SECONDS    = 1        -- how often to call /poll for actions
 local PAIR_POLL_SEC   = 2        -- how often to poll for pair approval
@@ -1353,27 +1353,26 @@ function Actions.insert_asset(a)
 	-- matching child, move only that child, and destroy/reject the rest.
 	local children = model:GetChildren()
 	local placed
-	local queryWord = tostring(payload.requested_asset_type or payload.source_query or payload.asset_name or name or ""):lower():match("[%a]+") or ""
 	if singleAsset then
 		if #children == 1 and #children[1]:GetChildren() <= (tonumber(payload.max_children) or 25) then
 			placed = children[1]
 			if name then placed.Name = name end
 			placed.Parent = p
 		else
-			appendLog(("[insert_asset] scanning package: %d top-level children for '%s'"):format(#children, queryWord), "debug")
-			local best, discard, debugLines = pickBestChild(model, queryWord)
+			appendLog(("[insert_asset] scanning Toolbox package: %d top-level children; selecting from all nested Models"):format(#children), "debug")
+			local best, discard, debugLines = pickBestModel(model, false)
 			for _, line in ipairs(debugLines or {}) do
 				appendLog("[insert_asset] " .. line, "debug")
 			end
 			if not best then
 				pcall(function() model:Destroy() end)
-				return false, ("rejected: no usable Model or BasePart found anywhere in asset (%d top-level children scanned)"):format(#children)
+				return false, ("rejected: no Model found anywhere in Toolbox asset (%d top-level children scanned)"):format(#children)
 			end
 			for _, d in ipairs(discard) do pcall(function() d:Destroy() end) end
 			placed = best
 			if name then placed.Name = name end
 			placed.Parent = p
-			appendLog(("[insert_asset] picked '%s' from package for '%s'"):format(placed.Name, queryWord), "info")
+			appendLog(("[insert_asset] picked model '%s' from Toolbox package"):format(placed.Name), "info")
 		end
 	else
 		for _, c in ipairs(children) do
@@ -1396,9 +1395,9 @@ function Actions.insert_asset(a)
 		local nameLooksPack = looksLikePackName(placed.Name)
 		local tooMany = topChildren > maxChildren or descendantCount > 400
 		if nameLooksPack or tooMany then
-			appendLog(("[insert_asset] container '%s' looks pack-like (top=%d desc=%d nameLooksPack=%s) — extracting best inner model"):format(
+			appendLog(("[insert_asset] container '%s' looks package-like (top=%d desc=%d nameLooksPack=%s) — selecting from all nested Models"):format(
 				placed.Name, topChildren, descendantCount, tostring(nameLooksPack)), "debug")
-			local best, discard, debugLines = pickBestChild(placed, queryWord)
+			local best, discard, debugLines = pickBestModel(placed, true)
 			for _, line in ipairs(debugLines or {}) do
 				appendLog("[insert_asset] " .. line, "debug")
 			end
@@ -1411,7 +1410,7 @@ function Actions.insert_asset(a)
 				appendLog(("[insert_asset] extracted '%s' from pack-like container"):format(placed.Name), "info")
 			elseif not best then
 				pcall(function() placed:Destroy() end)
-				return false, ("rejected: no usable Model or BasePart found inside container '%s' (scanned %d descendants)"):format(
+				return false, ("rejected: no Model found inside Toolbox container '%s' (scanned %d descendants)"):format(
 					tostring(placed.Name or "?"), descendantCount)
 			end
 			-- else: best == placed, keep it as-is.
