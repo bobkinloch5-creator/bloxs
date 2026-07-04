@@ -395,9 +395,9 @@ export const FALLBACK_MODEL_ID = "nvidia/qwen-2.5-coder-32b";
 // Larger reasoning models are kept as later fallbacks for hard requests.
 export const FALLBACK_CHAIN: string[] = [
   "nvidia/qwen-2.5-coder-32b",
-  "nvidia/gemma-3-27b",
   "nvidia/phi-4",
   "nvidia/llama-3.1-8b",
+  "nvidia/gemma-3-27b",
   "nvidia/llama-3.3-70b",
   "nvidia/deepseek-v4-flash",
   "nvidia/llama-3.3-nemotron-super-49b",

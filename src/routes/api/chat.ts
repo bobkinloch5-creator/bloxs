@@ -126,11 +126,11 @@ const FAST_CHAT_SYSTEM_PROMPT = `You are BloxSmith, a friendly senior Roblox dev
 const FAST_BUILD_SYSTEM_PROMPT = `You are BloxSmith, an expert Roblox Studio game-building agent. Build real, playable Roblox results through structured Studio actions. Keep visible prose concise and human. Never expose internal tool names, raw payloads, debug details, model/provider names, or JSON except the hidden executable action block. Use modern Luau, server-authoritative gameplay, safe free Toolbox assets when Toolbox mode is active, clean organization, mobile-safe UI, no placeholders, no fake buttons, no empty folders, no invented asset IDs, and no deprecated APIs. For Build Mode, end with exactly one fenced \`\`\`bloxsmith-actions block containing the executable action JSON the app will strip from the visible chat. Include scan/autofix actions for meaningful builds and never claim Studio execution is complete until plugin verification confirms it.`;
 
 function trimMessagesForModel(messages: UIMessage[], mode: "chat" | "build"): UIMessage[] {
-  const maxMessages = mode === "chat" ? 12 : 8;
+  const maxMessages = mode === "chat" ? 8 : 5;
   const start = Math.max(0, messages.length - maxMessages);
   return messages.slice(start).map((m, i, recent) => {
     const isLatestUser = i === recent.length - 1 && m.role === "user";
-    const textLimit = isLatestUser ? 8000 : m.role === "assistant" ? 1800 : 3000;
+    const textLimit = isLatestUser ? 6000 : m.role === "assistant" ? 900 : 1600;
     const parts = (m.parts ?? []).map((p: any) => {
       if (p?.type !== "text" || typeof p.text !== "string" || p.text.length <= textLimit) return p;
       return { ...p, text: `[trimmed previous context]\n${p.text.slice(-textLimit)}` };
@@ -140,15 +140,20 @@ function trimMessagesForModel(messages: UIMessage[], mode: "chat" | "build"): UI
 }
 
 function capOutputTokens(modelSettings: { maxOutputTokens?: number } | undefined, mode: "chat" | "build", buildQuality?: "basic" | "better" | "premium" | "full_game") {
-  const requested = modelSettings?.maxOutputTokens ?? (mode === "chat" ? 900 : 3072);
+  const requested = modelSettings?.maxOutputTokens ?? (mode === "chat" ? 650 : 2200);
   const cap = mode === "chat"
-    ? 1000
+    ? 700
     : buildQuality === "full_game"
-      ? 4096
+      ? 3000
       : buildQuality === "basic"
-        ? 1800
-        : 3072;
+        ? 1200
+        : 2200;
   return Math.min(requested, cap);
+}
+
+function wantsGeneratedImage(userText: string) {
+  return /\b(generate|create|make|draw|design)\b.*\b(image|picture|thumbnail|icon|logo|badge|banner|concept art|promo|ui mockup|loading screen|menu mockup)\b/i.test(userText)
+    || /\b(image|thumbnail|icon|logo|badge|banner|concept art|promo art|ui mockup)\b/i.test(userText);
 }
 
 function recoveryStudioActions(userText: string) {
@@ -3049,7 +3054,8 @@ export const Route = createFileRoute("/api/chat")({
               new Promise<null>((resolve) => setTimeout(() => { console.warn(`[chat] ${label} timed out after ${ms}ms`); resolve(null); }, ms)),
             ]);
 
-          const uiConceptRequested = mode === "build" && /(\bgenerate ui\b|\bimage to roblox ui\b|\bimage-to-roblox ui\b|loading screen|main menu|play button|settings menu|shop ui|inventory ui|gamepass ui|quest ui|\bhud\b|health bar|xp bar|currency display|mobile controls)/i.test(userText);
+          const imageGenerationRequested = wantsGeneratedImage(userText);
+          const uiConceptRequested = mode === "build" && imageGenerationRequested && /(\bgenerate ui\b|\bimage to roblox ui\b|\bimage-to-roblox ui\b|loading screen|main menu|play button|settings menu|shop ui|inventory ui|gamepass ui|quest ui|\bhud\b|health bar|xp bar|currency display|mobile controls)/i.test(userText);
 
           let contextBlock = "";
           let generatedUiConceptUrl: string | null = null;
@@ -3061,16 +3067,16 @@ export const Route = createFileRoute("/api/chat")({
             ] = await Promise.all([
               Promise.all([
                 supabase.from("plugin_sessions").select("last_scan, last_scan_at, online").eq("user_id", userId).maybeSingle(),
-                supabase.from("studio_errors").select("level, source, message, created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(8),
-                supabase.from("build_history").select("prompt, files_count, created_at").eq("project_id", projectId).order("created_at", { ascending: false }).limit(5),
-                supabase.from("plugin_actions").select("kind, name, parent_path, status").eq("project_id", projectId).order("created_at", { ascending: false }).limit(20),
-                supabase.from("project_memory").select("key, value, kind, importance").eq("project_id", projectId).order("importance", { ascending: false }).order("updated_at", { ascending: false }).limit(12),
+                supabase.from("studio_errors").select("level, source, message, created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(buildQuality === "basic" ? 3 : 8),
+                supabase.from("build_history").select("prompt, files_count, created_at").eq("project_id", projectId).order("created_at", { ascending: false }).limit(buildQuality === "basic" ? 2 : 5),
+                supabase.from("plugin_actions").select("kind, name, parent_path, status").eq("project_id", projectId).order("created_at", { ascending: false }).limit(buildQuality === "basic" ? 8 : 20),
+                supabase.from("project_memory").select("key, value, kind, importance").eq("project_id", projectId).order("importance", { ascending: false }).order("updated_at", { ascending: false }).limit(buildQuality === "basic" ? 5 : 12),
               ]),
               imageParts.length > 0
-                ? withTimeout(describeImageWithNvidiaPaliGemma(imageParts), 6000, "NVIDIA PaliGemma vision")
+                ? withTimeout(describeImageWithNvidiaPaliGemma(imageParts), 2500, "NVIDIA PaliGemma vision")
                 : Promise.resolve(null),
-              uiConceptRequested
-                ? withTimeout(generateUiConceptImage({ prompt: userText, style: "Premium Roblox UI" }), 15000, "UI concept image")
+              uiConceptRequested && buildQuality !== "basic"
+                ? withTimeout(generateUiConceptImage({ prompt: userText, style: "Premium Roblox UI" }), 8000, "UI concept image")
                 : Promise.resolve(null),
             ]);
             const [{ data: session }, { data: recentErrors }, { data: recentBuilds }, { data: existingActions }, { data: memories }] = ctxResult;
@@ -3825,10 +3831,16 @@ export const Route = createFileRoute("/api/chat")({
             // Research tools (roblox_docs_*) are available in BOTH chat and build mode so the AI can verify facts.
             // In Procedural Generation mode, remove Toolbox tools entirely unless the user explicitly asked for Toolbox.
             tools: mode === "chat"
-              ? { roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch, generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool }
+              ? (imageGenerationRequested
+                ? { generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool }
+                : { roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch })
               : assetMode === "procedural" && !userExplicitlyRequestedToolbox(userText)
-                ? { roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch, generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool }
-                : { search_toolbox: toolboxTool, search_toolbox_set: toolboxSetTool, roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch, generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool },
+                ? (imageGenerationRequested
+                  ? { generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool }
+                  : { roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch })
+                : (imageGenerationRequested
+                  ? { search_toolbox: toolboxTool, search_toolbox_set: toolboxSetTool, generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool }
+                  : { search_toolbox: toolboxTool, search_toolbox_set: toolboxSetTool, roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch }),
             stopWhen: stepCountIs(50),
             onFinish: async ({ text }) => {
               await persistFinish(usedModelId, notice)({ text });
