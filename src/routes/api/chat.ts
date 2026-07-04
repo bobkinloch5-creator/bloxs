@@ -3815,13 +3815,13 @@ export const Route = createFileRoute("/api/chat")({
             modelSettings?: { temperature?: number; topP?: number; maxOutputTokens?: number },
           ) => streamText({
             model,
-            system: BLOXSMITH_SYSTEM_PROMPT + modeHeader + languageHeader + qualityHeader + assetModeRule + contextBlock,
+            system: (mode === "chat" ? FAST_CHAT_SYSTEM_PROMPT : FAST_BUILD_SYSTEM_PROMPT) + modeHeader + languageHeader + qualityHeader + assetModeRule + contextBlock,
             messages: convertedMessages,
             abortSignal: request.signal,
             ...(extraBody ? { providerOptions: { nvidia: extraBody as Record<string, never> } as never } : {}),
             ...(modelSettings?.temperature !== undefined ? { temperature: modelSettings.temperature } : {}),
             ...(modelSettings?.topP !== undefined ? { topP: modelSettings.topP } : {}),
-            ...(modelSettings?.maxOutputTokens !== undefined ? { maxOutputTokens: modelSettings.maxOutputTokens } : {}),
+            maxOutputTokens: capOutputTokens(modelSettings, mode, buildQuality),
             // Research tools (roblox_docs_*) are available in BOTH chat and build mode so the AI can verify facts.
             // In Procedural Generation mode, remove Toolbox tools entirely unless the user explicitly asked for Toolbox.
             tools: mode === "chat"
@@ -3847,13 +3847,13 @@ export const Route = createFileRoute("/api/chat")({
           ) => {
             const result = await generateText({
               model,
-              system: BLOXSMITH_SYSTEM_PROMPT + modeHeader + languageHeader + qualityHeader + assetModeRule + contextBlock,
+              system: (mode === "chat" ? FAST_CHAT_SYSTEM_PROMPT : FAST_BUILD_SYSTEM_PROMPT) + modeHeader + languageHeader + qualityHeader + assetModeRule + contextBlock,
               messages: convertedMessages,
               abortSignal: request.signal,
               ...(extraBody ? { providerOptions: { nvidia: extraBody as Record<string, never> } as never } : {}),
               ...(modelSettings?.temperature !== undefined ? { temperature: modelSettings.temperature } : {}),
               ...(modelSettings?.topP !== undefined ? { topP: modelSettings.topP } : {}),
-              ...(modelSettings?.maxOutputTokens !== undefined ? { maxOutputTokens: modelSettings.maxOutputTokens } : { maxOutputTokens: 8192 }),
+              maxOutputTokens: capOutputTokens(modelSettings, mode, buildQuality),
               tools: mode === "chat"
                 ? { roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch, generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool }
                 : assetMode === "procedural" && !userExplicitlyRequestedToolbox(userText)
