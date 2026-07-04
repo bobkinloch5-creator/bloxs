@@ -1773,120 +1773,222 @@ end
           source: `
 local Workspace = game:GetService("Workspace")
 local folder = Workspace:FindFirstChild("BloxSmith_ToolboxAssets") or Workspace:FindFirstChild("BloxSmith_Toolbox_Map_Assets")
-if folder then
-  local districts = {"Roads", "WestBlock", "EastBlock", "StreetProps", "Vehicles", "Park", "Core"}
-  for _, name in ipairs(districts) do
-    if not folder:FindFirstChild(name) then
-      local f = Instance.new("Folder")
-      f.Name = name
-      f.Parent = folder
-    end
-  end
-  local function classify(inst)
-    local role = tostring(inst:GetAttribute("BloxSmithPlacementRole") or inst:GetAttribute("PlacementRole") or ""):lower()
-    local n = inst.Name:lower()
-    if role:find("road") or n:find("road") or n:find("street") then return "Roads" end
-    if role:find("vehicle") or n:find("car") or n:find("truck") then return "Vehicles" end
-    if role:find("decor") or n:find("light") or n:find("sign") or n:find("bench") or n:find("tree") then return "StreetProps" end
-    if role:find("park") then return "Park" end
-    if role:find("building") or role:find("shop") or n:find("building") or n:find("house") or n:find("shop") then
-      local x = 0
-      pcall(function()
-        local cf = inst:IsA("Model") and select(1, inst:GetBoundingBox()) or inst.CFrame
-        x = cf.Position.X
-      end)
-      return x < 0 and "WestBlock" or "EastBlock"
-    end
-    return "Core"
-  end
-  -- Raycast-based ground snap: fire a ray straight down from high above
-  -- the asset, and drop the bottom of its bounding box onto whatever the ray
-  -- hits (terrain, baseplate, other placed assets). Falls back to y=0 so
-  -- nothing ever floats or spawns underground.
-  local rayParams = RaycastParams.new()
-  rayParams.FilterType = Enum.RaycastFilterType.Exclude
-  rayParams.IgnoreWater = false
-  local function findGroundY(x, z, ignore)
-    rayParams.FilterDescendantsInstances = ignore
-    local origin = Vector3.new(x, 5000, z)
-    local hit = Workspace:Raycast(origin, Vector3.new(0, -10000, 0), rayParams)
-    if hit then return hit.Position.Y end
-    return 0
-  end
-  local function groundSnap(inst)
-    if inst:IsA("Model") then
-      local ok, cf, size = pcall(function() return inst:GetBoundingBox() end)
-      if ok and cf and size then
-        local _, yaw = inst:GetPivot():ToOrientation()
-        local ignore = {inst}
-        local groundY = findGroundY(cf.Position.X, cf.Position.Z, ignore)
-        local targetY = groundY + (size.Y / 2)
-        inst:PivotTo(CFrame.new(cf.Position.X, targetY, cf.Position.Z) * CFrame.Angles(0, yaw, 0))
-      end
-    elseif inst:IsA("BasePart") then
-      local groundY = findGroundY(inst.Position.X, inst.Position.Z, {inst})
-      inst.CFrame = CFrame.new(inst.Position.X, groundY + inst.Size.Y / 2, inst.Position.Z) * inst.CFrame.Rotation
-    end
-  end
-  -- Simple overlap resolver: shift assets outward if their bounding boxes
-  -- overlap so buildings/props don't clip into each other.
-  local placed = {}
-  local function overlaps(cfA, sizeA, cfB, sizeB)
-    local dx = math.abs(cfA.Position.X - cfB.Position.X)
-    local dz = math.abs(cfA.Position.Z - cfB.Position.Z)
-    return dx < (sizeA.X + sizeB.X) * 0.5 - 2 and dz < (sizeA.Z + sizeB.Z) * 0.5 - 2
-  end
-  local function resolveOverlap(inst)
-    if not inst:IsA("Model") then return end
-    local ok, cf, size = pcall(function() return inst:GetBoundingBox() end)
-    if not ok then return end
-    for _, other in ipairs(placed) do
-      if overlaps(cf, size, other.cf, other.size) then
-        local dir = (Vector3.new(cf.Position.X, 0, cf.Position.Z) - Vector3.new(other.cf.Position.X, 0, other.cf.Position.Z))
-        if dir.Magnitude < 0.1 then dir = Vector3.new(1, 0, 0) end
-        local push = dir.Unit * ((size.X + other.size.X) * 0.5 + 4)
-        inst:PivotTo(inst:GetPivot() + Vector3.new(push.X, 0, push.Z))
-        cf = inst:GetBoundingBox()
-      end
-    end
-    table.insert(placed, {cf = cf, size = size})
-  end
-  for _, model in ipairs(folder:GetChildren()) do
-    if model:IsA("Folder") then continue end
-    -- Anchor + collide FIRST so raycasts hit the neighbors we've already placed.
-    for _, inst in ipairs(model:GetDescendants()) do
-      if inst:IsA("BasePart") then
-        inst.Anchored = true
-        inst.CanCollide = true
-      elseif inst:IsA("Script") or inst:IsA("LocalScript") or inst:IsA("ModuleScript") then
-        inst.Disabled = true
-      end
-    end
-    resolveOverlap(model)
-    groundSnap(model)
-    local district = folder:FindFirstChild(classify(model))
-    if district then model.Parent = district end
-  end
+if not folder then return end
 
-  for _, district in ipairs(folder:GetChildren()) do
-    if district:IsA("Folder") and #district:GetChildren() == 0 then
-      district:Destroy()
+------------------------------------------------------------
+-- 1. COLLECT + CLASSIFY every top-level model in the folder
+------------------------------------------------------------
+local function classify(inst)
+  local role = tostring(inst:GetAttribute("BloxSmithPlacementRole") or inst:GetAttribute("PlacementRole") or ""):lower()
+  local n = inst.Name:lower()
+  if role:find("road") or n:find("road") or n:find("street") or n:find("sidewalk") then return "road" end
+  if role:find("vehicle") or n:find("car") or n:find("truck") or n:find("vehicle") then return "vehicle" end
+  if role:find("decor") or n:find("light") or n:find("lamp") or n:find("sign") or n:find("bench")
+     or n:find("tree") or n:find("bush") or n:find("prop") or n:find("trash") then return "decor" end
+  return "building"
+end
+
+local buildings, roads, vehicles, decor = {}, {}, {}, {}
+for _, inst in ipairs(folder:GetChildren()) do
+  if inst:IsA("Model") or inst:IsA("BasePart") then
+    local c = classify(inst)
+    if c == "road" then table.insert(roads, inst)
+    elseif c == "vehicle" then table.insert(vehicles, inst)
+    elseif c == "decor" then table.insert(decor, inst)
+    else table.insert(buildings, inst) end
+  end
+end
+
+------------------------------------------------------------
+-- 2. ANCHOR EVERYTHING and disable any smuggled scripts
+------------------------------------------------------------
+for _, inst in ipairs(folder:GetDescendants()) do
+  if inst:IsA("BasePart") then
+    inst.Anchored = true
+    inst.CanCollide = true
+  elseif inst:IsA("Script") or inst:IsA("LocalScript") or inst:IsA("ModuleScript") then
+    inst.Disabled = true
+  end
+end
+
+------------------------------------------------------------
+-- 3. GROUND RAYCAST helper (returns Y of terrain/baseplate)
+------------------------------------------------------------
+local rayParams = RaycastParams.new()
+rayParams.FilterType = Enum.RaycastFilterType.Exclude
+rayParams.IgnoreWater = false
+rayParams.FilterDescendantsInstances = {folder}
+local function groundY(x, z)
+  local hit = Workspace:Raycast(Vector3.new(x, 5000, z), Vector3.new(0, -10000, 0), rayParams)
+  if hit then return hit.Position.Y end
+  return 0
+end
+
+local function bbox(model)
+  if model:IsA("Model") then
+    local ok, cf, size = pcall(function() return model:GetBoundingBox() end)
+    if ok and cf then return cf, size end
+  elseif model:IsA("BasePart") then
+    return model.CFrame, model.Size
+  end
+  return CFrame.new(), Vector3.new(1,1,1)
+end
+
+------------------------------------------------------------
+-- 4. GRID LAYOUT — city blocks with roads between them
+-- Each cell is CELL_SIZE studs wide. Every ROAD_EVERY cells
+-- becomes a road strip. Buildings are pivoted into cell centers
+-- with a small margin so nothing overlaps and everything sits
+-- on the ground via raycast.
+------------------------------------------------------------
+local CELL_SIZE = 90
+local ROAD_EVERY = 3  -- every 3rd row/col is a road
+local BUILDING_COUNT = #buildings
+if BUILDING_COUNT == 0 then return end
+
+-- Choose a roughly-square grid big enough for all buildings, skipping
+-- cells that fall on road strips.
+local function isRoadCell(c, r)
+  return (c % ROAD_EVERY == 0) or (r % ROAD_EVERY == 0)
+end
+local gridSize = 1
+while true do
+  local usable = 0
+  for r = 0, gridSize - 1 do
+    for c = 0, gridSize - 1 do
+      if not isRoadCell(c, r) then usable = usable + 1 end
     end
   end
-  local spawn = Workspace:FindFirstChildOfClass("SpawnLocation")
-  if not spawn then
-    spawn = Instance.new("SpawnLocation")
-    spawn.Name = "BloxSmith_CitySpawn"
-    spawn.Size = Vector3.new(8, 1, 8)
-    spawn.Anchored = true
-    spawn.Neutral = true
-    spawn.Parent = Workspace
-  end
-  spawn.CFrame = CFrame.new(0, 2, -260)
-  Workspace:SetAttribute("BloxSmithToolboxOnlyMap", true)
-  Workspace:SetAttribute("BloxSmithProceduralFallbackDisabled", true)
-  Workspace.StreamingEnabled = true
+  if usable >= BUILDING_COUNT then break end
+  gridSize = gridSize + 1
+  if gridSize > 20 then break end
 end
+local centerOffset = (gridSize - 1) / 2
+
+-- Fisher-Yates on buildings so districts don't stack identical assets
+math.randomseed(tick())
+for i = #buildings, 2, -1 do
+  local j = math.random(i)
+  buildings[i], buildings[j] = buildings[j], buildings[i]
+end
+
+-- Place buildings into non-road cells
+local bIdx = 1
+for r = 0, gridSize - 1 do
+  for c = 0, gridSize - 1 do
+    if not isRoadCell(c, r) and bIdx <= BUILDING_COUNT then
+      local model = buildings[bIdx]
+      bIdx = bIdx + 1
+      local cx = (c - centerOffset) * CELL_SIZE
+      local cz = (r - centerOffset) * CELL_SIZE
+      local _, size = bbox(model)
+      -- Scale down if the asset is larger than the cell so it fits inside its block
+      local maxHoriz = math.max(size.X, size.Z)
+      local scale = 1
+      if maxHoriz > (CELL_SIZE - 8) and maxHoriz > 0 then
+        scale = (CELL_SIZE - 8) / maxHoriz
+        if model:IsA("Model") and model.ScaleTo then
+          pcall(function() model:ScaleTo(scale) end)
+        end
+      end
+      local _, newSize = bbox(model)
+      local gy = groundY(cx, cz)
+      -- Face the nearest road
+      local yaw = 0
+      if r % ROAD_EVERY == 1 then yaw = 0
+      elseif r % ROAD_EVERY == (ROAD_EVERY - 1) % ROAD_EVERY then yaw = math.pi end
+      if model:IsA("Model") then
+        model:PivotTo(CFrame.new(cx, gy + newSize.Y / 2, cz) * CFrame.Angles(0, yaw, 0))
+      elseif model:IsA("BasePart") then
+        model.CFrame = CFrame.new(cx, gy + newSize.Y / 2, cz) * CFrame.Angles(0, yaw, 0)
+      end
+    end
+  end
+end
+
+------------------------------------------------------------
+-- 5. ROAD STRIPS — lay down anchored asphalt parts along every
+-- road cell so blocks look connected instead of floating.
+------------------------------------------------------------
+local roadsFolder = folder:FindFirstChild("Roads") or Instance.new("Folder")
+roadsFolder.Name = "Roads"
+roadsFolder.Parent = folder
+
+local function placeRoadPart(cx, cz)
+  local gy = groundY(cx, cz)
+  local part = Instance.new("Part")
+  part.Anchored = true
+  part.CanCollide = true
+  part.Material = Enum.Material.Asphalt
+  part.Color = Color3.fromRGB(40, 40, 45)
+  part.Size = Vector3.new(CELL_SIZE, 1, CELL_SIZE)
+  part.CFrame = CFrame.new(cx, gy + 0.5, cz)
+  part.TopSurface = Enum.SurfaceType.Smooth
+  part.BottomSurface = Enum.SurfaceType.Smooth
+  part.Parent = roadsFolder
+end
+
+for r = 0, gridSize - 1 do
+  for c = 0, gridSize - 1 do
+    if isRoadCell(c, r) then
+      placeRoadPart((c - centerOffset) * CELL_SIZE, (r - centerOffset) * CELL_SIZE)
+    end
+  end
+end
+
+-- Delete any raw road models the AI queued (they'd overlap our asphalt)
+for _, r in ipairs(roads) do pcall(function() r:Destroy() end) end
+
+------------------------------------------------------------
+-- 6. DECOR + VEHICLES scattered on road edges (grounded, anchored)
+------------------------------------------------------------
+local propsFolder = folder:FindFirstChild("Props") or Instance.new("Folder")
+propsFolder.Name = "Props"
+propsFolder.Parent = folder
+local function scatterOnRoadEdge(items)
+  local i = 0
+  for r = 0, gridSize - 1 do
+    for c = 0, gridSize - 1 do
+      if isRoadCell(c, r) and i < #items then
+        i = i + 1
+        local item = items[i]
+        local jitterX = (math.random() - 0.5) * (CELL_SIZE * 0.7)
+        local jitterZ = (math.random() - 0.5) * (CELL_SIZE * 0.7)
+        local cx = (c - centerOffset) * CELL_SIZE + jitterX
+        local cz = (r - centerOffset) * CELL_SIZE + jitterZ
+        local _, size = bbox(item)
+        local gy = groundY(cx, cz)
+        if item:IsA("Model") then
+          item:PivotTo(CFrame.new(cx, gy + size.Y / 2, cz) * CFrame.Angles(0, math.random() * math.pi * 2, 0))
+        elseif item:IsA("BasePart") then
+          item.CFrame = CFrame.new(cx, gy + size.Y / 2, cz)
+        end
+        item.Parent = propsFolder
+      end
+    end
+  end
+end
+scatterOnRoadEdge(decor)
+scatterOnRoadEdge(vehicles)
+
+------------------------------------------------------------
+-- 7. SPAWN + workspace flags
+------------------------------------------------------------
+local spawn = Workspace:FindFirstChildOfClass("SpawnLocation")
+if not spawn then
+  spawn = Instance.new("SpawnLocation")
+  spawn.Name = "BloxSmith_CitySpawn"
+  spawn.Size = Vector3.new(8, 1, 8)
+  spawn.Anchored = true
+  spawn.Neutral = true
+  spawn.Parent = Workspace
+end
+local spawnGy = groundY(0, -(centerOffset + 1) * CELL_SIZE)
+spawn.CFrame = CFrame.new(0, spawnGy + 2, -(centerOffset + 1) * CELL_SIZE)
+
+Workspace:SetAttribute("BloxSmithToolboxOnlyMap", true)
+Workspace:SetAttribute("BloxSmithProceduralFallbackDisabled", true)
+Workspace.StreamingEnabled = true
 `,
         },
       });
