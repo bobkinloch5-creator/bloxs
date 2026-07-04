@@ -1024,10 +1024,28 @@ export interface ParsedAction {
   parent_path: string;
   name: string;
   payload: Record<string, unknown>;
+  source?: string;
+  target_path?: string;
+  properties?: Record<string, unknown>;
+  asset_id?: string | number;
+  fallback_ids?: unknown;
 }
 
+// Fields the model sometimes puts at the top level of an action instead of
+// inside payload. Hoist them into payload so downstream code (and the Studio
+// plugin) sees a consistent shape — otherwise scripts end up blank.
+const HOISTABLE_PAYLOAD_KEYS = [
+  "source", "code", "script", "lua", "luau",
+  "properties", "props",
+  "size", "position", "color", "material", "anchored",
+  "text", "font", "text_color", "background_color",
+  "asset_id", "assetId", "fallback_ids", "fallbackIds",
+  "target_path", "target",
+  "stats",
+  "reset_on_spawn",
+];
+
 export function parseActions(content: string): { cleanContent: string; actions: ParsedAction[] } {
-  // Find the LAST bloxsmith-actions fenced block anywhere in the message.
   const re = /```bloxsmith-actions\s*\n?([\s\S]*?)```/gi;
   let lastMatch: RegExpExecArray | null = null;
   let m: RegExpExecArray | null;
@@ -1043,13 +1061,31 @@ export function parseActions(content: string): { cleanContent: string; actions: 
     if (rawActions.length === 0) return { cleanContent: content, actions: [] };
     const cleaned = (content.slice(0, lastMatch.index) + content.slice(lastMatch.index + lastMatch[0].length)).trimEnd();
     const actions: ParsedAction[] = rawActions
-      .filter((a) => a && typeof a === "object")
-      .map((a) => ({
-        kind: String(a.kind ?? "script"),
-        parent_path: String(a.parent_path ?? "ServerScriptService"),
-        name: String(a.name ?? "BloxSmithItem"),
-        payload: typeof a.payload === "object" && a.payload !== null ? a.payload : {},
-      }));
+      .filter((a: unknown): a is Record<string, unknown> => !!a && typeof a === "object")
+      .map((a: Record<string, unknown>) => {
+        const payload: Record<string, unknown> =
+          a.payload && typeof a.payload === "object" ? { ...(a.payload as Record<string, unknown>) } : {};
+        for (const key of HOISTABLE_PAYLOAD_KEYS) {
+          if (a[key] !== undefined && payload[key] === undefined) payload[key] = a[key];
+        }
+        if (payload.source === undefined) {
+          const alt =
+            payload.code ?? payload.lua ?? payload.luau ??
+            (typeof payload.script === "string" ? payload.script : undefined);
+          if (typeof alt === "string" && alt.length > 0) payload.source = alt;
+        }
+        return {
+          kind: String(a.kind ?? "script"),
+          parent_path: String(a.parent_path ?? a.parent ?? a.target ?? "ServerScriptService"),
+          name: String(a.name ?? "BloxSmithItem"),
+          payload,
+          source: typeof a.source === "string" ? a.source : (typeof payload.source === "string" ? payload.source : undefined),
+          target_path: typeof a.target_path === "string" ? a.target_path : undefined,
+          properties: a.properties && typeof a.properties === "object" ? (a.properties as Record<string, unknown>) : undefined,
+          asset_id: (a.asset_id ?? a.assetId) as string | number | undefined,
+          fallback_ids: a.fallback_ids ?? a.fallbackIds,
+        };
+      });
     return { cleanContent: cleaned, actions };
   } catch {
     return { cleanContent: content, actions: [] };
