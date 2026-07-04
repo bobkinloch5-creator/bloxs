@@ -23,7 +23,7 @@ import { listProjectActions } from "@/lib/chat.functions";
 import { Asset3DPreview } from "@/components/models/Asset3DPreview";
 import { toast } from "sonner";
 import { PageShell } from "@/components/PageShell";
-import { Box, Loader2, Sparkles, Image as ImageIcon, Type, Timer, Download, ExternalLink, AlertCircle, CheckCircle2, PlayCircle, Palette, Maximize2, UploadCloud, Plug, Link as LinkIcon, ShieldCheck, RefreshCw, Trash2, X, Bone, Search, Package, Copy, Send, Rotate3d } from "lucide-react";
+import { Box, Loader2, Sparkles, Image as ImageIcon, Type, Timer, Download, ExternalLink, AlertCircle, CheckCircle2, PlayCircle, PauseCircle, Palette, Maximize2, UploadCloud, Plug, Link as LinkIcon, ShieldCheck, RefreshCw, Trash2, X, Bone, Search, Package, Copy, Send, Rotate3d, Gauge } from "lucide-react";
 
 
 function useModelViewerScript() {
@@ -36,6 +36,110 @@ function useModelViewerScript() {
     document.head.appendChild(s);
   }, []);
 }
+
+type ModelViewerEl = HTMLElement & {
+  play?: () => void;
+  pause?: () => void;
+  paused?: boolean;
+  timeScale?: number;
+  availableAnimations?: string[];
+  animationName?: string;
+};
+
+function AnimationControls({ viewerRef }: { viewerRef: React.MutableRefObject<HTMLElement | null> }) {
+  const [playing, setPlaying] = useState(true);
+  const [speed, setSpeed] = useState(1);
+  const [clips, setClips] = useState<string[]>([]);
+  const [clip, setClip] = useState<string | null>(null);
+
+  useEffect(() => {
+    const el = viewerRef.current as ModelViewerEl | null;
+    if (!el) return;
+    let cancelled = false;
+    const sync = () => {
+      if (cancelled) return;
+      const list = el.availableAnimations ?? [];
+      setClips(list);
+      setClip(el.animationName ?? list[0] ?? null);
+      setPlaying(!el.paused);
+    };
+    sync();
+    el.addEventListener("load", sync);
+    const id = window.setInterval(sync, 800);
+    return () => {
+      cancelled = true;
+      el.removeEventListener("load", sync);
+      window.clearInterval(id);
+    };
+  }, [viewerRef]);
+
+  const toggle = () => {
+    const el = viewerRef.current as ModelViewerEl | null;
+    if (!el) return;
+    if (el.paused) {
+      el.play?.();
+      setPlaying(true);
+    } else {
+      el.pause?.();
+      setPlaying(false);
+    }
+  };
+
+  const changeSpeed = (v: number) => {
+    setSpeed(v);
+    const el = viewerRef.current as ModelViewerEl | null;
+    if (el) el.timeScale = v;
+  };
+
+  const changeClip = (name: string) => {
+    setClip(name);
+    const el = viewerRef.current as ModelViewerEl | null;
+    if (!el) return;
+    el.setAttribute("animation-name", name);
+    el.play?.();
+    setPlaying(true);
+  };
+
+  return (
+    <div className="pointer-events-auto absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-full border border-white/15 bg-black/70 px-2 py-1.5 backdrop-blur">
+      <div className="flex items-center gap-1.5">
+        <button
+          onClick={toggle}
+          title={playing ? "Pause" : "Play"}
+          className="grid h-7 w-7 place-items-center rounded-full bg-white/10 text-white hover:bg-white/20"
+        >
+          {playing ? <PauseCircle className="h-4 w-4" /> : <PlayCircle className="h-4 w-4" />}
+        </button>
+        <div className="flex items-center gap-1 rounded-full bg-white/[0.06] px-2 py-0.5" title="Playback speed">
+          <Gauge className="h-3 w-3 text-white/70" />
+          {[0.5, 1, 1.5, 2].map((v) => (
+            <button
+              key={v}
+              onClick={() => changeSpeed(v)}
+              className={`rounded-full px-1.5 text-[10px] font-bold ${speed === v ? "bg-fuchsia-500/40 text-white" : "text-white/70 hover:text-white"}`}
+            >
+              {v}x
+            </button>
+          ))}
+        </div>
+        {clips.length > 1 && (
+          <select
+            value={clip ?? ""}
+            onChange={(e) => changeClip(e.target.value)}
+            title="Choose animation clip"
+            className="max-w-[120px] truncate rounded-full bg-white/[0.06] px-2 py-1 text-[10px] font-semibold text-white outline-none"
+          >
+            {clips.map((c) => (
+              <option key={c} value={c} className="bg-slate-900">{c}</option>
+            ))}
+          </select>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
 
 function formatRemaining(ms: number) {
   if (ms <= 0) return "Ready";
@@ -890,6 +994,9 @@ function ModelCard({ m, projectId, onChange }: { m: any; projectId?: string; onC
               <Trash2 className="h-3.5 w-3.5" />
             </button>
           </div>
+        )}
+        {isAnimation && canPreview && viewerLoaded && (
+          <AnimationControls viewerRef={viewerRef} />
         )}
         {!done && (
           <button onClick={() => setConfirmDelete(true)} title="Delete 3D model" className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-md bg-black/60 text-rose-200 backdrop-blur hover:bg-rose-500/25">
