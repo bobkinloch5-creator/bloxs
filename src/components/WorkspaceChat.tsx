@@ -196,7 +196,7 @@ export function WorkspaceChat({
     liveModeRef.current = next;
     setMode(next);
   }, []);
-  const [buildMode, setBuildMode] = useState<"Smart Build" | "Fast Build" | "Deep Build">("Smart Build");
+  const [buildMode, setBuildMode] = useState<"Smart Build" | "Fast Build" | "Deep Build">("Fast Build");
   const [modeOpen, setModeOpen] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [token, setToken] = useState<string | null>(null);
@@ -859,8 +859,8 @@ export function WorkspaceChat({
                     Choose a build mode
                   </div>
                   {([
-                    { key: "Smart Build", tag: "Recommended", desc: "Balanced speed + quality. The AI plans, builds, and optimizes automatically — best default for most prompts." },
-                    { key: "Fast Build", tag: "Fastest", desc: "Ships as quickly as possible for quick prototypes, small edits, and testing ideas." },
+                    { key: "Fast Build", tag: "Default", desc: "Fastest response path for prototypes, small edits, testing ideas, and most build requests." },
+                    { key: "Smart Build", tag: "Balanced", desc: "Adds more planning and polish when you want stronger results over speed." },
                     { key: "Deep Build", tag: "Highest quality", desc: "Deeper planning pass — reviews existing systems, prevents duplicates, tests and optimizes. Best for full games and polish passes." },
                   ] as const).map((m) => (
                     <button
