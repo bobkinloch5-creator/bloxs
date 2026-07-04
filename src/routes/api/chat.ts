@@ -513,6 +513,48 @@ function isSimpleSingleThingRequest(userText: string) {
   return nouns.length > 0 && nouns.length <= 3;
 }
 
+function isExplicitFullSystemRequest(userText: string) {
+  return /\b(full\s*(game|system|ui|gui|experience)|complete\s*(game|system|ui|gui|experience)|entire\s*(game|system|ui|gui|experience)|all[-\s]*in[-\s]*one|game\s*framework|core\s*systems|production\s*systems|round[-\s]*based\s*game|tycoon|simulator|rpg)\b/i.test(userText);
+}
+
+function isNarrowFeatureRequest(userText: string) {
+  const text = userText.toLowerCase().trim();
+  if (!text || isExplicitFullSystemRequest(text)) return false;
+  if (/\b(map|world|city|town|lobby|level|multiple|several|bunch|pack)\b/.test(text)) return false;
+  if (/\b(main\s*menu|loading\s*screen|load\s*screen|splash|title\s*screen|hud|shop\s*system|inventory\s*system|settings\s*menu)\b/.test(text)) return false;
+  if (/\b(button|script|local\s*script|server\s*script|module\s*script|remote\s*event|remoteevent|speed\s*boost|sprint|dash|double\s*jump|tool|door|checkpoint|timer|kill\s*brick|teleport)\b/.test(text)) return true;
+  return isSimpleSingleThingRequest(text);
+}
+
+function shouldUseGenericRobloxSystemGuard(userText: string, buildQuality?: "basic" | "better" | "premium" | "full_game") {
+  if (!isRobloxSystemRequest(userText)) return false;
+  if (isNarrowFeatureRequest(userText)) return false;
+  if (isExplicitFullSystemRequest(userText)) return true;
+  return buildQuality === "full_game" && isExplicitFullSystemRequest(userText);
+}
+
+function actionLooksLikeUnrequestedUiShell(action: any, userText: string) {
+  const text = userText.toLowerCase();
+  const requestedLoading = /\b(loading\s*screen|load\s*screen|loading\s*ui)\b/.test(text);
+  const requestedMenu = /\b(main\s*menu|title\s*screen|splash\s*screen|play\s*button|start\s*button)\b/.test(text);
+  const requestedHud = /\b(hud|heads[-\s]*up|health\s*bar|cash\s*display|coin\s*display|timer\s*display)\b/.test(text);
+  const requestedShop = /\b(shop\s*(ui|gui|screen|system|menu|panel)|store\s*(ui|gui|screen|system|menu|panel))\b/.test(text);
+  const requestedInventory = /\binventory\s*(ui|gui|screen|system|menu|panel)?\b/.test(text);
+  const requestedSettings = /\bsettings\s*(ui|gui|screen|menu|panel)?\b/.test(text);
+  const name = String(action?.name ?? "");
+  const source = String(action?.payload?.source ?? "");
+  const haystack = `${name}\n${source}`;
+
+  if (/BloxSmith_(Build_UI_And_Systems|Intent_Visibility_Guard|Build_Single_UI_Or_Script|Install_Production_Systems)/i.test(name)) return true;
+  if (!requestedLoading && /\b(LoadingScreen|Loading World|Loading City|Entering the Dark|Preparing your Roblox experience|ProgressBack|ProgressFill)\b/i.test(haystack)) return true;
+  if (!requestedMenu && /\b(MainMenu|MAIN MENU|PlayButton|StartButton|ShopButton|InventoryButton|SettingsButton|BloxSmith_Game_UI|BloxSmith_Visible_UI)\b/i.test(haystack)) return true;
+  if (!requestedHud && /\b(Name\s*=\s*["']HUD["']|TopStats|Health:\s*100|Coins:\s*0|Level:\s*1|leaderstats)\b/i.test(haystack)) return true;
+  if (!requestedShop && /\b(RequestShop|ShopButton|Add products, boosts, gamepasses, and upgrades here)\b/i.test(haystack)) return true;
+  if (!requestedInventory && /\b(RequestInventory|InventoryButton|Player items and rewards can appear here)\b/i.test(haystack)) return true;
+  if (!requestedSettings && /\b(SaveSettings|SettingsButton|Volume, graphics, and gameplay options are ready to wire)\b/i.test(haystack)) return true;
+  return false;
+}
+
 const TOOLBOX_ASSET_FINDER_CATEGORIES = [
   { label: "pistol", role: "weapon", folder: "Weapons", test: /\b(pistol|handgun)\b/i, keyword: "pistol weapon model" },
   { label: "rifle", role: "weapon", folder: "Weapons", test: /\b(rifle|gun|blaster|laser\s*gun)\b/i, keyword: "rifle gun weapon model" },
