@@ -27,19 +27,19 @@ export interface ModelPick {
 // stronger fallbacks. Order matters: the first Working entry wins.
 const TASK_PREF: Record<AutoTask, { ids: string[]; reason: string }> = {
   planning: {
-    ids: ["nvidia/phi-4", "nvidia/gemma-3-27b", "nvidia/qwen-2.5-coder-32b", DEFAULT_MODEL_ID],
+    ids: ["nvidia/nemotron-nano-9b-v2", "nvidia/gemma-3-27b", "nvidia/qwen-2.5-coder-32b", DEFAULT_MODEL_ID],
     reason: "Auto: very fast model for responsive Roblox planning.",
   },
   scripting: {
     ids: ["nvidia/qwen-2.5-coder-32b", "nvidia/gemma-3-27b", "nvidia/deepseek-v4-flash", DEFAULT_MODEL_ID],
-    reason: "Auto: Qwen 2.5 Coder for complete runnable Luau.",
+    reason: "Auto: Qwen coder-class model for complete runnable Luau.",
   },
   ui: {
-    ids: ["nvidia/phi-4", "nvidia/gemma-3-27b", "nvidia/qwen-2.5-coder-32b", DEFAULT_MODEL_ID],
+    ids: ["nvidia/gemma-3-27b", "nvidia/nemotron-nano-9b-v2", "nvidia/qwen-2.5-coder-32b", DEFAULT_MODEL_ID],
     reason: "Auto: very fast model for ScreenGui layout.",
   },
   assets: {
-    ids: ["nvidia/llama-3.1-8b", "nvidia/phi-4", "nvidia/llama-3.3-70b"],
+    ids: ["nvidia/llama-3.1-8b", "nvidia/ministral-14b", "nvidia/llama-3.3-70b"],
     reason: "Auto: small fast model for Toolbox asset planning.",
   },
   bugfix: {
@@ -51,18 +51,19 @@ const TASK_PREF: Record<AutoTask, { ids: string[]; reason: string }> = {
     reason: "Auto: fast coder model for performance fixes.",
   },
   testing: {
-    ids: ["nvidia/phi-4", "nvidia/gemma-3-27b", "nvidia/qwen-2.5-coder-32b"],
+    ids: ["nvidia/nemotron-nano-9b-v2", "nvidia/gemma-3-27b", "nvidia/qwen-2.5-coder-32b"],
     reason: "Auto: fast model for playtest checks.",
   },
   shortedit: {
-    ids: ["nvidia/llama-3.1-8b", "nvidia/phi-4", "nvidia/llama-3.3-70b"],
+    ids: ["nvidia/llama-3.1-8b", "nvidia/ministral-14b", "nvidia/llama-3.3-70b"],
     reason: "Auto: tiny fast model for short edits.",
   },
   vision: {
-    ids: ["nvidia/phi-4", "nvidia/gemma-3-27b", DEFAULT_MODEL_ID],
+    ids: ["nvidia/gemma-3-27b", "nvidia/nemotron-nano-9b-v2", DEFAULT_MODEL_ID],
     reason: "Auto: fast model with injected vision summaries.",
   },
 };
+
 
 export function pickModelForTask(task: AutoTask): ModelPick {
   const pref = TASK_PREF[task];
