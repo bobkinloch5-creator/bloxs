@@ -3831,10 +3831,16 @@ export const Route = createFileRoute("/api/chat")({
             // Research tools (roblox_docs_*) are available in BOTH chat and build mode so the AI can verify facts.
             // In Procedural Generation mode, remove Toolbox tools entirely unless the user explicitly asked for Toolbox.
             tools: mode === "chat"
-              ? { roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch, generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool }
+              ? (imageGenerationRequested
+                ? { generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool }
+                : { roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch })
               : assetMode === "procedural" && !userExplicitlyRequestedToolbox(userText)
-                ? { roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch, generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool }
-                : { search_toolbox: toolboxTool, search_toolbox_set: toolboxSetTool, roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch, generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool },
+                ? (imageGenerationRequested
+                  ? { generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool }
+                  : { roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch })
+                : (imageGenerationRequested
+                  ? { search_toolbox: toolboxTool, search_toolbox_set: toolboxSetTool, generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool }
+                  : { search_toolbox: toolboxTool, search_toolbox_set: toolboxSetTool, roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch }),
             stopWhen: stepCountIs(mode === "chat" || buildQuality === "basic" ? 8 : 50),
             onFinish: async ({ text }) => {
               await persistFinish(usedModelId, notice)({ text });
