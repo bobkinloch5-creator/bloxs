@@ -522,11 +522,32 @@ export function WorkspaceChat({
             <Hammer className="h-3.5 w-3.5" /> Build
           </button>
         </div>
-        <div className="hidden text-[11px] text-slate-400 sm:block">
-          {isBuild
-            ? "Build sends actions to Studio. Auto-creates a project if none is active."
-            : "Chat with BloxSmith Agent to plan, ask questions, and refine ideas. No builds run."}
+        <div className="flex items-center gap-2">
+          <label className="hidden sm:flex items-center gap-1.5 text-[11px] font-semibold text-slate-300">
+            <Sparkles className="h-3 w-3 text-indigo-300" />
+            Model
+          </label>
+          <select
+            value={selectedModel}
+            onChange={(e) => setSelectedModel(e.target.value)}
+            className="max-w-[220px] rounded-lg border border-white/15 bg-black/40 px-2 py-1.5 text-[11px] font-medium text-slate-100 hover:bg-black/60 focus:outline-none focus:ring-2 focus:ring-indigo-400/50"
+            title="Choose which AI model handles your next messages"
+          >
+            {availableModels.map((m) => (
+              <option key={m.id} value={m.id} className="bg-slate-900 text-slate-100">
+                {m.label} · {m.provider}
+              </option>
+            ))}
+          </select>
         </div>
+      </div>
+
+      {/* Mode tagline */}
+      <div className="mb-3 hidden text-[11px] text-slate-400 sm:block">
+        {isBuild
+          ? "Build sends actions to Studio. Auto-creates a project if none is active."
+          : "Chat with BloxSmith Agent to plan, ask questions, and refine ideas. No builds run."}
+      </div>
       </div>
 
       {/* Studio-not-connected banner: Build silently queues actions with no
