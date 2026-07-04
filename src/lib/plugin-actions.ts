@@ -247,15 +247,26 @@ export function normalizePluginAction(action: any) {
   if (action?.source && (kind === "script" || kind === "localscript" || kind === "modulescript" || kind === "run_lua")) {
     payload.source = action.source;
   }
-  // Luau sanity check: strip stray markdown fences and attach validator issues.
+  // Luau sanity check + auto-fix. Strip stray markdown fences, then fix the
+  // most common LLM slip-ups deterministically before shipping to Studio.
   if (payload.source && (kind === "script" || kind === "localscript" || kind === "modulescript" || kind === "run_lua")) {
-    payload.source = stripCodeFences(String(payload.source));
+    let src = stripCodeFences(String(payload.source));
+    // Modernize deprecated APIs so scripts don't throw at runtime.
+    src = src
+      .replace(/(?<!task\.)\bwait\s*\(/g, "task.wait(")
+      .replace(/(?<!task\.)\bspawn\s*\(\s*function/g, "task.spawn(function")
+      .replace(/(?<!task\.)\bdelay\s*\(/g, "task.delay(")
+      .replace(/:connect\s*\(/g, ":Connect(")
+      // loadstring is disabled on Roblox — no-op it so scripts still parse.
+      .replace(/\bloadstring\s*\(/g, "--[[loadstring disabled]] function() end and (");
+    payload.source = src;
     const issues = validateLuau(payload.source);
     if (issues.length) {
       payload._luau_issues = issues;
       payload._needs_retry = issues.some((i) => i.severity === "error");
     }
   }
+
   if (action?.target_path && !payload.target_path) payload.target_path = action.target_path;
   if (action?.target && !payload.parent_path) payload.parent_path = action.target;
   if (action?.properties && !payload.properties) payload.properties = action.properties;
