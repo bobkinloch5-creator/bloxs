@@ -77,7 +77,6 @@ export const RATE_LIMITS = {
   file_upload: { limit: 30, windowSeconds: 60 },
   auth_attempt: { limit: 8, windowSeconds: 300 },
 
-  auth_attempt: { limit: 8, windowSeconds: 300 },
 } as const;
 
 export type RateLimitKey = keyof typeof RATE_LIMITS;
