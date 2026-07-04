@@ -1612,7 +1612,7 @@ async function toolboxMapStudioActions(userText: string) {
     const isCity = /\b(city|town|neighborhood|downtown|metropolis|street|road|roleplay|rp)\b/.test(text);
     const picksPerRequest = isCity ? (isBig ? 5 : 3) : (isBig ? 3 : 2);
     const perRequestCap = Math.max(picksPerRequest + 2, 6);
-    const set = await searchRobloxToolboxSet(toolboxMapRequests(userText), perRequestCap);
+    const set = await searchRobloxToolboxSet(toolboxMapRequests(userText), perRequestCap, { qualityFloor: "strict" });
     const usedIds = new Set<number>();
     const actions = [];
 
