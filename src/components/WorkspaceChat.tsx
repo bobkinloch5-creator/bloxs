@@ -25,6 +25,7 @@ import { VoiceBuildButton } from "@/components/VoiceBuildButton";
 import { useBloxSmithSpeaker } from "@/components/VoiceControls";
 import { friendlyError } from "@/lib/friendly-error";
 import { MODELS, DEFAULT_MODEL_ID, isSelectable } from "@/lib/models";
+import { pickModelForTask } from "@/lib/model-router";
 
 
 // Strip internal machinery from what the user sees in chat.
