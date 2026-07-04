@@ -274,6 +274,24 @@ export function WorkspaceChat({
     ta.style.height = Math.min(ta.scrollHeight, 240) + "px";
   }, [prompt]);
 
+  // Global keyboard shortcuts: ⌘K/Ctrl+K focus composer, ⌘//Ctrl+/ toggle mode
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const mod = e.metaKey || e.ctrlKey;
+      if (!mod) return;
+      if (e.key === "k" || e.key === "K") {
+        e.preventDefault();
+        taRef.current?.focus();
+      } else if (e.key === "/") {
+        e.preventDefault();
+        setComposerMode(liveModeRef.current === "build" ? "chat" : "build");
+        toast.info(`Switched to ${liveModeRef.current === "build" ? "Chat" : "Build"} mode`);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [setComposerMode]);
+
   const transport = useMemo(
     () => new DefaultChatTransport({
       api: "/api/chat",
@@ -726,6 +744,52 @@ export function WorkspaceChat({
         </div>
       )}
 
+      {/* Quick Actions — one-tap chips that fill or send common requests */}
+      {(() => {
+        const chips: Array<{ label: string; icon: string; text: string; sendNow?: boolean; mode?: Mode; title: string }> = isBuild
+          ? [
+              { label: "Fix errors", icon: "🩹", text: "Scan the project and fix every script error, missing reference, and broken connection. Report what was fixed.", sendNow: true, title: "Scan project + auto-fix common issues" },
+              { label: "Optimize", icon: "⚡", text: "Optimize this project for performance: reduce parts, batch scripts, fix Anchored flags, enable StreamingEnabled, and shrink large meshes where safe.", sendNow: true, title: "Performance pass" },
+              { label: "Organize", icon: "🗂", text: "Organize the workspace into clear folders (Map, Systems, UI, Effects) and rename anonymous parts.", sendNow: true, title: "Group + rename everything cleanly" },
+              { label: "Mobile check", icon: "📱", text: "Verify every ScreenGui fits on a phone (390×844). Fix off-screen elements, small tap targets, and unscaled anchors.", sendNow: true, title: "Verify UI works on phone" },
+              { label: "Playtest", icon: "▶️", text: "Set up a playtest report: log errors, capture common performance stats, and summarize what breaks.", sendNow: true, title: "Prepare a playtest reporter" },
+              { label: "DataStore", icon: "💾", text: "Add a safe session-locked DataStore module with retries, UpdateAsync, and per-player caching. Wire it in.", sendNow: true, title: "Scaffold safe DataStore code" },
+            ]
+          : [
+              { label: "Explain", icon: "🧑‍🏫", text: "Explain how the following works step-by-step: ", title: "Read-only explain — fills the prompt" },
+              { label: "Brainstorm", icon: "💡", text: "Brainstorm 5 game ideas for: ", title: "Ideation helper" },
+              { label: "Design UI", icon: "🎨", text: "Design a Roblox UI for: ", title: "UI design brief" },
+              { label: "Code review", icon: "🔍", text: "Review this Luau code and suggest improvements:\n\n```lua\n\n```", title: "Paste code to review" },
+            ];
+        return (
+          <div className="mb-2 flex flex-wrap gap-1.5">
+            {chips.map((c) => (
+              <button
+                key={c.label}
+                type="button"
+                title={c.title}
+                onClick={() => {
+                  if (c.sendNow) {
+                    submit(c.text, c.mode);
+                  } else {
+                    setPrompt((p) => (p ? p : c.text));
+                    requestAnimationFrame(() => {
+                      const el = taRef.current;
+                      if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+                    });
+                  }
+                }}
+                disabled={busy}
+                className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/[0.04] px-2.5 py-1 text-[11px] font-semibold text-slate-200 transition hover:border-indigo-400/40 hover:bg-indigo-500/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <span className="text-[13px] leading-none">{c.icon}</span>
+                {c.label}
+              </button>
+            ))}
+          </div>
+        );
+      })()}
+
       <textarea
         id="home-composer"
         ref={taRef}
@@ -734,8 +798,8 @@ export function WorkspaceChat({
         onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) submit(); }}
         placeholder={
           isBuild
-            ? (activeProjectId ? "Describe what to build next…" : "Describe your game — Build will create a project and start.")
-            : "Ask BloxSmith Agent anything — plan, brainstorm, or refine an idea."
+            ? (activeProjectId ? "Describe what to build next…  (⌘K to focus · ⌘/ to switch modes)" : "Describe your game — Build will create a project and start.  (⌘K · ⌘/)")
+            : "Ask BloxSmith Agent anything — plan, brainstorm, or refine an idea.  (⌘K · ⌘/)"
         }
         rows={2}
         className="w-full resize-none bg-transparent px-1 py-1 text-base leading-relaxed text-white outline-none placeholder:text-slate-400 sm:text-[15px]"
