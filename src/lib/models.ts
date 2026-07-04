@@ -6,7 +6,7 @@ export type Speed = "Fast" | "Medium" | "Slow";
 export type Quality = "Good" | "Great" | "Best";
 export type Credits = "Low" | "Medium" | "High" | "Very High";
 export type Status = "Working" | "Coming Soon";
-export type Gateway = "nvidia" | "groq";
+export type Gateway = "lovable" | "nvidia" | "groq";
 
 export interface ModelOption {
   id: string;          // unique id used in UI (also default upstream id)
@@ -33,6 +33,22 @@ export interface ModelOption {
 }
 
 export const MODELS: ModelOption[] = [
+  {
+    id: "lovable/gemini-3-flash-preview",
+    upstreamId: "google/gemini-3-flash-preview",
+    gateway: "lovable",
+    label: "Gemini 3 Flash",
+    provider: "Google",
+    via: "Lovable AI",
+    tier: "premium",
+    speed: "Fast",
+    quality: "Best",
+    credits: "Low",
+    status: "Working",
+    bestFor: "Reliable Roblox planning, Luau generation, UI fixes, and build actions without external key failures.",
+    description: "Default Lovable AI route for dependable BloxSmith builds and chat.",
+    modelSettings: { temperature: 0.7, topP: 0.9, maxOutputTokens: 8192 },
+  },
   {
     id: "groq/llama-3.3-70b-versatile",
     upstreamId: "llama-3.3-70b-versatile",
@@ -132,12 +148,13 @@ export const MODELS: ModelOption[] = [
 ];
 
 
-export const DEFAULT_MODEL_ID = "groq/llama-3.3-70b-versatile";
-export const FALLBACK_MODEL_ID = "groq/llama-3.3-70b-versatile";
+export const DEFAULT_MODEL_ID = "lovable/gemini-3-flash-preview";
+export const FALLBACK_MODEL_ID = "lovable/gemini-3-flash-preview";
 
 // Ordered chain of models to try when the primary model is rate-limited or at capacity.
 // Rotates across providers (Groq → NVIDIA family) so a 429 on one endpoint doesn't kill the request.
 export const FALLBACK_CHAIN: string[] = [
+  "lovable/gemini-3-flash-preview",
   "groq/llama-3.3-70b-versatile",
   "nvidia/llama-3.3-nemotron-super-49b",
   "nvidia/llama-3.1-nemotron-70b",
