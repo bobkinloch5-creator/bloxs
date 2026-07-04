@@ -23,7 +23,7 @@ import { listProjectActions } from "@/lib/chat.functions";
 import { Asset3DPreview } from "@/components/models/Asset3DPreview";
 import { toast } from "sonner";
 import { PageShell } from "@/components/PageShell";
-import { Box, Loader2, Sparkles, Image as ImageIcon, Type, Timer, Download, ExternalLink, AlertCircle, CheckCircle2, PlayCircle, Palette, Maximize2, UploadCloud, Plug, Link as LinkIcon, ShieldCheck, RefreshCw, Trash2, X, Bone, Search, Package, Copy, Send, Rotate3d } from "lucide-react";
+import { Box, Loader2, Sparkles, Image as ImageIcon, Type, Timer, Download, ExternalLink, AlertCircle, CheckCircle2, PlayCircle, PauseCircle, Palette, Maximize2, UploadCloud, Plug, Link as LinkIcon, ShieldCheck, RefreshCw, Trash2, X, Bone, Search, Package, Copy, Send, Rotate3d, Gauge } from "lucide-react";
 
 
 function useModelViewerScript() {
