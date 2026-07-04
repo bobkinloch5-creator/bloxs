@@ -3067,10 +3067,10 @@ export const Route = createFileRoute("/api/chat")({
                 supabase.from("project_memory").select("key, value, kind, importance").eq("project_id", projectId).order("importance", { ascending: false }).order("updated_at", { ascending: false }).limit(12),
               ]),
               imageParts.length > 0
-                ? withTimeout(describeImageWithNvidiaPaliGemma(imageParts), 6000, "NVIDIA PaliGemma vision")
+                ? withTimeout(describeImageWithNvidiaPaliGemma(imageParts), 2500, "NVIDIA PaliGemma vision")
                 : Promise.resolve(null),
-              uiConceptRequested
-                ? withTimeout(generateUiConceptImage({ prompt: userText, style: "Premium Roblox UI" }), 15000, "UI concept image")
+              uiConceptRequested && buildQuality !== "basic"
+                ? withTimeout(generateUiConceptImage({ prompt: userText, style: "Premium Roblox UI" }), 8000, "UI concept image")
                 : Promise.resolve(null),
             ]);
             const [{ data: session }, { data: recentErrors }, { data: recentBuilds }, { data: existingActions }, { data: memories }] = ctxResult;
