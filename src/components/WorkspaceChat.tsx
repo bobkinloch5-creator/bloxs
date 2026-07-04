@@ -548,7 +548,7 @@ export function WorkspaceChat({
           ? "Build sends actions to Studio. Auto-creates a project if none is active."
           : "Chat with BloxSmith Agent to plan, ask questions, and refine ideas. No builds run."}
       </div>
-      </div>
+
 
       {/* Studio-not-connected banner: Build silently queues actions with no
           plugin polling. Surface it loudly and link the user straight to setup. */}
