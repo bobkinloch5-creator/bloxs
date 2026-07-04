@@ -38,6 +38,7 @@ import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/
 import { Route as ApiVisualsGenerateRouteImport } from './routes/api/visuals/generate'
 import { Route as ApiPublicModelProxyRouteImport } from './routes/api/public/model-proxy'
 import { Route as ApiPublicMcpRouteImport } from './routes/api/public/mcp'
+import { Route as ApiPublicMaintenanceRouteImport } from './routes/api/public/maintenance'
 import { Route as AuthenticatedSettingsAdvancedRouteImport } from './routes/_authenticated/settings.advanced'
 import { Route as AuthenticatedProjectProjectIdRouteImport } from './routes/_authenticated/project.$projectId'
 import { Route as AuthenticatedModelsProjectIdRouteImport } from './routes/_authenticated/models.$projectId'
@@ -199,6 +200,11 @@ const ApiPublicMcpRoute = ApiPublicMcpRouteImport.update({
   path: '/api/public/mcp',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicMaintenanceRoute = ApiPublicMaintenanceRouteImport.update({
+  id: '/api/public/maintenance',
+  path: '/api/public/maintenance',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedSettingsAdvancedRoute =
   AuthenticatedSettingsAdvancedRouteImport.update({
     id: '/advanced',
@@ -307,6 +313,7 @@ export interface FileRoutesByFullPath {
   '/models/$projectId': typeof AuthenticatedModelsProjectIdRoute
   '/project/$projectId': typeof AuthenticatedProjectProjectIdRoute
   '/settings/advanced': typeof AuthenticatedSettingsAdvancedRoute
+  '/api/public/maintenance': typeof ApiPublicMaintenanceRoute
   '/api/public/mcp': typeof ApiPublicMcpRoute
   '/api/public/model-proxy': typeof ApiPublicModelProxyRoute
   '/api/visuals/generate': typeof ApiVisualsGenerateRoute
@@ -351,6 +358,7 @@ export interface FileRoutesByTo {
   '/models/$projectId': typeof AuthenticatedModelsProjectIdRoute
   '/project/$projectId': typeof AuthenticatedProjectProjectIdRoute
   '/settings/advanced': typeof AuthenticatedSettingsAdvancedRoute
+  '/api/public/maintenance': typeof ApiPublicMaintenanceRoute
   '/api/public/mcp': typeof ApiPublicMcpRoute
   '/api/public/model-proxy': typeof ApiPublicModelProxyRoute
   '/api/visuals/generate': typeof ApiVisualsGenerateRoute
@@ -397,6 +405,7 @@ export interface FileRoutesById {
   '/_authenticated/models/$projectId': typeof AuthenticatedModelsProjectIdRoute
   '/_authenticated/project/$projectId': typeof AuthenticatedProjectProjectIdRoute
   '/_authenticated/settings/advanced': typeof AuthenticatedSettingsAdvancedRoute
+  '/api/public/maintenance': typeof ApiPublicMaintenanceRoute
   '/api/public/mcp': typeof ApiPublicMcpRoute
   '/api/public/model-proxy': typeof ApiPublicModelProxyRoute
   '/api/visuals/generate': typeof ApiVisualsGenerateRoute
@@ -443,6 +452,7 @@ export interface FileRouteTypes {
     | '/models/$projectId'
     | '/project/$projectId'
     | '/settings/advanced'
+    | '/api/public/maintenance'
     | '/api/public/mcp'
     | '/api/public/model-proxy'
     | '/api/visuals/generate'
@@ -487,6 +497,7 @@ export interface FileRouteTypes {
     | '/models/$projectId'
     | '/project/$projectId'
     | '/settings/advanced'
+    | '/api/public/maintenance'
     | '/api/public/mcp'
     | '/api/public/model-proxy'
     | '/api/visuals/generate'
@@ -532,6 +543,7 @@ export interface FileRouteTypes {
     | '/_authenticated/models/$projectId'
     | '/_authenticated/project/$projectId'
     | '/_authenticated/settings/advanced'
+    | '/api/public/maintenance'
     | '/api/public/mcp'
     | '/api/public/model-proxy'
     | '/api/visuals/generate'
@@ -563,6 +575,7 @@ export interface RootRouteChildren {
   ApiVoiceRoute: typeof ApiVoiceRoute
   TemplatesUiRoute: typeof TemplatesUiRoute
   UUsernameRoute: typeof UUsernameRoute
+  ApiPublicMaintenanceRoute: typeof ApiPublicMaintenanceRoute
   ApiPublicMcpRoute: typeof ApiPublicMcpRoute
   ApiPublicModelProxyRoute: typeof ApiPublicModelProxyRoute
   ApiVisualsGenerateRoute: typeof ApiVisualsGenerateRoute
@@ -784,6 +797,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicMcpRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/maintenance': {
+      id: '/api/public/maintenance'
+      path: '/api/public/maintenance'
+      fullPath: '/api/public/maintenance'
+      preLoaderRoute: typeof ApiPublicMaintenanceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/settings/advanced': {
       id: '/_authenticated/settings/advanced'
       path: '/advanced'
@@ -959,6 +979,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiVoiceRoute: ApiVoiceRoute,
   TemplatesUiRoute: TemplatesUiRoute,
   UUsernameRoute: UUsernameRoute,
+  ApiPublicMaintenanceRoute: ApiPublicMaintenanceRoute,
   ApiPublicMcpRoute: ApiPublicMcpRoute,
   ApiPublicModelProxyRoute: ApiPublicModelProxyRoute,
   ApiVisualsGenerateRoute: ApiVisualsGenerateRoute,
