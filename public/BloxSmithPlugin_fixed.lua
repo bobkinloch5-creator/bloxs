@@ -19,7 +19,7 @@ local CollectionService     = game:GetService("CollectionService")
 
 local API_BASE       = "https://bloxsmith.pro"
 local POLL_INTERVAL  = 1
-local PLUGIN_VERSION = "2.1.3"
+local PLUGIN_VERSION = "2.1.5"
 
 ------------------------------------------------------------------- token helpers
 local TOKEN_KEY = "token"
@@ -773,6 +773,53 @@ local function ginsertCandidate(id, name)
     return nil, tostring(objects)
 end
 
+local function pickBestToolboxModel(container)
+    local models, lines = {}, {}
+    local function partCount(inst)
+        local n = 0
+        for _, d in ipairs(inst:GetDescendants()) do
+            if d:IsA("BasePart") then n += 1 end
+        end
+        return n
+    end
+    local function bounds(inst)
+        local ok, size = pcall(function() return inst:GetExtentsSize() end)
+        return ok and size and size.Magnitude or 0
+    end
+    for _, d in ipairs(container:GetDescendants()) do
+        if d:IsA("Model") then
+            table.insert(models, {
+                inst = d,
+                index = #models + 1,
+                hasPrimary = d.PrimaryPart ~= nil,
+                parts = partCount(d),
+                bbox = bounds(d),
+            })
+        end
+    end
+    if #models == 0 then
+        table.insert(lines, "all models found: 0; rejecting only because no Model exists anywhere")
+        return nil, lines
+    end
+    for _, m in ipairs(models) do
+        table.insert(lines, ("model found: %s (primary=%s parts=%d bbox=%.1f)"):format(fullPath(m.inst), tostring(m.hasPrimary), m.parts, m.bbox))
+    end
+    table.sort(models, function(a, b)
+        if a.hasPrimary ~= b.hasPrimary then return a.hasPrimary end
+        if a.parts ~= b.parts then return a.parts > b.parts end
+        if a.bbox ~= b.bbox then return a.bbox > b.bbox end
+        return a.index < b.index
+    end)
+    local best = models[1]
+    local why = best.hasPrimary and "has PrimaryPart" or (best.parts > 0 and "most BaseParts" or (best.bbox > 0 and "largest bounding box" or "first valid Model"))
+    table.insert(lines, ("chosen model: %s — %s (primary=%s parts=%d bbox=%.1f)"):format(fullPath(best.inst), why, tostring(best.hasPrimary), best.parts, best.bbox))
+    for i = 2, math.min(#models, 12) do
+        local m = models[i]
+        table.insert(lines, ("not chosen: %s — lower priority than chosen (primary=%s parts=%d bbox=%.1f)"):format(fullPath(m.inst), tostring(m.hasPrimary), m.parts, m.bbox))
+    end
+    return best.inst, lines
+end
+
 local function loadAssetCandidate(id, name, parent)
     if blockedAssetIds[id] then
         return nil, "blacklisted_failed_asset"
@@ -793,15 +840,17 @@ local function loadAssetCandidate(id, name, parent)
         return nil, "loaded empty asset"
     end
     container.Name = name or ("Asset_" .. tostring(id))
-    if #kids == 1 then
-        kids[1].Name = container.Name
-        kids[1].Parent = parent
-        local inserted = kids[1]
+    log(("Scanning Toolbox package id=%d (%d top-level children); selecting from all nested Models"):format(id, #kids), "debug")
+    local best, debugLines = pickBestToolboxModel(container)
+    for _, line in ipairs(debugLines or {}) do log("[insert_asset] " .. line, "debug") end
+    if not best then
         container:Destroy()
-        return inserted, nil
+        return nil, "rejected: no Model found anywhere in Toolbox asset"
     end
-    container.Parent = parent
-    return container, nil
+    best.Name = container.Name
+    best.Parent = parent
+    container:Destroy()
+    return best, nil
 end
 
 Exec.insert_asset = function(a, p)
