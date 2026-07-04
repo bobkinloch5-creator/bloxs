@@ -3653,7 +3653,7 @@ export const Route = createFileRoute("/api/chat")({
                 // the user actually sees the thing they asked for. This prevents the
                 // "Build verified · done 3/3" pill from lying when every real create
                 // step got stripped upstream.
-                if (mode === "build") {
+                if (mode === "build" && !isNarrowFeatureRequest(userText)) {
                   const CREATE_KINDS = new Set([
                     "insert_asset","part","model","terrain",
                     "screengui","gui","frame","textlabel","textbutton","imagelabel","tool",
