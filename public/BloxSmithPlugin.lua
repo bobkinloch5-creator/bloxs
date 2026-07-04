@@ -1334,14 +1334,18 @@ function Actions.insert_asset(a)
 	end
 	local scriptCount, suspiciousCount = quarantineScripts(model, scriptMode)
 
-	-- Hard cap on script count for single-asset inserts: an object with 100+
-	-- scripts is almost always a backdoored asset dump, not the one model the
-	-- user asked for. Refuse and let the planner pick a fallback.
 	local singleAsset = payload.single_asset_only or payload.extract_single
+	-- For single-asset Toolbox requests, scripts have already been stripped or
+	-- disabled above. Do not reject an otherwise valid package just because the
+	-- source container had many helper scripts; select the nested Model first.
+	-- Non-single inserts keep a high script cap to avoid dumping unsafe scenes.
 	local maxScripts = tonumber(payload.max_scripts) or (singleAsset and 5 or 50)
-	if scriptCount > maxScripts then
+	if (not singleAsset) and scriptCount > maxScripts then
 		pcall(function() model:Destroy() end)
 		return false, ("rejected: %d scripts (limit %d) — likely a pack or backdoored asset"):format(scriptCount, maxScripts)
+	end
+	if singleAsset and scriptCount > 0 then
+		appendLog(("[insert_asset] stripped/disabled %d script(s) before package model selection"):format(scriptCount), "debug")
 	end
 
 	local safetyStatus = "clean"
@@ -1401,7 +1405,7 @@ function Actions.insert_asset(a)
 				for _, d in ipairs(discard) do pcall(function() d:Destroy() end) end
 				pcall(function() placed:Destroy() end)
 				placed = best
-				appendLog(("[insert_asset] extracted '%s' from pack-like container"):format(placed.Name), "info")
+				appendLog(("[insert_asset] extracted '%s' from Toolbox package container"):format(placed.Name), "info")
 			elseif not best then
 				pcall(function() placed:Destroy() end)
 				return false, ("rejected: no Model found inside Toolbox container '%s' (scanned %d descendants)"):format(
