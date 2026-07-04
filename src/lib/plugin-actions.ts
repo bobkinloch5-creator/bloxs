@@ -267,7 +267,17 @@ export function normalizePluginAction(action: any) {
       payload._luau_issues = issues;
       payload._needs_retry = issues.some((i) => i.severity === "error");
     }
+
+    // Runtime safety net for one-off run_lua actions: wrap in xpcall so a
+    // "attempt to call a nil value" style error becomes a warning instead of
+    // marking the whole build as failed. Real Scripts/LocalScripts/ModuleScripts
+    // are left untouched because they need to run in Roblox as authored.
+    if (kind === "run_lua" && !/^--\s*BloxSmith:\s*_wrapped/m.test(payload.source)) {
+      const safeName = String(action?.name || "run_lua").replace(/"/g, '\\"');
+      payload.source = `-- BloxSmith: _wrapped\nlocal ok, err = xpcall(function()\n${payload.source}\nend, function(e) return tostring(e) .. "\\n" .. debug.traceback() end)\nif not ok then warn("[BloxSmith] run_lua (${safeName}) recovered from error: " .. tostring(err)) end\n`;
+    }
   }
+
 
   if (action?.target_path && !payload.target_path) payload.target_path = action.target_path;
   if (action?.target && !payload.parent_path) payload.parent_path = action.target;
