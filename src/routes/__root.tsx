@@ -16,6 +16,7 @@ import { GlobalErrorGuard } from "@/components/GlobalErrorGuard";
 import { LanguageProvider } from "../lib/i18n";
 import { HelpModeProvider } from "@/components/SmartTooltip";
 import { Toaster } from "@/components/ui/sonner";
+import { MaintenanceGate } from "@/components/MaintenanceGate";
 
 function NotFoundComponent() {
   return (
@@ -191,7 +192,9 @@ function RootComponent() {
           <Toaster richColors closeButton position="top-right" />
           <GlobalErrorGuard />
           {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-          <Outlet />
+          <MaintenanceGate>
+            <Outlet />
+          </MaintenanceGate>
         </HelpModeProvider>
       </LanguageProvider>
     </QueryClientProvider>
