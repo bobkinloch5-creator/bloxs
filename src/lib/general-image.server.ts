@@ -100,20 +100,6 @@ const NVIDIA_IMAGE_MODELS: Array<{ id: string; endpoint: string; buildBody: (pro
       steps: 4,
     }),
   },
-  {
-    id: "black-forest-labs/flux.1-dev",
-    endpoint: "https://ai.api.nvidia.com/v1/genai/black-forest-labs/flux.1-dev",
-    buildBody: (prompt, size) => ({
-      prompt,
-      cfg_scale: 3.5,
-      height: sizeToHeight(size),
-      width: sizeToWidth(size),
-      mode: "base",
-      samples: 1,
-      seed: Math.floor(Math.random() * 1_000_000),
-      steps: 30,
-    }),
-  },
 ];
 
 function sizeToWidth(size: string): number {
@@ -155,7 +141,9 @@ async function tryNvidiaImage(prompt: string, size: string): Promise<string | nu
   for (const model of NVIDIA_IMAGE_MODELS) {
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 110_000);
+      // Keep chat responsive: NVIDIA is tried first, but cold NIM endpoints can
+      // hang. Fall through quickly so the user still gets an image.
+      const timeout = setTimeout(() => controller.abort(), 22_000);
       const res = await fetch(model.endpoint, {
         method: "POST",
         headers: {
