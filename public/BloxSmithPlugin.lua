@@ -2993,10 +2993,10 @@ local consecutivePollErrors = 0
 
 local function pollOnce()
 	if not connected then return end
-	if not RunService:IsEdit() then
-		syncVal.Text = "Edit mode only — paused during Play Test"; return
-	end
-	if getPaused() then syncVal.Text = "Paused — incoming actions ignored"; return end
+	local editOnly = not RunService:IsEdit()
+	local paused = getPaused()
+	if editOnly then syncVal.Text = "Edit mode only — heartbeat only during Play Test" end
+	if paused then syncVal.Text = "Paused — heartbeat only, incoming actions ignored" end
 
 	local data, err = postPlugin("/api/public/plugin/poll", {
 		token          = getToken(),
@@ -3008,15 +3008,27 @@ local function pollOnce()
 		consecutivePollErrors += 1
 		syncVal.Text = "Poll error: " .. tostring(err)
 		appendLog("Poll failed #" .. tostring(consecutivePollErrors) .. ": " .. tostring(err))
-		if consecutivePollErrors >= 3 then
+		-- Only give up after ~30s of continuous failures (POLL_SECONDS=1).
+		-- Transient hiccups (Studio backgrounded, WiFi blip, server cold-start)
+		-- should NOT flip us to offline.
+		if consecutivePollErrors >= 30 then
 			connected = false
 			setPill("offline"); updateButtonState()
-			appendLog("Polling failed repeatedly — auto-reconnect will run.")
+			appendLog("Polling failed for 30s straight — auto-reconnect will run.")
 		end
 		if not connected then refreshHealthInfo("Disconnected"); updateButtonState() end
 		return
 	end
 	consecutivePollErrors = 0
+
+	-- If we're in play test or paused, we've already heartbeated above; skip
+	-- action application entirely.
+	if editOnly or paused then
+		refreshHealthInfo("Heartbeat OK")
+		lastSyncAt = os.time(); pcall(refreshStatsInfo)
+		return
+	end
+
 
 	refreshHealthInfo("Poll OK")
 	lastSyncAt = os.time(); pcall(refreshStatsInfo)
