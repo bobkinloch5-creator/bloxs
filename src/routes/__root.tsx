@@ -7,7 +7,7 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -21,19 +21,31 @@ import { CommandPalette } from "@/components/CommandPalette";
 
 function NotFoundComponent() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="max-w-md text-center">
-        <h1 className="text-7xl font-bold text-foreground">404</h1>
-        <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          The page you're looking for doesn't exist or has been moved.
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-950 px-4 py-16 text-white">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(99,102,241,0.15),transparent_60%),radial-gradient(circle_at_70%_80%,rgba(217,70,239,0.12),transparent_60%)]" />
+      <div className="relative z-10 mx-auto max-w-lg text-center">
+        <div className="mx-auto mb-6 inline-flex h-20 w-20 items-center justify-center rounded-2xl border border-white/15 bg-white/[0.04] text-5xl shadow-2xl shadow-indigo-500/10">
+          🧱
+        </div>
+        <p className="text-xs font-bold uppercase tracking-[0.3em] text-indigo-300">Error 404</p>
+        <h1 className="mt-3 bg-gradient-to-br from-white via-white to-indigo-200 bg-clip-text text-5xl font-black tracking-tight text-transparent sm:text-6xl">
+          This block is missing
+        </h1>
+        <p className="mx-auto mt-4 max-w-md text-sm text-slate-300 sm:text-base">
+          That page doesn't exist in this workspace — maybe it moved, maybe it never spawned. Let's head back to safety.
         </p>
-        <div className="mt-6">
+        <div className="mt-8 flex flex-col items-center justify-center gap-2 sm:flex-row sm:gap-3">
           <Link
             to="/"
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            className="inline-flex w-full items-center justify-center rounded-lg bg-indigo-500 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-indigo-500/30 transition hover:bg-indigo-400 sm:w-auto"
           >
             Go home
+          </Link>
+          <Link
+            to="/dashboard"
+            className="inline-flex w-full items-center justify-center rounded-lg border border-white/20 bg-white/[0.04] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-white/[0.08] sm:w-auto"
+          >
+            Open dashboard
           </Link>
         </div>
       </div>
@@ -49,27 +61,29 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   }, [error]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="max-w-md text-center">
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          This page didn't load
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-950 px-4 py-16 text-white">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,rgba(244,63,94,0.15),transparent_60%)]" />
+      <div className="relative z-10 mx-auto max-w-lg text-center">
+        <div className="mx-auto mb-6 inline-flex h-20 w-20 items-center justify-center rounded-2xl border border-rose-400/30 bg-rose-500/10 text-5xl">
+          ⚠️
+        </div>
+        <p className="text-xs font-bold uppercase tracking-[0.3em] text-rose-300">Something crashed</p>
+        <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">
+          This page hit a wall
         </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back home.
+        <p className="mx-auto mt-3 max-w-md text-sm text-slate-300">
+          A build went sideways. Try again — most of the time a retry fixes it. If it keeps failing, head home and open a fresh workspace.
         </p>
-        <div className="mt-6 flex flex-wrap justify-center gap-2">
+        <div className="mt-8 flex flex-col items-center justify-center gap-2 sm:flex-row sm:gap-3">
           <button
-            onClick={() => {
-              router.invalidate();
-              reset();
-            }}
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            onClick={() => { router.invalidate(); reset(); }}
+            className="inline-flex w-full items-center justify-center rounded-lg bg-indigo-500 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-indigo-500/30 transition hover:bg-indigo-400 sm:w-auto"
           >
             Try again
           </button>
           <a
             href="/"
-            className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+            className="inline-flex w-full items-center justify-center rounded-lg border border-white/20 bg-white/[0.04] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-white/[0.08] sm:w-auto"
           >
             Go home
           </a>
@@ -78,6 +92,7 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
     </div>
   );
 }
+
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   head: () => ({
@@ -95,6 +110,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:site", content: "@bloxsmith" },
       { name: "twitter:title", content: "BloxSmith — AI Roblox Game Builder" },
       { name: "twitter:description", content: "BloxSmith is an AI-powered Roblox game builder. Describe your game, watch BloxSmith generate Luau scripts, GUIs, maps, and systems straight into Roblox Studio." },
+      { property: "og:image", content: "https://bloxsmith.pro/__l5e/assets-v1/92c19508-35dc-4089-b0fe-6de29651d26a/bloxsmith-logo.png" },
+      { name: "twitter:image", content: "https://bloxsmith.pro/__l5e/assets-v1/92c19508-35dc-4089-b0fe-6de29651d26a/bloxsmith-logo.png" },
       { name: "theme-color", content: "#0b1220" },
       { name: "robots", content: "index, follow, max-image-preview:large" },
     ],
@@ -105,6 +122,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&family=Rubik:wght@300;400;500;600;700&display=swap" },
     ],
+
     scripts: [
       {
         type: "application/ld+json",
@@ -205,9 +223,31 @@ function RootComponent() {
 
 
 function BetaBanner() {
+  const [dismissed, setDismissed] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("bs:beta-banner-dismissed") === "1";
+  });
+
+  if (dismissed) return null;
   return (
-    <div className="sticky top-0 z-[70] border-b border-blue-400/25 bg-blue-950 px-4 py-2 text-center text-xs font-semibold text-blue-100 shadow-lg shadow-blue-950/20">
-      BloxSmith is still in beta and we update almost every day — if something is not working, please be patient while we improve it.
+    <div className="sticky top-0 z-[70] flex items-center gap-2 border-b border-blue-400/25 bg-blue-950 px-3 py-1.5 text-[11px] font-semibold text-blue-100 shadow-lg shadow-blue-950/20 sm:px-4 sm:py-2 sm:text-xs">
+      <span className="hidden shrink-0 rounded-full bg-blue-400/20 px-2 py-0.5 text-[10px] uppercase tracking-wider text-blue-100 sm:inline">Beta</span>
+      <span className="flex-1 truncate text-center sm:text-left">
+        <span className="sm:hidden">In beta — updates daily. Thanks for your patience!</span>
+        <span className="hidden sm:inline">BloxSmith is still in beta and we update almost every day — if something is not working, please be patient while we improve it.</span>
+      </span>
+      <button
+        type="button"
+        onClick={() => {
+          try { window.localStorage.setItem("bs:beta-banner-dismissed", "1"); } catch {}
+          setDismissed(true);
+        }}
+        aria-label="Dismiss beta banner"
+        className="ml-1 shrink-0 rounded-md p-1 text-blue-200 transition hover:bg-blue-900 hover:text-white"
+      >
+        <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="currentColor" aria-hidden><path d="M6.28 6.28a.75.75 0 011.06 0L10 8.94l2.66-2.66a.75.75 0 111.06 1.06L11.06 10l2.66 2.66a.75.75 0 11-1.06 1.06L10 11.06l-2.66 2.66a.75.75 0 01-1.06-1.06L8.94 10 6.28 7.34a.75.75 0 010-1.06z"/></svg>
+      </button>
     </div>
   );
 }
+
