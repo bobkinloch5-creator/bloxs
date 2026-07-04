@@ -1596,7 +1596,9 @@ function toolboxMapRequests(userText: string): ToolboxSetRequest[] {
     add("cover props", "arena cover props", false, 5);
   }
 
-  return requests.slice(0, 12);
+  const isBigCity = /\b(city|town|downtown|metropolis)\b/.test(text) && /\b(full|whole|entire|complete|big|huge|massive|large|dense|packed|realistic)\b/.test(text);
+  return requests.slice(0, isBigCity ? 24 : 12);
+
 }
 
 async function toolboxMapStudioActions(userText: string) {
