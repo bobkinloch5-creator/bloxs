@@ -134,10 +134,39 @@ COMPLETENESS CONTRACT (non-negotiable):
 For Build Mode, end with exactly one fenced \`\`\`bloxsmith-actions block containing the executable action JSON the app will strip from the visible chat. Include scan/autofix actions for meaningful builds and never claim Studio execution is complete until plugin verification confirms it.`;
 
 
+// Strip tool-call parts that never got a matching tool-result (and vice-versa).
+// Some NVIDIA models return "Tool result is missing for tool call ..." when the
+// prior turn was aborted / errored between the tool-call and the tool-result.
+function sanitizeToolPairing(messages: UIMessage[]): UIMessage[] {
+  const resultIds = new Set<string>();
+  for (const m of messages) {
+    for (const p of (m.parts ?? []) as any[]) {
+      const t = p?.type;
+      if (typeof t === "string" && (t.startsWith("tool-") || t === "tool-result") && p?.toolCallId && (p?.output !== undefined || p?.result !== undefined || p?.state === "output-available" || p?.state === "result")) {
+        resultIds.add(p.toolCallId);
+      }
+    }
+  }
+  return messages.map((m) => {
+    const parts = ((m.parts ?? []) as any[]).filter((p) => {
+      const t = p?.type;
+      if (typeof t !== "string") return true;
+      // Drop tool invocations that have no matching result.
+      if ((t.startsWith("tool-") || t === "tool-call" || t === "tool-invocation") && p?.toolCallId) {
+        const hasOwnResult = p?.output !== undefined || p?.result !== undefined || p?.state === "output-available" || p?.state === "result";
+        if (!hasOwnResult && !resultIds.has(p.toolCallId)) return false;
+      }
+      return true;
+    });
+    return { ...m, parts } as UIMessage;
+  }).filter((m) => (m.parts ?? []).length > 0);
+}
+
 function trimMessagesForModel(messages: UIMessage[], mode: "chat" | "build"): UIMessage[] {
+  const cleaned = sanitizeToolPairing(messages);
   const maxMessages = mode === "chat" ? 12 : 10;
-  const start = Math.max(0, messages.length - maxMessages);
-  return messages.slice(start).map((m, i, recent) => {
+  const start = Math.max(0, cleaned.length - maxMessages);
+  return cleaned.slice(start).map((m, i, recent) => {
     const isLatestUser = i === recent.length - 1 && m.role === "user";
     const textLimit = isLatestUser ? 12000 : m.role === "assistant" ? 1600 : 2400;
 
