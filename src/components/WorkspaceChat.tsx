@@ -274,6 +274,24 @@ export function WorkspaceChat({
     ta.style.height = Math.min(ta.scrollHeight, 240) + "px";
   }, [prompt]);
 
+  // Global keyboard shortcuts: ⌘K/Ctrl+K focus composer, ⌘//Ctrl+/ toggle mode
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const mod = e.metaKey || e.ctrlKey;
+      if (!mod) return;
+      if (e.key === "k" || e.key === "K") {
+        e.preventDefault();
+        taRef.current?.focus();
+      } else if (e.key === "/") {
+        e.preventDefault();
+        setComposerMode(liveModeRef.current === "build" ? "chat" : "build");
+        toast.info(`Switched to ${liveModeRef.current === "build" ? "Chat" : "Build"} mode`);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [setComposerMode]);
+
   const transport = useMemo(
     () => new DefaultChatTransport({
       api: "/api/chat",
