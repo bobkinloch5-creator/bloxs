@@ -151,7 +151,7 @@ function ShortcutsDialog({
   onOpenChange: (v: boolean) => void;
 }) {
   return (
-    <CommandDialog open={open} onOpenChange={onOpenChange} title="Keyboard shortcuts">
+    <CommandDialog open={open} onOpenChange={onOpenChange}>
       <CommandList className="max-h-[420px]">
         <CommandGroup heading="Global">
           <Row keys={["⌘", "K"]} label="Open command palette" />
