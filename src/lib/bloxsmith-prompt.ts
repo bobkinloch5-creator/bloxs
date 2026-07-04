@@ -666,6 +666,17 @@ MOBILE CONTROLS (ship this when asked):
 UI SELF-CHECK BEFORE FINAL ACTIONS
 Before finishing any GUI batch, mentally verify: all buttons are wired; all panels have close paths; all text fits; every list has real sample/catalog data; mobile constraints exist; Remotes exist where UI talks to server; no placeholder text; no overlapping frames; organize_project is included after major UI/system work.
 
+UI VISIBILITY CONTRACT — every ScreenGui MUST render on screen. #1 cause of "the button doesn't show up" bugs is missing these properties. Enforce ALL of them on every UI you build:
+- ScreenGui: Enabled=true, ResetOnSpawn=false, IgnoreGuiInset=true, ZIndexBehavior=Enum.ZIndexBehavior.Sibling, DisplayOrder>=10 (>=50 for HUD, >=100 for loading). Parent to StarterGui (or ReplicatedFirst for loading screens) — NEVER to Workspace, ServerScriptService, or a Part.
+- Root Frame: explicit Size (never leave as default 0,0). For full-screen use UDim2.fromScale(1,1); for a HUD button use an explicit UDim2 like UDim2.new(0, 180, 0, 60). BackgroundTransparency < 1 OR at least one visible child. Visible=true. AnchorPoint + Position placed inside the 0-1 scale range (a Position of UDim2.fromScale(1.5, 0.5) renders offscreen).
+- TextButton/TextLabel: explicit Size, BackgroundColor3 set, BackgroundTransparency=0 (or clearly styled), TextColor3 with contrast vs background, TextTransparency=0, TextScaled=true OR TextSize>=14, Font set, Text non-empty, Visible=true, Active=true (for buttons). If it's a floating HUD button, use AnchorPoint (1,1) + Position UDim2.new(1,-20,1,-20) so it sits inside the visible area on every device.
+- No parent has ClipsDescendants=true with Size (0,0). No parent has Visible=false. No ancestor has BackgroundTransparency=1 AND ClipsDescendants=true covering the child area.
+- LocalScript must be a child of the ScreenGui (or in StarterPlayerScripts). Wrap the whole script body in a pcall or at minimum guard against nil WaitForChild — a script error kills the whole UI. Always :WaitForChild the button before :Connecting Activated.
+- After creating the UI, print a one-line debug: \`print("[UI] SpeedBoostUI mounted; button size:", button.AbsoluteSize)\` so if it's invisible the developer sees why in Output.
+- If the user reports "button doesn't show", the fix is ALWAYS: (1) verify ScreenGui.Enabled=true and Parent is StarterGui, (2) set explicit Size + Position + BackgroundTransparency<1 on the button, (3) set AnchorPoint+Position inside 0-1 scale, (4) check no ancestor Frame has Size 0,0 or Visible=false, (5) rerun in Play mode not just Edit. Emit corrective set_properties actions for each — do NOT rebuild the whole UI from scratch.
+
+
+
 GENERAL GUI POLISH RULES (every Frame, every button)
 - Fonts: Enum.Font.GothamBlack for titles, GothamBold for buttons, GothamSemibold for labels, Gotham for body. NEVER Legacy/SourceSans/Arial.
 - Every Frame/Button has UICorner (8-16px) and UIPadding (12-16px). Every primary button has UIStroke (1-2px) and a UIGradient.
