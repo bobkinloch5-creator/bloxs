@@ -1,21 +1,34 @@
 import { useEffect, useRef, useState } from "react";
 import { Bell, Bot, Box, Brain, CheckCircle2, Gauge, ImageIcon, Lightbulb, ListChecks, ScrollText, ShieldCheck, Sparkles, Users, Wrench } from "lucide-react";
 
-const CHANGELOG_VERSION = "2026-07-01-leaderstats-format-fix";
+const CHANGELOG_VERSION = "2026-07-04-full-city-placement-scripts";
 
 const CHANGELOG_ITEMS = [
   {
-    title: "🛠️ Fixed leaderstats build failure ('invalid argument #3 to format')",
-    date: "Jul 1",
+    title: "📌 Perfect placement — nothing floats, nothing clips (raycast ground-snap + overlap resolver)",
+    date: "Jul 4",
     icon: Wrench,
-    body: "Fixed a build-verification error where leaderstats actions crashed the plugin with 'invalid argument #3 to \\'format\\' (number expected, got string)' at Script:1025, marking otherwise successful multi-action builds as failed. Root cause: the AI sometimes emitted stat values as strings (e.g. \"0\") or omitted the kind, but the Studio plugin formats numeric stats with %d, which rejects string input. The normalizer now coerces every leaderstats stat: numeric-looking values become real numbers, kind auto-picks IntValue/NumberValue/StringValue to match the value, non-numeric values fall back to StringValue, and each stat gets a valid name. Multi-action builds with a leaderstats step now report all-done instead of 11-of-12 with a red failure toast.",
+    body: "Rebuilt the map arrange pass so every inserted asset lands exactly where it belongs. Ground snap now RAYCASTS straight down from 5000 studs above each asset and drops the bottom of its bounding box onto whatever the ray hits — terrain, baseplate, or a neighbor that was placed earlier in the same build — instead of blindly setting Y = size/2. A new overlap resolver runs before snap: it walks every already-placed model and, if bounding boxes overlap, pushes the new asset outward along the axis of overlap until it's flush against its neighbors with a 4-stud gap. All parts are anchored + collision-enabled BEFORE the raycast fires so subsequent assets actually stack on top of previously placed buildings instead of clipping through them. Result: no more floating buildings, no more props buried in the ground, no more two skyscrapers occupying the same lot.",
   },
   {
-    title: "🧰 Studio Toolbelt v2 — camera focus, selection, transforms, surgical script patches, auto-fix loop",
-    date: "Jul 1",
-    icon: Wrench,
-    body: "BloxSmith AI now behaves like a real Studio developer. Four new action kinds land in every build turn: camera_focus (snap the Studio camera to any part/model/NPC/player — 'show me the castle' just works), select_object (sets Studio Selection so you can immediately drag/rotate/scale in the viewport), transform_object (move/rotate/scale existing instances without deleting them, wrapped in ChangeHistoryService so Ctrl+Z undoes cleanly), and patch_script (surgical find/replace edits that PRESERVE your surrounding hand-written code — the AI stops overwriting whole scripts). All four compile to run_lua under the hood, so they work with the existing v2.1.1 plugin — no plugin update needed. The system prompt also enforces a mandatory auto-fix loop: whenever scan_project reports an error, the AI now immediately identifies the offending script from the stack trace, emits a patch_script to fix the broken lines, and re-scans — repeating up to 3 times per turn before asking for your input. Image uploads with wording like 'make this a decal/texture/UI art' now analyze the image, generate the game-ready version, and insert it as a real Decal / ImageLabel / thumbnail asset in Studio.",
+    title: "🏙️ 'Build me a full city' now builds a full city (30–40 real Toolbox assets)",
+    date: "Jul 4",
+    icon: Sparkles,
+    body: "Massively expanded the city composition pipeline. When you say 'full/whole/entire/big/huge city', BloxSmith now runs up to 24 Toolbox search categories (skyscrapers, apartments, houses, shops, restaurants, gas stations, street lights, traffic signs, benches, trees, cars, plus the base variant map kit) instead of the old 5, takes UP TO 5 picks per category instead of 1, and drops them onto an auto-generated 8×5 = 40-slot grid at 140-stud spacing with alternating cardinal rotations, a central road row, and an outer decor ring. Every asset still lands as a full Toolbox package (preserve_hierarchy) and gets ground-snapped + district-organized by the new raycast arrange pass. Smaller prompts still get a proportional 5×3 grid.",
   },
+  {
+    title: "🛠️ Auto-fixed Luau — no more deprecated wait()/spawn()/:connect crashes",
+    date: "Jul 4",
+    icon: Wrench,
+    body: "Every generated script (script, localscript, modulescript, run_lua) now runs through a deterministic auto-fix pass BEFORE it ships to Studio. Fixes applied automatically: wait(n) → task.wait(n), spawn(function → task.spawn(function, delay(n, fn) → task.delay(n, fn), :connect( → :Connect( (Roblox removed the lowercase form, and this alone kills a huge class of 'attempt to call a nil value' errors), loadstring(...) calls replaced with a nil-returning stub so scripts still parse instead of throwing at load, and stray markdown fences stripped. Combined with the existing prompt guardrails (server-authoritative code, RemoteEvent wiring, --!strict, StarterGui + LocalScript pipelines), scripts + UI now go into Roblox with the most common LLM landmines already defused.",
+  },
+  {
+    title: "🔌 Plugin no longer disconnects randomly (heartbeat during Play Test + 30s error tolerance)",
+    date: "Jul 4",
+    icon: Wrench,
+    body: "Fixed the plugin flipping to offline out of nowhere. Old behavior: 3 consecutive failed polls (~3 seconds of ANY hiccup — WiFi blip, server cold-start, Studio backgrounded) forced a disconnect, and Play Test / Paused states skipped the heartbeat entirely so the website flipped to offline within 30s even though the plugin was fine. New behavior: heartbeat pings /api/public/plugin/poll every second REGARDLESS of Play Test or Paused (actions are skipped, session stays green), and the disconnect threshold is bumped from 3 to 30 consecutive errors — so it only gives up after a full 30 seconds of continuous failures instead of a 3-second blip. Bumped plugin to v2.1.8 — re-download it on the Plugin page.",
+  },
+
 
   {
     title: "🎨 Instant 3D previews — no more 'needs GLB or glTF' warning (Plugin v2.1.1)",
