@@ -573,7 +573,6 @@ export function ChangelogNotifications({
               ))}
             </div>
           </div>
-          </div>
         </>
       )}
     </div>
