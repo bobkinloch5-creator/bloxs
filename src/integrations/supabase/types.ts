@@ -438,6 +438,47 @@ export type Database = {
           },
         ]
       }
+      build_snapshots: {
+        Row: {
+          created_at: string
+          id: string
+          kind: string
+          label: string
+          project_id: string
+          size_bytes: number
+          user_id: string
+          workspace_json: Json
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind?: string
+          label?: string
+          project_id: string
+          size_bytes?: number
+          user_id: string
+          workspace_json?: Json
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: string
+          label?: string
+          project_id?: string
+          size_bytes?: number
+          user_id?: string
+          workspace_json?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "build_snapshots_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_messages: {
         Row: {
           actions: Json
@@ -740,6 +781,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      game_templates: {
+        Row: {
+          actions_json: Json
+          category: string
+          cover_url: string | null
+          created_at: string
+          description: string
+          downloads: number
+          id: string
+          is_public: boolean
+          prompt: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          actions_json?: Json
+          category?: string
+          cover_url?: string | null
+          created_at?: string
+          description?: string
+          downloads?: number
+          id?: string
+          is_public?: boolean
+          prompt?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          actions_json?: Json
+          category?: string
+          cover_url?: string | null
+          created_at?: string
+          description?: string
+          downloads?: number
+          id?: string
+          is_public?: boolean
+          prompt?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       kb_chunks: {
         Row: {
@@ -1103,6 +1189,7 @@ export type Database = {
           max_credits: number
           plan: string
           plugin_token: string
+          referral_code: string | null
           roblox_avatar_url: string | null
           roblox_created_at: string | null
           roblox_display_name: string | null
@@ -1134,6 +1221,7 @@ export type Database = {
           max_credits?: number
           plan?: string
           plugin_token?: string
+          referral_code?: string | null
           roblox_avatar_url?: string | null
           roblox_created_at?: string | null
           roblox_display_name?: string | null
@@ -1165,6 +1253,7 @@ export type Database = {
           max_credits?: number
           plan?: string
           plugin_token?: string
+          referral_code?: string | null
           roblox_avatar_url?: string | null
           roblox_created_at?: string | null
           roblox_display_name?: string | null
@@ -1598,6 +1687,112 @@ export type Database = {
           window_start?: string
         }
         Relationships: []
+      }
+      referrals: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          referred_user_id: string
+          referrer_user_id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          referred_user_id: string
+          referrer_user_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          referred_user_id?: string
+          referrer_user_id?: string
+        }
+        Relationships: []
+      }
+      showcase_likes: {
+        Row: {
+          created_at: string
+          post_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          post_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          post_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "showcase_likes_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "showcase_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      showcase_posts: {
+        Row: {
+          cover_url: string | null
+          created_at: string
+          description: string
+          id: string
+          is_published: boolean
+          likes: number
+          project_id: string | null
+          roblox_place_id: number | null
+          tags: string[]
+          title: string
+          updated_at: string
+          user_id: string
+          views: number
+        }
+        Insert: {
+          cover_url?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          is_published?: boolean
+          likes?: number
+          project_id?: string | null
+          roblox_place_id?: number | null
+          tags?: string[]
+          title: string
+          updated_at?: string
+          user_id: string
+          views?: number
+        }
+        Update: {
+          cover_url?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          is_published?: boolean
+          likes?: number
+          project_id?: string | null
+          roblox_place_id?: number | null
+          tags?: string[]
+          title?: string
+          updated_at?: string
+          user_id?: string
+          views?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "showcase_posts_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       studio_errors: {
         Row: {
