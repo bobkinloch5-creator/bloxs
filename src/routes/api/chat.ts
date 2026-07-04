@@ -1516,15 +1516,32 @@ function toolboxMapRequests(userText: string): ToolboxSetRequest[] {
     return requests;
   }
 
-  if (/\b(city|town|roleplay|rp|neighborhood|street|road)\b/.test(text)) {
+  if (/\b(city|town|roleplay|rp|neighborhood|street|road|downtown|metropolis)\b/.test(text)) {
     const variant = pickMapVariant(userText);
-    add(`${variant.name} map kit`, `${variant.name} city map kit`, true, 8);
+    const isBig = /\b(full|whole|entire|complete|big|huge|massive|large|dense|packed|realistic)\b/.test(text);
+    add(`${variant.name} map kit`, `${variant.name} city map kit`, true, isBig ? 12 : 8);
     for (const [label, keyword, required, limit] of variant.terms) {
       add(String(label), String(keyword), Boolean(required), Number(limit));
+    }
+    if (isBig) {
+      // Extra search categories so a "full city" gets skyscrapers, apartments,
+      // stores, cafes, gas stations, parks — not five identical buildings.
+      add("skyscrapers", "skyscraper tall building city", true, 8);
+      add("apartments", "apartment building city", true, 8);
+      add("houses", "modern house residential", true, 8);
+      add("shops", "storefront shop city downtown", true, 8);
+      add("restaurants", "restaurant cafe diner city", false, 6);
+      add("gas station", "gas station city", false, 5);
+      add("street lights", "street light lamp post pack", false, 6);
+      add("traffic signs", "traffic light stop sign city pack", false, 6);
+      add("benches", "bench trash can urban prop", false, 6);
+      add("trees", "city tree pack", false, 6);
+      add("cars", "city car pack vehicle", false, 6);
     }
   } else {
     add("complete map kit", `${userText.slice(0, 80)} map kit`, true, 6);
   }
+
 
   if (/\b(lobby|hub|spawn)\b/.test(text)) {
     add("lobby map", "lobby map kit", true, 6);
