@@ -813,6 +813,23 @@ export function WorkspaceChat({
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
+          {(() => {
+            const active = selectedModel === "auto"
+              ? pickModelForTask(mode === "build" ? "scripting" : "planning")
+              : (() => {
+                  const m = MODELS.find((x) => x.id === selectedModel);
+                  return m ? { label: m.label, modelId: m.id } : { label: "Auto", modelId: "auto" };
+                })();
+            return (
+              <span
+                title={`Active model: ${active.label}${selectedModel === "auto" ? " (auto-picked for this task)" : ""}`}
+                className="hidden md:inline-flex min-h-[40px] items-center gap-1.5 rounded-lg border border-indigo-400/30 bg-indigo-500/10 px-2.5 py-2 text-[10px] font-semibold uppercase tracking-wider text-indigo-100"
+              >
+                <Sparkles className="h-3 w-3" />
+                {active.label}
+              </span>
+            );
+          })()}
           {isBuild && (
             <button
               type="button"
