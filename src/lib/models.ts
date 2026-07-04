@@ -37,7 +37,7 @@ export const MODELS: ModelOption[] = [
     id: "groq/llama-3.3-70b-versatile",
     upstreamId: "llama-3.3-70b-versatile",
     gateway: "groq",
-    label: "Llama 3.3 70B",
+    label: "Llama 3.3 70B (Groq)",
     provider: "Groq",
     via: "Groq",
     tier: "premium",
@@ -46,8 +46,72 @@ export const MODELS: ModelOption[] = [
     credits: "Low",
     status: "Working",
     bestFor: "Reliable Roblox planning, Luau generation, and build actions when NVIDIA is busy.",
-    description: "Fast Groq-hosted Llama 3.3 70B route used as the default to avoid NVIDIA rate-limit failures.",
+    description: "Fast Groq-hosted Llama 3.3 70B route used as the default.",
     modelSettings: { temperature: 0.7, topP: 0.9, maxOutputTokens: 8192 },
+  },
+  {
+    id: "nvidia/llama-3.3-nemotron-super-49b",
+    upstreamId: "nvidia/llama-3.3-nemotron-super-49b-v1",
+    gateway: "nvidia",
+    label: "Nemotron Super 49B",
+    provider: "NVIDIA",
+    via: "NVIDIA NIM",
+    tier: "premium",
+    speed: "Medium",
+    quality: "Great",
+    credits: "Low",
+    status: "Working",
+    bestFor: "NVIDIA-hosted reasoning model for Roblox planning and Luau code.",
+    description: "NVIDIA Nemotron Super 49B via build.nvidia.com.",
+    modelSettings: { temperature: 0.6, topP: 0.95, maxOutputTokens: 8192 },
+  },
+  {
+    id: "nvidia/llama-3.1-nemotron-70b",
+    upstreamId: "nvidia/llama-3.1-nemotron-70b-instruct",
+    gateway: "nvidia",
+    label: "Nemotron 70B",
+    provider: "NVIDIA",
+    via: "NVIDIA NIM",
+    tier: "premium",
+    speed: "Medium",
+    quality: "Great",
+    credits: "Low",
+    status: "Working",
+    bestFor: "Strong instruction-following NVIDIA model for Luau + build actions.",
+    description: "NVIDIA Llama 3.1 Nemotron 70B via build.nvidia.com.",
+    modelSettings: { temperature: 0.6, topP: 0.95, maxOutputTokens: 8192 },
+  },
+  {
+    id: "nvidia/llama-3.3-70b",
+    upstreamId: "meta/llama-3.3-70b-instruct",
+    gateway: "nvidia",
+    label: "Llama 3.3 70B (NVIDIA)",
+    provider: "NVIDIA",
+    via: "NVIDIA NIM",
+    tier: "balanced",
+    speed: "Medium",
+    quality: "Great",
+    credits: "Low",
+    status: "Working",
+    bestFor: "Meta Llama 3.3 70B hosted on NVIDIA — solid all-around fallback.",
+    description: "Meta Llama 3.3 70B via NVIDIA build.nvidia.com.",
+    modelSettings: { temperature: 0.7, topP: 0.9, maxOutputTokens: 8192 },
+  },
+  {
+    id: "nvidia/qwen-2.5-coder-32b",
+    upstreamId: "qwen/qwen2.5-coder-32b-instruct",
+    gateway: "nvidia",
+    label: "Qwen 2.5 Coder 32B",
+    provider: "NVIDIA",
+    via: "NVIDIA NIM",
+    tier: "balanced",
+    speed: "Fast",
+    quality: "Great",
+    credits: "Low",
+    status: "Working",
+    bestFor: "Code-specialized model for Luau generation on NVIDIA.",
+    description: "Qwen 2.5 Coder 32B via NVIDIA build.nvidia.com.",
+    modelSettings: { temperature: 0.4, topP: 0.9, maxOutputTokens: 8192 },
   },
   {
     id: "nvidia/glm-5.2",
@@ -65,13 +129,21 @@ export const MODELS: ModelOption[] = [
     description: "Z.AI GLM 5.2 routed through NVIDIA Integrate (build.nvidia.com).",
     modelSettings: { temperature: 1.0, topP: 1.0, maxOutputTokens: 16384 },
   },
-
 ];
 
 
 export const DEFAULT_MODEL_ID = "groq/llama-3.3-70b-versatile";
 export const FALLBACK_MODEL_ID = "groq/llama-3.3-70b-versatile";
 
+// Ordered chain of models to try when the primary model is rate-limited or at capacity.
+// Rotates across providers (Groq → NVIDIA family) so a 429 on one endpoint doesn't kill the request.
+export const FALLBACK_CHAIN: string[] = [
+  "groq/llama-3.3-70b-versatile",
+  "nvidia/llama-3.3-nemotron-super-49b",
+  "nvidia/llama-3.1-nemotron-70b",
+  "nvidia/llama-3.3-70b",
+  "nvidia/qwen-2.5-coder-32b",
+];
 
 export function findModel(id: string): ModelOption {
   return MODELS.find((m) => m.id === id) ?? MODELS[0];
@@ -80,3 +152,4 @@ export function findModel(id: string): ModelOption {
 export function isSelectable(m: ModelOption): boolean {
   return m.status === "Working";
 }
+
