@@ -1799,20 +1799,61 @@ if folder then
     end
     return "Core"
   end
+  -- Raycast-based ground snap: fire a ray straight down from high above
+  -- the asset, and drop the bottom of its bounding box onto whatever the ray
+  -- hits (terrain, baseplate, other placed assets). Falls back to y=0 so
+  -- nothing ever floats or spawns underground.
+  local rayParams = RaycastParams.new()
+  rayParams.FilterType = Enum.RaycastFilterType.Exclude
+  rayParams.IgnoreWater = false
+  local function findGroundY(x, z, ignore)
+    rayParams.FilterDescendantsInstances = ignore
+    local origin = Vector3.new(x, 5000, z)
+    local hit = Workspace:Raycast(origin, Vector3.new(0, -10000, 0), rayParams)
+    if hit then return hit.Position.Y end
+    return 0
+  end
   local function groundSnap(inst)
     if inst:IsA("Model") then
       local ok, cf, size = pcall(function() return inst:GetBoundingBox() end)
-      if ok and size then
+      if ok and cf and size then
         local _, yaw = inst:GetPivot():ToOrientation()
-        inst:PivotTo(CFrame.new(cf.Position.X, math.max(0, size.Y / 2), cf.Position.Z) * CFrame.Angles(0, yaw, 0))
+        local ignore = {inst}
+        local groundY = findGroundY(cf.Position.X, cf.Position.Z, ignore)
+        local targetY = groundY + (size.Y / 2)
+        inst:PivotTo(CFrame.new(cf.Position.X, targetY, cf.Position.Z) * CFrame.Angles(0, yaw, 0))
       end
     elseif inst:IsA("BasePart") then
-      inst.CFrame = CFrame.new(inst.Position.X, math.max(0, inst.Size.Y / 2), inst.Position.Z) * inst.CFrame.Rotation
+      local groundY = findGroundY(inst.Position.X, inst.Position.Z, {inst})
+      inst.CFrame = CFrame.new(inst.Position.X, groundY + inst.Size.Y / 2, inst.Position.Z) * inst.CFrame.Rotation
     end
+  end
+  -- Simple overlap resolver: shift assets outward if their bounding boxes
+  -- overlap so buildings/props don't clip into each other.
+  local placed = {}
+  local function overlaps(cfA, sizeA, cfB, sizeB)
+    local dx = math.abs(cfA.Position.X - cfB.Position.X)
+    local dz = math.abs(cfA.Position.Z - cfB.Position.Z)
+    return dx < (sizeA.X + sizeB.X) * 0.5 - 2 and dz < (sizeA.Z + sizeB.Z) * 0.5 - 2
+  end
+  local function resolveOverlap(inst)
+    if not inst:IsA("Model") then return end
+    local ok, cf, size = pcall(function() return inst:GetBoundingBox() end)
+    if not ok then return end
+    for _, other in ipairs(placed) do
+      if overlaps(cf, size, other.cf, other.size) then
+        local dir = (Vector3.new(cf.Position.X, 0, cf.Position.Z) - Vector3.new(other.cf.Position.X, 0, other.cf.Position.Z))
+        if dir.Magnitude < 0.1 then dir = Vector3.new(1, 0, 0) end
+        local push = dir.Unit * ((size.X + other.size.X) * 0.5 + 4)
+        inst:PivotTo(inst:GetPivot() + Vector3.new(push.X, 0, push.Z))
+        cf = inst:GetBoundingBox()
+      end
+    end
+    table.insert(placed, {cf = cf, size = size})
   end
   for _, model in ipairs(folder:GetChildren()) do
     if model:IsA("Folder") then continue end
-    groundSnap(model)
+    -- Anchor + collide FIRST so raycasts hit the neighbors we've already placed.
     for _, inst in ipairs(model:GetDescendants()) do
       if inst:IsA("BasePart") then
         inst.Anchored = true
@@ -1821,9 +1862,12 @@ if folder then
         inst.Disabled = true
       end
     end
+    resolveOverlap(model)
+    groundSnap(model)
     local district = folder:FindFirstChild(classify(model))
     if district then model.Parent = district end
   end
+
   for _, district in ipairs(folder:GetChildren()) do
     if district:IsA("Folder") and #district:GetChildren() == 0 then
       district:Destroy()
