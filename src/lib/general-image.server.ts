@@ -4,8 +4,8 @@
 // ScreenGui / UI layout mockup. UI concept art still routes through
 // generateUiConceptImage which returns SVG mockups of GUI panels.
 //
-// NVIDIA-only deployments do not call paid image gateways. For image requests,
-// return a local SVG concept placeholder so chat never spends Lovable credits.
+// NVIDIA-first deployments generate real images through NVIDIA NIM. If NVIDIA is
+// temporarily unavailable, return a local SVG fallback so the UI still responds.
 
 type GenArgs = {
   prompt: string;
@@ -90,9 +90,13 @@ const NVIDIA_IMAGE_MODELS: Array<{ id: string; endpoint: string; buildBody: (pro
     endpoint: "https://ai.api.nvidia.com/v1/genai/black-forest-labs/flux.1-schnell",
     buildBody: (prompt, size) => ({
       prompt,
-      cfg_scale: 5,
-      aspect_ratio: sizeToAspect(size),
-      seed: Math.floor(Math.random() * 1_000_000),
+      height: sizeToHeight(size),
+      width: sizeToWidth(size),
+      // FLUX.1-schnell's NVIDIA NIM expects cfg_scale=0 and 1-4 steps.
+      cfg_scale: 0,
+      mode: "base",
+      samples: 1,
+      seed: 0,
       steps: 4,
     }),
   },
@@ -102,45 +106,44 @@ const NVIDIA_IMAGE_MODELS: Array<{ id: string; endpoint: string; buildBody: (pro
     buildBody: (prompt, size) => ({
       prompt,
       cfg_scale: 3.5,
-      aspect_ratio: sizeToAspect(size),
+      height: sizeToHeight(size),
+      width: sizeToWidth(size),
+      mode: "base",
+      samples: 1,
       seed: Math.floor(Math.random() * 1_000_000),
       steps: 30,
     }),
   },
-  {
-    id: "stabilityai/sdxl-turbo",
-    endpoint: "https://ai.api.nvidia.com/v1/genai/stabilityai/sdxl-turbo",
-    buildBody: (prompt) => ({
-      text_prompts: [{ text: prompt, weight: 1 }],
-      seed: Math.floor(Math.random() * 1_000_000),
-      sampler: "K_EULER_ANCESTRAL",
-      steps: 4,
-    }),
-  },
 ];
 
-function sizeToAspect(size: string): string {
-  if (size === "1024x1536") return "2:3";
-  if (size === "1536x1024") return "3:2";
-  return "1:1";
+function sizeToWidth(size: string): number {
+  const [w] = size.split("x").map((n) => Number(n));
+  return Number.isFinite(w) ? Math.min(1344, Math.max(768, w)) : 1024;
 }
 
-function extractBase64(json: unknown): string | null {
+function sizeToHeight(size: string): number {
+  const [, h] = size.split("x").map((n) => Number(n));
+  return Number.isFinite(h) ? Math.min(1344, Math.max(768, h)) : 1024;
+}
+
+function extractBase64(json: unknown): { b64: string; mime: string } | null {
   if (!json || typeof json !== "object") return null;
   const j = json as Record<string, unknown>;
-  // FLUX-style: { artifacts: [{ base64: "..." }] } or { image: "..." }
+  // FLUX-style: { artifacts: [{ base64: "..." }] } returns JPEG.
   const arts = j.artifacts as Array<Record<string, unknown>> | undefined;
   if (Array.isArray(arts) && arts[0]) {
+    const finish = String(arts[0].finishReason ?? arts[0].finish_reason ?? "SUCCESS");
+    if (finish && finish !== "SUCCESS") return null;
     const b = arts[0].base64 ?? arts[0].b64_json;
-    if (typeof b === "string" && b.length > 100) return b;
+    if (typeof b === "string" && b.length > 100) return { b64: b, mime: "image/jpeg" };
   }
-  if (typeof j.image === "string" && j.image.length > 100) return j.image;
-  if (typeof j.b64_json === "string" && j.b64_json.length > 100) return j.b64_json;
+  if (typeof j.image === "string" && j.image.length > 100) return { b64: j.image, mime: "image/png" };
+  if (typeof j.b64_json === "string" && j.b64_json.length > 100) return { b64: j.b64_json, mime: "image/png" };
   // data: [{ b64_json }]
   const data = j.data as Array<Record<string, unknown>> | undefined;
   if (Array.isArray(data) && data[0]) {
     const b = data[0].b64_json ?? data[0].base64;
-    if (typeof b === "string" && b.length > 100) return b;
+    if (typeof b === "string" && b.length > 100) return { b64: b, mime: "image/png" };
   }
   return null;
 }
@@ -151,6 +154,8 @@ async function tryNvidiaImage(prompt: string, size: string): Promise<string | nu
 
   for (const model of NVIDIA_IMAGE_MODELS) {
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 110_000);
       const res = await fetch(model.endpoint, {
         method: "POST",
         headers: {
@@ -158,8 +163,10 @@ async function tryNvidiaImage(prompt: string, size: string): Promise<string | nu
           "Content-Type": "application/json",
           Accept: "application/json",
         },
+        signal: controller.signal,
         body: JSON.stringify(model.buildBody(prompt, size)),
       });
+      clearTimeout(timeout);
       if (!res.ok) {
         const txt = await res.text().catch(() => "");
         console.warn(`[nvidia-image] ${model.id} failed ${res.status}`, txt.slice(0, 200));
@@ -167,10 +174,10 @@ async function tryNvidiaImage(prompt: string, size: string): Promise<string | nu
         continue;
       }
       const json = await res.json().catch(() => null);
-      const b64 = extractBase64(json);
-      if (b64) {
+      const img = extractBase64(json);
+      if (img) {
         console.log(`[nvidia-image] ${model.id} succeeded`);
-        return `data:image/png;base64,${b64}`;
+        return `data:${img.mime};base64,${img.b64}`;
       }
       console.warn(`[nvidia-image] ${model.id} returned no image payload`);
     } catch (err) {

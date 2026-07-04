@@ -55,8 +55,16 @@ function extractGeneratedImages(parts: any[]): Array<{ url: string; prompt: stri
         imgs.push({ url: out.url, prompt: (p.input?.prompt ?? out.prompt ?? "").toString() });
       }
     }
+    if (t === "file" && typeof p.mediaType === "string" && p.mediaType.startsWith("image/") && typeof p.url === "string") {
+      imgs.push({ url: p.url, prompt: "Generated image" });
+    }
   }
   return imgs;
+}
+
+function wantsImageGeneration(text: string) {
+  return /\b(generate|create|make|draw|design)\b.*\b(image|picture|thumbnail|icon|logo|badge|banner|concept art|promo|ui mockup|loading screen|menu mockup|art)\b/i.test(text)
+    || /\b(image|thumbnail|icon|logo|badge|banner|concept art|promo art|ui mockup)\b/i.test(text);
 }
 
 
@@ -457,7 +465,7 @@ export function WorkspaceChat({
 
     // Use the live mode ref (or an explicit override from the caller) so a
     // synchronous mode flip in the same click cycle is honored on this send.
-    const effectiveMode: Mode = overrideMode ?? liveModeRef.current;
+    const effectiveMode: Mode = overrideMode ?? (wantsImageGeneration(text) ? "chat" : liveModeRef.current);
     liveModeRef.current = effectiveMode;
 
     // Build mode is a no-op if the Studio plugin isn't connected — actions
@@ -639,7 +647,7 @@ export function WorkspaceChat({
           {messages.map((m) => {
             const rawText = m.parts.map((p: any) => (p.type === "text" ? p.text : "")).join("");
             const text = m.role === "assistant" ? stripInternalBlocks(rawText) : rawText;
-            const imgs = m.parts.filter((p: any) => p.type === "file" && p.mediaType?.startsWith?.("image/")) as any[];
+            const imgs = m.role === "user" ? m.parts.filter((p: any) => p.type === "file" && p.mediaType?.startsWith?.("image/")) as any[] : [];
             const genImages = m.role === "assistant" ? extractGeneratedImages(m.parts as any[]) : [];
             return (
               <div key={m.id} className={`mb-3 flex gap-2 ${m.role === "user" ? "justify-end" : "justify-start"}`}>
