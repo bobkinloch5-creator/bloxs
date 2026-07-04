@@ -27,16 +27,16 @@ export interface ModelPick {
 // stronger fallbacks. Order matters: the first Working entry wins.
 const TASK_PREF: Record<AutoTask, { ids: string[]; reason: string }> = {
   planning: {
-    ids: ["nvidia/llama-3.3-70b", "nvidia/llama-3.3-nemotron-super-49b", DEFAULT_MODEL_ID],
-    reason: "Auto: fast Llama 3.3 70B for quick Roblox planning.",
+    ids: ["nvidia/gemma-3-27b", "nvidia/qwen-2.5-coder-32b", "nvidia/llama-3.3-70b", DEFAULT_MODEL_ID],
+    reason: "Auto: fast balanced model for responsive Roblox planning.",
   },
   scripting: {
-    ids: ["nvidia/qwen-2.5-coder-32b", "nvidia/deepseek-v4-flash", "nvidia/llama-3.3-70b", DEFAULT_MODEL_ID],
+    ids: ["nvidia/qwen-2.5-coder-32b", "nvidia/gemma-3-27b", "nvidia/deepseek-v4-flash", DEFAULT_MODEL_ID],
     reason: "Auto: Qwen 2.5 Coder for complete runnable Luau.",
   },
   ui: {
-    ids: ["nvidia/llama-3.3-70b", "nvidia/qwen-2.5-72b", DEFAULT_MODEL_ID],
-    reason: "Auto: fast general model for ScreenGui layout.",
+    ids: ["nvidia/gemma-3-27b", "nvidia/qwen-2.5-coder-32b", "nvidia/llama-3.3-70b", DEFAULT_MODEL_ID],
+    reason: "Auto: fast balanced model for ScreenGui layout.",
   },
   assets: {
     ids: ["nvidia/llama-3.1-8b", "nvidia/phi-4", "nvidia/llama-3.3-70b"],
@@ -47,11 +47,11 @@ const TASK_PREF: Record<AutoTask, { ids: string[]; reason: string }> = {
     reason: "Auto: coder-tuned model for bug tracing and fixes.",
   },
   performance: {
-    ids: ["nvidia/deepseek-v4-flash", "nvidia/llama-3.3-nemotron-super-49b", "nvidia/llama-3.3-70b"],
-    reason: "Auto: reasoning model for performance review.",
+    ids: ["nvidia/qwen-2.5-coder-32b", "nvidia/gemma-3-27b", "nvidia/deepseek-v4-flash"],
+    reason: "Auto: fast coder model for performance fixes.",
   },
   testing: {
-    ids: ["nvidia/llama-3.3-70b", "nvidia/phi-4"],
+    ids: ["nvidia/gemma-3-27b", "nvidia/phi-4", "nvidia/qwen-2.5-coder-32b"],
     reason: "Auto: fast model for playtest checks.",
   },
   shortedit: {
@@ -59,7 +59,7 @@ const TASK_PREF: Record<AutoTask, { ids: string[]; reason: string }> = {
     reason: "Auto: tiny fast model for short edits.",
   },
   vision: {
-    ids: ["nvidia/llama-3.3-70b", DEFAULT_MODEL_ID],
+    ids: ["nvidia/gemma-3-27b", DEFAULT_MODEL_ID],
     reason: "Auto: fast model with injected vision summaries.",
   },
 };

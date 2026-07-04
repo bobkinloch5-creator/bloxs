@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { convertToModelMessages, generateText, streamText, stepCountIs, tool, type UIMessage } from "ai";
 import { z } from "zod";
 import { getProviderModel, getFallbackModel, getFallbackChain } from "@/lib/ai-gateway.server";
-import { BLOXSMITH_SYSTEM_PROMPT, parseActions } from "@/lib/bloxsmith-prompt";
+import { parseActions } from "@/lib/bloxsmith-prompt";
 import { DEFAULT_MODEL_ID, findModel, isSelectable } from "@/lib/models";
 import { detectSingleAssetIntent, searchRobloxToolbox, searchRobloxToolboxSet, sanitizeInsertAssetActions, type ToolboxCategory, type ToolboxSetRequest } from "@/lib/roblox-toolbox.server";
 import { describeImageWithNvidiaPaliGemma } from "@/lib/nvidia-vision.server";
@@ -119,6 +119,36 @@ function stripImageFilePartsFromMessages(messages: UIMessage[]): UIMessage[] {
     );
     return { ...m, parts: stripped } as typeof m;
   });
+}
+
+const FAST_CHAT_SYSTEM_PROMPT = `You are BloxSmith, a friendly senior Roblox developer helping users plan, improve, and troubleshoot Roblox games. Keep replies short, direct, and useful. Do not expose internal tools, JSON, model/provider names, credits, IDs, or debug details. In chat mode, do not emit executable action blocks unless the user explicitly asks to build/apply now. If a request requires changing Roblox Studio, tell them to switch to Build Mode and resend.`;
+
+const FAST_BUILD_SYSTEM_PROMPT = `You are BloxSmith, an expert Roblox Studio game-building agent. Build real, playable Roblox results through structured Studio actions. Keep visible prose concise and human. Never expose internal tool names, raw payloads, debug details, model/provider names, or JSON except the hidden executable action block. Use modern Luau, server-authoritative gameplay, safe free Toolbox assets when Toolbox mode is active, clean organization, mobile-safe UI, no placeholders, no fake buttons, no empty folders, no invented asset IDs, and no deprecated APIs. For Build Mode, end with exactly one fenced \`\`\`bloxsmith-actions block containing the executable action JSON the app will strip from the visible chat. Include scan/autofix actions for meaningful builds and never claim Studio execution is complete until plugin verification confirms it.`;
+
+function trimMessagesForModel(messages: UIMessage[], mode: "chat" | "build"): UIMessage[] {
+  const maxMessages = mode === "chat" ? 12 : 8;
+  const start = Math.max(0, messages.length - maxMessages);
+  return messages.slice(start).map((m, i, recent) => {
+    const isLatestUser = i === recent.length - 1 && m.role === "user";
+    const textLimit = isLatestUser ? 8000 : m.role === "assistant" ? 1800 : 3000;
+    const parts = (m.parts ?? []).map((p: any) => {
+      if (p?.type !== "text" || typeof p.text !== "string" || p.text.length <= textLimit) return p;
+      return { ...p, text: `[trimmed previous context]\n${p.text.slice(-textLimit)}` };
+    });
+    return { ...m, parts } as UIMessage;
+  });
+}
+
+function capOutputTokens(modelSettings: { maxOutputTokens?: number } | undefined, mode: "chat" | "build", buildQuality?: "basic" | "better" | "premium" | "full_game") {
+  const requested = modelSettings?.maxOutputTokens ?? (mode === "chat" ? 900 : 3072);
+  const cap = mode === "chat"
+    ? 1000
+    : buildQuality === "full_game"
+      ? 4096
+      : buildQuality === "basic"
+        ? 1800
+        : 3072;
+  return Math.min(requested, cap);
 }
 
 function recoveryStudioActions(userText: string) {
@@ -2674,9 +2704,9 @@ export const Route = createFileRoute("/api/chat")({
             } catch (e) {
               return jsonError(e instanceof Error ? e.message : "Model unavailable", 500, "provider_init_failed");
             }
-            const convertedLite = await convertToModelMessages(stripImageFilePartsFromMessages(messages));
+            const convertedLite = await convertToModelMessages(trimMessagesForModel(stripImageFilePartsFromMessages(messages), "chat"));
             const systemLite =
-              BLOXSMITH_SYSTEM_PROMPT +
+              FAST_CHAT_SYSTEM_PROMPT +
               `\n\nMODE: CHAT (no project open) — help the user plan, brainstorm, and refine ideas for their Roblox game. Do NOT emit build actions, file outputs, or plugin_actions. Keep replies conversational. Reply in ${languageName} (${languageCode}). If the user asks to delete, erase, clear, or modify their Roblox project, NEVER say BloxSmith only has Toolbox/search capability. Say BloxSmith can do that in Build Mode through the Studio plugin, and ask them to switch to Build Mode / open a project if needed. For requests like "erase everything but keep the Baseplate", answer with only that Build Mode instruction; do not provide manual deletion steps unless the user asks for manual steps.`;
             const liteResult = streamText({
               model: modelChoiceLite.model,
@@ -2685,7 +2715,7 @@ export const Route = createFileRoute("/api/chat")({
               ...(modelChoiceLite.extraBody ? { providerOptions: { nvidia: modelChoiceLite.extraBody as Record<string, never> } as never } : {}),
               ...(modelChoiceLite.modelSettings?.temperature !== undefined ? { temperature: modelChoiceLite.modelSettings.temperature } : {}),
               ...(modelChoiceLite.modelSettings?.topP !== undefined ? { topP: modelChoiceLite.modelSettings.topP } : {}),
-              ...(modelChoiceLite.modelSettings?.maxOutputTokens !== undefined ? { maxOutputTokens: modelChoiceLite.modelSettings.maxOutputTokens } : {}),
+              maxOutputTokens: capOutputTokens(modelChoiceLite.modelSettings, "chat"),
               stopWhen: stepCountIs(50),
               onError: ({ error }) => console.error("[chat/lite] upstream error", error),
             });
@@ -2710,7 +2740,7 @@ export const Route = createFileRoute("/api/chat")({
                 ...(modelChoiceLite.extraBody ? { providerOptions: { nvidia: modelChoiceLite.extraBody as Record<string, never> } as never } : {}),
                 ...(modelChoiceLite.modelSettings?.temperature !== undefined ? { temperature: modelChoiceLite.modelSettings.temperature } : {}),
                 ...(modelChoiceLite.modelSettings?.topP !== undefined ? { topP: modelChoiceLite.modelSettings.topP } : {}),
-                ...(modelChoiceLite.modelSettings?.maxOutputTokens !== undefined ? { maxOutputTokens: Math.min(modelChoiceLite.modelSettings.maxOutputTokens, 2200) } : { maxOutputTokens: 2200 }),
+                maxOutputTokens: capOutputTokens(modelChoiceLite.modelSettings, "chat"),
               });
               return streamPlainAssistantText(fallback.text || "Done.", "lite-fallback-text");
             }
@@ -3031,10 +3061,10 @@ export const Route = createFileRoute("/api/chat")({
             ] = await Promise.all([
               Promise.all([
                 supabase.from("plugin_sessions").select("last_scan, last_scan_at, online").eq("user_id", userId).maybeSingle(),
-                supabase.from("studio_errors").select("level, source, message, created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(15),
-                supabase.from("build_history").select("prompt, files_count, created_at").eq("project_id", projectId).order("created_at", { ascending: false }).limit(10),
-                supabase.from("plugin_actions").select("kind, name, parent_path, status").eq("project_id", projectId).order("created_at", { ascending: false }).limit(40),
-                supabase.from("project_memory").select("key, value, kind, importance").eq("project_id", projectId).order("importance", { ascending: false }).order("updated_at", { ascending: false }).limit(30),
+                supabase.from("studio_errors").select("level, source, message, created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(8),
+                supabase.from("build_history").select("prompt, files_count, created_at").eq("project_id", projectId).order("created_at", { ascending: false }).limit(5),
+                supabase.from("plugin_actions").select("kind, name, parent_path, status").eq("project_id", projectId).order("created_at", { ascending: false }).limit(20),
+                supabase.from("project_memory").select("key, value, kind, importance").eq("project_id", projectId).order("importance", { ascending: false }).order("updated_at", { ascending: false }).limit(12),
               ]),
               imageParts.length > 0
                 ? withTimeout(describeImageWithNvidiaPaliGemma(imageParts), 6000, "NVIDIA PaliGemma vision")
@@ -3051,7 +3081,7 @@ export const Route = createFileRoute("/api/chat")({
             );
             if (memories && memories.length > 0) {
               const memLines = memories
-                .map((m) => `• [${m.kind}] ${m.key}: ${String(m.value).slice(0, 300)}`)
+                .map((m) => `• [${m.kind}] ${m.key}: ${String(m.value).slice(0, 180)}`)
                 .join("\n");
               parts.push(
                 `PROJECT LORE & DESIGN DECISIONS (persistent — never contradict these, build ON TOP of them):\n${memLines}`,
@@ -3059,7 +3089,7 @@ export const Route = createFileRoute("/api/chat")({
             }
             if (recentBuilds && recentBuilds.length > 0) {
               parts.push(
-                `RECENT USER REQUESTS in this project (newest first) — do NOT redo these unless asked, build ON TOP of them:\n${recentBuilds.map((b) => `• ${new Date(b.created_at).toISOString().slice(0, 10)} (${b.files_count} actions): ${String(b.prompt).slice(0, 200)}`).join("\n")}`,
+                `RECENT USER REQUESTS in this project (newest first) — do NOT redo these unless asked, build ON TOP of them:\n${recentBuilds.map((b) => `• ${new Date(b.created_at).toISOString().slice(0, 10)} (${b.files_count} actions): ${String(b.prompt).slice(0, 140)}`).join("\n")}`,
               );
             }
             if (existingActions && existingActions.length > 0) {
@@ -3115,7 +3145,7 @@ export const Route = createFileRoute("/api/chat")({
           // of tokens and trigger `Provider returned error` (upstream 400: context too
           // large). Replace each image part with a short text marker so conversation
           // continuity is preserved without re-sending the pixels.
-          const messagesForModel = stripImageFilePartsFromMessages(messages);
+          const messagesForModel = trimMessagesForModel(stripImageFilePartsFromMessages(messages), mode);
           const convertedMessages = await convertToModelMessages(messagesForModel);
 
 
@@ -3785,13 +3815,13 @@ export const Route = createFileRoute("/api/chat")({
             modelSettings?: { temperature?: number; topP?: number; maxOutputTokens?: number },
           ) => streamText({
             model,
-            system: BLOXSMITH_SYSTEM_PROMPT + modeHeader + languageHeader + qualityHeader + assetModeRule + contextBlock,
+            system: (mode === "chat" ? FAST_CHAT_SYSTEM_PROMPT : FAST_BUILD_SYSTEM_PROMPT) + modeHeader + languageHeader + qualityHeader + assetModeRule + contextBlock,
             messages: convertedMessages,
             abortSignal: request.signal,
             ...(extraBody ? { providerOptions: { nvidia: extraBody as Record<string, never> } as never } : {}),
             ...(modelSettings?.temperature !== undefined ? { temperature: modelSettings.temperature } : {}),
             ...(modelSettings?.topP !== undefined ? { topP: modelSettings.topP } : {}),
-            ...(modelSettings?.maxOutputTokens !== undefined ? { maxOutputTokens: modelSettings.maxOutputTokens } : {}),
+            maxOutputTokens: capOutputTokens(modelSettings, mode, buildQuality),
             // Research tools (roblox_docs_*) are available in BOTH chat and build mode so the AI can verify facts.
             // In Procedural Generation mode, remove Toolbox tools entirely unless the user explicitly asked for Toolbox.
             tools: mode === "chat"
@@ -3808,59 +3838,48 @@ export const Route = createFileRoute("/api/chat")({
             },
           });
 
-          const tryGenerate = async (
-            model: typeof modelChoice.model,
-            usedModelId: string,
-            notice: string | null,
-            extraBody?: Record<string, unknown>,
-            modelSettings?: { temperature?: number; topP?: number; maxOutputTokens?: number },
-          ) => {
-            const result = await generateText({
-              model,
-              system: BLOXSMITH_SYSTEM_PROMPT + modeHeader + languageHeader + qualityHeader + assetModeRule + contextBlock,
-              messages: convertedMessages,
-              abortSignal: request.signal,
-              ...(extraBody ? { providerOptions: { nvidia: extraBody as Record<string, never> } as never } : {}),
-              ...(modelSettings?.temperature !== undefined ? { temperature: modelSettings.temperature } : {}),
-              ...(modelSettings?.topP !== undefined ? { topP: modelSettings.topP } : {}),
-              ...(modelSettings?.maxOutputTokens !== undefined ? { maxOutputTokens: modelSettings.maxOutputTokens } : { maxOutputTokens: 8192 }),
-              tools: mode === "chat"
-                ? { roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch, generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool }
-                : assetMode === "procedural" && !userExplicitlyRequestedToolbox(userText)
-                  ? { roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch, generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool }
-                  : { search_toolbox: toolboxTool, search_toolbox_set: toolboxSetTool, roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch, generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool },
-              stopWhen: stepCountIs(50),
-            });
-            const visibleText = await persistFinish(usedModelId, notice)({ text: result.text });
-            return streamPlainAssistantText(visibleText || result.text || "Done.", `gen-${usedModelId.replace(/[^a-z0-9]/gi, "-")}`);
-          };
-
-          // Walk the fallback chain with an awaited generation call. Streaming errors
-          // happen after the HTTP response starts, so they cannot reliably trigger
-          // fallback. Awaiting here lets us retry before the UI receives a response.
+          // Stream the primary model immediately so the user sees progress as soon
+          // as tokens arrive. Only fall back if stream creation itself fails before
+          // the response starts; streamed upstream errors surface as clear UI text.
           const chain = getFallbackChain(modelChoice.meta.id);
           const isRetryable = (msg: string) =>
             /429|rate.?limit|ResourceExhausted|worker.*limit|request limit reached|capacity|overloaded|503|502|500|Too Many|fetch failed|ECONNRESET|ETIMEDOUT|timeout|timed out|Request too large|tokens per minute|TPM|reduce your message size|context.?length|context_length_exceeded|too many tokens|maximum context|token limit|payload too large|413/i.test(msg);
 
           try {
-            return await tryGenerate(modelChoice.model, modelChoice.meta.id, modelChoice.usedFallback
+            const result = tryStream(modelChoice.model, modelChoice.meta.id, modelChoice.usedFallback
               ? `_Switched to ${modelChoice.meta.label} because the selected model isn't available._`
               : null, modelChoice.extraBody, modelChoice.modelSettings);
+            return result.toUIMessageStreamResponse({
+              onError: (err) => {
+                const msg = err instanceof Error ? err.message : String(err);
+                if (/402|credit/i.test(msg)) return "The selected AI model is unavailable right now. Try again in a moment.";
+                if (/429|rate|capacity|overloaded|503|502|timeout/i.test(msg)) return "AI is busy right now. Wait a few seconds and try again.";
+                return `AI request failed: ${msg}`;
+              },
+            });
           } catch (primaryErr) {
             const firstMsg = primaryErr instanceof Error ? primaryErr.message : String(primaryErr);
             console.error("[chat] primary model failed, walking fallback chain", firstMsg);
 
-            // Try each fallback in order until one succeeds
+            // Try each fallback only when no response has started yet.
             for (const fb of chain) {
               try {
                 console.log(`[chat] trying fallback: ${fb.meta.label}`);
-                return await tryGenerate(
+                const fallbackResult = tryStream(
                   fb.model,
                   fb.meta.id,
                   `_Switched to ${fb.meta.label} (fallback — previous model was rate-limited or busy)._`,
                   fb.extraBody,
                   fb.modelSettings,
                 );
+                return fallbackResult.toUIMessageStreamResponse({
+                  onError: (err) => {
+                    const msg = err instanceof Error ? err.message : String(err);
+                    if (/402|credit/i.test(msg)) return "The selected AI model is unavailable right now. Try again in a moment.";
+                    if (/429|rate|capacity|overloaded|503|502|timeout/i.test(msg)) return "AI is busy right now. Wait a few seconds and try again.";
+                    return `AI request failed: ${msg}`;
+                  },
+                });
               } catch (fbErr) {
                 const fbMsg = fbErr instanceof Error ? fbErr.message : String(fbErr);
                 console.warn(`[chat] fallback ${fb.meta.label} failed`, fbMsg);
