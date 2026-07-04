@@ -2704,9 +2704,9 @@ export const Route = createFileRoute("/api/chat")({
             } catch (e) {
               return jsonError(e instanceof Error ? e.message : "Model unavailable", 500, "provider_init_failed");
             }
-            const convertedLite = await convertToModelMessages(stripImageFilePartsFromMessages(messages));
+            const convertedLite = await convertToModelMessages(trimMessagesForModel(stripImageFilePartsFromMessages(messages), "chat"));
             const systemLite =
-              BLOXSMITH_SYSTEM_PROMPT +
+              FAST_CHAT_SYSTEM_PROMPT +
               `\n\nMODE: CHAT (no project open) — help the user plan, brainstorm, and refine ideas for their Roblox game. Do NOT emit build actions, file outputs, or plugin_actions. Keep replies conversational. Reply in ${languageName} (${languageCode}). If the user asks to delete, erase, clear, or modify their Roblox project, NEVER say BloxSmith only has Toolbox/search capability. Say BloxSmith can do that in Build Mode through the Studio plugin, and ask them to switch to Build Mode / open a project if needed. For requests like "erase everything but keep the Baseplate", answer with only that Build Mode instruction; do not provide manual deletion steps unless the user asks for manual steps.`;
             const liteResult = streamText({
               model: modelChoiceLite.model,
@@ -2715,7 +2715,7 @@ export const Route = createFileRoute("/api/chat")({
               ...(modelChoiceLite.extraBody ? { providerOptions: { nvidia: modelChoiceLite.extraBody as Record<string, never> } as never } : {}),
               ...(modelChoiceLite.modelSettings?.temperature !== undefined ? { temperature: modelChoiceLite.modelSettings.temperature } : {}),
               ...(modelChoiceLite.modelSettings?.topP !== undefined ? { topP: modelChoiceLite.modelSettings.topP } : {}),
-              ...(modelChoiceLite.modelSettings?.maxOutputTokens !== undefined ? { maxOutputTokens: modelChoiceLite.modelSettings.maxOutputTokens } : {}),
+              maxOutputTokens: capOutputTokens(modelChoiceLite.modelSettings, "chat"),
               stopWhen: stepCountIs(50),
               onError: ({ error }) => console.error("[chat/lite] upstream error", error),
             });
@@ -2740,7 +2740,7 @@ export const Route = createFileRoute("/api/chat")({
                 ...(modelChoiceLite.extraBody ? { providerOptions: { nvidia: modelChoiceLite.extraBody as Record<string, never> } as never } : {}),
                 ...(modelChoiceLite.modelSettings?.temperature !== undefined ? { temperature: modelChoiceLite.modelSettings.temperature } : {}),
                 ...(modelChoiceLite.modelSettings?.topP !== undefined ? { topP: modelChoiceLite.modelSettings.topP } : {}),
-                ...(modelChoiceLite.modelSettings?.maxOutputTokens !== undefined ? { maxOutputTokens: Math.min(modelChoiceLite.modelSettings.maxOutputTokens, 2200) } : { maxOutputTokens: 2200 }),
+                maxOutputTokens: capOutputTokens(modelChoiceLite.modelSettings, "chat"),
               });
               return streamPlainAssistantText(fallback.text || "Done.", "lite-fallback-text");
             }
@@ -3145,7 +3145,7 @@ export const Route = createFileRoute("/api/chat")({
           // of tokens and trigger `Provider returned error` (upstream 400: context too
           // large). Replace each image part with a short text marker so conversation
           // continuity is preserved without re-sending the pixels.
-          const messagesForModel = stripImageFilePartsFromMessages(messages);
+          const messagesForModel = trimMessagesForModel(stripImageFilePartsFromMessages(messages), mode);
           const convertedMessages = await convertToModelMessages(messagesForModel);
 
 
