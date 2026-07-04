@@ -1170,20 +1170,19 @@ local function looksLikePackName(name)
 	return false
 end
 
--- Recursively walk a container and score every Model / BasePart candidate.
--- Real Toolbox uploads are often packages: a top-level Model or Folder that
--- contains folders, sub-models, meshes, and props. We must accept ANY usable
--- Model/BasePart anywhere in the hierarchy, not just a top-level child whose
--- name literally matches the query. Returns (best, discardList, debugLines).
-local function pickBestChild(container, queryWord)
-	local q = (queryWord or ""):lower()
+-- Recursively walk a Toolbox container and select one Model from anywhere in
+-- the hierarchy. Real Toolbox assets are commonly packages/folders containing
+-- nested Models, so this intentionally does NOT use asset-name matching and it
+-- does NOT require a single root model. If at least one Model exists anywhere,
+-- one is inserted; only assets with zero Models are rejected. Returns
+-- (bestModel, discardTopLevelList, debugLines).
+local function pickBestModel(container, includeRoot)
 	local topChildren = container:GetChildren()
-	local candidates = {}
+	local models = {}
 	local debugLines = {}
 
 	local function partCount(inst)
 		local n = 0
-		if inst:IsA("BasePart") then n = 1 end
 		for _, d in ipairs(inst:GetDescendants()) do
 			if d:IsA("BasePart") then n = n + 1 end
 		end
@@ -1193,68 +1192,67 @@ local function pickBestChild(container, queryWord)
 	local function boundingSize(inst)
 		local ok, size = pcall(function()
 			if inst:IsA("Model") and inst.GetExtentsSize then return inst:GetExtentsSize() end
-			if inst:IsA("BasePart") then return inst.Size end
 			return Vector3.new(0, 0, 0)
 		end)
 		if ok and size then return size.Magnitude end
 		return 0
 	end
 
-	local function considerNode(inst, depth)
-		if depth > 6 then return end
-		local isModel = inst:IsA("Model")
-		local isPart = inst:IsA("BasePart")
-		local isMesh = inst:IsA("MeshPart") or inst:IsA("SpecialMesh")
-		if isModel or isPart or isMesh then
-			local parts = partCount(inst)
-			local bbox = boundingSize(inst)
-			if parts > 0 or isMesh then
-				local nameLower = (inst.Name or ""):lower()
-				local score = 0
-				-- Name similarity (soft, not required).
-				if q ~= "" then
-					if nameLower == q then score = score + 60
-					elseif nameLower:find(q, 1, true) then score = score + 35
-					else
-						for word in nameLower:gmatch("[%a]+") do
-							if q:find(word, 1, true) or word:find(q, 1, true) then
-								score = score + 15; break
-							end
-						end
-					end
-				end
-				-- Structural signals.
-				if isModel and inst.PrimaryPart then score = score + 25 end
-				if isModel then score = score + 10 end
-				score = score + math.min(30, parts)              -- part-count bonus, cap 30
-				if bbox >= 4 and bbox <= 600 then score = score + 10 end
-				-- Depth penalty (prefer shallower).
-				score = score - depth * 2
-				-- Reject obvious junk-only nodes (single tiny invisible bit).
-				if parts == 1 and bbox < 0.5 then score = score - 20 end
-				table.insert(candidates, { inst = inst, score = score, depth = depth, parts = parts, bbox = bbox })
-			end
+	local function modelDepth(inst)
+		local depth = 0
+		local walk = inst
+		while walk and walk ~= container do
+			depth = depth + 1
+			walk = walk.Parent
 		end
-		if inst:IsA("Folder") or inst:IsA("Model") or inst:IsA("Configuration") then
-			for _, c in ipairs(inst:GetChildren()) do
-				considerNode(c, depth + 1)
-			end
-		end
+		return depth
 	end
 
-	for _, c in ipairs(topChildren) do considerNode(c, 1) end
+	local function addModel(inst)
+		if inst == container and not includeRoot then return end
+		if not inst:IsA("Model") then return end
+		local parts = partCount(inst)
+		local bbox = boundingSize(inst)
+		table.insert(models, {
+			inst = inst,
+			index = #models + 1,
+			depth = modelDepth(inst),
+			parts = parts,
+			bbox = bbox,
+			hasPrimary = inst.PrimaryPart ~= nil,
+		})
+	end
 
-	if #candidates == 0 then
-		table.insert(debugLines, ("no Model/BasePart found across %d top-level children"):format(#topChildren))
+	addModel(container)
+	for _, d in ipairs(container:GetDescendants()) do addModel(d) end
+
+	if #models == 0 then
+		table.insert(debugLines, ("all models found: 0; rejecting only because no Model exists anywhere across %d top-level children"):format(#topChildren))
 		return nil, topChildren, debugLines
 	end
 
-	table.sort(candidates, function(a, b) return a.score > b.score end)
-	local best = candidates[1].inst
-	for i = 1, math.min(5, #candidates) do
-		local c = candidates[i]
-		table.insert(debugLines, ("cand #%d: %s (score=%d depth=%d parts=%d bbox=%.1f)"):format(
-			i, c.inst.Name, c.score, c.depth, c.parts, c.bbox
+	for _, c in ipairs(models) do
+		table.insert(debugLines, ("model found: %s (primary=%s parts=%d bbox=%.1f depth=%d)"):format(
+			c.inst:GetFullName(), tostring(c.hasPrimary), c.parts, c.bbox, c.depth
+		))
+	end
+
+	table.sort(models, function(a, b)
+		if a.hasPrimary ~= b.hasPrimary then return a.hasPrimary end
+		if a.parts ~= b.parts then return a.parts > b.parts end
+		if a.bbox ~= b.bbox then return a.bbox > b.bbox end
+		return a.index < b.index
+	end)
+	local winner = models[1]
+	local best = winner.inst
+	local reason = winner.hasPrimary and "has PrimaryPart" or (winner.parts > 0 and "most BaseParts" or (winner.bbox > 0 and "largest bounding box" or "first valid Model"))
+	table.insert(debugLines, ("chosen model: %s — %s (primary=%s parts=%d bbox=%.1f)"):format(
+		best:GetFullName(), reason, tostring(winner.hasPrimary), winner.parts, winner.bbox
+	))
+	for i = 2, math.min(#models, 12) do
+		local c = models[i]
+		table.insert(debugLines, ("not chosen: %s — lower priority than chosen (primary=%s parts=%d bbox=%.1f)"):format(
+			c.inst:GetFullName(), tostring(c.hasPrimary), c.parts, c.bbox
 		))
 	end
 
