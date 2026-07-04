@@ -121,6 +121,36 @@ function stripImageFilePartsFromMessages(messages: UIMessage[]): UIMessage[] {
   });
 }
 
+const FAST_CHAT_SYSTEM_PROMPT = `You are BloxSmith, a friendly senior Roblox developer helping users plan, improve, and troubleshoot Roblox games. Keep replies short, direct, and useful. Do not expose internal tools, JSON, model/provider names, credits, IDs, or debug details. In chat mode, do not emit executable action blocks unless the user explicitly asks to build/apply now. If a request requires changing Roblox Studio, tell them to switch to Build Mode and resend.`;
+
+const FAST_BUILD_SYSTEM_PROMPT = `You are BloxSmith, an expert Roblox Studio game-building agent. Build real, playable Roblox results through structured Studio actions. Keep visible prose concise and human. Never expose internal tool names, raw payloads, debug details, model/provider names, or JSON except the hidden executable action block. Use modern Luau, server-authoritative gameplay, safe free Toolbox assets when Toolbox mode is active, clean organization, mobile-safe UI, no placeholders, no fake buttons, no empty folders, no invented asset IDs, and no deprecated APIs. For Build Mode, end with exactly one fenced \`\`\`bloxsmith-actions block containing the executable action JSON the app will strip from the visible chat. Include scan/autofix actions for meaningful builds and never claim Studio execution is complete until plugin verification confirms it.`;
+
+function trimMessagesForModel(messages: UIMessage[], mode: "chat" | "build"): UIMessage[] {
+  const maxMessages = mode === "chat" ? 12 : 8;
+  const start = Math.max(0, messages.length - maxMessages);
+  return messages.slice(start).map((m, i, recent) => {
+    const isLatestUser = i === recent.length - 1 && m.role === "user";
+    const textLimit = isLatestUser ? 8000 : m.role === "assistant" ? 1800 : 3000;
+    const parts = (m.parts ?? []).map((p: any) => {
+      if (p?.type !== "text" || typeof p.text !== "string" || p.text.length <= textLimit) return p;
+      return { ...p, text: `[trimmed previous context]\n${p.text.slice(-textLimit)}` };
+    });
+    return { ...m, parts } as UIMessage;
+  });
+}
+
+function capOutputTokens(modelSettings: { maxOutputTokens?: number } | undefined, mode: "chat" | "build", buildQuality?: "basic" | "better" | "premium" | "full_game") {
+  const requested = modelSettings?.maxOutputTokens ?? (mode === "chat" ? 900 : 3072);
+  const cap = mode === "chat"
+    ? 1000
+    : buildQuality === "full_game"
+      ? 4096
+      : buildQuality === "basic"
+        ? 1800
+        : 3072;
+  return Math.min(requested, cap);
+}
+
 function recoveryStudioActions(userText: string) {
   const safePrompt = userText.trim().slice(0, 240) || "BloxSmith auto-execute recovery build";
   const source = `
