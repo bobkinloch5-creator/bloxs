@@ -338,6 +338,7 @@ export function VoiceBuildButton({ onUtterance, setTtsEnabled, disabled }: Props
             </div>
           </div>
         </div>
+        </>
       )}
     </>
   );
