@@ -232,8 +232,15 @@ export function VoiceBuildButton({ onUtterance, setTtsEnabled, disabled }: Props
       </button>
 
       {open && (
+        <>
+          <button
+            type="button"
+            aria-label="Close voice build"
+            className="fixed inset-0 z-[65] cursor-default bg-black/60 backdrop-blur-md"
+            onClick={() => setOpen(false)}
+          />
         <div className="fixed inset-x-0 bottom-0 z-[70] flex justify-center px-3 pb-4 sm:bottom-6 sm:right-6 sm:left-auto sm:px-0">
-          <div className="w-full max-w-md overflow-hidden rounded-2xl border bg-[var(--bs-card)] shadow-2xl" style={{ borderColor: "var(--bs-border)" }}>
+          <div className="w-full max-w-md overflow-hidden rounded-2xl border bg-[var(--bs-card)] shadow-2xl" style={{ borderColor: "var(--bs-border)", background: "var(--bs-card)" }}>
             <div className="flex items-center justify-between border-b px-4 py-3" style={{ borderColor: "var(--bs-border)" }}>
               <div className="flex items-center gap-2 text-sm font-bold">
                 <Sparkles className="h-4 w-4" style={{ color: "var(--bs-primary)" }} />
@@ -331,6 +338,7 @@ export function VoiceBuildButton({ onUtterance, setTtsEnabled, disabled }: Props
             </div>
           </div>
         </div>
+        </>
       )}
     </>
   );

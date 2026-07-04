@@ -557,7 +557,7 @@ export function ChangelogNotifications({
             onClick={() => setOpen(false)}
           />
           <div
-            className="fixed right-3 top-[64px] z-50 w-[min(92vw,360px)] max-h-[min(72vh,560px)] overflow-hidden rounded-2xl border shadow-2xl sm:right-6 sm:top-[72px]"
+            className="fixed right-3 top-[64px] z-50 w-[min(94vw,420px)] max-h-[min(76vh,620px)] overflow-hidden rounded-2xl border shadow-2xl sm:right-6 sm:top-[72px]"
             style={{ background: "var(--bs-card)", borderColor: "var(--bs-border)" }}
           >
             <div className="border-b px-4 py-3" style={{ borderColor: "var(--bs-border)" }}>
@@ -567,30 +567,49 @@ export function ChangelogNotifications({
               </div>
             </div>
 
-            <div className="max-h-[calc(min(72vh,560px)-64px)] overflow-y-auto p-2">
-              {CHANGELOG_ITEMS.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <div key={item.title} className="rounded-xl px-3 py-3 transition hover:bg-[var(--bs-card-2)]">
-                    <div className="flex items-start gap-3">
-                      <div className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-xl" style={{ background: "var(--bs-primary-soft)", color: "var(--bs-primary)" }}>
-                        <Icon className="h-4 w-4" />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="text-sm font-semibold leading-snug">{item.title}</div>
-                          <div className="shrink-0 text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--bs-muted-fg)" }}>{item.date}</div>
-                        </div>
-                        <p className="mt-1 text-xs leading-relaxed" style={{ color: "var(--bs-muted-fg)" }}>{item.body}</p>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+            <div className="max-h-[calc(min(76vh,620px)-64px)] overflow-y-auto divide-y" style={{ borderColor: "var(--bs-border)" }}>
+              {CHANGELOG_ITEMS.map((item) => (
+                <ChangelogRow key={item.title} item={item} />
+              ))}
             </div>
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+type ChangelogItem = (typeof CHANGELOG_ITEMS)[number];
+
+function ChangelogRow({ item }: { item: ChangelogItem }) {
+  const [expanded, setExpanded] = useState(false);
+  const Icon = item.icon;
+  const PREVIEW_LIMIT = 160;
+  const isLong = item.body.length > PREVIEW_LIMIT;
+  const preview = isLong && !expanded ? item.body.slice(0, PREVIEW_LIMIT).trimEnd() + "…" : item.body;
+  return (
+    <div className="px-4 py-3.5 transition hover:bg-[var(--bs-card-2)]">
+      <div className="flex items-start gap-3">
+        <div className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg" style={{ background: "var(--bs-primary-soft)", color: "var(--bs-primary)" }}>
+          <Icon className="h-3.5 w-3.5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-baseline justify-between gap-3">
+            <div className="text-[13px] font-semibold leading-snug text-white/95">{item.title}</div>
+            <div className="shrink-0 text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--bs-muted-fg)" }}>{item.date}</div>
+          </div>
+          <p className="mt-1.5 text-xs leading-relaxed" style={{ color: "var(--bs-muted-fg)" }}>{preview}</p>
+          {isLong && (
+            <button
+              type="button"
+              onClick={() => setExpanded((v) => !v)}
+              className="mt-1.5 text-[11px] font-semibold text-[var(--bs-primary)] hover:underline"
+            >
+              {expanded ? "Show less" : "Show more"}
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
