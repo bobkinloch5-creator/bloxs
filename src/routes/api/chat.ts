@@ -3838,33 +3838,6 @@ export const Route = createFileRoute("/api/chat")({
             },
           });
 
-          const tryGenerate = async (
-            model: typeof modelChoice.model,
-            usedModelId: string,
-            notice: string | null,
-            extraBody?: Record<string, unknown>,
-            modelSettings?: { temperature?: number; topP?: number; maxOutputTokens?: number },
-          ) => {
-            const result = await generateText({
-              model,
-              system: (mode === "chat" ? FAST_CHAT_SYSTEM_PROMPT : FAST_BUILD_SYSTEM_PROMPT) + modeHeader + languageHeader + qualityHeader + assetModeRule + contextBlock,
-              messages: convertedMessages,
-              abortSignal: request.signal,
-              ...(extraBody ? { providerOptions: { nvidia: extraBody as Record<string, never> } as never } : {}),
-              ...(modelSettings?.temperature !== undefined ? { temperature: modelSettings.temperature } : {}),
-              ...(modelSettings?.topP !== undefined ? { topP: modelSettings.topP } : {}),
-              maxOutputTokens: capOutputTokens(modelSettings, mode, buildQuality),
-              tools: mode === "chat"
-                ? { roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch, generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool }
-                : assetMode === "procedural" && !userExplicitlyRequestedToolbox(userText)
-                  ? { roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch, generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool }
-                  : { search_toolbox: toolboxTool, search_toolbox_set: toolboxSetTool, roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch, generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool },
-              stopWhen: stepCountIs(50),
-            });
-            const visibleText = await persistFinish(usedModelId, notice)({ text: result.text });
-            return streamPlainAssistantText(visibleText || result.text || "Done.", `gen-${usedModelId.replace(/[^a-z0-9]/gi, "-")}`);
-          };
-
           // Stream the primary model immediately so the user sees progress as soon
           // as tokens arrive. Only fall back if stream creation itself fails before
           // the response starts; streamed upstream errors surface as clear UI text.
