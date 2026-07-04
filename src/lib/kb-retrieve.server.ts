@@ -38,9 +38,16 @@ export async function retrieveKnowledge(
       match_count: k,
     });
     if (error || !data || data.length === 0) {
+      console.log(`[kb] topic=${topic} q="${q.slice(0, 80)}" hits=0${error ? ` error=${String((error as { message?: string })?.message ?? error)}` : ""}`);
       kbCache.set(cacheKey, { at: Date.now(), out: "" });
       return "";
     }
+    console.log(
+      `[kb] topic=${topic} q="${q.slice(0, 80)}" hits=${data.length} top=${data
+        .slice(0, 3)
+        .map((r) => `${r.title.slice(0, 40)}(${r.similarity.toFixed(2)})`)
+        .join(" | ")}`,
+    );
     const lines = data.map(
       (row, i) =>
         `[${i + 1}] ${row.title}${row.source ? ` (${row.source})` : ""}\n${row.content}`,

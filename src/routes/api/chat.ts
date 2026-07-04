@@ -3910,9 +3910,11 @@ export const Route = createFileRoute("/api/chat")({
             return result.toUIMessageStreamResponse({
               onError: (err) => {
                 const msg = err instanceof Error ? err.message : String(err);
+                console.error("[chat] mid-stream error on primary", modelChoice.meta.id, msg);
                 if (/402|credit/i.test(msg)) return "The selected AI model is unavailable right now. Try again in a moment.";
-                if (/429|rate|capacity|overloaded|503|502|timeout/i.test(msg)) return "AI is busy right now. Wait a few seconds and try again.";
-                return `AI request failed: ${msg}`;
+                if (/429|rate|capacity|overloaded|503|502|timeout|Too Many/i.test(msg)) return `AI is busy (${modelChoice.meta.label}). Wait a few seconds and click Resend, or switch models in the picker.`;
+                if (/Tool result is missing/i.test(msg)) return "The previous turn was interrupted mid-tool-call. Please resend your request.";
+                return `AI request failed on ${modelChoice.meta.label}: ${msg}. Try Resend or pick a different model.`;
               },
             });
           } catch (primaryErr) {
