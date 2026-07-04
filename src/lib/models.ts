@@ -44,9 +44,9 @@ export const MODELS: ModelOption[] = [
     speed: "Fast",
     quality: "Great",
     credits: "Low",
-    status: "Working",
+    status: "Coming Soon",
     bestFor: "Reliable Roblox planning, Luau generation, and build actions when NVIDIA is busy.",
-    description: "Fast Groq-hosted Llama 3.3 70B route used as the default.",
+    description: "Fast Groq-hosted Llama 3.3 70B — requires GROQ_API_KEY.",
     modelSettings: { temperature: 0.7, topP: 0.9, maxOutputTokens: 8192 },
   },
   {
