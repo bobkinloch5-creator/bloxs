@@ -3137,9 +3137,9 @@ export const Route = createFileRoute("/api/chat")({
           });
 
           const persistFinish = (usedModelId: string, fallbackNotice: string | null) =>
-            async ({ text }: { text: string }) => {
+            async ({ text }: { text: string }): Promise<string> => {
+              const finalText = fallbackNotice ? `${fallbackNotice}\n\n${text}` : text;
               try {
-                const finalText = fallbackNotice ? `${fallbackNotice}\n\n${text}` : text;
                 const explicitToolboxRequest = userExplicitlyRequestedToolbox(userText);
                 const proceduralModeActive = assetMode === "procedural" && !explicitToolboxRequest && !isRobloxSystemRequest(userText);
                 const parsed = parseActions(finalText);
@@ -3617,8 +3617,10 @@ export const Route = createFileRoute("/api/chat")({
                     applied: false,
                   });
                 }
+                return cleanContent;
               } catch (e) {
                 console.error("onFinish persist error", e);
+                return neutralizePrematureBuildSuccess(parseActions(finalText).cleanContent || finalText || "Done.");
               }
             };
 
@@ -3798,55 +3800,67 @@ export const Route = createFileRoute("/api/chat")({
                 ? { roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch, generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool }
                 : { search_toolbox: toolboxTool, search_toolbox_set: toolboxSetTool, roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch, generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool },
             stopWhen: stepCountIs(50),
-            onFinish: persistFinish(usedModelId, notice),
+            onFinish: async ({ text }) => {
+              await persistFinish(usedModelId, notice)({ text });
+            },
             onError: ({ error }) => {
               console.error(`[chat] upstream error on ${usedModelId}`, error);
             },
           });
 
-          let result = tryStream(modelChoice.model, modelChoice.meta.id, modelChoice.usedFallback
-            ? `_Switched to ${modelChoice.meta.label} because the selected model isn't available._`
-            : null, modelChoice.extraBody, modelChoice.modelSettings);
+          const tryGenerate = async (
+            model: typeof modelChoice.model,
+            usedModelId: string,
+            notice: string | null,
+            extraBody?: Record<string, unknown>,
+            modelSettings?: { temperature?: number; topP?: number; maxOutputTokens?: number },
+          ) => {
+            const result = await generateText({
+              model,
+              system: BLOXSMITH_SYSTEM_PROMPT + modeHeader + languageHeader + qualityHeader + assetModeRule + contextBlock,
+              messages: convertedMessages,
+              abortSignal: request.signal,
+              ...(extraBody ? { providerOptions: { nvidia: extraBody as Record<string, never> } as never } : {}),
+              ...(modelSettings?.temperature !== undefined ? { temperature: modelSettings.temperature } : {}),
+              ...(modelSettings?.topP !== undefined ? { topP: modelSettings.topP } : {}),
+              ...(modelSettings?.maxOutputTokens !== undefined ? { maxOutputTokens: modelSettings.maxOutputTokens } : { maxOutputTokens: 8192 }),
+              tools: mode === "chat"
+                ? { roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch, generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool }
+                : assetMode === "procedural" && !userExplicitlyRequestedToolbox(userText)
+                  ? { roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch, generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool }
+                  : { search_toolbox: toolboxTool, search_toolbox_set: toolboxSetTool, roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch, generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool },
+              stopWhen: stepCountIs(50),
+            });
+            const visibleText = await persistFinish(usedModelId, notice)({ text: result.text });
+            return streamPlainAssistantText(visibleText || result.text || "Done.", `gen-${usedModelId.replace(/[^a-z0-9]/gi, "-")}`);
+          };
 
-          // Walk the fallback chain: if the stream errors before any tokens with a rate-limit
-          // or capacity error, try the next model in the chain (Groq → NVIDIA family).
+          // Walk the fallback chain with an awaited generation call. Streaming errors
+          // happen after the HTTP response starts, so they cannot reliably trigger
+          // fallback. Awaiting here lets us retry before the UI receives a response.
           const chain = getFallbackChain(modelChoice.meta.id);
           const isRetryable = (msg: string) =>
-            /429|rate.?limit|ResourceExhausted|worker.*limit|request limit reached|capacity|overloaded|503|Too Many/i.test(msg);
+            /429|rate.?limit|ResourceExhausted|worker.*limit|request limit reached|capacity|overloaded|503|Too Many|fetch failed|ECONNRESET|ETIMEDOUT|timeout|timed out/i.test(msg);
 
           try {
-            return result.toUIMessageStreamResponse({
-              onError: (err) => {
-                console.error("[chat] stream error", err);
-                if (err instanceof Error) {
-                  const msg = err.message;
-                  if (/402|credit/i.test(msg)) return "The selected AI model is unavailable right now. Try again in a moment.";
-                  if (/429|rate.?limit/i.test(msg)) return "All AI models are rate-limited right now. Wait a few seconds and try again.";
-                  if (/ResourceExhausted|worker.*limit|request limit reached|capacity|overloaded|503/i.test(msg))
-                    return `All fallback models are at capacity right now. Try again in a few seconds, or pick a different model in Settings.`;
-                  if (/timeout|timed out|ETIMEDOUT/i.test(msg)) return "The AI took too long to respond. Try again in a moment.";
-                  if (/fetch failed|ECONNRESET|ENOTFOUND|network/i.test(msg)) return "Couldn't reach the AI gateway. Check your connection and retry.";
-                  return `AI request failed: ${msg}`;
-                }
-                return "AI request failed.";
-              },
-            });
-          } catch (streamErr) {
-            const firstMsg = streamErr instanceof Error ? streamErr.message : String(streamErr);
+            return await tryGenerate(modelChoice.model, modelChoice.meta.id, modelChoice.usedFallback
+              ? `_Switched to ${modelChoice.meta.label} because the selected model isn't available._`
+              : null, modelChoice.extraBody, modelChoice.modelSettings);
+          } catch (primaryErr) {
+            const firstMsg = primaryErr instanceof Error ? primaryErr.message : String(primaryErr);
             console.error("[chat] primary model failed, walking fallback chain", firstMsg);
 
             // Try each fallback in order until one succeeds
             for (const fb of chain) {
               try {
                 console.log(`[chat] trying fallback: ${fb.meta.label}`);
-                result = tryStream(
+                return await tryGenerate(
                   fb.model,
                   fb.meta.id,
                   `_Switched to ${fb.meta.label} (fallback — previous model was rate-limited or busy)._`,
                   fb.extraBody,
                   fb.modelSettings,
                 );
-                return result.toUIMessageStreamResponse();
               } catch (fbErr) {
                 const fbMsg = fbErr instanceof Error ? fbErr.message : String(fbErr);
                 console.warn(`[chat] fallback ${fb.meta.label} failed`, fbMsg);
