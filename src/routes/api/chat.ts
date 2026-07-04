@@ -2689,17 +2689,31 @@ export const Route = createFileRoute("/api/chat")({
               stopWhen: stepCountIs(50),
               onError: ({ error }) => console.error("[chat/lite] upstream error", error),
             });
-            return liteResult.toUIMessageStreamResponse({
-              onError: (err) => {
-                console.error("[chat/lite] stream error", err);
-                if (err instanceof Error) {
-                  if (/402|credit/i.test(err.message)) return "The selected AI model is unavailable right now. Try again in a moment.";
-                  if (/429|rate/i.test(err.message)) return "AI is rate-limited right now. Wait a few seconds and try again.";
-                  return `AI request failed: ${err.message}`;
-                }
-                return "AI request failed.";
-              },
-            });
+            try {
+              return liteResult.toUIMessageStreamResponse({
+                onError: (err) => {
+                  console.error("[chat/lite] stream error", err);
+                  if (err instanceof Error) {
+                    if (/402|credit/i.test(err.message)) return "The selected AI model is unavailable right now. Try again in a moment.";
+                    if (/429|rate/i.test(err.message)) return "AI is rate-limited right now. Wait a few seconds and try again.";
+                    return `AI request failed: ${err.message}`;
+                  }
+                  return "AI request failed.";
+                },
+              });
+            } catch (streamErr) {
+              console.warn("[chat/lite] streaming failed, retrying without stream", streamErr);
+              const fallback = await generateText({
+                model: modelChoiceLite.model,
+                system: systemLite,
+                messages: convertedLite,
+                ...(modelChoiceLite.extraBody ? { providerOptions: { nvidia: modelChoiceLite.extraBody as Record<string, never> } as never } : {}),
+                ...(modelChoiceLite.modelSettings?.temperature !== undefined ? { temperature: modelChoiceLite.modelSettings.temperature } : {}),
+                ...(modelChoiceLite.modelSettings?.topP !== undefined ? { topP: modelChoiceLite.modelSettings.topP } : {}),
+                ...(modelChoiceLite.modelSettings?.maxOutputTokens !== undefined ? { maxOutputTokens: Math.min(modelChoiceLite.modelSettings.maxOutputTokens, 2200) } : { maxOutputTokens: 2200 }),
+              });
+              return streamPlainAssistantText(fallback.text || "Done.", "lite-fallback-text");
+            }
           }
 
 
