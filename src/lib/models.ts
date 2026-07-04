@@ -44,9 +44,9 @@ export const MODELS: ModelOption[] = [
     speed: "Fast",
     quality: "Great",
     credits: "Low",
-    status: "Working",
+    status: "Coming Soon",
     bestFor: "Reliable Roblox planning, Luau generation, and build actions when NVIDIA is busy.",
-    description: "Fast Groq-hosted Llama 3.3 70B route used as the default.",
+    description: "Fast Groq-hosted Llama 3.3 70B — requires GROQ_API_KEY.",
     modelSettings: { temperature: 0.7, topP: 0.9, maxOutputTokens: 8192 },
   },
   {
@@ -132,13 +132,12 @@ export const MODELS: ModelOption[] = [
 ];
 
 
-export const DEFAULT_MODEL_ID = "groq/llama-3.3-70b-versatile";
-export const FALLBACK_MODEL_ID = "groq/llama-3.3-70b-versatile";
+export const DEFAULT_MODEL_ID = "nvidia/llama-3.3-nemotron-super-49b";
+export const FALLBACK_MODEL_ID = "nvidia/llama-3.3-70b";
 
 // Ordered chain of models to try when the primary model is rate-limited or at capacity.
-// Rotates across providers (Groq → NVIDIA family) so a 429 on one endpoint doesn't kill the request.
+// Rotates across NVIDIA-hosted models so a 429 on one endpoint doesn't kill the request.
 export const FALLBACK_CHAIN: string[] = [
-  "groq/llama-3.3-70b-versatile",
   "nvidia/llama-3.3-nemotron-super-49b",
   "nvidia/llama-3.1-nemotron-70b",
   "nvidia/llama-3.3-70b",
