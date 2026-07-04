@@ -1357,21 +1357,25 @@ function Actions.insert_asset(a)
 	local placed
 	local queryWord = tostring(payload.requested_asset_type or payload.source_query or payload.asset_name or name or ""):lower():match("[%a]+") or ""
 	if singleAsset then
-		if #children == 1 then
+		if #children == 1 and #children[1]:GetChildren() <= (tonumber(payload.max_children) or 25) then
 			placed = children[1]
 			if name then placed.Name = name end
 			placed.Parent = p
 		else
-			local best, discard = pickBestChild(model, queryWord)
+			appendLog(("[insert_asset] scanning package: %d top-level children for '%s'"):format(#children, queryWord), "debug")
+			local best, discard, debugLines = pickBestChild(model, queryWord)
+			for _, line in ipairs(debugLines or {}) do
+				appendLog("[insert_asset] " .. line, "debug")
+			end
 			if not best then
 				pcall(function() model:Destroy() end)
-				return false, ("rejected package asset (%d top-level children) — no single \"%s\" found"):format(#children, queryWord)
+				return false, ("rejected: no usable Model or BasePart found anywhere in asset (%d top-level children scanned)"):format(#children)
 			end
 			for _, d in ipairs(discard) do pcall(function() d:Destroy() end) end
 			placed = best
 			if name then placed.Name = name end
 			placed.Parent = p
-			appendLog(("Single-asset mode kept 1/%d top-level children for %s"):format(#children, queryWord), "info")
+			appendLog(("[insert_asset] picked '%s' from package for '%s'"):format(placed.Name, queryWord), "info")
 		end
 	else
 		for _, c in ipairs(children) do
@@ -1383,9 +1387,10 @@ function Actions.insert_asset(a)
 	model:Destroy()
 	if not placed then return false, "asset contained no instances" end
 
-	-- Single-asset extraction: if the loaded model looks like a pack (by name
-	-- or by descendant count), try to extract the requested object and discard
-	-- the rest. If nothing extractable matches, reject entirely.
+	-- Second-pass extraction: if what we placed is still an oversized container
+	-- (e.g. the whole package was a single Model at the top), dive in and
+	-- extract the best inner Model/BasePart. Only reject if nothing usable
+	-- exists anywhere in the hierarchy.
 	if singleAsset then
 		local maxChildren = tonumber(payload.max_children) or 25
 		local descendantCount = #placed:GetDescendants()
@@ -1393,19 +1398,25 @@ function Actions.insert_asset(a)
 		local nameLooksPack = looksLikePackName(placed.Name)
 		local tooMany = topChildren > maxChildren or descendantCount > 400
 		if nameLooksPack or tooMany then
-			local best, discard = pickBestChild(placed, queryWord)
-			if best then
+			appendLog(("[insert_asset] container '%s' looks pack-like (top=%d desc=%d nameLooksPack=%s) — extracting best inner model"):format(
+				placed.Name, topChildren, descendantCount, tostring(nameLooksPack)), "debug")
+			local best, discard, debugLines = pickBestChild(placed, queryWord)
+			for _, line in ipairs(debugLines or {}) do
+				appendLog("[insert_asset] " .. line, "debug")
+			end
+			if best and best ~= placed then
 				best.Parent = p
 				if name then best.Name = name end
 				for _, d in ipairs(discard) do pcall(function() d:Destroy() end) end
 				pcall(function() placed:Destroy() end)
 				placed = best
-				appendLog(("Extracted single %s from pack-like container (saved 1/%d children)"):format(queryWord, topChildren), "info")
-			else
+				appendLog(("[insert_asset] extracted '%s' from pack-like container"):format(placed.Name), "info")
+			elseif not best then
 				pcall(function() placed:Destroy() end)
-				return false, ("rejected pack-like asset \"%s\" (%d children) — no single \"%s\" found inside"):format(
-					tostring(placed and placed.Name or "?"), topChildren, queryWord)
+				return false, ("rejected: no usable Model or BasePart found inside container '%s' (scanned %d descendants)"):format(
+					tostring(placed.Name or "?"), descendantCount)
 			end
+			-- else: best == placed, keep it as-is.
 		end
 	end
 
