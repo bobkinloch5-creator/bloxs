@@ -21,6 +21,30 @@ function jsonError(message: string, status: number, code?: string) {
   });
 }
 
+function streamPlainAssistantText(text: string, id = "plain-text-1") {
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    async start(controller) {
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "start" })}\n\n`));
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "start-step" })}\n\n`));
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "text-start", id })}\n\n`));
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "text-delta", id, delta: text })}\n\n`));
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "text-end", id })}\n\n`));
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "finish-step" })}\n\n`));
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "finish" })}\n\n`));
+      controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
+      controller.close();
+    },
+  });
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache, no-transform",
+      "x-vercel-ai-ui-message-stream": "v1",
+    },
+  });
+}
+
 function luaBooleanTable(values: Record<string, boolean>) {
   const rows = Object.entries(values).map(([key, value]) => {
     const safeKey = key.replace(/[^a-zA-Z0-9_]/g, "_");
@@ -2587,6 +2611,9 @@ export const Route = createFileRoute("/api/chat")({
             return jsonError("Open or create a project before using Build mode.", 400, "missing_project");
           }
 
+          const lastUser = [...messages].reverse().find((m) => m.role === "user");
+          const userText = lastUser?.parts.map((p) => (p.type === "text" ? p.text : "")).join("") ?? "";
+
           const requestedId = body.modelId || DEFAULT_MODEL_ID;
           const requestedCandidate = findModel(requestedId);
           const activeModelId = isSelectable(requestedCandidate) ? requestedId : DEFAULT_MODEL_ID;
@@ -2635,6 +2662,12 @@ export const Route = createFileRoute("/api/chat")({
           // Chat mode without an open project: plan/brainstorm only, no builds,
           // no project DB writes, no chat_messages persistence.
           if (mode === "chat" && !projectId) {
+            if (userText && isClearProjectKeepBaseplateRequest(userText)) {
+              return streamPlainAssistantText(
+                "I can clear everything and keep only the Baseplate in Build Mode. Open/select a project, switch the composer to Build, and resend that exact request — I’ll queue the Studio cleanup action instead of giving manual steps.",
+                "clear-needs-project",
+              );
+            }
             let modelChoiceLite;
             try {
               modelChoiceLite = getProviderModel(activeModelId);
@@ -2644,7 +2677,7 @@ export const Route = createFileRoute("/api/chat")({
             const convertedLite = await convertToModelMessages(stripImageFilePartsFromMessages(messages));
             const systemLite =
               BLOXSMITH_SYSTEM_PROMPT +
-              `\n\nMODE: CHAT (no project open) — help the user plan, brainstorm, and refine ideas for their Roblox game. Do NOT emit build actions, file outputs, or plugin_actions. Keep replies conversational. Reply in ${languageName} (${languageCode}). If the user asks to delete, erase, clear, or modify their Roblox project, NEVER say BloxSmith only has Toolbox/search capability. Say BloxSmith can do that in Build Mode through the Studio plugin, and ask them to switch to Build Mode / open a project if needed.`;
+              `\n\nMODE: CHAT (no project open) — help the user plan, brainstorm, and refine ideas for their Roblox game. Do NOT emit build actions, file outputs, or plugin_actions. Keep replies conversational. Reply in ${languageName} (${languageCode}). If the user asks to delete, erase, clear, or modify their Roblox project, NEVER say BloxSmith only has Toolbox/search capability. Say BloxSmith can do that in Build Mode through the Studio plugin, and ask them to switch to Build Mode / open a project if needed. For requests like "erase everything but keep the Baseplate", answer with only that Build Mode instruction; do not provide manual deletion steps unless the user asks for manual steps.`;
             const liteResult = streamText({
               model: modelChoiceLite.model,
               system: systemLite,
@@ -2656,17 +2689,31 @@ export const Route = createFileRoute("/api/chat")({
               stopWhen: stepCountIs(50),
               onError: ({ error }) => console.error("[chat/lite] upstream error", error),
             });
-            return liteResult.toUIMessageStreamResponse({
-              onError: (err) => {
-                console.error("[chat/lite] stream error", err);
-                if (err instanceof Error) {
-                  if (/402|credit/i.test(err.message)) return "The selected AI model is unavailable right now. Try again in a moment.";
-                  if (/429|rate/i.test(err.message)) return "AI is rate-limited right now. Wait a few seconds and try again.";
-                  return `AI request failed: ${err.message}`;
-                }
-                return "AI request failed.";
-              },
-            });
+            try {
+              return liteResult.toUIMessageStreamResponse({
+                onError: (err) => {
+                  console.error("[chat/lite] stream error", err);
+                  if (err instanceof Error) {
+                    if (/402|credit/i.test(err.message)) return "The selected AI model is unavailable right now. Try again in a moment.";
+                    if (/429|rate/i.test(err.message)) return "AI is rate-limited right now. Wait a few seconds and try again.";
+                    return `AI request failed: ${err.message}`;
+                  }
+                  return "AI request failed.";
+                },
+              });
+            } catch (streamErr) {
+              console.warn("[chat/lite] streaming failed, retrying without stream", streamErr);
+              const fallback = await generateText({
+                model: modelChoiceLite.model,
+                system: systemLite,
+                messages: convertedLite,
+                ...(modelChoiceLite.extraBody ? { providerOptions: { nvidia: modelChoiceLite.extraBody as Record<string, never> } as never } : {}),
+                ...(modelChoiceLite.modelSettings?.temperature !== undefined ? { temperature: modelChoiceLite.modelSettings.temperature } : {}),
+                ...(modelChoiceLite.modelSettings?.topP !== undefined ? { topP: modelChoiceLite.modelSettings.topP } : {}),
+                ...(modelChoiceLite.modelSettings?.maxOutputTokens !== undefined ? { maxOutputTokens: Math.min(modelChoiceLite.modelSettings.maxOutputTokens, 2200) } : { maxOutputTokens: 2200 }),
+              });
+              return streamPlainAssistantText(fallback.text || "Done.", "lite-fallback-text");
+            }
           }
 
 
@@ -2707,8 +2754,6 @@ export const Route = createFileRoute("/api/chat")({
           }
 
 
-          const lastUser = [...messages].reverse().find((m) => m.role === "user");
-          const userText = lastUser?.parts.map((p) => (p.type === "text" ? p.text : "")).join("") ?? "";
           console.info("[chat] prompt received", {
             mode,
             projectId,
@@ -2792,28 +2837,7 @@ export const Route = createFileRoute("/api/chat")({
               applied: false,
             });
             console.info("[chat/fastpath] queued clear project keep baseplate", { projectId, userId, actionCount: actions.length });
-            const encoder = new TextEncoder();
-            const stream = new ReadableStream({
-              async start(controller) {
-                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "start" })}\n\n`));
-                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "start-step" })}\n\n`));
-                const textId = "clear-text-1";
-                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "text-start", id: textId })}\n\n`));
-                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "text-delta", id: textId, delta: replyText })}\n\n`));
-                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "text-end", id: textId })}\n\n`));
-                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "finish-step" })}\n\n`));
-                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "finish" })}\n\n`));
-                controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
-                controller.close();
-              },
-            });
-            return new Response(stream, {
-              headers: {
-                "Content-Type": "text/event-stream",
-                "Cache-Control": "no-cache, no-transform",
-                "x-vercel-ai-ui-message-stream": "v1",
-              },
-            });
+            return streamPlainAssistantText(replyText, "clear-text-1");
           }
 
           // ── INSTANT TOOLBOX FAST-PATH ──

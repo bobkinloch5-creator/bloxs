@@ -6,7 +6,7 @@ export type Speed = "Fast" | "Medium" | "Slow";
 export type Quality = "Good" | "Great" | "Best";
 export type Credits = "Low" | "Medium" | "High" | "Very High";
 export type Status = "Working" | "Coming Soon";
-export type Gateway = "nvidia" | "groq";
+export type Gateway = "lovable" | "nvidia" | "groq";
 
 export interface ModelOption {
   id: string;          // unique id used in UI (also default upstream id)
@@ -33,6 +33,22 @@ export interface ModelOption {
 }
 
 export const MODELS: ModelOption[] = [
+  {
+    id: "lovable/gemini-3-flash-preview",
+    upstreamId: "google/gemini-3-flash-preview",
+    gateway: "lovable",
+    label: "Gemini 3 Flash",
+    provider: "Google",
+    via: "Lovable AI",
+    tier: "premium",
+    speed: "Fast",
+    quality: "Best",
+    credits: "Low",
+    status: "Coming Soon",
+    bestFor: "Reliable Roblox planning, Luau generation, UI fixes, and build actions.",
+    description: "Available when workspace AI credits are funded.",
+    modelSettings: { temperature: 0.7, topP: 0.9, maxOutputTokens: 8192 },
+  },
   {
     id: "groq/llama-3.3-70b-versatile",
     upstreamId: "llama-3.3-70b-versatile",

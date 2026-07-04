@@ -1,4 +1,4 @@
-// Smart model router: every task uses the single enabled NVIDIA GLM 5.2 model.
+// Smart model router: every task uses the default reliable AI route.
 
 import { MODELS, isSelectable, DEFAULT_MODEL_ID, type ModelOption } from "./models";
 
@@ -23,43 +23,43 @@ export interface ModelPick {
   fellBack: boolean;
 }
 
-// Preference ranking per task. Only GLM 5.2 is exposed.
+// Preference ranking per task. Default to the most reliable working model.
 const TASK_PREF: Record<AutoTask, { ids: string[]; reason: string }> = {
   planning: {
     ids: [DEFAULT_MODEL_ID],
-    reason: "Using NVIDIA GLM 5.2 for Roblox planning and build graphs.",
+    reason: "Using the reliable default AI route for Roblox planning and build graphs.",
   },
   scripting: {
     ids: [DEFAULT_MODEL_ID],
-    reason: "Using NVIDIA GLM 5.2 for complete, runnable Luau.",
+    reason: "Using the reliable default AI route for complete, runnable Luau.",
   },
   ui: {
     ids: [DEFAULT_MODEL_ID],
-    reason: "Using NVIDIA GLM 5.2 for ScreenGui layout and mobile-safe UI.",
+    reason: "Using the reliable default AI route for ScreenGui layout and mobile-safe UI.",
   },
   assets: {
     ids: [DEFAULT_MODEL_ID],
-    reason: "Using NVIDIA GLM 5.2 for safe Toolbox asset planning.",
+    reason: "Using the reliable default AI route for safe Toolbox asset planning.",
   },
   bugfix: {
     ids: [DEFAULT_MODEL_ID],
-    reason: "Using NVIDIA GLM 5.2 for bug tracing and event wiring fixes.",
+    reason: "Using the reliable default AI route for bug tracing and event wiring fixes.",
   },
   performance: {
     ids: [DEFAULT_MODEL_ID],
-    reason: "Using NVIDIA GLM 5.2 for performance review.",
+    reason: "Using the reliable default AI route for performance review.",
   },
   testing: {
     ids: [DEFAULT_MODEL_ID],
-    reason: "Using NVIDIA GLM 5.2 for playtest checks.",
+    reason: "Using the reliable default AI route for playtest checks.",
   },
   shortedit: {
     ids: [DEFAULT_MODEL_ID],
-    reason: "Using NVIDIA GLM 5.2 for short edits.",
+    reason: "Using the reliable default AI route for short edits.",
   },
   vision: {
     ids: [DEFAULT_MODEL_ID],
-    reason: "Using NVIDIA GLM 5.2 with injected vision summaries for Roblox builds.",
+    reason: "Using the reliable default AI route with injected vision summaries for Roblox builds.",
   },
 };
 

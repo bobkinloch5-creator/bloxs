@@ -16,6 +16,18 @@ type Provider = ReturnType<typeof createOpenAICompatible>;
 type LanguageModel = ReturnType<Provider>;
 
 function buildProvider(gateway: Gateway): Provider {
+  if (gateway === "lovable") {
+    const key = process.env.LOVABLE_API_KEY;
+    if (!key) throw new Error("Lovable AI is not configured.");
+    return createOpenAICompatible({
+      name: "lovable",
+      baseURL: "https://ai.gateway.lovable.dev/v1",
+      headers: {
+        "Lovable-API-Key": key,
+        "X-Lovable-AIG-SDK": "vercel-ai-sdk",
+      },
+    });
+  }
   if (gateway === "groq") {
     const key = process.env.GROQ_API_KEY;
     if (!key) throw new Error("Groq is not configured — set GROQ_API_KEY.");
