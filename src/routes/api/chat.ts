@@ -3800,7 +3800,9 @@ export const Route = createFileRoute("/api/chat")({
                 ? { roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch, generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool }
                 : { search_toolbox: toolboxTool, search_toolbox_set: toolboxSetTool, roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch, generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool },
             stopWhen: stepCountIs(50),
-            onFinish: persistFinish(usedModelId, notice),
+            onFinish: async ({ text }) => {
+              await persistFinish(usedModelId, notice)({ text });
+            },
             onError: ({ error }) => {
               console.error(`[chat] upstream error on ${usedModelId}`, error);
             },
