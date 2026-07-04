@@ -45,6 +45,32 @@ function streamPlainAssistantText(text: string, id = "plain-text-1") {
   });
 }
 
+function streamAssistantImage(text: string, imageUrl: string, id = "image-text-1") {
+  const encoder = new TextEncoder();
+  const mediaType = imageUrl.match(/^data:([^;]+);/)?.[1] ?? "image/png";
+  const stream = new ReadableStream({
+    async start(controller) {
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "start" })}\n\n`));
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "start-step" })}\n\n`));
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "text-start", id })}\n\n`));
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "text-delta", id, delta: text })}\n\n`));
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "text-end", id })}\n\n`));
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "file", mediaType, url: imageUrl })}\n\n`));
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "finish-step" })}\n\n`));
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "finish" })}\n\n`));
+      controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
+      controller.close();
+    },
+  });
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache, no-transform",
+      "x-vercel-ai-ui-message-stream": "v1",
+    },
+  });
+}
+
 function luaBooleanTable(values: Record<string, boolean>) {
   const rows = Object.entries(values).map(([key, value]) => {
     const safeKey = key.replace(/[^a-zA-Z0-9_]/g, "_");
@@ -196,6 +222,21 @@ function capOutputTokens(modelSettings: { maxOutputTokens?: number } | undefined
 function wantsGeneratedImage(userText: string) {
   return /\b(generate|create|make|draw|design)\b.*\b(image|picture|thumbnail|icon|logo|badge|banner|concept art|promo|ui mockup|loading screen|menu mockup)\b/i.test(userText)
     || /\b(image|thumbnail|icon|logo|badge|banner|concept art|promo art|ui mockup)\b/i.test(userText);
+}
+
+function imageKindFromPrompt(userText: string): "logo" | "thumbnail" | "icon" | "badge" | "shop_icon" | "item_icon" | "character_concept" | "map_concept" | "promo" | "banner" | "other" {
+  const t = userText.toLowerCase();
+  if (/logo/.test(t)) return "logo";
+  if (/thumbnail/.test(t)) return "thumbnail";
+  if (/badge/.test(t)) return "badge";
+  if (/shop/.test(t) && /icon/.test(t)) return "shop_icon";
+  if (/(item|weapon|tool)/.test(t) && /icon/.test(t)) return "item_icon";
+  if (/icon/.test(t)) return "icon";
+  if (/(character|avatar|npc)/.test(t) && /(concept|art|image|picture|draw|design)/.test(t)) return "character_concept";
+  if (/(map|world|environment|level)/.test(t) && /(concept|art|image|picture|draw|design)/.test(t)) return "map_concept";
+  if (/banner/.test(t)) return "banner";
+  if (/promo|poster|ad/.test(t)) return "promo";
+  return "other";
 }
 
 function recoveryStudioActions(userText: string) {
@@ -2690,6 +2731,7 @@ export const Route = createFileRoute("/api/chat")({
 
           const lastUser = [...messages].reverse().find((m) => m.role === "user");
           const userText = lastUser?.parts.map((p) => (p.type === "text" ? p.text : "")).join("") ?? "";
+          const imageGenerationRequested = wantsGeneratedImage(userText);
 
           const requestedId = body.modelId || DEFAULT_MODEL_ID;
           const requestedCandidate = findModel(requestedId);
@@ -2739,6 +2781,12 @@ export const Route = createFileRoute("/api/chat")({
           // Chat mode without an open project: plan/brainstorm only, no builds,
           // no project DB writes, no chat_messages persistence.
           if (mode === "chat" && !projectId) {
+            if (imageGenerationRequested) {
+              const kind = imageKindFromPrompt(userText);
+              const prompt = userText.replace(/^\s*(?:generate|create|make|draw|design)\s+(?:me\s+)?(?:an?\s+)?(?:image|picture)\s+(?:of\s+)?/i, "").trim() || userText;
+              const url = await generateGeneralImage({ prompt, kind, size: kind === "thumbnail" || kind === "banner" || kind === "promo" ? "1536x1024" : "1024x1024" });
+              return streamAssistantImage("Made it — here’s your image.", url, "direct-image-lite");
+            }
             if (userText && isClearProjectKeepBaseplateRequest(userText)) {
               return streamPlainAssistantText(
                 "I can clear everything and keep only the Baseplate in Build Mode. Open/select a project, switch the composer to Build, and resend that exact request — I’ll queue the Studio cleanup action instead of giving manual steps.",
@@ -2855,6 +2903,26 @@ export const Route = createFileRoute("/api/chat")({
               status: "done",
               image_url: userImageUrl,
             });
+          }
+
+          // ── INSTANT NVIDIA IMAGE FAST-PATH ────────────────────────────────
+          // Image requests should not depend on the chat model deciding to call
+          // a tool. Generate immediately through NVIDIA and stream the preview.
+          if (mode === "chat" && projectId && userText && imageGenerationRequested) {
+            const kind = imageKindFromPrompt(userText);
+            const prompt = userText.replace(/^\s*(?:generate|create|make|draw|design)\s+(?:me\s+)?(?:an?\s+)?(?:image|picture)\s+(?:of\s+)?/i, "").trim() || userText;
+            const url = await generateGeneralImage({ prompt, kind, size: kind === "thumbnail" || kind === "banner" || kind === "promo" ? "1536x1024" : "1024x1024" });
+            const replyText = "Made it — here’s your image.";
+            await supabase.from("chat_messages").insert({
+              project_id: projectId,
+              user_id: userId,
+              role: "assistant",
+              content: replyText,
+              status: "done",
+              model: "nvidia/flux.1-schnell",
+              image_url: url,
+            });
+            return streamAssistantImage(replyText, url, "direct-image-project");
           }
 
           // ── INSTANT DESTRUCTIVE EDIT FAST-PATH ─────────────────────────
@@ -3096,7 +3164,6 @@ export const Route = createFileRoute("/api/chat")({
               new Promise<null>((resolve) => setTimeout(() => { console.warn(`[chat] ${label} timed out after ${ms}ms`); resolve(null); }, ms)),
             ]);
 
-          const imageGenerationRequested = wantsGeneratedImage(userText);
           const uiConceptRequested = mode === "build" && imageGenerationRequested && /(\bgenerate ui\b|\bimage to roblox ui\b|\bimage-to-roblox ui\b|loading screen|main menu|play button|settings menu|shop ui|inventory ui|gamepass ui|quest ui|\bhud\b|health bar|xp bar|currency display|mobile controls)/i.test(userText);
 
           let contextBlock = "";
