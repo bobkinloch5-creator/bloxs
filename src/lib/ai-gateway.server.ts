@@ -72,6 +72,30 @@ export function getFallbackModel(): {
   return { model: buildModelFor(meta), meta, extraBody: meta.extraBody, modelSettings: meta.modelSettings };
 }
 
+/**
+ * Ordered list of fallback candidates to try when the primary model is rate-limited or at capacity.
+ * Skips the currently-failing model and any not marked Working. Rotates across gateways
+ * (Groq + NVIDIA family) so a 429 on one provider doesn't kill the whole request.
+ */
+export function getFallbackChain(excludeId?: string): Array<{
+  model: LanguageModel;
+  meta: ModelOption;
+  extraBody?: Record<string, unknown>;
+  modelSettings?: ModelOption["modelSettings"];
+}> {
+  return FALLBACK_CHAIN
+    .filter((id) => id !== excludeId)
+    .map((id) => findModel(id))
+    .filter((meta) => isSelectable(meta))
+    .map((meta) => ({
+      model: buildModelFor(meta),
+      meta,
+      extraBody: meta.extraBody,
+      modelSettings: meta.modelSettings,
+    }));
+}
+
+
 // Planner uses the same turbo model as the rest of the pipeline. Extended-
 // reasoning models made the first step take 30-60s before anything else could
 // start; flash-grade planning is enough for the short plan format.
