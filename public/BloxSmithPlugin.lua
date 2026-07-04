@@ -41,7 +41,7 @@ end
 ----------------------------------------------------------------
 -- CONFIG
 ----------------------------------------------------------------
-local PLUGIN_VERSION  = "2.1.5"
+local PLUGIN_VERSION  = "2.1.6"
 local API_BASE        = "https://bloxsmith.pro"
 local POLL_SECONDS    = 1        -- how often to call /poll for actions
 local PAIR_POLL_SEC   = 2        -- how often to poll for pair approval
@@ -1352,9 +1352,12 @@ function Actions.insert_asset(a)
 	if suspiciousCount > 0 then safetyStatus = "quarantined"
 	elseif scriptCount > 0 and scriptMode == "disable" then safetyStatus = "scripts_disabled" end
 
-	-- Pull instances out of the LoadAsset wrapper model. In single-asset mode,
-	-- NEVER dump every top-level child from a package into Workspace: recursively
-	-- pick one nested Model, move only that Model, and destroy/reject the rest.
+	-- Pull instances out of the LoadAsset wrapper model. Toolbox assets are
+	-- packages per Roblox docs (https://create.roblox.com/docs/projects/assets/toolbox):
+	-- they may contain multiple Models, Folders, Meshes, textures, etc. We never
+	-- reject a package for containing multiple children. Selection strategy:
+	--   1. Recursively find any Model in the hierarchy → prefer that.
+	--   2. Otherwise insert the entire package (wrapped in a Model if needed).
 	local children = model:GetChildren()
 	local placed
 	if singleAsset then
@@ -1363,15 +1366,26 @@ function Actions.insert_asset(a)
 		for _, line in ipairs(debugLines or {}) do
 			appendLog("[insert_asset] " .. line, "debug")
 		end
-		if not best then
-			pcall(function() model:Destroy() end)
-			return false, ("rejected: no Model found anywhere in Toolbox asset (%d top-level children scanned)"):format(#children)
+		if best then
+			for _, d in ipairs(discard) do pcall(function() d:Destroy() end) end
+			placed = best
+			if name then placed.Name = name end
+			placed.Parent = p
+			appendLog(("[insert_asset] picked model '%s' from Toolbox package"):format(placed.Name), "info")
+		else
+			-- No Model anywhere — package is parts/meshes/folders only. Insert
+			-- the entire package as a Model wrapper instead of rejecting it.
+			appendLog(("[insert_asset] no nested Model found; inserting full Toolbox package as wrapper Model (%d children)"):format(#children), "info")
+			local wrapper = Instance.new("Model")
+			wrapper.Name = name or tostring(payload.asset_name or payload.name or "ToolboxAsset")
+			for _, c in ipairs(children) do c.Parent = wrapper end
+			wrapper.Parent = p
+			-- Set a PrimaryPart if any BasePart exists so PivotTo works later.
+			for _, d in ipairs(wrapper:GetDescendants()) do
+				if d:IsA("BasePart") then wrapper.PrimaryPart = d; break end
+			end
+			placed = wrapper
 		end
-		for _, d in ipairs(discard) do pcall(function() d:Destroy() end) end
-		placed = best
-		if name then placed.Name = name end
-		placed.Parent = p
-		appendLog(("[insert_asset] picked model '%s' from Toolbox package"):format(placed.Name), "info")
 	else
 		for _, c in ipairs(children) do
 			if name and #children == 1 then c.Name = name end
@@ -1383,8 +1397,8 @@ function Actions.insert_asset(a)
 	if not placed then return false, "asset contained no instances" end
 
 	-- Second-pass extraction: if what we placed is still an oversized package
-	-- container, dive in and select the best nested Model. Only reject if no
-	-- Model exists anywhere in the hierarchy.
+	-- container, prefer a nested Model when one exists. Never reject — Toolbox
+	-- packages with many children are valid per Roblox docs.
 	if singleAsset then
 		local maxChildren = tonumber(payload.max_children) or 25
 		local descendantCount = #placed:GetDescendants()
@@ -1392,7 +1406,7 @@ function Actions.insert_asset(a)
 		local nameLooksPack = looksLikePackName(placed.Name)
 		local tooMany = topChildren > maxChildren or descendantCount > 400
 		if nameLooksPack or tooMany then
-			appendLog(("[insert_asset] container '%s' looks package-like (top=%d desc=%d nameLooksPack=%s) — selecting from all nested Models"):format(
+			appendLog(("[insert_asset] container '%s' looks package-like (top=%d desc=%d nameLooksPack=%s) — scanning for a nested Model to extract"):format(
 				placed.Name, topChildren, descendantCount, tostring(nameLooksPack)), "debug")
 			local best, discard, debugLines = pickBestModel(placed, true)
 			for _, line in ipairs(debugLines or {}) do
@@ -1405,14 +1419,13 @@ function Actions.insert_asset(a)
 				pcall(function() placed:Destroy() end)
 				placed = best
 				appendLog(("[insert_asset] extracted '%s' from Toolbox package container"):format(placed.Name), "info")
-			elseif not best then
-				pcall(function() placed:Destroy() end)
-				return false, ("rejected: no Model found inside Toolbox container '%s' (scanned %d descendants)"):format(
-					tostring(placed.Name or "?"), descendantCount)
+			else
+				-- Keep the full package as-is; Roblox Toolbox packages are valid.
+				appendLog(("[insert_asset] keeping full Toolbox package '%s' as-is (%d descendants)"):format(placed.Name, descendantCount), "info")
 			end
-			-- else: best == placed, keep it as-is.
 		end
 	end
+
 
 	-- Tag for traceability + future cleanup.
 	pcall(function()
