@@ -140,16 +140,19 @@ function trimMessagesForModel(messages: UIMessage[], mode: "chat" | "build"): UI
 }
 
 function capOutputTokens(modelSettings: { maxOutputTokens?: number } | undefined, mode: "chat" | "build", buildQuality?: "basic" | "better" | "premium" | "full_game") {
-  const requested = modelSettings?.maxOutputTokens ?? (mode === "chat" ? 650 : 2200);
+  const requested = modelSettings?.maxOutputTokens ?? (mode === "chat" ? 900 : 4096);
   const cap = mode === "chat"
-    ? 700
+    ? 1200
     : buildQuality === "full_game"
-      ? 3000
-      : buildQuality === "basic"
-        ? 1200
-        : 2200;
-  return Math.min(requested, cap);
+      ? 6000
+      : buildQuality === "premium"
+        ? 5000
+        : buildQuality === "basic"
+          ? 3000
+          : 4096;
+  return Math.max(requested, cap);
 }
+
 
 function wantsGeneratedImage(userText: string) {
   return /\b(generate|create|make|draw|design)\b.*\b(image|picture|thumbnail|icon|logo|badge|banner|concept art|promo|ui mockup|loading screen|menu mockup)\b/i.test(userText)
