@@ -3210,12 +3210,16 @@ export const Route = createFileRoute("/api/chat")({
                       assetMode,
                     });
                     actions = compiled.map(normalizePluginAction);
+                    if (proceduralModeActive) {
+                      actions = actions.filter((a) => a.kind !== "insert_asset");
+                    }
                     if (actions.length > 0) {
                       cleanContent = `${cleanContent.trim()}\n\n_Auto-compiled executable Roblox Studio actions because the selected model returned a plan without an action block._`;
                     }
                   } catch (compileErr) {
                     console.warn("[chat] action compiler failed; using recovery Studio actions", compileErr);
                   }
+
 
                   if (actions.length === 0 && proceduralFallbackAllowed) {
                     actions = proceduralModeActive
