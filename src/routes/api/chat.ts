@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
 import { convertToModelMessages, generateText, streamText, stepCountIs, tool, type UIMessage } from "ai";
 import { z } from "zod";
-import { getProviderModel, getFallbackModel } from "@/lib/ai-gateway.server";
+import { getProviderModel, getFallbackModel, getFallbackChain } from "@/lib/ai-gateway.server";
 import { BLOXSMITH_SYSTEM_PROMPT, parseActions } from "@/lib/bloxsmith-prompt";
 import { DEFAULT_MODEL_ID, findModel, isSelectable } from "@/lib/models";
 import { detectSingleAssetIntent, searchRobloxToolbox, searchRobloxToolboxSet, sanitizeInsertAssetActions, type ToolboxCategory, type ToolboxSetRequest } from "@/lib/roblox-toolbox.server";
