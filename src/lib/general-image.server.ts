@@ -180,10 +180,44 @@ async function tryNvidiaImage(prompt: string, size: string): Promise<string | nu
   return null;
 }
 
+async function tryLovableImage(prompt: string, size: string): Promise<string | null> {
+  const key = process.env.LOVABLE_API_KEY;
+  if (!key) return null;
+  const models = ["google/gemini-3.1-flash-image", "openai/gpt-image-2", "google/gemini-2.5-flash-image"];
+  for (const model of models) {
+    try {
+      const body: Record<string, unknown> = model.startsWith("openai/")
+        ? { model, prompt, size, quality: "low", n: 1 }
+        : { model, messages: [{ role: "user", content: prompt }], modalities: ["image", "text"] };
+      const res = await fetch("https://ai.gateway.lovable.dev/v1/images/generations", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        console.warn(`[lovable-image] ${model} failed ${res.status}`, (await res.text().catch(() => "")).slice(0, 200));
+        continue;
+      }
+      const json = await res.json().catch(() => null);
+      const b64 = extractBase64(json);
+      if (b64) {
+        console.log(`[lovable-image] ${model} succeeded`);
+        return `data:image/png;base64,${b64}`;
+      }
+      console.warn(`[lovable-image] ${model} returned no image payload`);
+    } catch (err) {
+      console.warn(`[lovable-image] ${model} threw`, err);
+    }
+  }
+  return null;
+}
+
 export async function generateGeneralImage(args: GenArgs): Promise<string> {
   const prompt = `${args.prompt.trim()}${subjectHint(args.kind)}${styleHint(args.style)}`.slice(0, 1500);
   const size = args.size ?? "1024x1024";
-  // Try real NVIDIA image generation first; fall back to local SVG placeholder if unavailable.
+  // Prefer real image generation via Lovable AI Gateway; fall back to NVIDIA image models, then SVG placeholder.
+  const lovImage = await tryLovableImage(prompt, size);
+  if (lovImage) return lovImage;
   const nvImage = await tryNvidiaImage(prompt, size);
   if (nvImage) return nvImage;
   return localConceptSvg(prompt, args.kind);
