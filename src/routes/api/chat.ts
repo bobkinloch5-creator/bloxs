@@ -2660,7 +2660,7 @@ export const Route = createFileRoute("/api/chat")({
               onError: (err) => {
                 console.error("[chat/lite] stream error", err);
                 if (err instanceof Error) {
-                  if (/402|credit/i.test(err.message)) return "NVIDIA GLM is unavailable right now. Try again in a moment.";
+                  if (/402|credit/i.test(err.message)) return "The selected AI model is unavailable right now. Try again in a moment.";
                   if (/429|rate/i.test(err.message)) return "AI is rate-limited right now. Wait a few seconds and try again.";
                   return `AI request failed: ${err.message}`;
                 }
