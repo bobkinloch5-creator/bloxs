@@ -223,10 +223,11 @@ function RootComponent() {
 
 
 function BetaBanner() {
-  const [dismissed, setDismissed] = (require("react") as typeof import("react")).useState<boolean>(() => {
+  const [dismissed, setDismissed] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem("bs:beta-banner-dismissed") === "1";
   });
+
   if (dismissed) return null;
   return (
     <div className="sticky top-0 z-[70] flex items-center gap-2 border-b border-blue-400/25 bg-blue-950 px-3 py-1.5 text-[11px] font-semibold text-blue-100 shadow-lg shadow-blue-950/20 sm:px-4 sm:py-2 sm:text-xs">
