@@ -1516,15 +1516,32 @@ function toolboxMapRequests(userText: string): ToolboxSetRequest[] {
     return requests;
   }
 
-  if (/\b(city|town|roleplay|rp|neighborhood|street|road)\b/.test(text)) {
+  if (/\b(city|town|roleplay|rp|neighborhood|street|road|downtown|metropolis)\b/.test(text)) {
     const variant = pickMapVariant(userText);
-    add(`${variant.name} map kit`, `${variant.name} city map kit`, true, 8);
+    const isBig = /\b(full|whole|entire|complete|big|huge|massive|large|dense|packed|realistic)\b/.test(text);
+    add(`${variant.name} map kit`, `${variant.name} city map kit`, true, isBig ? 12 : 8);
     for (const [label, keyword, required, limit] of variant.terms) {
       add(String(label), String(keyword), Boolean(required), Number(limit));
+    }
+    if (isBig) {
+      // Extra search categories so a "full city" gets skyscrapers, apartments,
+      // stores, cafes, gas stations, parks — not five identical buildings.
+      add("skyscrapers", "skyscraper tall building city", true, 8);
+      add("apartments", "apartment building city", true, 8);
+      add("houses", "modern house residential", true, 8);
+      add("shops", "storefront shop city downtown", true, 8);
+      add("restaurants", "restaurant cafe diner city", false, 6);
+      add("gas station", "gas station city", false, 5);
+      add("street lights", "street light lamp post pack", false, 6);
+      add("traffic signs", "traffic light stop sign city pack", false, 6);
+      add("benches", "bench trash can urban prop", false, 6);
+      add("trees", "city tree pack", false, 6);
+      add("cars", "city car pack vehicle", false, 6);
     }
   } else {
     add("complete map kit", `${userText.slice(0, 80)} map kit`, true, 6);
   }
+
 
   if (/\b(lobby|hub|spawn)\b/.test(text)) {
     add("lobby map", "lobby map kit", true, 6);
@@ -1579,30 +1596,55 @@ function toolboxMapRequests(userText: string): ToolboxSetRequest[] {
     add("cover props", "arena cover props", false, 5);
   }
 
-  return requests.slice(0, 12);
+  const isBigCity = /\b(city|town|downtown|metropolis)\b/.test(text) && /\b(full|whole|entire|complete|big|huge|massive|large|dense|packed|realistic)\b/.test(text);
+  return requests.slice(0, isBigCity ? 24 : 12);
+
 }
 
 async function toolboxMapStudioActions(userText: string) {
   if (!isToolboxMapRequest(userText)) return [];
   try {
-    const set = await searchRobloxToolboxSet(toolboxMapRequests(userText), 6);
+    const text = userText.toLowerCase();
+    // Density scales the number of picks per request AND the grid size, so
+    // "build me a full city" / "huge town" / "big map" produces a real city,
+    // not 5 lonely buildings.
+    const isBig = /\b(full|whole|entire|complete|big|huge|massive|large|dense|packed|realistic|proper|real)\b/.test(text);
+    const isCity = /\b(city|town|neighborhood|downtown|metropolis|street|road|roleplay|rp)\b/.test(text);
+    const picksPerRequest = isCity ? (isBig ? 5 : 3) : (isBig ? 3 : 2);
+    const perRequestCap = Math.max(picksPerRequest + 2, 6);
+    const set = await searchRobloxToolboxSet(toolboxMapRequests(userText), perRequestCap);
     const usedIds = new Set<number>();
     const actions = [];
+
+    // Auto-generated grid of placement slots. Big city → 8×5 = 40 slots at
+    // 130 stud spacing; regular map → 5×4 = 20 slots at 120 stud spacing.
+    const cols = isBig && isCity ? 8 : isCity ? 6 : 5;
+    const rows = isBig && isCity ? 5 : isCity ? 4 : 3;
+    const spacing = isBig ? 140 : 120;
+    const placementSlots: Array<{ position: number[]; yaw: number; role: string; district: string }> = [];
+    const centerCol = (cols - 1) / 2;
+    const centerRow = (rows - 1) / 2;
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const x = Math.round((c - centerCol) * spacing);
+        const z = Math.round((r - centerRow) * spacing);
+        // Alternate cardinal yaws so buildings don't all face the same way.
+        const yaw = ((c + r) % 4) * 90;
+        // Middle row = the main road; outer ring = decor.
+        const onRoad = r === Math.floor(centerRow);
+        const onEdge = r === 0 || r === rows - 1 || c === 0 || c === cols - 1;
+        const role = onRoad && c !== Math.floor(centerCol) ? "road"
+          : onEdge ? "decor"
+          : "building";
+        const district = z < -spacing ? "NorthBlock"
+          : z > spacing ? "SouthBlock"
+          : x < -spacing ? "WestBlock"
+          : x > spacing ? "EastBlock"
+          : "Core";
+        placementSlots.push({ position: [x, 4, z], yaw, role, district });
+      }
+    }
     let slot = 0;
-    const placementSlots = [
-      { position: [0, 4, 0], yaw: 0, role: "map_core", district: "Core" },
-      { position: [0, 4, -130], yaw: 0, role: "road", district: "Roads" },
-      { position: [0, 4, 130], yaw: 90, role: "road", district: "Roads" },
-      { position: [-135, 4, -70], yaw: 0, role: "building", district: "WestBlock" },
-      { position: [135, 4, -70], yaw: 180, role: "building", district: "EastBlock" },
-      { position: [-135, 4, 95], yaw: 0, role: "shop", district: "WestBlock" },
-      { position: [135, 4, 95], yaw: 180, role: "building", district: "EastBlock" },
-      { position: [-42, 4, 205], yaw: 0, role: "park", district: "Park" },
-      { position: [42, 4, 205], yaw: 0, role: "decor", district: "Park" },
-      { position: [-80, 4, -205], yaw: 90, role: "vehicle", district: "Roads" },
-      { position: [80, 4, -205], yaw: 270, role: "vehicle", district: "Roads" },
-      { position: [205, 4, 25], yaw: 90, role: "decor", district: "StreetProps" },
-    ];
 
     const roleFor = (label: string) => {
       const s = label.toLowerCase();
@@ -1625,58 +1667,64 @@ async function toolboxMapStudioActions(userText: string) {
       return fallback;
     };
 
+    // Walk each search request and take multiple picks — this is what turns
+    // "one building" into "a whole downtown".
     for (const request of set.requests) {
-      const picked = request.results.find((r) => !usedIds.has(r.id));
-      if (!picked) continue;
-      usedIds.add(picked.id);
-      const role = roleFor(request.label);
-      const placement = nextSlotFor(role);
-      actions.push({
-        kind: "insert_asset",
-        parent_path: "Workspace",
-        name: `Toolbox_${request.label.replace(/[^a-z0-9]+/gi, "_").replace(/^_+|_+$/g, "") || "MapAsset"}`,
-        payload: {
-          asset_id: picked.id,
-          fallback_ids: (picked.fallbackIds ?? []).slice(0, 6),
-          free_only: true,
-          no_scripts: true,
-          allow_scripts: false,
-          folder_name: "BloxSmith_ToolboxAssets",
-          position: placement.position,
-          yaw: placement.yaw,
-          scale: 1,
-          placement_role: role,
-          district: placement.district,
-          toolbox_only: true,
-          disable_procedural_fallback: true,
-          // Treat every map component as a full Toolbox package: keep the whole
-          // hierarchy authored by the creator, no nested-model extraction.
-          preserve_hierarchy: true,
-          is_map: true,
-          insert_full_package: true,
-          tags: ["bloxsmith", "toolbox-map", "real-toolbox-asset", request.label, role, placement.district],
-          asset_name: picked.name,
-          creator_name: picked.creatorName,
-          thumbnail: picked.thumbnail,
-          source_query: picked.sourceQuery ?? request.keyword,
-          quality_tier: picked.qualityTier ?? "usable",
-          safety_score: picked.safety,
-          relevance_score: picked.relevance,
-          has_scripts: picked.hasScripts,
-          script_count: picked.scriptCount ?? 0,
-          preview: {
-            id: picked.id,
-            name: picked.name,
-            creatorName: picked.creatorName,
+      const picks = request.results.filter((r) => !usedIds.has(r.id)).slice(0, picksPerRequest);
+      let variantIdx = 0;
+      for (const picked of picks) {
+        usedIds.add(picked.id);
+        const role = roleFor(request.label);
+        const placement = nextSlotFor(role);
+        variantIdx += 1;
+        actions.push({
+          kind: "insert_asset",
+          parent_path: "Workspace",
+          name: `Toolbox_${request.label.replace(/[^a-z0-9]+/gi, "_").replace(/^_+|_+$/g, "") || "MapAsset"}_${variantIdx}`,
+          payload: {
+            asset_id: picked.id,
+            fallback_ids: (picked.fallbackIds ?? []).slice(0, 6),
+            free_only: true,
+            no_scripts: true,
+            allow_scripts: false,
+            folder_name: "BloxSmith_ToolboxAssets",
+            position: placement.position,
+            yaw: placement.yaw,
+            scale: 1,
+            placement_role: role,
+            district: placement.district,
+            toolbox_only: true,
+            disable_procedural_fallback: true,
+            // Treat every map component as a full Toolbox package: keep the whole
+            // hierarchy authored by the creator, no nested-model extraction.
+            preserve_hierarchy: true,
+            is_map: true,
+            insert_full_package: true,
+            tags: ["bloxsmith", "toolbox-map", "real-toolbox-asset", request.label, role, placement.district],
+            asset_name: picked.name,
+            creator_name: picked.creatorName,
             thumbnail: picked.thumbnail,
-            safety: picked.safety,
-            relevance: picked.relevance,
-            hasScripts: picked.hasScripts,
-            scriptCount: picked.scriptCount ?? 0,
+            source_query: picked.sourceQuery ?? request.keyword,
+            quality_tier: picked.qualityTier ?? "usable",
+            safety_score: picked.safety,
+            relevance_score: picked.relevance,
+            has_scripts: picked.hasScripts,
+            script_count: picked.scriptCount ?? 0,
+            preview: {
+              id: picked.id,
+              name: picked.name,
+              creatorName: picked.creatorName,
+              thumbnail: picked.thumbnail,
+              safety: picked.safety,
+              relevance: picked.relevance,
+              hasScripts: picked.hasScripts,
+              scriptCount: picked.scriptCount ?? 0,
+            },
           },
-        },
-      });
+        });
+      }
     }
+
 
     if (actions.length > 0) {
       actions.unshift({
