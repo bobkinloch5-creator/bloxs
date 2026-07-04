@@ -1241,6 +1241,7 @@ export async function searchRobloxToolbox(
 export async function searchRobloxToolboxSet(
   requests: ToolboxSetRequest[],
   defaultLimit = 8,
+  opts: { qualityFloor?: "standard" | "strict" } = {},
 ): Promise<{
   source: "live" | "partial" | "fallback" | "none";
   requests: ToolboxSetResult[];
@@ -1250,7 +1251,7 @@ export async function searchRobloxToolboxSet(
 }> {
   const normalized = requests
     .filter((r) => r && typeof r.keyword === "string" && r.keyword.trim())
-    .slice(0, 16)
+    .slice(0, 24)
     .map((r) => ({
       label: String(r.label || r.keyword).trim().slice(0, 60),
       keyword: r.keyword.trim().slice(0, 120),
@@ -1259,10 +1260,36 @@ export async function searchRobloxToolboxSet(
       required: r.required !== false,
     }));
 
+  // Strict quality floor for map/city builds: only trusted creators or high
+  // upvotes get through, and low-relevance picks are dropped. Verified/endorsed
+  // and Roblox-owned assets always pass so we never starve required categories.
+  const safetyFloor = opts.qualityFloor === "strict" ? 0.72 : 0.62;
+  const relevanceFloor = opts.qualityFloor === "strict" ? 0.28 : 0.18;
+  const isTrusted = (r: any) =>
+    (r?.creatorName ?? "").trim().toLowerCase() === "roblox"
+    || r?.verifiedCreator === true
+    || r?.endorsed === true
+    || (typeof r?.upVotePercent === "number" && r.upVotePercent >= 85);
+  const passesFloor = (r: any) => {
+    if (r?.free === false) return false;
+    if (isTrusted(r)) return (r.relevance ?? 0) >= Math.max(0.15, relevanceFloor - 0.1);
+    return (r.safety ?? 0) >= safetyFloor && (r.relevance ?? 0) >= relevanceFloor;
+  };
+
   const rows = await Promise.all(
     normalized.map(async (request): Promise<ToolboxSetResult> => {
       const out = await searchRobloxToolbox(request.keyword, request.category, request.limit);
-      const results = out.results.filter((r) => r.free !== false && (r.safety ?? 0) >= 0.62 && (r.relevance ?? 0) >= 0.18);
+      let results = out.results.filter(passesFloor);
+      // Rank: trusted creator first, then combined safety*relevance, so the
+      // planner picks the best-known assets before iffy ones.
+      results = results.sort((a: any, b: any) => {
+        const ta = isTrusted(a) ? 1 : 0;
+        const tb = isTrusted(b) ? 1 : 0;
+        if (ta !== tb) return tb - ta;
+        const sa = (a.safety ?? 0) * 0.55 + (a.relevance ?? 0) * 0.45;
+        const sb = (b.safety ?? 0) * 0.55 + (b.relevance ?? 0) * 0.45;
+        return sb - sa;
+      });
       return {
         ...request,
         source: out.source,
@@ -1274,6 +1301,7 @@ export async function searchRobloxToolboxSet(
       };
     }),
   );
+
 
   const readyCount = rows.filter((r) => r.results.length > 0).length;
   const missingRequired = rows.filter((r) => r.required && r.results.length === 0).map((r) => r.label);
