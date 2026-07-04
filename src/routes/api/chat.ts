@@ -3054,7 +3054,8 @@ export const Route = createFileRoute("/api/chat")({
               new Promise<null>((resolve) => setTimeout(() => { console.warn(`[chat] ${label} timed out after ${ms}ms`); resolve(null); }, ms)),
             ]);
 
-          const uiConceptRequested = mode === "build" && /(\bgenerate ui\b|\bimage to roblox ui\b|\bimage-to-roblox ui\b|loading screen|main menu|play button|settings menu|shop ui|inventory ui|gamepass ui|quest ui|\bhud\b|health bar|xp bar|currency display|mobile controls)/i.test(userText);
+          const imageGenerationRequested = wantsGeneratedImage(userText);
+          const uiConceptRequested = mode === "build" && imageGenerationRequested && /(\bgenerate ui\b|\bimage to roblox ui\b|\bimage-to-roblox ui\b|loading screen|main menu|play button|settings menu|shop ui|inventory ui|gamepass ui|quest ui|\bhud\b|health bar|xp bar|currency display|mobile controls)/i.test(userText);
 
           let contextBlock = "";
           let generatedUiConceptUrl: string | null = null;
