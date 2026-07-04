@@ -500,7 +500,7 @@ async function toolboxAssetFinderStudioActions(userText: string) {
         payload: {
           ...(picked.insertPayload ?? {}),
           asset_id: picked.id,
-          fallback_ids: (picked.fallbackIds ?? []).slice(0, 3),
+          fallback_ids: (picked.fallbackIds ?? []).slice(0, 6),
           asset_name: picked.name,
           creator_name: picked.creatorName,
           thumbnail: picked.thumbnail,
@@ -1637,7 +1637,7 @@ async function toolboxMapStudioActions(userText: string) {
         name: `Toolbox_${request.label.replace(/[^a-z0-9]+/gi, "_").replace(/^_+|_+$/g, "") || "MapAsset"}`,
         payload: {
           asset_id: picked.id,
-          fallback_ids: picked.fallbackIds ?? [],
+          fallback_ids: (picked.fallbackIds ?? []).slice(0, 6),
           free_only: true,
           no_scripts: true,
           allow_scripts: false,
@@ -1649,6 +1649,11 @@ async function toolboxMapStudioActions(userText: string) {
           district: placement.district,
           toolbox_only: true,
           disable_procedural_fallback: true,
+          // Treat every map component as a full Toolbox package: keep the whole
+          // hierarchy authored by the creator, no nested-model extraction.
+          preserve_hierarchy: true,
+          is_map: true,
+          insert_full_package: true,
           tags: ["bloxsmith", "toolbox-map", "real-toolbox-asset", request.label, role, placement.district],
           asset_name: picked.name,
           creator_name: picked.creatorName,
