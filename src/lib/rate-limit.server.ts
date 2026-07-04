@@ -69,12 +69,14 @@ export async function enforceRateLimit({ userId, action, limit, windowSeconds }:
 
 /** Sensible presets keyed by action name. */
 export const RATE_LIMITS = {
-  ai_prompt: { limit: 30, windowSeconds: 60 },
-  ai_build: { limit: 12, windowSeconds: 60 },
-  image_gen: { limit: 20, windowSeconds: 60 },
-  plugin_action: { limit: 200, windowSeconds: 60 },
-  asset_search: { limit: 60, windowSeconds: 60 },
-  file_upload: { limit: 10, windowSeconds: 60 },
+  ai_prompt: { limit: 120, windowSeconds: 60 },
+  ai_build: { limit: 60, windowSeconds: 60 },
+  image_gen: { limit: 40, windowSeconds: 60 },
+  plugin_action: { limit: 600, windowSeconds: 60 },
+  asset_search: { limit: 240, windowSeconds: 60 },
+  file_upload: { limit: 30, windowSeconds: 60 },
+  auth_attempt: { limit: 8, windowSeconds: 300 },
+
   auth_attempt: { limit: 8, windowSeconds: 300 },
 } as const;
 
