@@ -288,7 +288,9 @@ export function WorkspaceChat({
         // the same click (Image button → "chat") is honored on the very next
         // send instead of leaking the previous render's mode.
         mode: liveModeRef.current,
-        modelId: selectedModel,
+        modelId: selectedModel === "auto"
+          ? pickModelForTask(liveModeRef.current === "build" ? "scripting" : "planning").modelId
+          : selectedModel,
         buildQuality: buildMode === "Deep Build" ? "full_game" : buildMode === "Fast Build" ? "basic" : "premium",
         executionMode: buildMode === "Fast Build" ? "fast" : "safe",
         proceduralGeneration,
