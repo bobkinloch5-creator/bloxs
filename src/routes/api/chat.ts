@@ -500,7 +500,7 @@ async function toolboxAssetFinderStudioActions(userText: string) {
         payload: {
           ...(picked.insertPayload ?? {}),
           asset_id: picked.id,
-          fallback_ids: (picked.fallbackIds ?? []).slice(0, 3),
+          fallback_ids: (picked.fallbackIds ?? []).slice(0, 6),
           asset_name: picked.name,
           creator_name: picked.creatorName,
           thumbnail: picked.thumbnail,
