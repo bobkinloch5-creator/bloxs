@@ -2721,7 +2721,7 @@ export const Route = createFileRoute("/api/chat")({
               ...(modelChoiceLite.modelSettings?.temperature !== undefined ? { temperature: modelChoiceLite.modelSettings.temperature } : {}),
               ...(modelChoiceLite.modelSettings?.topP !== undefined ? { topP: modelChoiceLite.modelSettings.topP } : {}),
               maxOutputTokens: capOutputTokens(modelChoiceLite.modelSettings, "chat"),
-              stopWhen: stepCountIs(50),
+              stopWhen: stepCountIs(8),
               onError: ({ error }) => console.error("[chat/lite] upstream error", error),
             });
             try {
