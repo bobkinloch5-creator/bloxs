@@ -126,11 +126,11 @@ const FAST_CHAT_SYSTEM_PROMPT = `You are BloxSmith, a friendly senior Roblox dev
 const FAST_BUILD_SYSTEM_PROMPT = `You are BloxSmith, an expert Roblox Studio game-building agent. Build real, playable Roblox results through structured Studio actions. Keep visible prose concise and human. Never expose internal tool names, raw payloads, debug details, model/provider names, or JSON except the hidden executable action block. Use modern Luau, server-authoritative gameplay, safe free Toolbox assets when Toolbox mode is active, clean organization, mobile-safe UI, no placeholders, no fake buttons, no empty folders, no invented asset IDs, and no deprecated APIs. For Build Mode, end with exactly one fenced \`\`\`bloxsmith-actions block containing the executable action JSON the app will strip from the visible chat. Include scan/autofix actions for meaningful builds and never claim Studio execution is complete until plugin verification confirms it.`;
 
 function trimMessagesForModel(messages: UIMessage[], mode: "chat" | "build"): UIMessage[] {
-  const maxMessages = mode === "chat" ? 12 : 8;
+  const maxMessages = mode === "chat" ? 8 : 5;
   const start = Math.max(0, messages.length - maxMessages);
   return messages.slice(start).map((m, i, recent) => {
     const isLatestUser = i === recent.length - 1 && m.role === "user";
-    const textLimit = isLatestUser ? 8000 : m.role === "assistant" ? 1800 : 3000;
+    const textLimit = isLatestUser ? 6000 : m.role === "assistant" ? 900 : 1600;
     const parts = (m.parts ?? []).map((p: any) => {
       if (p?.type !== "text" || typeof p.text !== "string" || p.text.length <= textLimit) return p;
       return { ...p, text: `[trimmed previous context]\n${p.text.slice(-textLimit)}` };
@@ -140,14 +140,14 @@ function trimMessagesForModel(messages: UIMessage[], mode: "chat" | "build"): UI
 }
 
 function capOutputTokens(modelSettings: { maxOutputTokens?: number } | undefined, mode: "chat" | "build", buildQuality?: "basic" | "better" | "premium" | "full_game") {
-  const requested = modelSettings?.maxOutputTokens ?? (mode === "chat" ? 900 : 3072);
+  const requested = modelSettings?.maxOutputTokens ?? (mode === "chat" ? 650 : 2200);
   const cap = mode === "chat"
-    ? 1000
+    ? 700
     : buildQuality === "full_game"
-      ? 4096
+      ? 3000
       : buildQuality === "basic"
-        ? 1800
-        : 3072;
+        ? 1200
+        : 2200;
   return Math.min(requested, cap);
 }
 
