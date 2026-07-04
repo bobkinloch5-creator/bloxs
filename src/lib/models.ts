@@ -132,12 +132,13 @@ export const MODELS: ModelOption[] = [
 ];
 
 
-export const DEFAULT_MODEL_ID = "nvidia/llama-3.3-nemotron-super-49b";
-export const FALLBACK_MODEL_ID = "nvidia/llama-3.3-70b";
+export const DEFAULT_MODEL_ID = "groq/llama-3.3-70b-versatile";
+export const FALLBACK_MODEL_ID = "groq/llama-3.3-70b-versatile";
 
 // Ordered chain of models to try when the primary model is rate-limited or at capacity.
-// Rotates across NVIDIA-hosted models so a 429 on one endpoint doesn't kill the request.
+// Rotates across providers (Groq → NVIDIA family) so a 429 on one endpoint doesn't kill the request.
 export const FALLBACK_CHAIN: string[] = [
+  "groq/llama-3.3-70b-versatile",
   "nvidia/llama-3.3-nemotron-super-49b",
   "nvidia/llama-3.1-nemotron-70b",
   "nvidia/llama-3.3-70b",
