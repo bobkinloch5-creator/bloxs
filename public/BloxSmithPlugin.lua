@@ -1,5 +1,5 @@
 -- ============================================================
--- BloxSmith Ultimate Plugin v2.1.3
+-- BloxSmith Ultimate Plugin v2.1.4
 -- Fully connected to bloxsmith.pro backend API.
 --
 -- API endpoints used:
@@ -41,7 +41,7 @@ end
 ----------------------------------------------------------------
 -- CONFIG
 ----------------------------------------------------------------
-local PLUGIN_VERSION  = "2.1.3"
+local PLUGIN_VERSION  = "2.1.4"
 local API_BASE        = "https://bloxsmith.pro"
 local POLL_SECONDS    = 1        -- how often to call /poll for actions
 local PAIR_POLL_SEC   = 2        -- how often to poll for pair approval
@@ -1170,29 +1170,106 @@ local function looksLikePackName(name)
 	return false
 end
 
--- Walk a container's top-level children and pick the one whose name best
--- matches the source query. Returns that child plus the rest as discard list.
+-- Recursively walk a container and score every Model / BasePart candidate.
+-- Real Toolbox uploads are often packages: a top-level Model or Folder that
+-- contains folders, sub-models, meshes, and props. We must accept ANY usable
+-- Model/BasePart anywhere in the hierarchy, not just a top-level child whose
+-- name literally matches the query. Returns (best, discardList, debugLines).
 local function pickBestChild(container, queryWord)
 	local q = (queryWord or ""):lower()
-	if q == "" then return nil, {} end
-	local best, bestScore
-	local discard = {}
-	for _, c in ipairs(container:GetChildren()) do
-		local n = (c.Name or ""):lower()
-		local score = 0
-		if n == q then score = 100
-		elseif n:find(q, 1, true) then score = 60 + math.min(20, #q)
+	local topChildren = container:GetChildren()
+	local candidates = {}
+	local debugLines = {}
+
+	local function partCount(inst)
+		local n = 0
+		if inst:IsA("BasePart") then n = 1 end
+		for _, d in ipairs(inst:GetDescendants()) do
+			if d:IsA("BasePart") then n = n + 1 end
 		end
-		-- bonus for Model with mostly parts (more "object-like" than folder of props)
-		if c:IsA("Model") then score = score + 5 end
-		if score > 0 and (not bestScore or score > bestScore) then
-			if best then table.insert(discard, best) end
-			best, bestScore = c, score
-		else
-			table.insert(discard, c)
+		return n
+	end
+
+	local function boundingSize(inst)
+		local ok, size = pcall(function()
+			if inst:IsA("Model") and inst.GetExtentsSize then return inst:GetExtentsSize() end
+			if inst:IsA("BasePart") then return inst.Size end
+			return Vector3.new(0, 0, 0)
+		end)
+		if ok and size then return size.Magnitude end
+		return 0
+	end
+
+	local function considerNode(inst, depth)
+		if depth > 6 then return end
+		local isModel = inst:IsA("Model")
+		local isPart = inst:IsA("BasePart")
+		local isMesh = inst:IsA("MeshPart") or inst:IsA("SpecialMesh")
+		if isModel or isPart or isMesh then
+			local parts = partCount(inst)
+			local bbox = boundingSize(inst)
+			if parts > 0 or isMesh then
+				local nameLower = (inst.Name or ""):lower()
+				local score = 0
+				-- Name similarity (soft, not required).
+				if q ~= "" then
+					if nameLower == q then score = score + 60
+					elseif nameLower:find(q, 1, true) then score = score + 35
+					else
+						for word in nameLower:gmatch("[%a]+") do
+							if q:find(word, 1, true) or word:find(q, 1, true) then
+								score = score + 15; break
+							end
+						end
+					end
+				end
+				-- Structural signals.
+				if isModel and inst.PrimaryPart then score = score + 25 end
+				if isModel then score = score + 10 end
+				score = score + math.min(30, parts)              -- part-count bonus, cap 30
+				if bbox >= 4 and bbox <= 600 then score = score + 10 end
+				-- Depth penalty (prefer shallower).
+				score = score - depth * 2
+				-- Reject obvious junk-only nodes (single tiny invisible bit).
+				if parts == 1 and bbox < 0.5 then score = score - 20 end
+				table.insert(candidates, { inst = inst, score = score, depth = depth, parts = parts, bbox = bbox })
+			end
+		end
+		if inst:IsA("Folder") or inst:IsA("Model") or inst:IsA("Configuration") then
+			for _, c in ipairs(inst:GetChildren()) do
+				considerNode(c, depth + 1)
+			end
 		end
 	end
-	return best, discard
+
+	for _, c in ipairs(topChildren) do considerNode(c, 1) end
+
+	if #candidates == 0 then
+		table.insert(debugLines, ("no Model/BasePart found across %d top-level children"):format(#topChildren))
+		return nil, topChildren, debugLines
+	end
+
+	table.sort(candidates, function(a, b) return a.score > b.score end)
+	local best = candidates[1].inst
+	for i = 1, math.min(5, #candidates) do
+		local c = candidates[i]
+		table.insert(debugLines, ("cand #%d: %s (score=%d depth=%d parts=%d bbox=%.1f)"):format(
+			i, c.inst.Name, c.score, c.depth, c.parts, c.bbox
+		))
+	end
+
+	-- Discard everything at the top level except the ancestor path leading to best.
+	local keepSet = {}
+	local walk = best
+	while walk and walk ~= container do
+		keepSet[walk] = true
+		walk = walk.Parent
+	end
+	local discard = {}
+	for _, c in ipairs(topChildren) do
+		if not keepSet[c] then table.insert(discard, c) end
+	end
+	return best, discard, debugLines
 end
 
 
@@ -1280,21 +1357,25 @@ function Actions.insert_asset(a)
 	local placed
 	local queryWord = tostring(payload.requested_asset_type or payload.source_query or payload.asset_name or name or ""):lower():match("[%a]+") or ""
 	if singleAsset then
-		if #children == 1 then
+		if #children == 1 and #children[1]:GetChildren() <= (tonumber(payload.max_children) or 25) then
 			placed = children[1]
 			if name then placed.Name = name end
 			placed.Parent = p
 		else
-			local best, discard = pickBestChild(model, queryWord)
+			appendLog(("[insert_asset] scanning package: %d top-level children for '%s'"):format(#children, queryWord), "debug")
+			local best, discard, debugLines = pickBestChild(model, queryWord)
+			for _, line in ipairs(debugLines or {}) do
+				appendLog("[insert_asset] " .. line, "debug")
+			end
 			if not best then
 				pcall(function() model:Destroy() end)
-				return false, ("rejected package asset (%d top-level children) — no single \"%s\" found"):format(#children, queryWord)
+				return false, ("rejected: no usable Model or BasePart found anywhere in asset (%d top-level children scanned)"):format(#children)
 			end
 			for _, d in ipairs(discard) do pcall(function() d:Destroy() end) end
 			placed = best
 			if name then placed.Name = name end
 			placed.Parent = p
-			appendLog(("Single-asset mode kept 1/%d top-level children for %s"):format(#children, queryWord), "info")
+			appendLog(("[insert_asset] picked '%s' from package for '%s'"):format(placed.Name, queryWord), "info")
 		end
 	else
 		for _, c in ipairs(children) do
@@ -1306,9 +1387,10 @@ function Actions.insert_asset(a)
 	model:Destroy()
 	if not placed then return false, "asset contained no instances" end
 
-	-- Single-asset extraction: if the loaded model looks like a pack (by name
-	-- or by descendant count), try to extract the requested object and discard
-	-- the rest. If nothing extractable matches, reject entirely.
+	-- Second-pass extraction: if what we placed is still an oversized container
+	-- (e.g. the whole package was a single Model at the top), dive in and
+	-- extract the best inner Model/BasePart. Only reject if nothing usable
+	-- exists anywhere in the hierarchy.
 	if singleAsset then
 		local maxChildren = tonumber(payload.max_children) or 25
 		local descendantCount = #placed:GetDescendants()
@@ -1316,19 +1398,25 @@ function Actions.insert_asset(a)
 		local nameLooksPack = looksLikePackName(placed.Name)
 		local tooMany = topChildren > maxChildren or descendantCount > 400
 		if nameLooksPack or tooMany then
-			local best, discard = pickBestChild(placed, queryWord)
-			if best then
+			appendLog(("[insert_asset] container '%s' looks pack-like (top=%d desc=%d nameLooksPack=%s) — extracting best inner model"):format(
+				placed.Name, topChildren, descendantCount, tostring(nameLooksPack)), "debug")
+			local best, discard, debugLines = pickBestChild(placed, queryWord)
+			for _, line in ipairs(debugLines or {}) do
+				appendLog("[insert_asset] " .. line, "debug")
+			end
+			if best and best ~= placed then
 				best.Parent = p
 				if name then best.Name = name end
 				for _, d in ipairs(discard) do pcall(function() d:Destroy() end) end
 				pcall(function() placed:Destroy() end)
 				placed = best
-				appendLog(("Extracted single %s from pack-like container (saved 1/%d children)"):format(queryWord, topChildren), "info")
-			else
+				appendLog(("[insert_asset] extracted '%s' from pack-like container"):format(placed.Name), "info")
+			elseif not best then
 				pcall(function() placed:Destroy() end)
-				return false, ("rejected pack-like asset \"%s\" (%d children) — no single \"%s\" found inside"):format(
-					tostring(placed and placed.Name or "?"), topChildren, queryWord)
+				return false, ("rejected: no usable Model or BasePart found inside container '%s' (scanned %d descendants)"):format(
+					tostring(placed.Name or "?"), descendantCount)
 			end
+			-- else: best == placed, keep it as-is.
 		end
 	end
 
