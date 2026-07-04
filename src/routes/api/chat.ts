@@ -3864,10 +3864,10 @@ export const Route = createFileRoute("/api/chat")({
               } catch (fbErr) {
                 const fbMsg = fbErr instanceof Error ? fbErr.message : String(fbErr);
                 console.warn(`[chat] fallback ${fb.meta.label} failed`, fbMsg);
-                if (!isRetryable(fbMsg)) {
-                  // Non-retryable error — stop walking the chain
-                  break;
-                }
+                // Keep walking the chain regardless of the error kind — a
+                // config/auth issue on one NVIDIA route does not imply the
+                // next model will also fail.
+                void isRetryable;
               }
             }
 
