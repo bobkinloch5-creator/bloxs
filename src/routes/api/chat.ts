@@ -388,13 +388,23 @@ const TOOLBOX_ASSET_FINDER_CATEGORIES = [
   { label: "pet", role: "character", folder: "Characters", test: /\b(pet|dog|cat)\b/i, keyword: "pet model" },
   { label: "police station", role: "building", folder: "Buildings", test: /\bpolice\s*station\b/i, keyword: "police station building model" },
   { label: "hospital", role: "building", folder: "Buildings", test: /\bhospital\b/i, keyword: "hospital building model" },
+  { label: "modern house", role: "building", folder: "Buildings", test: /\b(modern|contemporary)\s*house\b/i, keyword: "modern house building model" },
   { label: "house", role: "building", folder: "Buildings", test: /\bhouse\b/i, keyword: "house building model" },
   { label: "shop", role: "building", folder: "Buildings", test: /\b(shop|store|storefront)\b/i, keyword: "shop storefront building model" },
   { label: "castle", role: "building", folder: "Buildings", test: /\bcastle\b/i, keyword: "castle building model" },
+  { label: "pine tree", role: "nature", folder: "Nature", test: /\bpine\s*tree(s)?\b/i, keyword: "pine tree nature model" },
+  { label: "oak tree", role: "nature", folder: "Nature", test: /\boak\s*tree(s)?\b/i, keyword: "oak tree nature model" },
+  { label: "palm tree", role: "nature", folder: "Nature", test: /\bpalm\s*tree(s)?\b/i, keyword: "palm tree nature model" },
   { label: "tree", role: "nature", folder: "Nature", test: /\b(tree|trees)\b/i, keyword: "tree nature model" },
   { label: "rock", role: "nature", folder: "Nature", test: /\b(rock|rocks|boulder)\b/i, keyword: "rock nature model" },
   { label: "grass", role: "nature", folder: "Nature", test: /\b(grass|flower|flowers|bush|bushes)\b/i, keyword: "grass flower bush nature model" },
   { label: "mountain", role: "nature", folder: "Nature", test: /\b(mountain|mountains|cliff)\b/i, keyword: "mountain cliff nature model" },
+  { label: "road", role: "environment", folder: "Roads", test: /\b(road|street|highway|asphalt)\b/i, keyword: "road street asphalt model" },
+  { label: "sidewalk", role: "environment", folder: "Roads", test: /\b(sidewalk|pavement|curb)\b/i, keyword: "sidewalk pavement curb model" },
+  { label: "street light", role: "prop", folder: "Props", test: /\b(street\s*light|lamp\s*post|lamppost|streetlamp)\b/i, keyword: "street light lamp post model" },
+  { label: "traffic light", role: "prop", folder: "Props", test: /\btraffic\s*light\b/i, keyword: "traffic light model" },
+  { label: "fence", role: "prop", folder: "Props", test: /\b(fence|fencing)\b/i, keyword: "fence model" },
+  { label: "bench", role: "prop", folder: "Props", test: /\bbench\b/i, keyword: "bench park model" },
   { label: "crate", role: "prop", folder: "Props", test: /\b(crate|barrel|box)\b/i, keyword: "crate barrel prop model" },
   { label: "sign", role: "prop", folder: "Props", test: /\b(sign|street\s*sign)\b/i, keyword: "sign prop model" },
   { label: "furniture", role: "prop", folder: "Props", test: /\b(furniture|chair|table|bed|sofa|lamp)\b/i, keyword: "furniture prop model" },
@@ -2624,14 +2634,26 @@ export const Route = createFileRoute("/api/chat")({
               const label = singlePhysicalAssetLabel(userText, "asset");
               const finderMatch = TOOLBOX_ASSET_FINDER_CATEGORIES.find((c) => c.test.test(userText));
               const query = finderMatch?.keyword || label;
-              const found = await searchRobloxToolbox(query, "Model", 12, { singleAssetOnly: true });
+              // Parse quantity: "add 5 trees", "insert 10 street lights", "give me three houses".
+              const wordNums: Record<string, number> = { two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, twelve: 12, fifteen: 15, twenty: 20 };
+              let quantity = 1;
+              const numMatch = userText.match(/\b(\d{1,3})\s+(?=[a-z])/i);
+              if (numMatch) {
+                const n = parseInt(numMatch[1], 10);
+                if (Number.isFinite(n) && n >= 2) quantity = Math.min(n, 25);
+              } else {
+                const wm = userText.toLowerCase().match(/\b(two|three|four|five|six|seven|eight|nine|ten|twelve|fifteen|twenty)\b/);
+                if (wm && wordNums[wm[1]]) quantity = wordNums[wm[1]];
+              }
+              const found = await searchRobloxToolbox(query, "Model", Math.max(12, quantity + 4), { singleAssetOnly: true });
               const top = found.results[0];
               if (top) {
                 const folder = finderMatch?.folder ? `BloxSmith_${finderMatch.folder}` : "BloxSmith_Assets";
-                const insertAction = {
+                const baseName = cleanSingleAssetActionName(label).replace(/_\d+$/, "");
+                const buildAction = (idx: number) => ({
                   kind: "insert_asset" as const,
                   parent_path: `Workspace/${folder}`,
-                  name: cleanSingleAssetActionName(label),
+                  name: quantity > 1 ? `${baseName}_${String(idx + 1).padStart(2, "0")}` : cleanSingleAssetActionName(label),
                   payload: {
                     asset_id: top.id,
                     fallback_ids: (top.fallbackIds ?? found.results.slice(1, 8).map((r) => r.id)).slice(0, 6),
@@ -2651,11 +2673,19 @@ export const Route = createFileRoute("/api/chat")({
                     reject_pack_names: true,
                     stop_after_insert: true,
                     ground_snap: true,
-                    _bloxsmith: { source: "chat_fastpath", execution_mode: "fast", single_asset_mode: true },
+                    _bloxsmith: {
+                      source: "chat_fastpath",
+                      execution_mode: "fast",
+                      single_asset_mode: true,
+                      copy_index: idx,
+                      copy_total: quantity,
+                      grid_spacing: 12,
+                    },
                   } as Record<string, unknown>,
-                };
+                });
+                const insertAction = buildAction(0);
                 // Validate against Roblox (IsPublicDomain + toolbox-details)
-                // BEFORE charging or queuing — otherwise Studio errors with
+                // BEFORE queuing — otherwise Studio errors with
                 // "User is not authorized to access Asset".
                 const candidates: Array<Record<string, unknown>> = [insertAction as unknown as Record<string, unknown>];
                 await sanitizeInsertAssetActions(candidates).catch(() => null);
@@ -2663,43 +2693,57 @@ export const Route = createFileRoute("/api/chat")({
                   console.info("[chat/fastpath] no authorized asset, falling back to AI turn", { query });
                   throw new Error("fastpath_no_authorized_asset");
                 }
-                const finalInsert = candidates[0] as typeof insertAction;
-                const finalAssetId = Number((finalInsert.payload as { asset_id?: number }).asset_id);
-                const replyText = `Adding a ${label} to your workspace from the Toolbox — queued for Studio now.`;
+                const finalFirst = candidates[0] as ReturnType<typeof buildAction>;
+                const finalAssetId = Number((finalFirst.payload as { asset_id?: number }).asset_id);
+                const allInserts = quantity > 1
+                  ? Array.from({ length: quantity }, (_, i) => {
+                      if (i === 0) return finalFirst;
+                      const next = buildAction(i);
+                      // Reuse the sanitized primary id/fallbacks for every copy.
+                      next.payload.asset_id = finalFirst.payload.asset_id;
+                      next.payload.fallback_ids = finalFirst.payload.fallback_ids;
+                      return next;
+                    })
+                  : [finalFirst];
+                const replyText = quantity > 1
+                  ? `Adding ${quantity} ${label}${label.endsWith("s") ? "" : "s"} to your workspace from the Toolbox — queued for Studio now.`
+                  : `Adding a ${label} to your workspace from the Toolbox — queued for Studio now.`;
                 const { data: msgRow } = await supabase
                   .from("chat_messages")
                   .insert({
                     project_id: projectId,
                     user_id: userId,
                     role: "assistant",
-                    content: `${replyText}\n\n_Queued 1 Studio action. Waiting for the Roblox Studio plugin to confirm execution before this build is marked complete._`,
+                    content: `${replyText}\n\n_Queued ${allInserts.length} Studio action${allInserts.length === 1 ? "" : "s"}. Waiting for the Roblox Studio plugin to confirm execution before this build is marked complete._`,
                     status: "sending",
                     model: activeModelId,
-                    actions: [finalInsert],
+                    actions: allInserts,
                   })
                   .select("id")
                   .single();
-                await supabase.from("plugin_actions").insert({
-                  project_id: projectId,
-                  user_id: userId,
-                  message_id: msgRow?.id ?? null,
-                  kind: finalInsert.kind,
-                  parent_path: finalInsert.parent_path,
-                  name: finalInsert.name,
-                  payload: finalInsert.payload,
-                  position: 0,
-                });
+                await supabase.from("plugin_actions").insert(
+                  allInserts.map((action, i) => ({
+                    project_id: projectId,
+                    user_id: userId,
+                    message_id: msgRow?.id ?? null,
+                    kind: action.kind,
+                    parent_path: action.parent_path,
+                    name: action.name,
+                    payload: action.payload,
+                    position: i,
+                  })),
+                );
                 await supabase.from("build_history").insert({
                   project_id: projectId,
                   user_id: userId,
                   prompt: userText,
                   model: activeModelId,
-                  files_count: 1,
+                  files_count: allInserts.length,
                   plugin_status: "Queued",
                   applied: false,
                 });
                 console.info("[chat/fastpath] queued toolbox insert", {
-                  projectId, userId, query, assetId: finalAssetId, actionName: finalInsert.name,
+                  projectId, userId, query, assetId: finalAssetId, quantity: allInserts.length,
                 });
                 const encoder = new TextEncoder();
                 const words = replyText.split(" ");
