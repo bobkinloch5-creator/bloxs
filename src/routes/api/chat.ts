@@ -151,6 +151,11 @@ function capOutputTokens(modelSettings: { maxOutputTokens?: number } | undefined
   return Math.min(requested, cap);
 }
 
+function wantsGeneratedImage(userText: string) {
+  return /\b(generate|create|make|draw|design)\b.*\b(image|picture|thumbnail|icon|logo|badge|banner|concept art|promo|ui mockup|loading screen|menu mockup)\b/i.test(userText)
+    || /\b(image|thumbnail|icon|logo|badge|banner|concept art|promo art|ui mockup)\b/i.test(userText);
+}
+
 function recoveryStudioActions(userText: string) {
   const safePrompt = userText.trim().slice(0, 240) || "BloxSmith auto-execute recovery build";
   const source = `
