@@ -202,6 +202,23 @@ export const MODELS: ModelOption[] = [
 
   // ─── DeepSeek on NVIDIA ────────────────────────────────────────────────────
   {
+    id: "nvidia/deepseek-v4-flash",
+    upstreamId: "deepseek-ai/deepseek-v4-flash",
+    gateway: "nvidia",
+    label: "DeepSeek V4 Flash",
+    provider: "DeepSeek",
+    via: "NVIDIA NIM",
+    tier: "premium",
+    speed: "Fast",
+    quality: "Best",
+    credits: "Low",
+    status: "Working",
+    bestFor: "Latest DeepSeek V4 Flash with high reasoning for Roblox planning & Luau.",
+    description: "DeepSeek V4 Flash via NVIDIA build.nvidia.com (thinking + high reasoning).",
+    extraBody: { chat_template_kwargs: { thinking: true, reasoning_effort: "high" } },
+    modelSettings: { temperature: 1, topP: 0.95, maxOutputTokens: 16384 },
+  },
+  {
     id: "nvidia/deepseek-r1",
     upstreamId: "deepseek-ai/deepseek-r1",
     gateway: "nvidia",
@@ -376,6 +393,7 @@ export const FALLBACK_MODEL_ID = "nvidia/llama-3.3-70b";
 // Rotates across NVIDIA-hosted model families so a 429 on one endpoint routes
 // straight to a different one instead of failing.
 export const FALLBACK_CHAIN: string[] = [
+  "nvidia/deepseek-v4-flash",
   "nvidia/llama-3.3-nemotron-super-49b",
   "nvidia/llama-3.3-70b",
   "nvidia/llama-3.1-nemotron-70b",
