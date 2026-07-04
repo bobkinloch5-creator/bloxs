@@ -1868,7 +1868,6 @@ if folder then
     if district then model.Parent = district end
   end
 
-  end
   for _, district in ipairs(folder:GetChildren()) do
     if district:IsA("Folder") and #district:GetChildren() == 0 then
       district:Destroy()
