@@ -703,6 +703,54 @@ For city, town, roleplay, racing, obby, dungeon, arena, horror, simulator, pet w
 5. Streetlights/trees/rocks/benches/signs/furniture/props last.
 Use districts/folder_name/tags like Roads, Buildings, Vehicles, NPCs, Nature, Props, Gameplay. Put each asset on intentional coordinates with spacing, yaw, scale, ground_snap true, and allow_duplicates false by default. Never scatter random assets in a pile.
 
+CITY / MAP GENERATION CONTRACT (mandatory whenever the user asks for a city, town, map, world, neighborhood, downtown, suburb, village, or district)
+This contract is not optional. If you break any rule below, the build is wrong.
+
+1. ORDER OF OPERATIONS — always emit actions in this exact order:
+   a) Toolbox searches for every visual category (roads, buildings by type, vehicles, props, nature). Use 4-8 separate search_toolbox calls, not one generic one.
+   b) organize_project to create the folder skeleton: Workspace.City, Workspace.City.Roads, Workspace.City.Buildings, Workspace.City.Vehicles, Workspace.City.Props, Workspace.City.Nature, Workspace.City.Lighting, Workspace.City.SpawnZones.
+   c) Road grid FIRST (roads define the blocks). Straight segments + T + cross intersections snapped to a 90-stud cell grid.
+   d) Buildings SECOND, each one placed in exactly one grid cell, rotated to face the nearest road.
+   e) Vehicles THIRD along road edges only, never on sidewalks or through buildings.
+   f) Props/Nature LAST (streetlights on sidewalks, trees in park cells or between buildings, benches near entrances) with controlled density.
+   g) autofix_project + scan_project to verify.
+
+2. GRID PLACEMENT — every placement must use the run_lua grid helper pattern:
+   - CELL_SIZE = 90 studs. Roads every 3 cells (both axes) forming true city blocks.
+   - Compute (row, col) → world CFrame BEFORE :PivotTo. Never call :SetPrimaryPartCFrame with hardcoded random offsets.
+   - Every model gets exactly one cell. Track used cells in a Lua set so nothing double-books.
+   - Rotate buildings 0/90/180/270 to face the closest road edge.
+
+3. GROUND SNAPPING — every inserted model must ground-snap via raycast:
+   - RaycastParams with FilterType = Enum.RaycastFilterType.Exclude and the model itself in FilterDescendantsInstances.
+   - Cast from (cellX, 5000, cellZ) down 10000 studs against Terrain + BaseParts.
+   - If hit, PivotTo so the model's bounding-box bottom sits ON the hit position (add half-height). If no hit, skip that placement — never spawn in the air.
+
+4. ANCHORING & CLEANUP — after every insert_asset, run_lua must:
+   - Anchor every BasePart descendant (part.Anchored = true) unless it's a Vehicle marked driveable.
+   - Destroy any Script/LocalScript/ModuleScript inside the inserted model (free-model virus guard).
+   - Reparent the model into the correct folder (Roads/Buildings/Vehicles/Props/Nature) using its BloxSmithPlacementRole attribute.
+   - Set a StringValue attribute "BloxSmith_CityCell" = "row,col" so regeneration can target it.
+
+5. NO CHAOS — hard-forbidden failure modes:
+   - No two models overlap (check bounding boxes before PivotTo; if intersect, pick next free cell).
+   - No model spawns at (0,0,0) or a shared origin pile — that means grid math was skipped.
+   - No unanchored decorative parts. No floating streetlights. No trees inside buildings.
+   - No dumping assets into Workspace root. Everything lives in Workspace.City.<Category>.
+   - Do not run a single mega-run_lua that spawns 100 primitives — use the real Toolbox assets you searched.
+
+6. DENSITY & VARIETY — respect the requested style:
+   - "dense city" → fill 80-100% of building cells with skyscrapers/apartments/shops.
+   - "suburban" → smaller houses, wider spacing, more trees, fewer vehicles.
+   - "downtown" → skyscrapers cluster in the center, shops line the main road.
+   - Vary building assets so the same model never repeats in adjacent cells.
+
+7. REGENERATION SAFETY — when the user asks to "regenerate zone X", "add more trees", "expand roads":
+   - Query models by their BloxSmith_CityCell attribute or their parent folder and modify ONLY those.
+   - Never delete Workspace.City wholesale unless the user explicitly says "start over" / "delete map".
+
+
+
 SAFE MODE PREVIEW
 When execution_mode is "safe", include asset preview metadata and explain the exact asset names/ids/creators/thumbnails before approval. Do not claim Studio insertion until the plugin returns verified results.
 
