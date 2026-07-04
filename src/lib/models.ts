@@ -213,10 +213,10 @@ export const MODELS: ModelOption[] = [
     quality: "Best",
     credits: "Low",
     status: "Working",
-    bestFor: "Latest DeepSeek V4 Flash with high reasoning for Roblox planning & Luau.",
-    description: "DeepSeek V4 Flash via NVIDIA build.nvidia.com (thinking + high reasoning).",
-    extraBody: { chat_template_kwargs: { thinking: true, reasoning_effort: "high" } },
-    modelSettings: { temperature: 1, topP: 0.95, maxOutputTokens: 16384 },
+    bestFor: "Latest DeepSeek V4 Flash — fast responses with light reasoning for chat and Luau.",
+    description: "DeepSeek V4 Flash via NVIDIA build.nvidia.com (thinking + low reasoning for speed).",
+    extraBody: { chat_template_kwargs: { thinking: true, reasoning_effort: "low" } },
+    modelSettings: { temperature: 0.7, topP: 0.9, maxOutputTokens: 4096 },
   },
   {
     id: "nvidia/deepseek-r1",
@@ -386,23 +386,25 @@ export const MODELS: ModelOption[] = [
 ];
 
 
-export const DEFAULT_MODEL_ID = "nvidia/llama-3.3-nemotron-super-49b";
-export const FALLBACK_MODEL_ID = "nvidia/llama-3.3-70b";
+export const DEFAULT_MODEL_ID = "nvidia/llama-3.3-70b";
+export const FALLBACK_MODEL_ID = "nvidia/llama-3.3-nemotron-super-49b";
 
 // Ordered chain of models to try when the primary is rate-limited / at capacity.
 // Rotates across NVIDIA-hosted model families so a 429 on one endpoint routes
 // straight to a different one instead of failing.
+// Fastest-first: small/medium fast models handle most Roblox turns quickly.
+// Larger reasoning models are kept as later fallbacks for hard requests.
 export const FALLBACK_CHAIN: string[] = [
-  "nvidia/deepseek-v4-flash",
-  "nvidia/llama-3.3-nemotron-super-49b",
   "nvidia/llama-3.3-70b",
+  "nvidia/deepseek-v4-flash",
+  "nvidia/qwen-2.5-coder-32b",
+  "nvidia/llama-3.3-nemotron-super-49b",
   "nvidia/llama-3.1-nemotron-70b",
   "nvidia/qwen-2.5-72b",
   "nvidia/mixtral-8x22b",
   "nvidia/deepseek-v3",
   "nvidia/deepseek-r1-distill-llama-70b",
   "nvidia/llama-3.1-70b",
-  "nvidia/qwen-2.5-coder-32b",
   "nvidia/mistral-large-2",
   "nvidia/gemma-3-27b",
   "nvidia/phi-4",
