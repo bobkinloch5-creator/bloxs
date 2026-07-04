@@ -465,8 +465,10 @@ export function WorkspaceChat({
 
     // Use the live mode ref (or an explicit override from the caller) so a
     // synchronous mode flip in the same click cycle is honored on this send.
-    const effectiveMode: Mode = overrideMode ?? (wantsImageGeneration(text) ? "chat" : liveModeRef.current);
+    const autoImageMode = !overrideMode && wantsImageGeneration(text);
+    const effectiveMode: Mode = overrideMode ?? (autoImageMode ? "chat" : liveModeRef.current);
     liveModeRef.current = effectiveMode;
+    if (autoImageMode && mode !== "chat") setComposerMode("chat");
 
     // Build mode is a no-op if the Studio plugin isn't connected — actions
     // would just pile up in the queue with nothing polling for them. Block
