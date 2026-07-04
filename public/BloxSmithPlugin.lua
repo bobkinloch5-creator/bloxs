@@ -1354,26 +1354,20 @@ function Actions.insert_asset(a)
 	local children = model:GetChildren()
 	local placed
 	if singleAsset then
-		if #children == 1 and #children[1]:GetChildren() <= (tonumber(payload.max_children) or 25) then
-			placed = children[1]
-			if name then placed.Name = name end
-			placed.Parent = p
-		else
-			appendLog(("[insert_asset] scanning Toolbox package: %d top-level children; selecting from all nested Models"):format(#children), "debug")
-			local best, discard, debugLines = pickBestModel(model, false)
-			for _, line in ipairs(debugLines or {}) do
-				appendLog("[insert_asset] " .. line, "debug")
-			end
-			if not best then
-				pcall(function() model:Destroy() end)
-				return false, ("rejected: no Model found anywhere in Toolbox asset (%d top-level children scanned)"):format(#children)
-			end
-			for _, d in ipairs(discard) do pcall(function() d:Destroy() end) end
-			placed = best
-			if name then placed.Name = name end
-			placed.Parent = p
-			appendLog(("[insert_asset] picked model '%s' from Toolbox package"):format(placed.Name), "info")
+		appendLog(("[insert_asset] scanning Toolbox package: %d top-level children; selecting from all nested Models"):format(#children), "debug")
+		local best, discard, debugLines = pickBestModel(model, false)
+		for _, line in ipairs(debugLines or {}) do
+			appendLog("[insert_asset] " .. line, "debug")
 		end
+		if not best then
+			pcall(function() model:Destroy() end)
+			return false, ("rejected: no Model found anywhere in Toolbox asset (%d top-level children scanned)"):format(#children)
+		end
+		for _, d in ipairs(discard) do pcall(function() d:Destroy() end) end
+		placed = best
+		if name then placed.Name = name end
+		placed.Parent = p
+		appendLog(("[insert_asset] picked model '%s' from Toolbox package"):format(placed.Name), "info")
 	else
 		for _, c in ipairs(children) do
 			if name and #children == 1 then c.Name = name end
