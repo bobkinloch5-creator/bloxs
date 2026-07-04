@@ -1353,8 +1353,8 @@ function Actions.insert_asset(a)
 	elseif scriptCount > 0 and scriptMode == "disable" then safetyStatus = "scripts_disabled" end
 
 	-- Pull instances out of the LoadAsset wrapper model. In single-asset mode,
-	-- NEVER dump every top-level child from a package into Workspace: pick one
-	-- matching child, move only that child, and destroy/reject the rest.
+	-- NEVER dump every top-level child from a package into Workspace: recursively
+	-- pick one nested Model, move only that Model, and destroy/reject the rest.
 	local children = model:GetChildren()
 	local placed
 	if singleAsset then
@@ -1382,10 +1382,9 @@ function Actions.insert_asset(a)
 	model:Destroy()
 	if not placed then return false, "asset contained no instances" end
 
-	-- Second-pass extraction: if what we placed is still an oversized container
-	-- (e.g. the whole package was a single Model at the top), dive in and
-	-- extract the best inner Model/BasePart. Only reject if nothing usable
-	-- exists anywhere in the hierarchy.
+	-- Second-pass extraction: if what we placed is still an oversized package
+	-- container, dive in and select the best nested Model. Only reject if no
+	-- Model exists anywhere in the hierarchy.
 	if singleAsset then
 		local maxChildren = tonumber(payload.max_children) or 25
 		local descendantCount = #placed:GetDescendants()
