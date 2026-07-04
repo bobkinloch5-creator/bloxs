@@ -902,17 +902,40 @@ function SettingsTab() {
     <>
       <Card>
         <SectionTitle icon={Settings} title="Maintenance Mode" tint="amber" />
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <div className="text-sm">When enabled, non-admins see a maintenance banner.</div>
-            <div className="text-xs text-slate-500">Current: {s.maintenance?.enabled ? "ENABLED" : "off"}</div>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-sm">When enabled, visitors see a maintenance page. Admins &amp; owners still have full access.</div>
+              <div className="text-xs text-slate-500">Current: {s.maintenance?.enabled ? "ENABLED" : "off"}</div>
+            </div>
+            <button
+              onClick={() => upd.mutate({ key: "maintenance", value: { ...s.maintenance, enabled: !s.maintenance?.enabled } })}
+              className={`inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-bold ${
+                s.maintenance?.enabled ? "bg-rose-500/25 text-rose-200" : "bg-emerald-500/25 text-emerald-200"
+              }`}
+            >
+              {s.maintenance?.enabled ? "Turn OFF" : "Turn ON"}
+            </button>
           </div>
-          <button onClick={() => upd.mutate({ key: "maintenance", value: { ...s.maintenance, enabled: !s.maintenance?.enabled } })}
-            className={`inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-bold ${
-              s.maintenance?.enabled ? "bg-rose-500/25 text-rose-200" : "bg-emerald-500/25 text-emerald-200"
-            }`}>
-            {s.maintenance?.enabled ? "Disable" : "Enable"}
-          </button>
+          <div>
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Custom message (optional)
+            </label>
+            <textarea
+              key={s.maintenance?.message ?? ""}
+              defaultValue={s.maintenance?.message ?? ""}
+              placeholder="We'll be back online shortly — thanks for your patience!"
+              rows={2}
+              className="w-full rounded-lg border border-indigo-500/20 bg-[#12122a] px-3 py-2 text-sm text-slate-100 focus:border-indigo-400/60 focus:outline-none"
+              onBlur={(e) => {
+                const next = e.target.value;
+                if ((s.maintenance?.message ?? "") !== next) {
+                  upd.mutate({ key: "maintenance", value: { ...s.maintenance, message: next } });
+                }
+              }}
+            />
+            <div className="mt-1 text-[11px] text-slate-500">Auto-saves when you click out of the box.</div>
+          </div>
         </div>
       </Card>
 
