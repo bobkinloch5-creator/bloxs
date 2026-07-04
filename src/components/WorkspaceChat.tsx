@@ -527,26 +527,39 @@ export function WorkspaceChat({
             <Hammer className="h-3.5 w-3.5" /> Build
           </button>
         </div>
-        <div className="flex items-center gap-2">
-          <label className="hidden sm:flex items-center gap-1.5 text-[11px] font-semibold text-slate-300">
-            <Sparkles className="h-3 w-3 text-indigo-300" />
-            Model
-          </label>
-          <select
-            value={selectedModel}
-            onChange={(e) => setSelectedModel(e.target.value)}
-            className="max-w-[220px] rounded-lg border border-white/15 bg-black/40 px-2 py-1.5 text-[11px] font-medium text-slate-100 hover:bg-black/60 focus:outline-none focus:ring-2 focus:ring-indigo-400/50"
-            title="Choose which AI model handles your next messages. Auto picks the best model for what you're doing."
-          >
-            <option value="auto" className="bg-slate-900 text-slate-100">
-              ⚡ Auto — pick best for task
-            </option>
-            {availableModels.map((m) => (
-              <option key={m.id} value={m.id} className="bg-slate-900 text-slate-100">
-                {m.label} · {m.provider}
+        <div className="flex flex-col items-end gap-1">
+          <div className="flex items-center gap-2">
+            <label className="hidden sm:flex items-center gap-1.5 text-[11px] font-semibold text-slate-300">
+              <Sparkles className="h-3 w-3 text-indigo-300" />
+              Model
+            </label>
+            <select
+              value={selectedModel}
+              onChange={(e) => setSelectedModel(e.target.value)}
+              className="max-w-[260px] rounded-lg border border-white/15 bg-black/40 px-2 py-1.5 text-[11px] font-medium text-slate-100 hover:bg-black/60 focus:outline-none focus:ring-2 focus:ring-indigo-400/50"
+              title="Choose which AI model handles your next messages. Auto picks the best model for what you're doing."
+            >
+              <option value="auto" className="bg-slate-900 text-slate-100" title="Auto-selects the fastest, most capable model for chat vs build vs scripting.">
+                ⚡ Auto — best model for what you're doing
               </option>
-            ))}
-          </select>
+              {availableModels.map((m) => (
+                <option
+                  key={m.id}
+                  value={m.id}
+                  className="bg-slate-900 text-slate-100"
+                  title={m.bestFor}
+                >
+                  {m.label} · {m.bestFor.length > 60 ? m.bestFor.slice(0, 60) + "…" : m.bestFor}
+                </option>
+              ))}
+            </select>
+          </div>
+          {/* Roblox-focused description of what the current model does for your games */}
+          <p className="max-w-[280px] text-right text-[10.5px] leading-snug text-slate-400">
+            {selectedModel === "auto"
+              ? "Auto: chat gets the fast Llama 3.3 70B for planning, Build gets Qwen Coder 32B for Luau — swaps automatically per task."
+              : (availableModels.find((m) => m.id === selectedModel)?.bestFor ?? "")}
+          </p>
         </div>
       </div>
 
