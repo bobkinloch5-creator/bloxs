@@ -602,14 +602,28 @@ LOADING SCREEN (ship this whole recipe when asked):
 - Drive loading with: \`local count = game.Loaded and 1 or 0; game.Loaded:Connect(...)\`. Use \`ContentProvider:GetRequestQueueSize()\` polled each Heartbeat for accurate percentage while assets stream. Always finish at 100% then reveal the Play button — never block forever.
 - Mobile/tablet parity: every element uses UDim2.fromScale + UIAspectRatioConstraint on the logo and play button. Loading bar uses UISizeConstraint MinSize (280,8) MaxSize (640,12).
 
-MAIN MENU (ship this when asked):
-- Full-screen ScreenGui in StarterGui, IgnoreGuiInset=true, ResetOnSpawn=false.
-- Background: ImageLabel covering the screen with a tasteful asset OR a UIGradient (2-3 stops, dark palette). Optional ParticleEmitter-style animated Frames (floating circles) tweened in a LocalScript loop.
-- Logo at top-center (ImageLabel or TextLabel GothamBlack 56px with UIGradient).
-- Vertical button stack centered: PLAY (primary, accent-coloured, large), SHOP, INVENTORY, SETTINGS, CREDITS — each TextButton 280x60, UICorner 12, UIStroke 2px, UIGradient on PLAY, GothamSemibold 22px. UIListLayout Padding 14px.
-- Hover/press tweens: TweenService Goal { Size = original*1.05, BackgroundTransparency -= 0.1 } on MouseEnter; reverse on MouseLeave. Sound feedback on click only when a safe sound asset is found through search_toolbox.
-- Footer: version label bottom-left, social/credits bottom-right.
-- PLAY button calls a RemoteEvent that teleports the player to the spawn / starts the round, then tweens the menu out.
+MAIN MENU (ship this when asked — must look AAA, never a plain gradient with 4 grey buttons):
+- Full-screen ScreenGui in StarterGui, IgnoreGuiInset=true, ResetOnSpawn=false, DisplayOrder=50.
+- MANDATORY LAYERED BACKGROUND (build all layers, in this Z order):
+  1. Base Frame filling the screen with a rich UIGradient (3+ stops, dark-to-mid brand palette, e.g. #0A0B14 → #141833 → #1E1B4B — never a flat single color, never default grey).
+  2. Ambient hero ImageLabel (a game-fitting Toolbox/decal id if search_toolbox finds one, else an animated Frame with radial UIGradient at 40% transparency). Slowly parallax-drift its Position ±10px on a 12s TweenService loop.
+  3. Vignette overlay Frame (BackgroundColor3 black, top+bottom edges only, UIGradient with alpha 0→0.6→0 vertical) for cinematic framing.
+  4. Animated accent particles: 12-20 small circular Frames (UICorner 999, random 4-10px sizes) tweened in slow drift loops with random start delays. Keep them at 30-50% transparency so they read as ambience, not clutter.
+- ASYMMETRIC MAGAZINE LAYOUT, not a centered stack:
+  - LEFT COLUMN (fromScale 0, 0.15 → 0.42, 0.9): giant game title in Enum.Font.GothamBlack 84-110px with a UIGradient text fill (accent → highlight) and a subtle UIStroke 2px in accent color. Tagline below in GothamMedium 22px at 70% transparency. A short "v1.0 · by Studio" credit in Gotham 14px near the bottom.
+  - RIGHT COLUMN (fromScale 0.58, 0.2 → 0.95, 0.85): the button rail — but as a CARD STACK, not raw buttons:
+    - Each menu item is a Frame 340x84 with UICorner 18, UIStroke 1.5px (surface stroke #2a2f4a), UIPadding 16px, containing an ImageLabel icon (48x48, UIAspectRatioConstraint) on the left and a two-line TextLabel (bold title 22px + muted subtitle 14px "Start your adventure" / "Cosmetics & bundles" / "Your loadout" / "Audio, video, controls") on the right.
+    - PLAY card is oversized (380x110), uses a UIGradient (accent→accent2), UIStroke 2px in accent-glow color, and a soft drop-shadow via a duplicate blurred Frame behind it (semi-transparent, offset y+6, scaled 1.02).
+    - SHOP / INVENTORY / SETTINGS / CREDITS cards use a translucent surface (BackgroundColor3 mid, BackgroundTransparency 0.25) with a matching UIStroke.
+    - Stack them with UIListLayout Padding 14px, VerticalAlignment Center.
+  - Every card animates on hover: TweenService (0.18s, Quad Out) Position shifts x-8 (slides left toward viewer), UIStroke Transparency 0→0.2, and BackgroundTransparency drops 0.15. Reverse on MouseLeave. On MouseButton1Down flash a Scale 0.97 press then bounce back.
+- FOOTER STRIP (fromScale 0, 0.94 → 1, 1) with translucent bar: left = social icon row (Discord/YouTube/Twitter using ImageLabel with round UICorner 999 backgrounds), center = "Players Online: 1,247" TextLabel driven by a real value if available, right = version + build number.
+- ENTRANCE ANIMATION on ScreenGui load: title left-slides in (Position x -30 → target) with fade 0→1 over 0.5s, cards cascade in bottom-up with staggered 0.06s delays, background particles fade in over 0.8s. Use TweenService with Enum.EasingStyle.Quart Out.
+- SOUND: on hover play a soft UI tick (search_toolbox "ui hover sound"), on click a confirm ping. Volume 0.4. Skip if no safe sound id found — never invent asset ids.
+- PLAY button calls a RemoteEvent that hides/tweens-out the menu (all children fade + scale 0.95) then teleports the player / starts the round.
+- MANDATORY palette rule: pick a bold, on-theme 4-color palette in a `local Theme` table at the top of the LocalScript (bg, surface, accent, accentGlow, text, muted, stroke) — reuse it for every element. Never mix random Color3 values. Match the palette to the game genre (horror = crimson+bone, sci-fi = cyan+magenta on midnight, fantasy = gold+emerald on ink, racing = neon-yellow+carbon, cute = pastel-pink+mint).
+- FORBIDDEN in main menus: flat single-color background, unstyled default-grey TextButtons, buttons in a plain centered column with no icons/subtitles/hover FX, no title, missing footer, missing hover animation, "Menu"/"Play"/"Settings" all identically styled with no visual hierarchy. If any of those are true, the menu is unfinished — keep building.
+
 
 SETTINGS MENU (ship this when asked):
 - Modal Frame centered (UDim2.fromScale(0.6,0.7), MaxSize 720x560 via UISizeConstraint, rounded UICorner 16, UIStroke 1px, UIPadding 24px).
