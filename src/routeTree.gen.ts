@@ -10,8 +10,10 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TermsRouteImport } from './routes/terms'
+import { Route as TemplatesMarketRouteImport } from './routes/templates-market'
 import { Route as SupportRouteImport } from './routes/support'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as ShowcaseRouteImport } from './routes/showcase'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as DonateRouteImport } from './routes/donate'
 import { Route as DocsRouteImport } from './routes/docs'
@@ -25,6 +27,7 @@ import { Route as ApiVoiceRouteImport } from './routes/api/voice'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as AuthenticatedUiGeneratorRouteImport } from './routes/_authenticated/ui-generator'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
+import { Route as AuthenticatedReferralsRouteImport } from './routes/_authenticated/referrals'
 import { Route as AuthenticatedProjectsRouteImport } from './routes/_authenticated/projects'
 import { Route as AuthenticatedPluginRouteImport } from './routes/_authenticated/plugin'
 import { Route as AuthenticatedModelsRouteImport } from './routes/_authenticated/models'
@@ -59,6 +62,11 @@ const TermsRoute = TermsRouteImport.update({
   path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TemplatesMarketRoute = TemplatesMarketRouteImport.update({
+  id: '/templates-market',
+  path: '/templates-market',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SupportRoute = SupportRouteImport.update({
   id: '/support',
   path: '/support',
@@ -67,6 +75,11 @@ const SupportRoute = SupportRouteImport.update({
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ShowcaseRoute = ShowcaseRouteImport.update({
+  id: '/showcase',
+  path: '/showcase',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PrivacyRoute = PrivacyRouteImport.update({
@@ -132,6 +145,11 @@ const AuthenticatedUiGeneratorRoute =
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedReferralsRoute = AuthenticatedReferralsRouteImport.update({
+  id: '/referrals',
+  path: '/referrals',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedProjectsRoute = AuthenticatedProjectsRouteImport.update({
@@ -291,8 +309,10 @@ export interface FileRoutesByFullPath {
   '/docs': typeof DocsRoute
   '/donate': typeof DonateRoute
   '/privacy': typeof PrivacyRoute
+  '/showcase': typeof ShowcaseRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/support': typeof SupportRoute
+  '/templates-market': typeof TemplatesMarketRoute
   '/terms': typeof TermsRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/collaborators': typeof AuthenticatedCollaboratorsRoute
@@ -304,6 +324,7 @@ export interface FileRoutesByFullPath {
   '/models': typeof AuthenticatedModelsRouteWithChildren
   '/plugin': typeof AuthenticatedPluginRoute
   '/projects': typeof AuthenticatedProjectsRoute
+  '/referrals': typeof AuthenticatedReferralsRoute
   '/settings': typeof AuthenticatedSettingsRouteWithChildren
   '/ui-generator': typeof AuthenticatedUiGeneratorRoute
   '/api/chat': typeof ApiChatRoute
@@ -336,8 +357,10 @@ export interface FileRoutesByTo {
   '/docs': typeof DocsRoute
   '/donate': typeof DonateRoute
   '/privacy': typeof PrivacyRoute
+  '/showcase': typeof ShowcaseRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/support': typeof SupportRoute
+  '/templates-market': typeof TemplatesMarketRoute
   '/terms': typeof TermsRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/collaborators': typeof AuthenticatedCollaboratorsRoute
@@ -349,6 +372,7 @@ export interface FileRoutesByTo {
   '/models': typeof AuthenticatedModelsRouteWithChildren
   '/plugin': typeof AuthenticatedPluginRoute
   '/projects': typeof AuthenticatedProjectsRoute
+  '/referrals': typeof AuthenticatedReferralsRoute
   '/settings': typeof AuthenticatedSettingsRouteWithChildren
   '/ui-generator': typeof AuthenticatedUiGeneratorRoute
   '/api/chat': typeof ApiChatRoute
@@ -383,8 +407,10 @@ export interface FileRoutesById {
   '/docs': typeof DocsRoute
   '/donate': typeof DonateRoute
   '/privacy': typeof PrivacyRoute
+  '/showcase': typeof ShowcaseRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/support': typeof SupportRoute
+  '/templates-market': typeof TemplatesMarketRoute
   '/terms': typeof TermsRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/collaborators': typeof AuthenticatedCollaboratorsRoute
@@ -396,6 +422,7 @@ export interface FileRoutesById {
   '/_authenticated/models': typeof AuthenticatedModelsRouteWithChildren
   '/_authenticated/plugin': typeof AuthenticatedPluginRoute
   '/_authenticated/projects': typeof AuthenticatedProjectsRoute
+  '/_authenticated/referrals': typeof AuthenticatedReferralsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRouteWithChildren
   '/_authenticated/ui-generator': typeof AuthenticatedUiGeneratorRoute
   '/api/chat': typeof ApiChatRoute
@@ -430,8 +457,10 @@ export interface FileRouteTypes {
     | '/docs'
     | '/donate'
     | '/privacy'
+    | '/showcase'
     | '/sitemap.xml'
     | '/support'
+    | '/templates-market'
     | '/terms'
     | '/admin'
     | '/collaborators'
@@ -443,6 +472,7 @@ export interface FileRouteTypes {
     | '/models'
     | '/plugin'
     | '/projects'
+    | '/referrals'
     | '/settings'
     | '/ui-generator'
     | '/api/chat'
@@ -475,8 +505,10 @@ export interface FileRouteTypes {
     | '/docs'
     | '/donate'
     | '/privacy'
+    | '/showcase'
     | '/sitemap.xml'
     | '/support'
+    | '/templates-market'
     | '/terms'
     | '/admin'
     | '/collaborators'
@@ -488,6 +520,7 @@ export interface FileRouteTypes {
     | '/models'
     | '/plugin'
     | '/projects'
+    | '/referrals'
     | '/settings'
     | '/ui-generator'
     | '/api/chat'
@@ -521,8 +554,10 @@ export interface FileRouteTypes {
     | '/docs'
     | '/donate'
     | '/privacy'
+    | '/showcase'
     | '/sitemap.xml'
     | '/support'
+    | '/templates-market'
     | '/terms'
     | '/_authenticated/admin'
     | '/_authenticated/collaborators'
@@ -534,6 +569,7 @@ export interface FileRouteTypes {
     | '/_authenticated/models'
     | '/_authenticated/plugin'
     | '/_authenticated/projects'
+    | '/_authenticated/referrals'
     | '/_authenticated/settings'
     | '/_authenticated/ui-generator'
     | '/api/chat'
@@ -568,8 +604,10 @@ export interface RootRouteChildren {
   DocsRoute: typeof DocsRoute
   DonateRoute: typeof DonateRoute
   PrivacyRoute: typeof PrivacyRoute
+  ShowcaseRoute: typeof ShowcaseRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   SupportRoute: typeof SupportRoute
+  TemplatesMarketRoute: typeof TemplatesMarketRoute
   TermsRoute: typeof TermsRoute
   ApiChatRoute: typeof ApiChatRoute
   ApiVoiceRoute: typeof ApiVoiceRoute
@@ -601,6 +639,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/templates-market': {
+      id: '/templates-market'
+      path: '/templates-market'
+      fullPath: '/templates-market'
+      preLoaderRoute: typeof TemplatesMarketRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/support': {
       id: '/support'
       path: '/support'
@@ -613,6 +658,13 @@ declare module '@tanstack/react-router' {
       path: '/sitemap.xml'
       fullPath: '/sitemap.xml'
       preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/showcase': {
+      id: '/showcase'
+      path: '/showcase'
+      fullPath: '/showcase'
+      preLoaderRoute: typeof ShowcaseRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/privacy': {
@@ -704,6 +756,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof AuthenticatedSettingsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/referrals': {
+      id: '/_authenticated/referrals'
+      path: '/referrals'
+      fullPath: '/referrals'
+      preLoaderRoute: typeof AuthenticatedReferralsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/projects': {
@@ -940,6 +999,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedModelsRoute: typeof AuthenticatedModelsRouteWithChildren
   AuthenticatedPluginRoute: typeof AuthenticatedPluginRoute
   AuthenticatedProjectsRoute: typeof AuthenticatedProjectsRoute
+  AuthenticatedReferralsRoute: typeof AuthenticatedReferralsRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRouteWithChildren
   AuthenticatedUiGeneratorRoute: typeof AuthenticatedUiGeneratorRoute
   AuthenticatedProjectProjectIdRoute: typeof AuthenticatedProjectProjectIdRoute
@@ -956,6 +1016,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedModelsRoute: AuthenticatedModelsRouteWithChildren,
   AuthenticatedPluginRoute: AuthenticatedPluginRoute,
   AuthenticatedProjectsRoute: AuthenticatedProjectsRoute,
+  AuthenticatedReferralsRoute: AuthenticatedReferralsRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRouteWithChildren,
   AuthenticatedUiGeneratorRoute: AuthenticatedUiGeneratorRoute,
   AuthenticatedProjectProjectIdRoute: AuthenticatedProjectProjectIdRoute,
@@ -972,8 +1033,10 @@ const rootRouteChildren: RootRouteChildren = {
   DocsRoute: DocsRoute,
   DonateRoute: DonateRoute,
   PrivacyRoute: PrivacyRoute,
+  ShowcaseRoute: ShowcaseRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   SupportRoute: SupportRoute,
+  TemplatesMarketRoute: TemplatesMarketRoute,
   TermsRoute: TermsRoute,
   ApiChatRoute: ApiChatRoute,
   ApiVoiceRoute: ApiVoiceRoute,
