@@ -3840,7 +3840,7 @@ export const Route = createFileRoute("/api/chat")({
           // fallback. Awaiting here lets us retry before the UI receives a response.
           const chain = getFallbackChain(modelChoice.meta.id);
           const isRetryable = (msg: string) =>
-            /429|rate.?limit|ResourceExhausted|worker.*limit|request limit reached|capacity|overloaded|503|Too Many|fetch failed|ECONNRESET|ETIMEDOUT|timeout|timed out/i.test(msg);
+            /429|rate.?limit|ResourceExhausted|worker.*limit|request limit reached|capacity|overloaded|503|502|500|Too Many|fetch failed|ECONNRESET|ETIMEDOUT|timeout|timed out|Request too large|tokens per minute|TPM|reduce your message size|context.?length|context_length_exceeded|too many tokens|maximum context|token limit|payload too large|413/i.test(msg);
 
           try {
             return await tryGenerate(modelChoice.model, modelChoice.meta.id, modelChoice.usedFallback
