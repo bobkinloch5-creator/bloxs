@@ -221,6 +221,20 @@ export function WorkspaceChat({
     window.localStorage.setItem("bs:procedural-generation", proceduralGeneration ? "1" : "0");
   }, [proceduralGeneration]);
 
+  // 🧠 Model selection — persisted across sessions. Falls back to default if
+  // the stored id is no longer Working / selectable.
+  const availableModels = useMemo(() => MODELS.filter(isSelectable), []);
+  const [selectedModel, setSelectedModel] = useState<string>(() => {
+    if (typeof window === "undefined") return DEFAULT_MODEL_ID;
+    const saved = window.localStorage.getItem("bs:selected-model");
+    if (saved && MODELS.some((m) => m.id === saved && isSelectable(m))) return saved;
+    return DEFAULT_MODEL_ID;
+  });
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem("bs:selected-model", selectedModel);
+  }, [selectedModel]);
+
   // NVIDIA-powered TTS speaker — speaks AI replies back through the user's speakers
   const speaker = useBloxSmithSpeaker(ttsEnabled);
 
