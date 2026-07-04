@@ -891,6 +891,9 @@ function ModelCard({ m, projectId, onChange }: { m: any; projectId?: string; onC
             </button>
           </div>
         )}
+        {isAnimation && canPreview && viewerLoaded && (
+          <AnimationControls viewerRef={viewerRef} />
+        )}
         {!done && (
           <button onClick={() => setConfirmDelete(true)} title="Delete 3D model" className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-md bg-black/60 text-rose-200 backdrop-blur hover:bg-rose-500/25">
             <Trash2 className="h-3.5 w-3.5" />
