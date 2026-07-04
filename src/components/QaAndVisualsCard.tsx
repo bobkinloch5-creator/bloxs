@@ -238,7 +238,8 @@ function VisualsTab({ projectId, projectName, gameType }: { projectId: string; p
             ev.event === "image_generation.completed"
           ) {
             const final = ev.event === "image_generation.completed";
-            const url = `data:image/png;base64,${payload.b64_json}`;
+            const mediaType = typeof payload?.media_type === "string" ? payload.media_type : "image/png";
+            const url = `data:${mediaType};base64,${payload.b64_json}`;
             flushSync(() => { setPreviewDataUrl(url); if (final) setIsFinal(true); });
             if (final) finalUrl = url;
           }

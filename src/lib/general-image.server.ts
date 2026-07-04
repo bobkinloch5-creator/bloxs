@@ -187,13 +187,49 @@ async function tryNvidiaImage(prompt: string, size: string): Promise<string | nu
   return null;
 }
 
+async function tryLovableImageFallback(prompt: string, size: string): Promise<string | null> {
+  const key = process.env.LOVABLE_API_KEY;
+  if (!key) return null;
+  try {
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/images/generations", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${key}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "openai/gpt-image-2",
+        prompt,
+        quality: "low",
+        size,
+        n: 1,
+        stream: false,
+      }),
+    });
+    if (!res.ok) {
+      console.warn("[image-fallback] Lovable image failed", res.status, (await res.text().catch(() => "")).slice(0, 200));
+      return null;
+    }
+    const json = await res.json().catch(() => null);
+    const img = extractBase64(json);
+    return img ? `data:${img.mime};base64,${img.b64}` : null;
+  } catch (err) {
+    console.warn("[image-fallback] Lovable image threw", err);
+    return null;
+  }
+}
+
 
 export async function generateGeneralImage(args: GenArgs): Promise<string> {
   const prompt = `${args.prompt.trim()}${subjectHint(args.kind)}${styleHint(args.style)}`.slice(0, 1500);
   const size = args.size ?? "1024x1024";
-  // NVIDIA-only: try real NVIDIA image generation, then fall back to local SVG placeholder.
+  // NVIDIA first per BloxSmith's provider preference. If NVIDIA is cold/down,
+  // fall back to a real image provider instead of asking questions or returning
+  // a disabled placeholder.
   const nvImage = await tryNvidiaImage(prompt, size);
   if (nvImage) return nvImage;
+  const fallbackImage = await tryLovableImageFallback(prompt, size);
+  if (fallbackImage) return fallbackImage;
   return localConceptSvg(prompt, args.kind);
 }
 

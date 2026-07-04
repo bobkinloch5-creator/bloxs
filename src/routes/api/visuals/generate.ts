@@ -16,9 +16,11 @@ function jsonError(message: string, status: number, code?: string) {
 }
 
 function splitDataUrl(dataUrl: string) {
-  const match = dataUrl.match(/^data:([^;]+);base64,(.*)$/);
-  if (!match) return null;
-  return { mediaType: match[1], b64: match[2] };
+  const b64Match = dataUrl.match(/^data:([^;]+);base64,(.*)$/);
+  if (b64Match) return { mediaType: b64Match[1], b64: b64Match[2] };
+  const utf8Match = dataUrl.match(/^data:([^;,]+)(?:;charset=[^,]+)?,(.*)$/);
+  if (!utf8Match) return null;
+  return { mediaType: utf8Match[1], b64: btoa(decodeURIComponent(utf8Match[2])) };
 }
 
 function imageEventStream(dataUrl: string) {
@@ -31,8 +33,8 @@ function imageEventStream(dataUrl: string) {
         controller.close();
         return;
       }
-      controller.enqueue(encoder.encode(`event: image_generation.partial_image\ndata: ${JSON.stringify({ type: "image_generation.partial_image", b64_json: payload.b64, created_at: Math.floor(Date.now() / 1000), partial_image_index: 0 })}\n\n`));
-      controller.enqueue(encoder.encode(`event: image_generation.completed\ndata: ${JSON.stringify({ type: "image_generation.completed", b64_json: payload.b64, created_at: Math.floor(Date.now() / 1000) })}\n\n`));
+      controller.enqueue(encoder.encode(`event: image_generation.partial_image\ndata: ${JSON.stringify({ type: "image_generation.partial_image", b64_json: payload.b64, media_type: payload.mediaType, created_at: Math.floor(Date.now() / 1000), partial_image_index: 0 })}\n\n`));
+      controller.enqueue(encoder.encode(`event: image_generation.completed\ndata: ${JSON.stringify({ type: "image_generation.completed", b64_json: payload.b64, media_type: payload.mediaType, created_at: Math.floor(Date.now() / 1000) })}\n\n`));
       controller.close();
     },
   });
