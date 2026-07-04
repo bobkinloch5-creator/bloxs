@@ -557,7 +557,7 @@ export function WorkspaceChat({
           {/* Roblox-focused description of what the current model does for your games */}
           <p className="max-w-[280px] text-right text-[10.5px] leading-snug text-slate-400">
             {selectedModel === "auto"
-              ? "Auto: chat gets the fast Llama 3.3 70B for planning, Build gets Qwen Coder 32B for Luau — swaps automatically per task."
+              ? "Auto: uses fast, efficient models first — Gemma for planning/UI and Qwen Coder for Luau/build actions."
               : (availableModels.find((m) => m.id === selectedModel)?.bestFor ?? "")}
           </p>
         </div>
