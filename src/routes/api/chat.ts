@@ -3452,7 +3452,7 @@ export const Route = createFileRoute("/api/chat")({
                   }
                 }
 
-                if (mode === "build" && proceduralFallbackAllowed && !proceduralModeActive && !isSimpleSingleThingRequest(userText)) {
+                if (mode === "build" && proceduralFallbackAllowed && !proceduralModeActive && !isSimpleSingleThingRequest(userText) && buildQuality === "full_game") {
                   const guardActions = intentVisibilityStudioActions(userText).map(normalizePluginAction);
                   if (guardActions.length > 0) {
                     actions = [
