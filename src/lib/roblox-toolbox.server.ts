@@ -302,10 +302,11 @@ const JUNK_PATTERNS = [
   /\bgive\s*?away\b/i,
 ];
 
-// Names that almost always indicate a multi-asset bundle / prop library /
-// showcase scene rather than a single usable model. When the caller asked for
-// ONE thing ("1 house", "a pistol"), inserting one of these dumps dozens of
-// unrelated children into Workspace.
+// Names that indicate a multi-asset bundle / prop library / showcase scene.
+// These are no longer rejected for single-asset requests because real Roblox
+// Toolbox uploads are often package containers. The Studio plugin recursively
+// selects one usable Model from inside the package and only rejects assets that
+// contain no Models at all.
 const PACK_PATTERNS = [
   /\bpacks?\b/i,
   /\bkits?\b/i,
@@ -422,10 +423,8 @@ function rejectionReason(r: ToolboxResult, opts: { strict?: boolean } = {}): str
   // counts are still insertable; the plugin strips scripts server-side anyway.
   if ((r.safety ?? 0) < 0.50) return "low_safety";
   const isRoblox = r.creatorName.trim().toLowerCase() === "roblox";
-  // Always reject pack/kit-style names — they are multi-asset bundles that
-  // dump dozens of unrelated objects into Studio and often fail to insert
-  // because they are group-owned or have restricted permissions.
-  if (looksLikePack(r.name)) return "looks_like_pack";
+  // Do not reject pack/kit-style names here. Many valid Toolbox assets are
+  // containers, and plugin-side extraction now chooses one nested Model safely.
   // Strict mode (single-asset insert): only reject truly script-heavy models.
   // We do NOT reject on hasScripts alone — many legitimate Roblox Toolbox assets
   // include helper scripts. The plugin-side no_scripts/strip_scripts flags handle them.
