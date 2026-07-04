@@ -1360,7 +1360,23 @@ function Actions.insert_asset(a)
 	--   2. Otherwise insert the entire package (wrapped in a Model if needed).
 	local children = model:GetChildren()
 	local placed
-	if singleAsset then
+	local preserveWhole = payload.preserve_hierarchy or payload.is_map or payload.insert_full_package
+	if preserveWhole then
+		-- World / map / full-package insertion: never extract a nested model, never
+		-- reject for child count. Roblox Toolbox assets are complete packages
+		-- (https://create.roblox.com/docs/projects/assets/toolbox); for map-like
+		-- prompts we bring the entire hierarchy in exactly as authored.
+		appendLog(("[insert_asset] full-package mode: inserting entire Toolbox asset (%d top-level children, %d descendants)"):format(
+			#children, #model:GetDescendants()), "info")
+		local wrapper = Instance.new("Model")
+		wrapper.Name = name or tostring(payload.asset_name or payload.name or "ToolboxWorld")
+		for _, c in ipairs(children) do c.Parent = wrapper end
+		for _, d in ipairs(wrapper:GetDescendants()) do
+			if d:IsA("BasePart") then wrapper.PrimaryPart = d; break end
+		end
+		wrapper.Parent = p
+		placed = wrapper
+	elseif singleAsset then
 		appendLog(("[insert_asset] scanning Toolbox package: %d top-level children; selecting from all nested Models"):format(#children), "debug")
 		local best, discard, debugLines = pickBestModel(model, false)
 		for _, line in ipairs(debugLines or {}) do
@@ -1380,7 +1396,6 @@ function Actions.insert_asset(a)
 			wrapper.Name = name or tostring(payload.asset_name or payload.name or "ToolboxAsset")
 			for _, c in ipairs(children) do c.Parent = wrapper end
 			wrapper.Parent = p
-			-- Set a PrimaryPart if any BasePart exists so PivotTo works later.
 			for _, d in ipairs(wrapper:GetDescendants()) do
 				if d:IsA("BasePart") then wrapper.PrimaryPart = d; break end
 			end
