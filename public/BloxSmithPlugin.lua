@@ -41,7 +41,7 @@ end
 ----------------------------------------------------------------
 -- CONFIG
 ----------------------------------------------------------------
-local PLUGIN_VERSION  = "2.1.7"
+local PLUGIN_VERSION  = "2.1.8"
 local API_BASE        = "https://bloxsmith.pro"
 local POLL_SECONDS    = 1        -- how often to call /poll for actions
 local PAIR_POLL_SEC   = 2        -- how often to poll for pair approval
