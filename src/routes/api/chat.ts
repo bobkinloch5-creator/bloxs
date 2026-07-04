@@ -2721,7 +2721,7 @@ export const Route = createFileRoute("/api/chat")({
               ...(modelChoiceLite.modelSettings?.temperature !== undefined ? { temperature: modelChoiceLite.modelSettings.temperature } : {}),
               ...(modelChoiceLite.modelSettings?.topP !== undefined ? { topP: modelChoiceLite.modelSettings.topP } : {}),
               maxOutputTokens: capOutputTokens(modelChoiceLite.modelSettings, "chat"),
-              stopWhen: stepCountIs(8),
+              stopWhen: stepCountIs(50),
               onError: ({ error }) => console.error("[chat/lite] upstream error", error),
             });
             try {
@@ -3841,7 +3841,7 @@ export const Route = createFileRoute("/api/chat")({
                 : (imageGenerationRequested
                   ? { search_toolbox: toolboxTool, search_toolbox_set: toolboxSetTool, generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool }
                   : { search_toolbox: toolboxTool, search_toolbox_set: toolboxSetTool, roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch }),
-            stopWhen: stepCountIs(mode === "chat" || buildQuality === "basic" ? 8 : 50),
+            stopWhen: stepCountIs(50),
             onFinish: async ({ text }) => {
               await persistFinish(usedModelId, notice)({ text });
             },
