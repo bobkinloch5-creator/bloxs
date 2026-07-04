@@ -86,7 +86,7 @@ export const queueToolboxInsert = createServerFn({ method: "POST" })
     const parentPath = data.parentPath?.trim() || "Workspace";
     const isMapLike = (q?: string | null, n?: string | null) => {
       const s = `${q ?? ""} ${n ?? ""}`.toLowerCase();
-      return /\b(map|obby|world|city|island|dungeon|arena|lobby|tycoon|racing|track|parkour|showcase|kit|game)\b/.test(s);
+      return /\b(map|obby|world|place|scene|environment|biome|city|town|village|island|dungeon|arena|lobby|tycoon|racing|track|parkour|showcase|kit|pack|bundle|collection|game|forest|jungle|desert|mountain|terrain|building|interior|house\s*interior|street|neighbourhood|neighborhood|district)\b/.test(s);
     };
     const folder = (singleAsset ? "BloxSmith_Assets" : (data.folderName?.trim() || `BloxSmith_${niceFolder(data.assets[0]?.sourceQuery ?? "Toolbox")}`))
       .replace(/[^\w-]+/g, "_")
