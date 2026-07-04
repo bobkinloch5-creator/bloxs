@@ -1170,29 +1170,106 @@ local function looksLikePackName(name)
 	return false
 end
 
--- Walk a container's top-level children and pick the one whose name best
--- matches the source query. Returns that child plus the rest as discard list.
+-- Recursively walk a container and score every Model / BasePart candidate.
+-- Real Toolbox uploads are often packages: a top-level Model or Folder that
+-- contains folders, sub-models, meshes, and props. We must accept ANY usable
+-- Model/BasePart anywhere in the hierarchy, not just a top-level child whose
+-- name literally matches the query. Returns (best, discardList, debugLines).
 local function pickBestChild(container, queryWord)
 	local q = (queryWord or ""):lower()
-	if q == "" then return nil, {} end
-	local best, bestScore
-	local discard = {}
-	for _, c in ipairs(container:GetChildren()) do
-		local n = (c.Name or ""):lower()
-		local score = 0
-		if n == q then score = 100
-		elseif n:find(q, 1, true) then score = 60 + math.min(20, #q)
+	local topChildren = container:GetChildren()
+	local candidates = {}
+	local debugLines = {}
+
+	local function partCount(inst)
+		local n = 0
+		if inst:IsA("BasePart") then n = 1 end
+		for _, d in ipairs(inst:GetDescendants()) do
+			if d:IsA("BasePart") then n = n + 1 end
 		end
-		-- bonus for Model with mostly parts (more "object-like" than folder of props)
-		if c:IsA("Model") then score = score + 5 end
-		if score > 0 and (not bestScore or score > bestScore) then
-			if best then table.insert(discard, best) end
-			best, bestScore = c, score
-		else
-			table.insert(discard, c)
+		return n
+	end
+
+	local function boundingSize(inst)
+		local ok, size = pcall(function()
+			if inst:IsA("Model") and inst.GetExtentsSize then return inst:GetExtentsSize() end
+			if inst:IsA("BasePart") then return inst.Size end
+			return Vector3.new(0, 0, 0)
+		end)
+		if ok and size then return size.Magnitude end
+		return 0
+	end
+
+	local function considerNode(inst, depth)
+		if depth > 6 then return end
+		local isModel = inst:IsA("Model")
+		local isPart = inst:IsA("BasePart")
+		local isMesh = inst:IsA("MeshPart") or inst:IsA("SpecialMesh")
+		if isModel or isPart or isMesh then
+			local parts = partCount(inst)
+			local bbox = boundingSize(inst)
+			if parts > 0 or isMesh then
+				local nameLower = (inst.Name or ""):lower()
+				local score = 0
+				-- Name similarity (soft, not required).
+				if q ~= "" then
+					if nameLower == q then score = score + 60
+					elseif nameLower:find(q, 1, true) then score = score + 35
+					else
+						for word in nameLower:gmatch("[%a]+") do
+							if q:find(word, 1, true) or word:find(q, 1, true) then
+								score = score + 15; break
+							end
+						end
+					end
+				end
+				-- Structural signals.
+				if isModel and inst.PrimaryPart then score = score + 25 end
+				if isModel then score = score + 10 end
+				score = score + math.min(30, parts)              -- part-count bonus, cap 30
+				if bbox >= 4 and bbox <= 600 then score = score + 10 end
+				-- Depth penalty (prefer shallower).
+				score = score - depth * 2
+				-- Reject obvious junk-only nodes (single tiny invisible bit).
+				if parts == 1 and bbox < 0.5 then score = score - 20 end
+				table.insert(candidates, { inst = inst, score = score, depth = depth, parts = parts, bbox = bbox })
+			end
+		end
+		if inst:IsA("Folder") or inst:IsA("Model") or inst:IsA("Configuration") then
+			for _, c in ipairs(inst:GetChildren()) do
+				considerNode(c, depth + 1)
+			end
 		end
 	end
-	return best, discard
+
+	for _, c in ipairs(topChildren) do considerNode(c, 1) end
+
+	if #candidates == 0 then
+		table.insert(debugLines, ("no Model/BasePart found across %d top-level children"):format(#topChildren))
+		return nil, topChildren, debugLines
+	end
+
+	table.sort(candidates, function(a, b) return a.score > b.score end)
+	local best = candidates[1].inst
+	for i = 1, math.min(5, #candidates) do
+		local c = candidates[i]
+		table.insert(debugLines, ("cand #%d: %s (score=%d depth=%d parts=%d bbox=%.1f)"):format(
+			i, c.inst.Name, c.score, c.depth, c.parts, c.bbox
+		))
+	end
+
+	-- Discard everything at the top level except the ancestor path leading to best.
+	local keepSet = {}
+	local walk = best
+	while walk and walk ~= container do
+		keepSet[walk] = true
+		walk = walk.Parent
+	end
+	local discard = {}
+	for _, c in ipairs(topChildren) do
+		if not keepSet[c] then table.insert(discard, c) end
+	end
+	return best, discard, debugLines
 end
 
 
