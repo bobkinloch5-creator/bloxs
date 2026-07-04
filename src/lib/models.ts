@@ -112,11 +112,12 @@ export const MODELS: ModelOption[] = [
     speed: "Slow",
     quality: "Best",
     credits: "Low",
-    status: "Working",
-    bestFor: "Meta's flagship 405B parameter model for hard reasoning.",
-    description: "Meta Llama 3.1 405B via NVIDIA build.nvidia.com.",
+    status: "Coming Soon",
+    bestFor: "Currently unavailable on NVIDIA NIM.",
+    description: "Meta Llama 3.1 405B — re-enable when the endpoint is provisioned.",
     modelSettings: { temperature: 0.6, topP: 0.9, maxOutputTokens: 4096 },
   },
+
   {
     id: "nvidia/llama-3.3-70b",
     upstreamId: "meta/llama-3.3-70b-instruct",
@@ -169,10 +170,10 @@ export const MODELS: ModelOption[] = [
   // ─── Qwen on NVIDIA ────────────────────────────────────────────────────────
   {
     id: "nvidia/qwen-2.5-coder-32b",
-    upstreamId: "qwen/qwen2.5-coder-32b-instruct",
+    upstreamId: "mistralai/codestral-22b-instruct-v0.1",
     gateway: "nvidia",
-    label: "Qwen 2.5 Coder 32B",
-    provider: "Qwen",
+    label: "Codestral 22B (Coder)",
+    provider: "Mistral",
     via: "NVIDIA NIM",
     tier: "balanced",
     speed: "Fast",
@@ -180,14 +181,14 @@ export const MODELS: ModelOption[] = [
     credits: "Low",
     status: "Working",
     bestFor: "Fast code-specialized model for Luau generation, bug fixes, and build actions.",
-    description: "Qwen 2.5 Coder 32B via NVIDIA build.nvidia.com.",
+    description: "Mistral Codestral 22B via NVIDIA build.nvidia.com (code-tuned).",
     modelSettings: { temperature: 0.35, topP: 0.85, maxOutputTokens: 3072 },
   },
   {
     id: "nvidia/qwen-2.5-72b",
-    upstreamId: "qwen/qwen2.5-72b-instruct",
+    upstreamId: "qwen/qwen3-next-80b-a3b-instruct",
     gateway: "nvidia",
-    label: "Qwen 2.5 72B",
+    label: "Qwen 3 Next 80B",
     provider: "Qwen",
     via: "NVIDIA NIM",
     tier: "balanced",
@@ -195,10 +196,11 @@ export const MODELS: ModelOption[] = [
     quality: "Great",
     credits: "Low",
     status: "Working",
-    bestFor: "Qwen 2.5 72B general instruction model for Roblox builds.",
-    description: "Qwen 2.5 72B via NVIDIA build.nvidia.com.",
+    bestFor: "Qwen 3 Next 80B general instruction model for Roblox builds.",
+    description: "Qwen 3 Next 80B via NVIDIA build.nvidia.com.",
     modelSettings: { temperature: 0.45, topP: 0.9, maxOutputTokens: 4096 },
   },
+
 
   // ─── DeepSeek on NVIDIA ────────────────────────────────────────────────────
   {
@@ -228,9 +230,9 @@ export const MODELS: ModelOption[] = [
     speed: "Slow",
     quality: "Best",
     credits: "Low",
-    status: "Working",
-    bestFor: "DeepSeek R1 reasoning model for hard planning & Luau problem-solving.",
-    description: "DeepSeek R1 via NVIDIA build.nvidia.com.",
+    status: "Coming Soon",
+    bestFor: "Currently unavailable on NVIDIA NIM.",
+    description: "DeepSeek R1 — re-enable when the endpoint is provisioned.",
     modelSettings: { temperature: 0.35, topP: 0.8, maxOutputTokens: 4096 },
   },
   {
@@ -244,9 +246,9 @@ export const MODELS: ModelOption[] = [
     speed: "Medium",
     quality: "Great",
     credits: "Low",
-    status: "Working",
-    bestFor: "DeepSeek V3 general model for Roblox builds.",
-    description: "DeepSeek V3 via NVIDIA build.nvidia.com.",
+    status: "Coming Soon",
+    bestFor: "Currently unavailable on NVIDIA NIM.",
+    description: "DeepSeek V3 — re-enable when the endpoint is provisioned.",
     modelSettings: { temperature: 0.45, topP: 0.9, maxOutputTokens: 4096 },
   },
   {
@@ -260,16 +262,18 @@ export const MODELS: ModelOption[] = [
     speed: "Medium",
     quality: "Great",
     credits: "Low",
-    status: "Working",
-    bestFor: "R1 reasoning distilled into a fast 70B fallback.",
-    description: "DeepSeek R1 Distill Llama 70B via NVIDIA build.nvidia.com.",
+    status: "Coming Soon",
+    bestFor: "Currently unavailable on NVIDIA NIM.",
+    description: "DeepSeek R1 Distill 70B — re-enable when the endpoint is provisioned.",
     modelSettings: { temperature: 0.4, topP: 0.85, maxOutputTokens: 4096 },
   },
+
 
   // ─── Mistral / Microsoft / Writer on NVIDIA ────────────────────────────────
   {
     id: "nvidia/mixtral-8x22b",
-    upstreamId: "mistralai/mixtral-8x22b-instruct-v0.1",
+    upstreamId: "mistralai/mixtral-8x22b-v0.1",
+
     gateway: "nvidia",
     label: "Mixtral 8x22B",
     provider: "Mistral",
@@ -301,8 +305,9 @@ export const MODELS: ModelOption[] = [
   },
   {
     id: "nvidia/phi-4",
-    upstreamId: "microsoft/phi-4",
+    upstreamId: "microsoft/phi-4-mini-instruct",
     gateway: "nvidia",
+
     label: "Phi-4",
     provider: "Microsoft",
     via: "NVIDIA NIM",
@@ -317,9 +322,10 @@ export const MODELS: ModelOption[] = [
   },
   {
     id: "nvidia/gemma-3-27b",
-    upstreamId: "google/gemma-3-27b-it",
+    upstreamId: "google/gemma-4-31b-it",
     gateway: "nvidia",
-    label: "Gemma 3 27B",
+    label: "Gemma 4 31B",
+
     provider: "Google",
     via: "NVIDIA NIM",
     tier: "balanced",
