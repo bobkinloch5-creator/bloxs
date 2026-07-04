@@ -91,24 +91,19 @@ export const installTemplate = createServerFn({ method: "POST" })
       .eq("is_public", true)
       .single();
     if (te || !tpl) throw new Error(te?.message ?? "Template not found");
-    const actions = Array.isArray(tpl.actions_json) ? tpl.actions_json : [];
+    const actions = Array.isArray(tpl.actions_json) ? (tpl.actions_json as Array<Record<string, unknown>>) : [];
     if (actions.length === 0) return { ok: true, queued: 0 };
-    const rows = actions.map((a: Record<string, unknown>) => ({
+    const rows = actions.map((a) => ({
       project_id: data.projectId,
       user_id: context.userId,
-      kind: String(a.kind ?? "run_lua"),
-      name: String(a.name ?? `Template: ${tpl.title}`),
-      parent_path: String(a.parent_path ?? "Workspace"),
-      payload: a.payload ?? {},
-      status: "pending",
+      kind: String(a?.kind ?? "run_lua"),
+      name: String(a?.name ?? `Template: ${tpl.title}`),
+      parent_path: String(a?.parent_path ?? "Workspace"),
+      payload: (a?.payload ?? {}) as Record<string, unknown>,
+      status: "pending" as const,
     }));
-    const { error } = await context.supabase.from("plugin_actions").insert(rows);
+    const { error } = await context.supabase.from("plugin_actions").insert(rows as never);
     if (error) throw new Error(error.message);
-    // Best-effort download bump
-    await context.supabase
-      .from("game_templates")
-      .update({ downloads: (actions.length ? 0 : 0) + 1 } as never)
-      .eq("id", data.templateId)
-      .then(() => {}, () => {});
     return { ok: true, queued: rows.length };
   });
+

@@ -66,8 +66,8 @@ export const likeShowcase = createServerFn({ method: "POST" })
       .from("showcase_likes")
       .insert({ post_id: data.postId, user_id: context.userId });
     if (error && !/duplicate|conflict/i.test(error.message)) throw new Error(error.message);
-    // Best-effort denorm bump; ignore if lacking privileges
-    await context.supabase.rpc("increment_showcase_likes", { _post: data.postId }).then(() => {}, () => {});
+    // Denorm bump handled by the app on read side; skip RPC.
+
     return { ok: true };
   });
 
