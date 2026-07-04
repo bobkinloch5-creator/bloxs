@@ -3061,10 +3061,10 @@ export const Route = createFileRoute("/api/chat")({
             ] = await Promise.all([
               Promise.all([
                 supabase.from("plugin_sessions").select("last_scan, last_scan_at, online").eq("user_id", userId).maybeSingle(),
-                supabase.from("studio_errors").select("level, source, message, created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(15),
-                supabase.from("build_history").select("prompt, files_count, created_at").eq("project_id", projectId).order("created_at", { ascending: false }).limit(10),
-                supabase.from("plugin_actions").select("kind, name, parent_path, status").eq("project_id", projectId).order("created_at", { ascending: false }).limit(40),
-                supabase.from("project_memory").select("key, value, kind, importance").eq("project_id", projectId).order("importance", { ascending: false }).order("updated_at", { ascending: false }).limit(30),
+                supabase.from("studio_errors").select("level, source, message, created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(8),
+                supabase.from("build_history").select("prompt, files_count, created_at").eq("project_id", projectId).order("created_at", { ascending: false }).limit(5),
+                supabase.from("plugin_actions").select("kind, name, parent_path, status").eq("project_id", projectId).order("created_at", { ascending: false }).limit(20),
+                supabase.from("project_memory").select("key, value, kind, importance").eq("project_id", projectId).order("importance", { ascending: false }).order("updated_at", { ascending: false }).limit(12),
               ]),
               imageParts.length > 0
                 ? withTimeout(describeImageWithNvidiaPaliGemma(imageParts), 6000, "NVIDIA PaliGemma vision")
@@ -3081,7 +3081,7 @@ export const Route = createFileRoute("/api/chat")({
             );
             if (memories && memories.length > 0) {
               const memLines = memories
-                .map((m) => `• [${m.kind}] ${m.key}: ${String(m.value).slice(0, 300)}`)
+                .map((m) => `• [${m.kind}] ${m.key}: ${String(m.value).slice(0, 180)}`)
                 .join("\n");
               parts.push(
                 `PROJECT LORE & DESIGN DECISIONS (persistent — never contradict these, build ON TOP of them):\n${memLines}`,
@@ -3089,7 +3089,7 @@ export const Route = createFileRoute("/api/chat")({
             }
             if (recentBuilds && recentBuilds.length > 0) {
               parts.push(
-                `RECENT USER REQUESTS in this project (newest first) — do NOT redo these unless asked, build ON TOP of them:\n${recentBuilds.map((b) => `• ${new Date(b.created_at).toISOString().slice(0, 10)} (${b.files_count} actions): ${String(b.prompt).slice(0, 200)}`).join("\n")}`,
+                `RECENT USER REQUESTS in this project (newest first) — do NOT redo these unless asked, build ON TOP of them:\n${recentBuilds.map((b) => `• ${new Date(b.created_at).toISOString().slice(0, 10)} (${b.files_count} actions): ${String(b.prompt).slice(0, 140)}`).join("\n")}`,
               );
             }
             if (existingActions && existingActions.length > 0) {
