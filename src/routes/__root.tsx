@@ -17,6 +17,7 @@ import { LanguageProvider } from "../lib/i18n";
 import { HelpModeProvider } from "@/components/SmartTooltip";
 import { Toaster } from "@/components/ui/sonner";
 import { MaintenanceGate } from "@/components/MaintenanceGate";
+import { CommandPalette } from "@/components/CommandPalette";
 
 function NotFoundComponent() {
   return (
@@ -191,6 +192,7 @@ function RootComponent() {
           <BetaBanner />
           <Toaster richColors closeButton position="top-right" />
           <GlobalErrorGuard />
+          <CommandPalette />
           {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
           <MaintenanceGate>
             <Outlet />
