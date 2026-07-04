@@ -1,5 +1,5 @@
-// Server-only AI provider factory. BloxSmith is locked to NVIDIA NIM /
-// Build.NVIDIA.com so chat cannot fall back to paid gateway models.
+// Server-only AI provider factory. Supports a stable Groq default plus NVIDIA
+// as an optional route when it is available.
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import {
   findModel,
@@ -14,6 +14,15 @@ type Provider = ReturnType<typeof createOpenAICompatible>;
 type LanguageModel = ReturnType<Provider>;
 
 function buildProvider(gateway: Gateway): Provider {
+  if (gateway === "groq") {
+    const key = process.env.GROQ_API_KEY;
+    if (!key) throw new Error("Groq is not configured — set GROQ_API_KEY.");
+    return createOpenAICompatible({
+      name: "groq",
+      baseURL: "https://api.groq.com/openai/v1",
+      headers: { Authorization: `Bearer ${key}` },
+    });
+  }
   if (gateway === "nvidia") {
     const key = process.env.NVIDIA_API_KEY || process.env.NIM_API_KEY || process.env.NGC_API_KEY;
     if (!key) throw new Error("NVIDIA NIM is not configured — set NVIDIA_API_KEY.");
