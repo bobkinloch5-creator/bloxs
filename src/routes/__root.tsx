@@ -223,9 +223,30 @@ function RootComponent() {
 
 
 function BetaBanner() {
+  const [dismissed, setDismissed] = (require("react") as typeof import("react")).useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("bs:beta-banner-dismissed") === "1";
+  });
+  if (dismissed) return null;
   return (
-    <div className="sticky top-0 z-[70] border-b border-blue-400/25 bg-blue-950 px-4 py-2 text-center text-xs font-semibold text-blue-100 shadow-lg shadow-blue-950/20">
-      BloxSmith is still in beta and we update almost every day — if something is not working, please be patient while we improve it.
+    <div className="sticky top-0 z-[70] flex items-center gap-2 border-b border-blue-400/25 bg-blue-950 px-3 py-1.5 text-[11px] font-semibold text-blue-100 shadow-lg shadow-blue-950/20 sm:px-4 sm:py-2 sm:text-xs">
+      <span className="hidden shrink-0 rounded-full bg-blue-400/20 px-2 py-0.5 text-[10px] uppercase tracking-wider text-blue-100 sm:inline">Beta</span>
+      <span className="flex-1 truncate text-center sm:text-left">
+        <span className="sm:hidden">In beta — updates daily. Thanks for your patience!</span>
+        <span className="hidden sm:inline">BloxSmith is still in beta and we update almost every day — if something is not working, please be patient while we improve it.</span>
+      </span>
+      <button
+        type="button"
+        onClick={() => {
+          try { window.localStorage.setItem("bs:beta-banner-dismissed", "1"); } catch {}
+          setDismissed(true);
+        }}
+        aria-label="Dismiss beta banner"
+        className="ml-1 shrink-0 rounded-md p-1 text-blue-200 transition hover:bg-blue-900 hover:text-white"
+      >
+        <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="currentColor" aria-hidden><path d="M6.28 6.28a.75.75 0 011.06 0L10 8.94l2.66-2.66a.75.75 0 111.06 1.06L11.06 10l2.66 2.66a.75.75 0 11-1.06 1.06L10 11.06l-2.66 2.66a.75.75 0 01-1.06-1.06L8.94 10 6.28 7.34a.75.75 0 010-1.06z"/></svg>
+      </button>
     </div>
   );
 }
+
