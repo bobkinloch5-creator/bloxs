@@ -393,6 +393,7 @@ export const FALLBACK_MODEL_ID = "nvidia/llama-3.3-70b";
 // Rotates across NVIDIA-hosted model families so a 429 on one endpoint routes
 // straight to a different one instead of failing.
 export const FALLBACK_CHAIN: string[] = [
+  "nvidia/deepseek-v4-flash",
   "nvidia/llama-3.3-nemotron-super-49b",
   "nvidia/llama-3.3-70b",
   "nvidia/llama-3.1-nemotron-70b",
