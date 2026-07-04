@@ -24,6 +24,7 @@ import { Plug } from "lucide-react";
 import { VoiceBuildButton } from "@/components/VoiceBuildButton";
 import { useBloxSmithSpeaker } from "@/components/VoiceControls";
 import { friendlyError } from "@/lib/friendly-error";
+import { MODELS, DEFAULT_MODEL_ID, isSelectable } from "@/lib/models";
 
 
 // Strip internal machinery from what the user sees in chat.
@@ -220,6 +221,20 @@ export function WorkspaceChat({
     window.localStorage.setItem("bs:procedural-generation", proceduralGeneration ? "1" : "0");
   }, [proceduralGeneration]);
 
+  // 🧠 Model selection — persisted across sessions. Falls back to default if
+  // the stored id is no longer Working / selectable.
+  const availableModels = useMemo(() => MODELS.filter(isSelectable), []);
+  const [selectedModel, setSelectedModel] = useState<string>(() => {
+    if (typeof window === "undefined") return DEFAULT_MODEL_ID;
+    const saved = window.localStorage.getItem("bs:selected-model");
+    if (saved && MODELS.some((m) => m.id === saved && isSelectable(m))) return saved;
+    return DEFAULT_MODEL_ID;
+  });
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem("bs:selected-model", selectedModel);
+  }, [selectedModel]);
+
   // NVIDIA-powered TTS speaker — speaks AI replies back through the user's speakers
   const speaker = useBloxSmithSpeaker(ttsEnabled);
 
@@ -270,12 +285,13 @@ export function WorkspaceChat({
         // the same click (Image button → "chat") is honored on the very next
         // send instead of leaking the previous render's mode.
         mode: liveModeRef.current,
+        modelId: selectedModel,
         buildQuality: buildMode === "Deep Build" ? "full_game" : buildMode === "Fast Build" ? "basic" : "premium",
         executionMode: buildMode === "Fast Build" ? "fast" : "safe",
         proceduralGeneration,
       }),
     }),
-    [token, activeProjectId, mode, buildMode, proceduralGeneration],
+    [token, activeProjectId, mode, buildMode, proceduralGeneration, selectedModel],
   );
 
 
@@ -506,12 +522,33 @@ export function WorkspaceChat({
             <Hammer className="h-3.5 w-3.5" /> Build
           </button>
         </div>
-        <div className="hidden text-[11px] text-slate-400 sm:block">
-          {isBuild
-            ? "Build sends actions to Studio. Auto-creates a project if none is active."
-            : "Chat with BloxSmith Agent to plan, ask questions, and refine ideas. No builds run."}
+        <div className="flex items-center gap-2">
+          <label className="hidden sm:flex items-center gap-1.5 text-[11px] font-semibold text-slate-300">
+            <Sparkles className="h-3 w-3 text-indigo-300" />
+            Model
+          </label>
+          <select
+            value={selectedModel}
+            onChange={(e) => setSelectedModel(e.target.value)}
+            className="max-w-[220px] rounded-lg border border-white/15 bg-black/40 px-2 py-1.5 text-[11px] font-medium text-slate-100 hover:bg-black/60 focus:outline-none focus:ring-2 focus:ring-indigo-400/50"
+            title="Choose which AI model handles your next messages"
+          >
+            {availableModels.map((m) => (
+              <option key={m.id} value={m.id} className="bg-slate-900 text-slate-100">
+                {m.label} · {m.provider}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
+
+      {/* Mode tagline */}
+      <div className="mb-3 hidden text-[11px] text-slate-400 sm:block">
+        {isBuild
+          ? "Build sends actions to Studio. Auto-creates a project if none is active."
+          : "Chat with BloxSmith Agent to plan, ask questions, and refine ideas. No builds run."}
+      </div>
+
 
       {/* Studio-not-connected banner: Build silently queues actions with no
           plugin polling. Surface it loudly and link the user straight to setup. */}
