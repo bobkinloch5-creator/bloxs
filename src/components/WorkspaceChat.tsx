@@ -384,7 +384,7 @@ export function WorkspaceChat({
   });
   const handleClearChat = () => {
     if (messages.length === 0) return;
-    if (typeof window !== "undefined" && !window.confirm("Clear this project's chat history and any queued plugin actions?")) return;
+    if (typeof window !== "undefined" && !window.confirm("Clear this project's chat history and any pending Studio actions?")) return;
     clearMut.mutate();
   };
 

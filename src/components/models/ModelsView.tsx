@@ -831,11 +831,11 @@ function ModelCard({ m, projectId, onChange }: { m: any; projectId?: string; onC
     }
     setRobloxBusy(true); setActionErr(null);
     const label = m.prompt || "3D model";
-    const toastId = toast.loading(`Queuing ${label} for Studio…`);
+    const toastId = toast.loading(`Sending ${label} to Studio…`);
     try {
       const res = await queueStudioFn({ data: { projectId, generationId: m.id, name: m.prompt || "BloxSmith Imported Model", scale: 1 } });
       onChange();
-      toast.success(`Queued for Studio — plugin will insert on next poll (~2s).`, { id: toastId });
+      toast.success(`Sent to Studio — plugin will insert it now.`, { id: toastId });
       // Poll for plugin confirmation so the user sees success or failure.
       const actionId = (res as any)?.actionId as string | undefined;
       if (actionId && typeof window !== "undefined") {
@@ -1270,10 +1270,10 @@ function ToolboxLibrary({ projectId }: { projectId?: string }) {
         const swap = (res as any).replaced?.[0];
         if (swap) {
           toast.success(
-            `Queued for Studio${projName ? ` (${projName})` : ""}: swapped in a public replacement (original ${swap.original} was ${humanReason(swap.reason)}).`,
+            `Sent to Studio${projName ? ` (${projName})` : ""}: swapped in a public replacement (original ${swap.original} was ${humanReason(swap.reason)}).`,
           );
         } else {
-          toast.success(`Queued for Studio${projName ? ` (${projName})` : ""}: ${row.name}`);
+          toast.success(`Sent to Studio${projName ? ` (${projName})` : ""}: ${row.name}`);
         }
       } else {
         const reason = humanReason((res as any).dropReason ?? "unauthorized");
