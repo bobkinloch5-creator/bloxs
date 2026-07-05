@@ -4130,6 +4130,73 @@ export const Route = createFileRoute("/api/chat")({
             return streamPlainAssistantText(replyText, "clear-text-1");
           }
 
+          // ── INSTANT VISIBLE SNOW TERRAIN FAST-PATH ──────────────────────
+          // Snow/terrain requests must always make visible geometry immediately,
+          // even when Toolbox-only mode would otherwise search for a vague model.
+          if (mode === "build" && projectId && userText && isSnowTerrainRequest(userText) && !imageGenerationRequested) {
+            const actions = visibleSnowTerrainStudioActions(userText)
+              .map(normalizePluginAction)
+              .filter((action) => finalScriptIssues(action).length === 0)
+              .map((action: any) => ({
+                ...action,
+                payload: {
+                  ...(action.payload ?? {}),
+                  _bloxsmith: {
+                    execution_mode: "fast",
+                    structured: true,
+                    exact_scope: true,
+                    visible_output_required: true,
+                    terrain_fast_path: true,
+                    no_empty_folders: true,
+                    no_fake_assets: true,
+                  },
+                },
+              }));
+            if (actions.length > 0) {
+              const replyText = "Sent visible snow terrain to Studio — it should build now and focus the camera on it.";
+              const { data: msgRow } = await supabase
+                .from("chat_messages")
+                .insert({
+                  project_id: projectId,
+                  user_id: userId,
+                  role: "assistant",
+                  content: replyText,
+                  status: "sending",
+                  model: "deterministic-snow-terrain-fastpath",
+                  actions,
+                })
+                .select("id")
+                .single();
+              await supabase.from("plugin_actions").insert(
+                actions.map((action, i) => ({
+                  project_id: projectId,
+                  user_id: userId,
+                  message_id: msgRow?.id ?? null,
+                  kind: action.kind,
+                  parent_path: action.parent_path,
+                  name: action.name,
+                  payload: action.payload,
+                  position: i,
+                })),
+              );
+              await supabase.from("build_history").insert({
+                project_id: projectId,
+                user_id: userId,
+                prompt: userText,
+                model: "deterministic-snow-terrain-fastpath",
+                files_count: actions.length,
+                plugin_status: "Queued",
+                applied: false,
+              });
+              await supabase
+                .from("projects")
+                .update({ updated_at: new Date().toISOString() })
+                .eq("id", projectId);
+              console.info("[chat/fastpath] queued visible snow terrain instantly", { projectId, userId, actionCount: actions.length });
+              return streamPlainAssistantText(replyText, "snow-terrain-fastpath-text");
+            }
+          }
+
           // ── INSTANT NARROW FEATURE FAST-PATH ───────────────────────────
           // One small thing (a button, jump/speed/dash script, checkpoint,
           // door, kill brick, teleport, etc.) should not wait for a full model
