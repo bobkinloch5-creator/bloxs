@@ -56,7 +56,7 @@ export function HelpChatWidget() {
           type="button"
           onClick={() => setOpen(true)}
           aria-label="Open BloxSmith help chat"
-          className="fixed bottom-4 right-4 z-[80] group flex items-center gap-2 rounded-full bg-gradient-to-br from-indigo-500 to-fuchsia-500 px-4 py-3 text-white shadow-xl shadow-indigo-500/40 transition hover:scale-105 hover:shadow-indigo-500/60 sm:bottom-6 sm:right-6"
+          className="fixed bottom-20 left-4 z-[90] group flex items-center gap-2 rounded-full bg-gradient-to-br from-indigo-500 to-fuchsia-500 px-4 py-3 text-white shadow-xl shadow-indigo-500/40 transition hover:scale-105 hover:shadow-indigo-500/60 sm:bottom-6 sm:left-6"
         >
           <MessageCircle className="h-5 w-5" />
           <span className="hidden text-sm font-semibold sm:inline">Need help?</span>
@@ -69,7 +69,7 @@ export function HelpChatWidget() {
 
       {/* Panel */}
       {open && (
-        <div className="fixed bottom-4 right-4 z-[80] flex h-[560px] max-h-[85vh] w-[calc(100vw-2rem)] max-w-[380px] flex-col overflow-hidden rounded-2xl border border-white/10 bg-slate-950/95 shadow-2xl shadow-black/50 backdrop-blur-xl sm:bottom-6 sm:right-6">
+        <div className="fixed bottom-4 left-4 z-[90] flex h-[560px] max-h-[85vh] w-[calc(100vw-2rem)] max-w-[380px] flex-col overflow-hidden rounded-2xl border border-white/10 bg-slate-950/95 shadow-2xl shadow-black/50 backdrop-blur-xl sm:bottom-6 sm:left-6">
           {/* Header */}
           <div className="flex items-center justify-between border-b border-white/10 bg-gradient-to-r from-indigo-600/30 to-fuchsia-600/30 px-4 py-3">
             <div className="flex items-center gap-2">
