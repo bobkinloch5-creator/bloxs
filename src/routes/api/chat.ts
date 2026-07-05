@@ -97,7 +97,7 @@ Convert the request and response below into a concise, safe, executable BloxSmit
 
 Rules:
 - Output exactly one fenced block: \`\`\`bloxsmith-actions followed by a JSON array, then \`\`\`.
-- Exact scope is mandatory: convert ONLY what the user literally asked for. Do not add main menus, loading screens, splash/title screens, HUDs, shops, inventories, settings panels, tutorials, music, camera effects, RemoteEvents, ModuleScripts, leaderstats, DataStores, managers, folders, organize/autofix/scan, or polish unless the user explicitly requested that exact item.
+- Exact scope is mandatory: convert ONLY what the user literally asked for. Do not add main menus, loading screens, splash/title screens, HUDs, shops, inventories, settings panels, tutorials, music, camera effects, leaderstats, DataStores, managers, folders, organize/autofix/scan, or polish unless the user explicitly requested that exact item. Minimal required wiring is NOT extra scope: if a named button/keybind/gameplay feature needs a RemoteEvent, LocalScript, and server Script to function, create those dependencies and connect both sides.
 - For narrow requests like a speed boost, a button, or a script, emit only the minimum working script/UI element — typically 1 action, at most 3.
 - Supported kinds: insert_asset, run_lua, script, localscript, modulescript, screengui, remoteevent, remotefunction, part, terrain, set_properties, rename, move, delete, setting, organize_project, autofix_project, scan_project.
 - Prefer insert_asset only when an asset id is explicitly present in the plan. Include payload.asset_id and payload.fallback_ids when known.
@@ -154,7 +154,7 @@ const FAST_CHAT_SYSTEM_PROMPT = `You are BloxSmith, a friendly senior Roblox dev
 
 const FAST_BUILD_SYSTEM_PROMPT = `You are BloxSmith, an expert Roblox Studio game-building agent. Build real, playable Roblox results through structured Studio actions. Keep visible prose concise and human. Never expose internal tool names, raw payloads, debug details, model/provider names, or JSON except the hidden executable action block. Use modern Luau, server-authoritative gameplay, safe free Toolbox assets when Toolbox mode is active, clean organization, mobile-safe UI, no placeholders, no fake buttons, no empty folders, no invented asset IDs, and no deprecated APIs.
 
-EXACT-SCOPE LAW (highest priority): Create ONLY the files/instances/systems the user explicitly names. Do not add main menus, loading screens, splash/title screens, HUDs, shops, inventories, settings panels, tutorials, music, camera effects, remotes, ModuleScripts, leaderstats, DataStores, managers, folders, or extra polish unless the current user message asks for that exact thing. A request like "make a speed boost button" means create the speed boost button and its required Luau only — not a menu, not a loading screen, not a full UI package.
+EXACT-SCOPE LAW (highest priority): Create ONLY the files/instances/systems the user explicitly names. Do not add main menus, loading screens, splash/title screens, HUDs, shops, inventories, settings panels, tutorials, music, camera effects, ModuleScripts, leaderstats, DataStores, managers, folders, or extra polish unless the current user message asks for that exact thing. Minimal wiring dependencies are mandatory, not optional: if the named feature is a button, keybind, tool, or player ability, create the LocalScript, RemoteEvent/RemoteFunction when needed, and server Script required for it to actually work. A request like "make a speed boost button" means create the speed boost button and its required Luau only — not a menu, not a loading screen, not a full UI package.
 
 SCRIPT SOURCE CONTRACT (non-negotiable): Every script, localscript, modulescript, and run_lua action MUST contain payload.source with complete runnable Luau written by you. Never emit an empty script, a placeholder script, a comment-only script, or a script action that only names where code should go.
 
@@ -533,8 +533,12 @@ function isNarrowFeatureRequest(userText: string) {
   if (!text || isExplicitFullSystemRequest(text)) return false;
   if (/\b(map|world|city|town|lobby|level|multiple|several|bunch|pack)\b/.test(text)) return false;
   if (/\b(main\s*menu|loading\s*screen|load\s*screen|splash|title\s*screen|hud|shop\s*system|inventory\s*system|settings\s*menu)\b/.test(text)) return false;
-  if (/\b(button|script|local\s*script|server\s*script|module\s*script|remote\s*event|remoteevent|speed\s*boost|sprint|dash|double\s*jump|tool|door|checkpoint|timer|kill\s*brick|teleport)\b/.test(text)) return true;
+  if (/\b(button|script|local\s*script|server\s*script|module\s*script|remote\s*event|remoteevent|speed\s*boost|sprint|dash|double\s*jump|high\s*jump|super\s*jump|jump\s*boost|tool|door|checkpoint|timer|kill\s*brick|teleport)\b/.test(text)) return true;
   return isSimpleSingleThingRequest(text);
+}
+
+function needsGameplayRemoteWiring(userText: string) {
+  return /\b(button|keybind|key\s*bind|space\s*bar|keyboard|hotkey|speed\s*boost|sprint|dash|double\s*jump|high\s*jump|super\s*jump|jump\s*boost|ability|power|tool|door|checkpoint|timer|kill\s*brick|teleport|multiplayer|replicated|server[-\s]*authoritative)\b/i.test(userText);
 }
 
 function shouldUseGenericRobloxSystemGuard(userText: string, buildQuality?: "basic" | "better" | "premium" | "full_game") {
@@ -757,6 +761,290 @@ gui:SetAttribute("Language", ${JSON.stringify(languageName)})
       parent_path: "StarterGui",
       name: "BloxSmith_Create_SpeedBoost_Button",
       payload: { source },
+    }];
+  }
+
+  if (/\b(high\s*jump|super\s*jump|jump\s*boost|jump\s*button|space\s*bar.*jump|jump.*space\s*bar)\b/i.test(text)) {
+    const wantsButton = /\b(button|ui|gui|screen|mobile)\b/i.test(text);
+    const buttonBuild = wantsButton ? `
+local oldGui = StarterGui:FindFirstChild("BloxSmith_HighJumpButton")
+if oldGui then oldGui:Destroy() end
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "BloxSmith_HighJumpButton"
+gui.ResetOnSpawn = false
+gui.IgnoreGuiInset = true
+gui.DisplayOrder = 60
+gui.Parent = StarterGui
+
+local button = Instance.new("TextButton")
+button.Name = "HighJumpButton"
+button.AnchorPoint = Vector2.new(1, 1)
+button.Position = UDim2.new(1, -24, 1, -164)
+button.Size = UDim2.fromOffset(176, 58)
+button.BackgroundColor3 = Color3.fromRGB(16, 185, 129)
+button.BorderSizePixel = 0
+button.Font = Enum.Font.GothamBold
+button.Text = "High Jump"
+button.TextColor3 = Color3.fromRGB(248, 255, 252)
+button.TextScaled = true
+button.AutoButtonColor = false
+button.Parent = gui
+
+local sizeLimit = Instance.new("UISizeConstraint")
+sizeLimit.MinSize = Vector2.new(140, 48)
+sizeLimit.MaxSize = Vector2.new(220, 72)
+sizeLimit.Parent = button
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 14)
+corner.Parent = button
+
+local stroke = Instance.new("UIStroke")
+stroke.Color = Color3.fromRGB(187, 247, 208)
+stroke.Transparency = 0.28
+stroke.Thickness = 1.5
+stroke.Parent = button
+
+local gradient = Instance.new("UIGradient")
+gradient.Color = ColorSequence.new({
+  ColorSequenceKeypoint.new(0, Color3.fromRGB(52, 211, 153)),
+  ColorSequenceKeypoint.new(1, Color3.fromRGB(5, 150, 105)),
+})
+gradient.Rotation = 90
+gradient.Parent = button
+
+local scale = Instance.new("UIScale")
+scale.Scale = 1
+scale.Parent = button
+
+local client = makeClientScript("HighJumpClient", true)
+client.Parent = button
+` : `
+local scripts = StarterPlayer:FindFirstChild("StarterPlayerScripts")
+if not scripts then
+  scripts = Instance.new("StarterPlayerScripts")
+  scripts.Parent = StarterPlayer
+end
+local oldClient = scripts:FindFirstChild("BloxSmith_HighJumpClient")
+if oldClient then oldClient:Destroy() end
+local client = makeClientScript("BloxSmith_HighJumpClient", false)
+client.Parent = scripts
+`;
+    const source = `
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
+local StarterGui = game:GetService("StarterGui")
+local StarterPlayer = game:GetService("StarterPlayer")
+
+local remotes = ReplicatedStorage:FindFirstChild("BloxSmith_Remotes")
+if not remotes then
+  remotes = Instance.new("Folder")
+  remotes.Name = "BloxSmith_Remotes"
+  remotes.Parent = ReplicatedStorage
+end
+
+local request = remotes:FindFirstChild("RequestHighJump")
+if not request then
+  request = Instance.new("RemoteEvent")
+  request.Name = "RequestHighJump"
+  request.Parent = remotes
+end
+
+local accepted = remotes:FindFirstChild("HighJumpAccepted")
+if not accepted then
+  accepted = Instance.new("RemoteEvent")
+  accepted.Name = "HighJumpAccepted"
+  accepted.Parent = remotes
+end
+
+local oldServer = ServerScriptService:FindFirstChild("BloxSmith_HighJumpServer")
+if oldServer then oldServer:Destroy() end
+
+local server = Instance.new("Script")
+server.Name = "BloxSmith_HighJumpServer"
+server.Source = [==[
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local remotes = ReplicatedStorage:WaitForChild("BloxSmith_Remotes")
+local request = remotes:WaitForChild("RequestHighJump")
+local accepted = remotes:WaitForChild("HighJumpAccepted")
+
+local BOOST_JUMP_POWER = 115
+local BOOST_JUMP_HEIGHT = 18
+local BOOST_TIME = 0.65
+local COOLDOWN = 2.25
+
+local lastUse = {}
+local originals = {}
+
+local function getHumanoid(player)
+  local character = player.Character
+  if not character then return nil end
+  return character:FindFirstChildOfClass("Humanoid")
+end
+
+local function rememberOriginal(player, humanoid)
+  if originals[player] then return originals[player] end
+  local entry = {
+    useJumpPower = humanoid.UseJumpPower,
+    jumpPower = humanoid.JumpPower,
+    jumpHeight = humanoid.JumpHeight,
+  }
+  originals[player] = entry
+  return entry
+end
+
+local function restore(player)
+  local entry = originals[player]
+  local humanoid = getHumanoid(player)
+  if entry and humanoid and humanoid.Parent then
+    humanoid.UseJumpPower = entry.useJumpPower
+    humanoid.JumpPower = entry.jumpPower
+    humanoid.JumpHeight = entry.jumpHeight
+  end
+  originals[player] = nil
+  if player.Parent then player:SetAttribute("HighJumpActive", false) end
+end
+
+Players.PlayerRemoving:Connect(function(player)
+  lastUse[player] = nil
+  originals[player] = nil
+end)
+
+Players.PlayerAdded:Connect(function(player)
+  player.CharacterAdded:Connect(function()
+    originals[player] = nil
+    player:SetAttribute("HighJumpActive", false)
+  end)
+end)
+
+request.OnServerEvent:Connect(function(player)
+  local now = os.clock()
+  if lastUse[player] and now - lastUse[player] < COOLDOWN then return end
+
+  local humanoid = getHumanoid(player)
+  if not humanoid or humanoid.Health <= 0 then return end
+
+  lastUse[player] = now
+  rememberOriginal(player, humanoid)
+
+  humanoid.UseJumpPower = true
+  humanoid.JumpPower = math.max(humanoid.JumpPower, BOOST_JUMP_POWER)
+  humanoid.JumpHeight = math.max(humanoid.JumpHeight, BOOST_JUMP_HEIGHT)
+  player:SetAttribute("HighJumpActive", true)
+  accepted:FireClient(player)
+
+  task.delay(BOOST_TIME, function()
+    restore(player)
+  end)
+end)
+]==]
+server.Parent = ServerScriptService
+
+local function makeClientScript(name, parentIsButton)
+  local scriptObj = Instance.new("LocalScript")
+  scriptObj.Name = name
+  scriptObj.Source = [==[
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ContextActionService = game:GetService("ContextActionService")
+local TweenService = game:GetService("TweenService")
+
+local player = Players.LocalPlayer
+local remotes = ReplicatedStorage:WaitForChild("BloxSmith_Remotes")
+local request = remotes:WaitForChild("RequestHighJump")
+local accepted = remotes:WaitForChild("HighJumpAccepted")
+
+local ACTION_NAME = "BloxSmithHighJump"
+local COOLDOWN = 2.25
+local ready = true
+local button = script.Parent:IsA("TextButton") and script.Parent or nil
+local scale = button and button:FindFirstChildOfClass("UIScale") or nil
+local stroke = button and button:FindFirstChildOfClass("UIStroke") or nil
+
+local function getHumanoid()
+  local character = player.Character or player.CharacterAdded:Wait()
+  return character:FindFirstChildOfClass("Humanoid") or character:WaitForChild("Humanoid", 5)
+end
+
+local function tweenButton(scaleValue, strokeTransparency)
+  if scale then
+    TweenService:Create(scale, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Scale = scaleValue }):Play()
+  end
+  if stroke then
+    TweenService:Create(stroke, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Transparency = strokeTransparency }):Play()
+  end
+end
+
+local function setButtonText(text, active)
+  if not button then return end
+  button.Text = text
+  button.Active = active
+  button.BackgroundTransparency = active and 0 or 0.18
+end
+
+local function startCooldown()
+  task.spawn(function()
+    for remaining = math.ceil(COOLDOWN), 1, -1 do
+      setButtonText("Jump " .. remaining, false)
+      task.wait(1)
+    end
+    ready = true
+    setButtonText("High Jump", true)
+  end)
+end
+
+local function requestHighJump()
+  if not ready then return end
+  ready = false
+  setButtonText("Jumping...", false)
+  request:FireServer()
+  startCooldown()
+end
+
+accepted.OnClientEvent:Connect(function()
+  local humanoid = getHumanoid()
+  if humanoid and humanoid.Health > 0 then
+    humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+  end
+end)
+
+if button then
+  button.Activated:Connect(requestHighJump)
+  button.MouseEnter:Connect(function() if ready then tweenButton(1.05, 0.1) end end)
+  button.MouseLeave:Connect(function() tweenButton(1, 0.28) end)
+  button.MouseButton1Down:Connect(function() if ready then tweenButton(0.95, 0.08) end end)
+  button.MouseButton1Up:Connect(function() if ready then tweenButton(1.05, 0.1) end end)
+end
+
+local function onAction(_, inputState)
+  if inputState == Enum.UserInputState.Begin then
+    requestHighJump()
+  end
+  return Enum.ContextActionResult.Sink
+end
+
+ContextActionService:UnbindAction(ACTION_NAME)
+ContextActionService:BindActionAtPriority(ACTION_NAME, onAction, true, Enum.ContextActionPriority.High.Value, Enum.KeyCode.Space, Enum.KeyCode.ButtonA)
+ContextActionService:SetTitle(ACTION_NAME, "High Jump")
+
+player.CharacterAdded:Connect(function()
+  ready = true
+  setButtonText("High Jump", true)
+end)
+]==]
+  return scriptObj
+end
+
+${buttonBuild}
+`;
+    return [{
+      kind: "run_lua",
+      parent_path: wantsButton ? "StarterGui" : "StarterPlayer.StarterPlayerScripts",
+      name: wantsButton ? "BloxSmith_Create_HighJump_Button" : "BloxSmith_Create_HighJump_Script",
+      payload: { source, request: safePrompt, language: languageName },
     }];
   }
 
