@@ -807,6 +807,42 @@ scriptObj.Parent = button
     return [{ kind: "run_lua", parent_path: "StarterGui", name: "BloxSmith_Create_Single_Button", payload: { source } }];
   }
 
+  if (/\b(script|server\s*script|local\s*script)\b/i.test(text)) {
+    const wantsLocal = /\b(local\s*script|localscript|client\s*script)\b/i.test(text);
+    const scriptSource = wantsLocal
+      ? `local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+local function onCharacterAdded(character)
+  local humanoid = character:WaitForChild("Humanoid", 5)
+  if humanoid then
+    print("[BloxSmith] Client script connected for " .. player.Name)
+  end
+end
+
+if player.Character then
+  onCharacterAdded(player.Character)
+end
+player.CharacterAdded:Connect(onCharacterAdded)`
+      : `local Players = game:GetService("Players")
+
+local function onPlayerAdded(player)
+  player:SetAttribute("BloxSmithScriptActive", true)
+  print("[BloxSmith] Server script connected for " .. player.Name)
+end
+
+Players.PlayerAdded:Connect(onPlayerAdded)
+for _, player in ipairs(Players:GetPlayers()) do
+  onPlayerAdded(player)
+end`;
+    return [{
+      kind: wantsLocal ? "localscript" : "script",
+      parent_path: wantsLocal ? "StarterPlayer.StarterPlayerScripts" : "ServerScriptService",
+      name: wantsLocal ? "BloxSmith_ClientScript" : "BloxSmith_ServerScript",
+      payload: { source: scriptSource, request: safePrompt, language: languageName },
+    }];
+  }
+
   return [];
 }
 
