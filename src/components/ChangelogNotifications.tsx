@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { Bell, Bot, Box, Brain, CheckCircle2, Gauge, ImageIcon, Lightbulb, ListChecks, ScrollText, ShieldCheck, Sparkles, Users, Wrench } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Bell, Bot, Box, Brain, Check, CheckCircle2, ChevronDown, Copy, Gauge, ImageIcon, Lightbulb, Link2, ListChecks, Palette, Rocket, ScrollText, Search, Share2, ShieldCheck, Sparkles, Users, Wrench, X, Zap } from "lucide-react";
 
 const CHANGELOG_VERSION = "2026-07-04-full-city-placement-scripts";
 
