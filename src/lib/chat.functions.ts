@@ -7,6 +7,19 @@ import { stripCodeFences, validateLuau } from "@/lib/luau-validator";
 
 const SCRIPT_ACTION_KINDS = new Set(["script", "localscript", "modulescript", "run_lua"]);
 
+function pickPreparedActionKind(action: { kind?: string; action?: string; type?: string; payload?: unknown }) {
+  const explicitKind = typeof action.kind === "string" && action.kind.trim() ? action.kind.trim() : undefined;
+  if (explicitKind) return explicitKind;
+  const actionValue = typeof action.action === "string" && action.action.trim() ? action.action.trim() : undefined;
+  const typeValue = typeof action.type === "string" && action.type.trim() ? action.type.trim() : undefined;
+  const actionIsVerb = actionValue ? /^(create|add|make|build|insert|update|edit|patch|set|generate|write|spawn)$/i.test(actionValue) : false;
+  if (typeValue && (!actionValue || actionIsVerb)) return typeValue;
+  if (actionValue) return actionValue;
+  if (typeValue) return typeValue;
+  const payload = action.payload && typeof action.payload === "object" ? action.payload as Record<string, unknown> : {};
+  return typeof payload.source === "string" && payload.source.trim() ? "script" : "";
+}
+
 function scriptValidationErrors(action: { kind?: string; name?: string; payload?: Record<string, unknown> }) {
   if (!SCRIPT_ACTION_KINDS.has(String(action.kind ?? ""))) return [];
   const source = stripCodeFences(String(action.payload?.source ?? ""));
@@ -281,10 +294,9 @@ export const queuePreparedStudioActions = createServerFn({ method: "POST" })
     projectId: z.string().uuid(),
     executionMode: z.enum(["safe", "fast", "owner"]).optional().default("fast"),
     actions: z.array(z.object({
-      kind: z.preprocess(
-        (v) => (typeof v === "string" && v.trim() === "" ? "script" : v),
-        z.string().trim().min(1).max(80),
-      ).default("script"),
+      kind: z.string().trim().min(1).max(80).optional(),
+      action: z.string().trim().min(1).max(80).optional(),
+      type: z.string().trim().min(1).max(80).optional(),
       parent_path: z.preprocess(
         (v) => (typeof v === "string" && v.trim() === "" ? "Workspace" : v),
         z.string().trim().min(1).max(400),
@@ -297,7 +309,10 @@ export const queuePreparedStudioActions = createServerFn({ method: "POST" })
     })).min(1).max(80),
   }).parse(input))
   .handler(async ({ data, context }) => {
-    const normalizedActions = await repairPreparedScriptActions(data.actions.map(normalizePluginAction));
+    const normalizedInputActions = data.actions
+      .map((action) => ({ ...action, kind: pickPreparedActionKind(action) }))
+      .filter((action) => action.kind);
+    const normalizedActions = await repairPreparedScriptActions(normalizedInputActions.map(normalizePluginAction));
     if (normalizedActions.length === 0) {
       throw new Error("No valid Studio actions were generated. Please resend the build request so BloxSmith can regenerate it instead of sending empty scripts.");
     }
