@@ -3978,6 +3978,84 @@ export const Route = createFileRoute("/api/chat")({
             return streamPlainAssistantText(replyText, "clear-text-1");
           }
 
+          // ── INSTANT NARROW FEATURE FAST-PATH ───────────────────────────
+          // One small thing (a button, jump/speed/dash script, checkpoint,
+          // door, kill brick, teleport, etc.) should not wait for a full model
+          // planning pass. Deterministic templates queue immediately and let
+          // the Studio plugin execute on its next poll.
+          if (
+            mode === "build" &&
+            projectId &&
+            userText &&
+            isNarrowFeatureRequest(userText) &&
+            !isSinglePhysicalAssetRequest(userText) &&
+            !imageGenerationRequested
+          ) {
+            const generated = narrowFeatureFallbackStudioActions(userText, languageName)
+              .map(normalizePluginAction)
+              .filter((action) => finalScriptIssues(action).length === 0)
+              .map((action: any) => ({
+                ...action,
+                payload: {
+                  ...(action.payload ?? {}),
+                  _bloxsmith: {
+                    execution_mode: "fast",
+                    structured: true,
+                    exact_scope: true,
+                    narrow_feature_fast_path: true,
+                    no_empty_folders: true,
+                    no_fake_assets: true,
+                  },
+                },
+              }));
+            if (generated.length > 0) {
+              const firstKind = String(generated[0]?.kind ?? "action").replace(/_/g, " ");
+              const replyText = generated.length === 1
+                ? `Sent 1 ${firstKind} command to Studio — it should execute now.`
+                : `Sent ${generated.length} Studio commands — they should execute now.`;
+              const { data: msgRow } = await supabase
+                .from("chat_messages")
+                .insert({
+                  project_id: projectId,
+                  user_id: userId,
+                  role: "assistant",
+                  content: replyText,
+                  status: "sending",
+                  model: "deterministic-fastpath",
+                  actions: generated,
+                })
+                .select("id")
+                .single();
+              await supabase.from("plugin_actions").insert(
+                generated.map((action, i) => ({
+                  project_id: projectId,
+                  user_id: userId,
+                  message_id: msgRow?.id ?? null,
+                  kind: action.kind,
+                  parent_path: action.parent_path,
+                  name: action.name,
+                  payload: action.payload,
+                  position: i,
+                })),
+              );
+              await supabase.from("build_history").insert({
+                project_id: projectId,
+                user_id: userId,
+                prompt: userText,
+                model: "deterministic-fastpath",
+                files_count: generated.length,
+                plugin_status: "Queued",
+                applied: false,
+              });
+              await supabase
+                .from("projects")
+                .update({ updated_at: new Date().toISOString() })
+                .eq("id", projectId);
+              console.info("[chat/fastpath] queued narrow feature instantly", { projectId, userId, actionCount: generated.length });
+              return streamPlainAssistantText(replyText, "narrow-fastpath-text");
+            }
+          }
+
           // ── INSTANT TOOLBOX FAST-PATH ──
           // "add a house / insert a car / spawn a zombie / give me a tree from
           // toolbox" — skip the full AI turn entirely. Live-search Roblox
@@ -4006,7 +4084,7 @@ export const Route = createFileRoute("/api/chat")({
                 const wm = userText.toLowerCase().match(/\b(two|three|four|five|six|seven|eight|nine|ten|twelve|fifteen|twenty)\b/);
                 if (wm && wordNums[wm[1]]) quantity = wordNums[wm[1]];
               }
-              const found = await searchRobloxToolbox(query, "Model", Math.max(12, quantity + 4), { singleAssetOnly: true });
+                const found = await searchRobloxToolbox(query, "Model", quantity === 1 ? 4 : Math.max(8, quantity + 3), { singleAssetOnly: true });
               const top = found.results[0];
               if (top) {
                 const folder = finderMatch?.folder ? `BloxSmith_${finderMatch.folder}` : "BloxSmith_Assets";
@@ -4045,11 +4123,11 @@ export const Route = createFileRoute("/api/chat")({
                   } as Record<string, unknown>,
                 });
                 const insertAction = buildAction(0);
-                // Validate against Roblox (IsPublicDomain + toolbox-details)
-                // BEFORE queuing — otherwise Studio errors with
-                // "User is not authorized to access Asset".
+                // searchRobloxToolbox already filters to insertable public
+                // assets. Do not run a second validation pass here; that extra
+                // network round-trip was why "one thing" felt slow before it
+                // even reached Studio.
                 const candidates: Array<Record<string, unknown>> = [insertAction as unknown as Record<string, unknown>];
-                await sanitizeInsertAssetActions(candidates).catch(() => null);
                 if (candidates.length === 0) {
                   console.info("[chat/fastpath] no authorized asset, falling back to AI turn", { query });
                   throw new Error("fastpath_no_authorized_asset");

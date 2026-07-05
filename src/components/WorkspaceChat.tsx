@@ -259,7 +259,7 @@ export function WorkspaceChat({
     queryKey: ["build-execution-status", activeProjectId],
     queryFn: () => activeProjectId ? execStatusFn({ data: { projectId: activeProjectId } }) : Promise.resolve(null),
     enabled: !!activeProjectId && mode === "build",
-    refetchInterval: 2500,
+    refetchInterval: 750,
   });
 
   // Keep the Supabase bearer token fresh — /api/chat requires it.

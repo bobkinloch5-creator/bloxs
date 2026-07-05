@@ -47,16 +47,22 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
           if (!profile) return json({ error: "invalid token" }, 401);
           const profileId: string = profile.id;
 
-          // Heartbeat
-          await sb.from("plugin_sessions").upsert({
-            user_id: profile.id,
-            project_id: body.project_id ?? null,
-            place_id: body.place_id ?? null,
-            studio_version: body.studio_version ?? null,
-            plugin_version: body.plugin_version ?? null,
-            last_seen: new Date().toISOString(),
-            online: true,
-          }, { onConflict: "user_id" });
+          const touchSession = async () => {
+            await sb.from("plugin_sessions").upsert({
+              user_id: profile.id,
+              project_id: body.project_id ?? null,
+              place_id: body.place_id ?? null,
+              studio_version: body.studio_version ?? null,
+              plugin_version: body.plugin_version ?? null,
+              last_seen: new Date().toISOString(),
+              online: true,
+            }, { onConflict: "user_id" });
+          };
+
+          // Only force/manual polls touch the session here. The plugin has a
+          // separate lightweight heartbeat, so idle long-polls no longer write
+          // to the database every few seconds for every open Studio window.
+          if (body.force === true) await touchSession();
 
           // Pull the newest queued build for this account, not the project id
           // saved inside older installed plugins. That saved id can be stale
@@ -98,13 +104,13 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
           if (!Array.isArray(first)) return json({ error: first.error }, 500);
           actions = first;
 
-          // Long-poll: hold briefly if nothing is pending, checking very often
-          // so Studio receives newly-created actions almost immediately without
-          // spamming Roblox HTTP requests while idle.
+          // Long-poll briefly if nothing is pending. Keep this short so one
+          // Studio window cannot sit on an 8s request while the user expects a
+          // one-action build to execute immediately.
           if (actions.length === 0 && body.force !== true) {
-            const deadline = Date.now() + 8_000;
+            const deadline = Date.now() + 2_500;
             while (Date.now() < deadline) {
-              await new Promise((r) => setTimeout(r, 100));
+              await new Promise((r) => setTimeout(r, 75));
               const next = await fetchPending();
               if (!Array.isArray(next)) return json({ error: next.error }, 500);
               if (next.length > 0) { actions = next; break; }
@@ -175,14 +181,13 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
           }
 
           if (actions && actions.length > 0) {
+            if (body.force !== true) await touchSession();
             const ids = actions.map((a) => a.id);
             await sb.from("plugin_actions")
               .update({ status: "sent", sent_at: new Date().toISOString() })
               .in("id", ids);
             const projectIds = [...new Set(actions.map((a) => a.project_id))];
-            for (const pid of projectIds) {
-              await sb.from("projects").update({ plugin_connected: true }).eq("id", pid);
-            }
+            await Promise.all(projectIds.map((pid) => sb.from("projects").update({ plugin_connected: true }).eq("id", pid)));
             console.info("[plugin/poll] actions sent to Studio", {
               userId: profile.id,
               requestedProjectId: body.project_id ?? null,
