@@ -19,7 +19,7 @@ local CollectionService     = game:GetService("CollectionService")
 
 local API_BASE       = "https://bloxsmith.pro"
 local POLL_INTERVAL  = 0.5
-local PLUGIN_VERSION = "2.1.12"
+local PLUGIN_VERSION = "2.1.13"
 
 ------------------------------------------------------------------- token helpers
 local TOKEN_KEY = "token"
