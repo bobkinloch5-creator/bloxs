@@ -3,7 +3,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { normalizePluginAction } from "@/lib/plugin-actions";
 import { sanitizeInsertAssetActions } from "@/lib/roblox-toolbox.server";
-import { stripCodeFences, validateLuau } from "@/lib/luau-validator";
+import { stripCodeFences, validateLuau, autoFixLuau } from "@/lib/luau-validator";
 
 const SCRIPT_ACTION_KINDS = new Set(["script", "localscript", "modulescript", "run_lua"]);
 
