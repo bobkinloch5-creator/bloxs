@@ -513,6 +513,150 @@ function isGrassRequest(userText: string) {
   return /\b(grass|grassy|lawn|turf|field|ground\s+cover|realistic\s+ground)\b/i.test(userText);
 }
 
+function isSurfaceMaterialRequest(userText: string) {
+  return /\b(fill|cover|paint|make|turn|change|apply|set|replace|add|create|build)\b/i.test(userText) &&
+    /\b(ground|floor|baseplate|terrain|land|surface|map|area)\b/i.test(userText) &&
+    /\b(gravel|pebble|pebbles|stone|rock|rocks|sand|mud|dirt|asphalt|road|concrete|pavement|snow|ice|lava|grass)\b/i.test(userText);
+}
+
+function visibleSurfaceMaterialStudioActions(userText: string) {
+  const safePrompt = userText.trim().slice(0, 220) || "apply visible ground material";
+  const text = userText.toLowerCase();
+  const material = /\b(snow|snowy)\b/.test(text) ? "Snow" :
+    /\b(ice|glacier|frozen)\b/.test(text) ? "Ice" :
+    /\b(lava|magma)\b/.test(text) ? "CrackedLava" :
+    /\b(sand|beach|desert)\b/.test(text) ? "Sand" :
+    /\b(mud|swamp)\b/.test(text) ? "Mud" :
+    /\b(asphalt|road)\b/.test(text) ? "Asphalt" :
+    /\b(concrete|pavement|sidewalk)\b/.test(text) ? "Concrete" :
+    /\b(gravel|pebble|pebbles|stone|rock|rocks)\b/.test(text) ? "Pebble" :
+    "Grass";
+  const color = material === "Snow" ? [242, 248, 255] :
+    material === "Ice" ? [156, 216, 242] :
+    material === "CrackedLava" ? [255, 88, 34] :
+    material === "Sand" ? [230, 207, 150] :
+    material === "Mud" ? [94, 72, 48] :
+    material === "Asphalt" ? [42, 43, 47] :
+    material === "Concrete" ? [126, 128, 126] :
+    material === "Pebble" ? [108, 111, 106] :
+    [72, 150, 70];
+  const label = material === "Pebble" ? "gravel" : material.toLowerCase();
+  const source = `
+local Workspace = game:GetService("Workspace")
+local Lighting = game:GetService("Lighting")
+local Terrain = Workspace.Terrain
+
+local request = ${JSON.stringify(safePrompt)}
+local materialName = ${JSON.stringify(material)}
+local material = Enum.Material[materialName] or Enum.Material.Ground
+local color = Color3.fromRGB(${color[0]}, ${color[1]}, ${color[2]})
+
+local root = Workspace:FindFirstChild("BloxSmith_Surface_Material")
+if root then root:Destroy() end
+root = Instance.new("Folder")
+root.Name = "BloxSmith_Surface_Material"
+root.Parent = Workspace
+
+local changed = 0
+for _, inst in ipairs(Workspace:GetDescendants()) do
+  if inst:IsA("BasePart") then
+    local n = inst.Name:lower()
+    local largeFlat = inst.Size.X >= 30 and inst.Size.Z >= 30 and inst.Size.Y <= 12
+    if n:find("baseplate") or n:find("ground") or n:find("floor") or largeFlat then
+      inst.Material = material
+      inst.Color = color
+      inst.TopSurface = Enum.SurfaceType.Smooth
+      inst.BottomSurface = Enum.SurfaceType.Smooth
+      changed += 1
+    end
+  end
+end
+
+pcall(function()
+  Terrain:SetMaterialColor(material, color)
+  Terrain:FillBlock(CFrame.new(0, -2, 0), Vector3.new(320, 4, 320), material)
+end)
+
+local surface = Instance.new("Part")
+surface.Name = "Visible_" .. materialName .. "_Ground"
+surface.Anchored = true
+surface.CanCollide = true
+surface.Size = Vector3.new(320, 0.75, 320)
+surface.Position = Vector3.new(0, 0.4, 0)
+surface.Material = material
+surface.Color = color
+surface.TopSurface = Enum.SurfaceType.Smooth
+surface.BottomSurface = Enum.SurfaceType.Smooth
+surface.Parent = root
+
+for i, data in ipairs({{-96,-72,12},{-42,86,8},{54,-58,10},{98,66,7},{8,34,5},{-74,22,6}}) do
+  local rock = Instance.new("Part")
+  rock.Name = "Material_Detail_" .. i
+  rock.Anchored = true
+  rock.CanCollide = true
+  rock.Shape = Enum.PartType.Ball
+  rock.Size = Vector3.new(data[3] * 1.6, data[3] * 0.55, data[3] * 1.25)
+  rock.CFrame = CFrame.new(data[1], 0.8 + data[3] * 0.25, data[2]) * CFrame.Angles(0, math.rad(i * 27), 0)
+  rock.Material = material
+  rock.Color = color:Lerp(Color3.fromRGB(64, 64, 64), 0.18)
+  rock.Parent = root
+end
+
+local marker = Instance.new("Part")
+marker.Name = "BloxSmith_Material_Built_Marker"
+marker.Anchored = true
+marker.CanCollide = false
+marker.Size = Vector3.new(26, 9, 1)
+marker.CFrame = CFrame.new(0, 7, -112)
+marker.Material = Enum.Material.Metal
+marker.Color = Color3.fromRGB(28, 34, 46)
+marker.Parent = root
+local gui = Instance.new("SurfaceGui")
+gui.Face = Enum.NormalId.Front
+gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+gui.PixelsPerStud = 24
+gui.Parent = marker
+local label = Instance.new("TextLabel")
+label.BackgroundTransparency = 1
+label.Size = UDim2.fromScale(1, 1)
+label.Font = Enum.Font.GothamBold
+label.TextScaled = true
+label.TextWrapped = true
+label.TextColor3 = Color3.fromRGB(245, 248, 255)
+label.Text = "BloxSmith applied ${label} ground"
+label.Parent = gui
+
+Lighting.ClockTime = math.max(Lighting.ClockTime, 12)
+Lighting.Brightness = math.max(Lighting.Brightness, 2.2)
+root:SetAttribute("BloxSmithRequest", request)
+root:SetAttribute("SurfaceMaterial", materialName)
+root:SetAttribute("GroundPartsChanged", changed)
+
+return {
+  instance = root,
+  path = root:GetFullName(),
+  created = { root, surface, marker },
+  visible = true,
+  summary = "Applied visible " .. materialName .. " material to ground/baseplate and created a large visible surface"
+}
+`;
+
+  return [
+    {
+      kind: "run_lua",
+      parent_path: "Workspace",
+      name: "BloxSmith_Apply_Visible_Surface_Material",
+      payload: { source, request: safePrompt, visible_output_required: true },
+    },
+    {
+      kind: "scan_project",
+      parent_path: "Workspace",
+      name: "BloxSmith_Scan_Surface_Material",
+      payload: { reason: "verify_visible_surface_material_was_applied" },
+    },
+  ];
+}
+
 function isSnowTerrainRequest(userText: string) {
   return /\b(snow|snowy|winter|arctic|tundra|ice|glacier)\b/i.test(userText) &&
     /\b(terrain|ground|map|world|environment|area|biome|landscape|floor|baseplate|scene|make|add|build|create)\b/i.test(userText);
