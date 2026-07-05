@@ -1197,11 +1197,6 @@ export function parseActions(content: string): { cleanContent: string; actions: 
   }
 
   try {
-    const rawActions = Array.isArray(json)
-      ? json
-      : json && typeof json === "object" && Array.isArray((json as { actions?: unknown }).actions)
-      ? (json as { actions: unknown[] }).actions
-      : [];
     if (rawActions.length === 0) return { cleanContent: content, actions: [] };
     const cleaned = content.replace(re, "").trimEnd();
     const actions: ParsedAction[] = rawActions
