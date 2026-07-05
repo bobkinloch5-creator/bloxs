@@ -1174,7 +1174,7 @@ const HOISTABLE_PAYLOAD_KEYS = [
   "reset_on_spawn",
 ];
 
-function pickParsedActionKind(a: Record<string, unknown>, hasSource: boolean) {
+function pickParsedActionKind(a: Record<string, unknown>, payload: Record<string, unknown>, hasSource: boolean) {
   const explicitKind = typeof a.kind === "string" && a.kind.trim() ? a.kind : undefined;
   if (explicitKind) return explicitKind;
 
@@ -1182,8 +1182,9 @@ function pickParsedActionKind(a: Record<string, unknown>, hasSource: boolean) {
   const type = typeof a.type === "string" && a.type.trim() ? a.type.trim() : undefined;
   const actionIsVerb = action ? /^(create|add|make|build|insert|update|edit|patch|set|generate|write|spawn)$/i.test(action) : false;
   if (type && (!action || actionIsVerb)) return type;
-  if (action) return action;
+  if (action && !actionIsVerb) return action;
   if (type) return type;
+  if (actionIsVerb && (a.asset_id ?? a.assetId ?? payload.asset_id ?? payload.assetId) !== undefined) return "insert_asset";
   return hasSource ? "script" : "";
 }
 
@@ -1236,7 +1237,7 @@ export function parseActions(content: string): { cleanContent: string; actions: 
         }
         const topSource = typeof a.source === "string" && a.source.trim().length > 0 ? a.source : undefined;
         const payloadSource = typeof payload.source === "string" && payload.source.trim().length > 0 ? payload.source : undefined;
-        const kind = pickParsedActionKind(a, Boolean(topSource ?? payloadSource));
+        const kind = pickParsedActionKind(a, payload, Boolean(topSource ?? payloadSource));
         if (!kind) return acc;
         acc.push({
           kind,
