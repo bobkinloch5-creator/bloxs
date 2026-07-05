@@ -24,6 +24,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as UUsernameRouteImport } from './routes/u.$username'
 import { Route as TemplatesUiRouteImport } from './routes/templates.ui'
 import { Route as ApiVoiceRouteImport } from './routes/api/voice'
+import { Route as ApiHelpChatRouteImport } from './routes/api/help-chat'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as AuthenticatedUiGeneratorRouteImport } from './routes/_authenticated/ui-generator'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
@@ -130,6 +131,11 @@ const TemplatesUiRoute = TemplatesUiRouteImport.update({
 const ApiVoiceRoute = ApiVoiceRouteImport.update({
   id: '/api/voice',
   path: '/api/voice',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiHelpChatRoute = ApiHelpChatRouteImport.update({
+  id: '/api/help-chat',
+  path: '/api/help-chat',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiChatRoute = ApiChatRouteImport.update({
@@ -335,6 +341,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AuthenticatedSettingsRouteWithChildren
   '/ui-generator': typeof AuthenticatedUiGeneratorRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/help-chat': typeof ApiHelpChatRoute
   '/api/voice': typeof ApiVoiceRoute
   '/templates/ui': typeof TemplatesUiRoute
   '/u/$username': typeof UUsernameRoute
@@ -384,6 +391,7 @@ export interface FileRoutesByTo {
   '/settings': typeof AuthenticatedSettingsRouteWithChildren
   '/ui-generator': typeof AuthenticatedUiGeneratorRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/help-chat': typeof ApiHelpChatRoute
   '/api/voice': typeof ApiVoiceRoute
   '/templates/ui': typeof TemplatesUiRoute
   '/u/$username': typeof UUsernameRoute
@@ -435,6 +443,7 @@ export interface FileRoutesById {
   '/_authenticated/settings': typeof AuthenticatedSettingsRouteWithChildren
   '/_authenticated/ui-generator': typeof AuthenticatedUiGeneratorRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/help-chat': typeof ApiHelpChatRoute
   '/api/voice': typeof ApiVoiceRoute
   '/templates/ui': typeof TemplatesUiRoute
   '/u/$username': typeof UUsernameRoute
@@ -486,6 +495,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/ui-generator'
     | '/api/chat'
+    | '/api/help-chat'
     | '/api/voice'
     | '/templates/ui'
     | '/u/$username'
@@ -535,6 +545,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/ui-generator'
     | '/api/chat'
+    | '/api/help-chat'
     | '/api/voice'
     | '/templates/ui'
     | '/u/$username'
@@ -585,6 +596,7 @@ export interface FileRouteTypes {
     | '/_authenticated/settings'
     | '/_authenticated/ui-generator'
     | '/api/chat'
+    | '/api/help-chat'
     | '/api/voice'
     | '/templates/ui'
     | '/u/$username'
@@ -623,6 +635,7 @@ export interface RootRouteChildren {
   TemplatesMarketRoute: typeof TemplatesMarketRoute
   TermsRoute: typeof TermsRoute
   ApiChatRoute: typeof ApiChatRoute
+  ApiHelpChatRoute: typeof ApiHelpChatRoute
   ApiVoiceRoute: typeof ApiVoiceRoute
   TemplatesUiRoute: typeof TemplatesUiRoute
   UUsernameRoute: typeof UUsernameRoute
@@ -749,6 +762,13 @@ declare module '@tanstack/react-router' {
       path: '/api/voice'
       fullPath: '/api/voice'
       preLoaderRoute: typeof ApiVoiceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/help-chat': {
+      id: '/api/help-chat'
+      path: '/api/help-chat'
+      fullPath: '/api/help-chat'
+      preLoaderRoute: typeof ApiHelpChatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/chat': {
@@ -1060,6 +1080,7 @@ const rootRouteChildren: RootRouteChildren = {
   TemplatesMarketRoute: TemplatesMarketRoute,
   TermsRoute: TermsRoute,
   ApiChatRoute: ApiChatRoute,
+  ApiHelpChatRoute: ApiHelpChatRoute,
   ApiVoiceRoute: ApiVoiceRoute,
   TemplatesUiRoute: TemplatesUiRoute,
   UUsernameRoute: UUsernameRoute,
