@@ -576,6 +576,8 @@ function hasRealLuauSource(action: any) {
     .trim();
   if (withoutComments.length < 25) return false;
   if (/TODO|placeholder|add your code here|simple server script is running/i.test(source)) return false;
+  if (/\bPlayers\s*:\s*GetPlayerFromInput\s*\(/i.test(source)) return false;
+  if (/\bUserInputService\b/i.test(source) && /\bPlayers\.PlayerAdded\b/i.test(source)) return false;
   return true;
 }
 
@@ -586,7 +588,79 @@ function narrowFeatureFallbackStudioActions(userText: string, languageName: stri
 
   if (/\b(speed\s*boost|speed\s*button|sprint|run\s*faster)\b/i.test(text)) {
     const source = `
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
 local StarterGui = game:GetService("StarterGui")
+
+local remotes = ReplicatedStorage:FindFirstChild("BloxSmith_Remotes")
+if not remotes then
+  remotes = Instance.new("Folder")
+  remotes.Name = "BloxSmith_Remotes"
+  remotes.Parent = ReplicatedStorage
+end
+
+local speedBoostRemote = remotes:FindFirstChild("RequestSpeedBoost")
+if not speedBoostRemote then
+  speedBoostRemote = Instance.new("RemoteEvent")
+  speedBoostRemote.Name = "RequestSpeedBoost"
+  speedBoostRemote.Parent = remotes
+end
+
+local oldServer = ServerScriptService:FindFirstChild("BloxSmith_SpeedBoostServer")
+if oldServer then oldServer:Destroy() end
+
+local serverScript = Instance.new("Script")
+serverScript.Name = "BloxSmith_SpeedBoostServer"
+serverScript.Source = [==[
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local remotes = ReplicatedStorage:WaitForChild("BloxSmith_Remotes")
+local requestSpeedBoost = remotes:WaitForChild("RequestSpeedBoost")
+
+local BOOST_SPEED = 32
+local BOOST_TIME = 3
+local COOLDOWN = 5
+local lastUse = {}
+local originalSpeeds = {}
+
+local function getHumanoid(player)
+  local character = player.Character
+  if not character then return nil end
+  return character:FindFirstChildOfClass("Humanoid")
+end
+
+local function resetPlayer(player)
+  lastUse[player] = nil
+  originalSpeeds[player] = nil
+end
+
+Players.PlayerRemoving:Connect(resetPlayer)
+
+requestSpeedBoost.OnServerEvent:Connect(function(player)
+  local now = os.clock()
+  if lastUse[player] and now - lastUse[player] < COOLDOWN then return end
+
+  local humanoid = getHumanoid(player)
+  if not humanoid or humanoid.Health <= 0 then return end
+
+  lastUse[player] = now
+  local original = originalSpeeds[player] or humanoid.WalkSpeed
+  originalSpeeds[player] = original
+  humanoid.WalkSpeed = math.max(original, BOOST_SPEED)
+  player:SetAttribute("SpeedBoostActive", true)
+
+  task.delay(BOOST_TIME, function()
+    local currentHumanoid = getHumanoid(player)
+    if currentHumanoid and currentHumanoid.Parent then
+      currentHumanoid.WalkSpeed = originalSpeeds[player] or 16
+    end
+    originalSpeeds[player] = nil
+    player:SetAttribute("SpeedBoostActive", false)
+  end)
+end)
+]==]
+serverScript.Parent = ServerScriptService
 
 local old = StarterGui:FindFirstChild("BloxSmith_SpeedBoostButton")
 if old then old:Destroy() end
@@ -626,18 +700,16 @@ local scriptObj = Instance.new("LocalScript")
 scriptObj.Name = "SpeedBoostClient"
 scriptObj.Source = [==[
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+
 local player = Players.LocalPlayer
 local button = script.Parent
+local requestSpeedBoost = ReplicatedStorage:WaitForChild("BloxSmith_Remotes"):WaitForChild("RequestSpeedBoost")
 
-local BOOST_SPEED = 32
-local BOOST_TIME = 5
-local COOLDOWN = 8
+local BOOST_TIME = 3
+local COOLDOWN = 5
 local ready = true
-
-local function getHumanoid()
-  local character = player.Character or player.CharacterAdded:Wait()
-  return character:FindFirstChildOfClass("Humanoid") or character:WaitForChild("Humanoid", 5)
-end
 
 local function setButton(text, active)
   button.Text = text
@@ -646,20 +718,13 @@ local function setButton(text, active)
   button.BackgroundTransparency = active and 0 or 0.35
 end
 
-button.Activated:Connect(function()
+local function requestBoost()
   if not ready then return end
-  local humanoid = getHumanoid()
-  if not humanoid then return end
-
   ready = false
-  local normalSpeed = humanoid.WalkSpeed
-  humanoid.WalkSpeed = math.max(normalSpeed, BOOST_SPEED)
   setButton("Boosting...", false)
+  requestSpeedBoost:FireServer()
 
   task.delay(BOOST_TIME, function()
-    if humanoid and humanoid.Parent then
-      humanoid.WalkSpeed = normalSpeed
-    end
     for remaining = COOLDOWN, 1, -1 do
       setButton("Cooldown " .. remaining, false)
       task.wait(1)
@@ -667,6 +732,15 @@ button.Activated:Connect(function()
     setButton("Speed Boost", true)
     ready = true
   end)
+end
+
+button.Activated:Connect(requestBoost)
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+  if gameProcessed then return end
+  if input.KeyCode == Enum.KeyCode.F then
+    requestBoost()
+  end
 end)
 ]==]
 scriptObj.Parent = button
