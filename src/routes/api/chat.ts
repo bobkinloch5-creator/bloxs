@@ -4409,7 +4409,7 @@ export const Route = createFileRoute("/api/chat")({
                     ].includes(a.name)),
                     ...(existingProcedural ? [] : proceduralActions),
                   ];
-                  if (!/Procedural Generation queued/i.test(cleanContent)) {
+                  if (!/Procedural Generation (queued|sent)/i.test(cleanContent)) {
                     cleanContent = `${cleanContent.trim()}\n\n_Procedural Generation sent: original terrain, foliage, buildings/props/NPCs/roads/water requested in your prompt will be created directly in Studio. Toolbox is bypassed unless you explicitly ask for it._`;
                   }
                 }
