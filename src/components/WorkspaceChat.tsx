@@ -397,7 +397,9 @@ export function WorkspaceChat({
       qc.invalidateQueries({ queryKey: ["build-execution-status", activeProjectId] });
       qc.invalidateQueries({ queryKey: ["plugin-actions", activeProjectId] });
       qc.invalidateQueries({ queryKey: ["pluginSession"] });
-      toast.success(res.totalReady > 0 ? "Pushed to Studio now." : "Studio is already up to date.");
+      toast.success(res.totalReady > 0
+        ? (pluginOnline ? "Pushed to Studio now." : "Ready to execute — open the Studio plugin.")
+        : "Studio is already up to date.");
     },
     onError: (e) => toast.error(friendlyError(e, { fallback: "Couldn't execute now." })),
   });
