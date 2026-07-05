@@ -4154,7 +4154,7 @@ export const Route = createFileRoute("/api/chat")({
                 supabase.from("studio_errors").select("level, source, message, created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(buildQuality === "basic" ? 3 : 8),
                 supabase.from("build_history").select("prompt, files_count, created_at").eq("project_id", projectId).order("created_at", { ascending: false }).limit(buildQuality === "basic" ? 2 : 5),
                 supabase.from("plugin_actions").select("kind, name, parent_path, status").eq("project_id", projectId).order("created_at", { ascending: false }).limit(buildQuality === "basic" ? 8 : 20),
-                supabase.from("project_memory").select("key, value, kind, importance").eq("project_id", projectId).order("importance", { ascending: false }).order("updated_at", { ascending: false }).limit(buildQuality === "basic" ? 5 : 12),
+                supabase.from("project_memory").select("key, value, kind, importance").eq("project_id", projectId).order("importance", { ascending: false }).order("updated_at", { ascending: false }).limit(buildQuality === "basic" ? 8 : 20),
               ]),
               imageParts.length > 0
                 ? withTimeout(describeImageWithNvidiaPaliGemma(imageParts), 2500, "NVIDIA PaliGemma vision")
@@ -4170,13 +4170,35 @@ export const Route = createFileRoute("/api/chat")({
               `PROJECT MEMORY:\n- Name: ${project.name ?? "(unnamed)"}\n- Type: ${project.game_type ?? "(unspecified)"}\n- Description: ${project.description ?? "(none)"}\n- Total builds so far: ${project.build_count ?? 0}`,
             );
             if (memories && memories.length > 0) {
-              const memLines = memories
-                .map((m) => `• [${m.kind}] ${m.key}: ${String(m.value).slice(0, 180)}`)
-                .join("\n");
-              parts.push(
-                `PROJECT LORE & DESIGN DECISIONS (persistent — never contradict these, build ON TOP of them):\n${memLines}`,
-              );
+              // Split "operational" memory (last build + failures + keybinds) from
+              // "lore/design" memory. Operational memory is imperative and gets
+              // surfaced in full at the top so the model actually acts on it.
+              const critical = memories.filter((m) => m.key === "last_build_failures");
+              const opMems = memories.filter((m) => m.key === "last_build");
+              const lore = memories.filter((m) => m.key !== "last_build" && m.key !== "last_build_failures");
+
+              if (critical.length > 0) {
+                const failText = String(critical[0].value).slice(0, 1400);
+                parts.push(
+                  `⚠️ PREVIOUS BUILD HAD FAILURES — YOU MUST ADDRESS THESE FIRST.\nBefore doing anything else this turn:\n1. Read the failure list below.\n2. In your first sentence, briefly acknowledge what failed (one line, plain English).\n3. Emit corrected actions that fix the failures — new run_lua / script / set_properties actions that patch the exact instance/path that failed. Do not silently rebuild the same broken thing.\n4. If the user's current request is unrelated, still fix the failures alongside the new work.\n\nFailures from last build:\n${failText}`,
+                );
+              }
+              if (opMems.length > 0) {
+                const opText = String(opMems[0].value).slice(0, 1200);
+                parts.push(
+                  `LAST BUILD STATE — the plugin has already applied these instances into the live Studio place. Modify them via set_properties / rename / move / delete or by editing script source. DO NOT recreate anything already listed. Keybinds already registered in this project are LOCKED — pick a different key for any new ability unless the user explicitly reuses one.\n\n${opText}`,
+                );
+              }
+              if (lore.length > 0) {
+                const memLines = lore
+                  .map((m) => `• [${m.kind}] ${m.key}: ${String(m.value).slice(0, 220)}`)
+                  .join("\n");
+                parts.push(
+                  `PROJECT LORE & DESIGN DECISIONS (persistent — never contradict these, build ON TOP of them):\n${memLines}`,
+                );
+              }
             }
+
             if (recentBuilds && recentBuilds.length > 0) {
               parts.push(
                 `RECENT USER REQUESTS in this project (newest first) — do NOT redo these unless asked, build ON TOP of them:\n${recentBuilds.map((b) => `• ${new Date(b.created_at).toISOString().slice(0, 10)} (${b.files_count} actions): ${String(b.prompt).slice(0, 140)}`).join("\n")}`,
