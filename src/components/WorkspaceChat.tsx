@@ -963,25 +963,25 @@ export function WorkspaceChat({
                 setProceduralGeneration(next);
                 toast.success(next
                   ? "🛠 From Scratch: ON — BloxSmith builds everything from primitives (no Toolbox models)."
-                  : "📦 From Scratch: OFF — BloxSmith uses safe free Toolbox / Creator Store assets."
+                  : "⚡ Auto Build: ON — BloxSmith uses Toolbox first, then builds a visible fallback if needed."
                 );
               }}
               aria-pressed={proceduralGeneration}
               title={proceduralGeneration
-                ? "From Scratch is ON — everything is built from parts, meshes, and terrain. Click to switch to Toolbox mode."
-                : "From Scratch is OFF — Toolbox mode. Safe free Creator Store assets are inserted. Click to build from scratch instead."}
+                ? "From Scratch is ON — everything is built from parts, meshes, and terrain. Click to switch to Auto Build."
+                : "Auto Build is ON — uses safe Toolbox assets first, then creates a visible fallback if Toolbox has no match. Click to build from scratch only."}
               className={`inline-flex min-h-[40px] items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition ${
                 proceduralGeneration
                   ? "border-emerald-400/50 bg-emerald-500/15 text-emerald-100 hover:bg-emerald-500/25"
                   : "border-amber-400/40 bg-amber-500/10 text-amber-100 hover:bg-amber-500/20"
               }`}
             >
-              <span className="text-sm leading-none">{proceduralGeneration ? "🛠" : "📦"}</span>
-              <span className="hidden sm:inline">{proceduralGeneration ? "From Scratch" : "Toolbox"}</span>
+              <span className="text-sm leading-none">{proceduralGeneration ? "🛠" : "⚡"}</span>
+              <span className="hidden sm:inline">{proceduralGeneration ? "From Scratch" : "Auto Build"}</span>
               <span className={`ml-1 rounded-full px-1.5 py-[1px] text-[9px] font-black uppercase tracking-wider ${
                 proceduralGeneration ? "bg-emerald-400/30 text-emerald-50" : "bg-amber-400/30 text-amber-50"
               }`}>
-                {proceduralGeneration ? "On" : "Off"}
+                On
               </span>
             </button>
           )}

@@ -513,6 +513,150 @@ function isGrassRequest(userText: string) {
   return /\b(grass|grassy|lawn|turf|field|ground\s+cover|realistic\s+ground)\b/i.test(userText);
 }
 
+function isSurfaceMaterialRequest(userText: string) {
+  return /\b(fill|cover|paint|make|turn|change|apply|set|replace|add|create|build)\b/i.test(userText) &&
+    /\b(ground|floor|baseplate|terrain|land|surface|map|area)\b/i.test(userText) &&
+    /\b(gravel|pebble|pebbles|stone|rock|rocks|sand|mud|dirt|asphalt|road|concrete|pavement|snow|ice|lava|grass)\b/i.test(userText);
+}
+
+function visibleSurfaceMaterialStudioActions(userText: string) {
+  const safePrompt = userText.trim().slice(0, 220) || "apply visible ground material";
+  const text = userText.toLowerCase();
+  const material = /\b(snow|snowy)\b/.test(text) ? "Snow" :
+    /\b(ice|glacier|frozen)\b/.test(text) ? "Ice" :
+    /\b(lava|magma)\b/.test(text) ? "CrackedLava" :
+    /\b(sand|beach|desert)\b/.test(text) ? "Sand" :
+    /\b(mud|swamp)\b/.test(text) ? "Mud" :
+    /\b(asphalt|road)\b/.test(text) ? "Asphalt" :
+    /\b(concrete|pavement|sidewalk)\b/.test(text) ? "Concrete" :
+    /\b(gravel|pebble|pebbles|stone|rock|rocks)\b/.test(text) ? "Pebble" :
+    "Grass";
+  const color = material === "Snow" ? [242, 248, 255] :
+    material === "Ice" ? [156, 216, 242] :
+    material === "CrackedLava" ? [255, 88, 34] :
+    material === "Sand" ? [230, 207, 150] :
+    material === "Mud" ? [94, 72, 48] :
+    material === "Asphalt" ? [42, 43, 47] :
+    material === "Concrete" ? [126, 128, 126] :
+    material === "Pebble" ? [108, 111, 106] :
+    [72, 150, 70];
+  const label = material === "Pebble" ? "gravel" : material.toLowerCase();
+  const source = `
+local Workspace = game:GetService("Workspace")
+local Lighting = game:GetService("Lighting")
+local Terrain = Workspace.Terrain
+
+local request = ${JSON.stringify(safePrompt)}
+local materialName = ${JSON.stringify(material)}
+local material = Enum.Material[materialName] or Enum.Material.Ground
+local color = Color3.fromRGB(${color[0]}, ${color[1]}, ${color[2]})
+
+local root = Workspace:FindFirstChild("BloxSmith_Surface_Material")
+if root then root:Destroy() end
+root = Instance.new("Folder")
+root.Name = "BloxSmith_Surface_Material"
+root.Parent = Workspace
+
+local changed = 0
+for _, inst in ipairs(Workspace:GetDescendants()) do
+  if inst:IsA("BasePart") then
+    local n = inst.Name:lower()
+    local largeFlat = inst.Size.X >= 30 and inst.Size.Z >= 30 and inst.Size.Y <= 12
+    if n:find("baseplate") or n:find("ground") or n:find("floor") or largeFlat then
+      inst.Material = material
+      inst.Color = color
+      inst.TopSurface = Enum.SurfaceType.Smooth
+      inst.BottomSurface = Enum.SurfaceType.Smooth
+      changed += 1
+    end
+  end
+end
+
+pcall(function()
+  Terrain:SetMaterialColor(material, color)
+  Terrain:FillBlock(CFrame.new(0, -2, 0), Vector3.new(320, 4, 320), material)
+end)
+
+local surface = Instance.new("Part")
+surface.Name = "Visible_" .. materialName .. "_Ground"
+surface.Anchored = true
+surface.CanCollide = true
+surface.Size = Vector3.new(320, 0.75, 320)
+surface.Position = Vector3.new(0, 0.4, 0)
+surface.Material = material
+surface.Color = color
+surface.TopSurface = Enum.SurfaceType.Smooth
+surface.BottomSurface = Enum.SurfaceType.Smooth
+surface.Parent = root
+
+for i, data in ipairs({{-96,-72,12},{-42,86,8},{54,-58,10},{98,66,7},{8,34,5},{-74,22,6}}) do
+  local rock = Instance.new("Part")
+  rock.Name = "Material_Detail_" .. i
+  rock.Anchored = true
+  rock.CanCollide = true
+  rock.Shape = Enum.PartType.Ball
+  rock.Size = Vector3.new(data[3] * 1.6, data[3] * 0.55, data[3] * 1.25)
+  rock.CFrame = CFrame.new(data[1], 0.8 + data[3] * 0.25, data[2]) * CFrame.Angles(0, math.rad(i * 27), 0)
+  rock.Material = material
+  rock.Color = color:Lerp(Color3.fromRGB(64, 64, 64), 0.18)
+  rock.Parent = root
+end
+
+local marker = Instance.new("Part")
+marker.Name = "BloxSmith_Material_Built_Marker"
+marker.Anchored = true
+marker.CanCollide = false
+marker.Size = Vector3.new(26, 9, 1)
+marker.CFrame = CFrame.new(0, 7, -112)
+marker.Material = Enum.Material.Metal
+marker.Color = Color3.fromRGB(28, 34, 46)
+marker.Parent = root
+local gui = Instance.new("SurfaceGui")
+gui.Face = Enum.NormalId.Front
+gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+gui.PixelsPerStud = 24
+gui.Parent = marker
+local label = Instance.new("TextLabel")
+label.BackgroundTransparency = 1
+label.Size = UDim2.fromScale(1, 1)
+label.Font = Enum.Font.GothamBold
+label.TextScaled = true
+label.TextWrapped = true
+label.TextColor3 = Color3.fromRGB(245, 248, 255)
+label.Text = "BloxSmith applied ${label} ground"
+label.Parent = gui
+
+Lighting.ClockTime = math.max(Lighting.ClockTime, 12)
+Lighting.Brightness = math.max(Lighting.Brightness, 2.2)
+root:SetAttribute("BloxSmithRequest", request)
+root:SetAttribute("SurfaceMaterial", materialName)
+root:SetAttribute("GroundPartsChanged", changed)
+
+return {
+  instance = root,
+  path = root:GetFullName(),
+  created = { root, surface, marker },
+  visible = true,
+  summary = "Applied visible " .. materialName .. " material to ground/baseplate and created a large visible surface"
+}
+`;
+
+  return [
+    {
+      kind: "run_lua",
+      parent_path: "Workspace",
+      name: "BloxSmith_Apply_Visible_Surface_Material",
+      payload: { source, request: safePrompt, visible_output_required: true },
+    },
+    {
+      kind: "scan_project",
+      parent_path: "Workspace",
+      name: "BloxSmith_Scan_Surface_Material",
+      payload: { reason: "verify_visible_surface_material_was_applied" },
+    },
+  ];
+}
+
 function isSnowTerrainRequest(userText: string) {
   return /\b(snow|snowy|winter|arctic|tundra|ice|glacier)\b/i.test(userText) &&
     /\b(terrain|ground|map|world|environment|area|biome|landscape|floor|baseplate|scene|make|add|build|create)\b/i.test(userText);
@@ -3995,10 +4139,11 @@ export const Route = createFileRoute("/api/chat")({
           if (projErr || !project) return jsonError("Project not found or you don't have access to it.", 404, "project_not_found");
 
           // Per-user asset preference (stored in profiles.settings.asset_mode).
-          // Old "auto" / "primitives_only" settings are treated as toolbox-only
-          // so visual builds do not silently become procedural placeholders.
-          let assetMode: "toolbox_only" | "both" | "procedural" = "toolbox_only";
-          let proceduralFallbackAllowed = false;
+          // Default to hybrid so BloxSmith always creates a visible result: use
+          // safe Toolbox assets when available, then deterministic procedural
+          // geometry/terrain when Toolbox has no usable match.
+          let assetMode: "toolbox_only" | "both" | "procedural" = "both";
+          let proceduralFallbackAllowed = true;
           try {
             const { data: prof } = await supabase
               .from("profiles")
@@ -4007,9 +4152,10 @@ export const Route = createFileRoute("/api/chat")({
               .maybeSingle();
             const s = (prof?.settings && typeof prof.settings === "object" ? prof.settings : {}) as Record<string, unknown>;
             const m = s.asset_mode;
-            if (m === "both") assetMode = "both";
+            if (m === "toolbox_only") assetMode = "toolbox_only";
             else if (m === "procedural") assetMode = "procedural";
-            proceduralFallbackAllowed = assetMode === "procedural" || (s.procedural_fallback_enabled === true && s.disable_procedural_fallback !== true);
+            else assetMode = "both";
+            proceduralFallbackAllowed = assetMode !== "toolbox_only" && s.disable_procedural_fallback !== true;
           } catch { /* ignore */ }
 
           // Per-request Procedural Generation toggle (from the composer) overrides
@@ -4019,8 +4165,8 @@ export const Route = createFileRoute("/api/chat")({
             assetMode = "procedural";
             proceduralFallbackAllowed = true;
           } else if (proceduralGenerationOverride === false) {
-            assetMode = "toolbox_only";
-            proceduralFallbackAllowed = false;
+            assetMode = "both";
+            proceduralFallbackAllowed = true;
           }
 
 
@@ -4194,6 +4340,73 @@ export const Route = createFileRoute("/api/chat")({
                 .eq("id", projectId);
               console.info("[chat/fastpath] queued visible snow terrain instantly", { projectId, userId, actionCount: actions.length });
               return streamPlainAssistantText(replyText, "snow-terrain-fastpath-text");
+            }
+          }
+
+          // ── INSTANT VISIBLE SURFACE MATERIAL FAST-PATH ──────────────────
+          // Requests like "fill the ground with gravel" must visibly change the
+          // current Studio place even if Toolbox search has no exact material kit.
+          if (mode === "build" && projectId && userText && isSurfaceMaterialRequest(userText) && !imageGenerationRequested) {
+            const actions = visibleSurfaceMaterialStudioActions(userText)
+              .map(normalizePluginAction)
+              .filter((action) => finalScriptIssues(action).length === 0)
+              .map((action: any) => ({
+                ...action,
+                payload: {
+                  ...(action.payload ?? {}),
+                  _bloxsmith: {
+                    execution_mode: "fast",
+                    structured: true,
+                    exact_scope: true,
+                    visible_output_required: true,
+                    surface_material_fast_path: true,
+                    no_empty_folders: true,
+                    no_fake_assets: true,
+                  },
+                },
+              }));
+            if (actions.length > 0) {
+              const replyText = "Sent a visible ground-material build to Studio — it will apply the surface and focus the camera on it.";
+              const { data: msgRow } = await supabase
+                .from("chat_messages")
+                .insert({
+                  project_id: projectId,
+                  user_id: userId,
+                  role: "assistant",
+                  content: replyText,
+                  status: "sending",
+                  model: "deterministic-surface-material-fastpath",
+                  actions,
+                })
+                .select("id")
+                .single();
+              await supabase.from("plugin_actions").insert(
+                actions.map((action, i) => ({
+                  project_id: projectId,
+                  user_id: userId,
+                  message_id: msgRow?.id ?? null,
+                  kind: action.kind,
+                  parent_path: action.parent_path,
+                  name: action.name,
+                  payload: action.payload,
+                  position: i,
+                })),
+              );
+              await supabase.from("build_history").insert({
+                project_id: projectId,
+                user_id: userId,
+                prompt: userText,
+                model: "deterministic-surface-material-fastpath",
+                files_count: actions.length,
+                plugin_status: "Queued",
+                applied: false,
+              });
+              await supabase
+                .from("projects")
+                .update({ updated_at: new Date().toISOString() })
+                .eq("id", projectId);
+              console.info("[chat/fastpath] queued visible surface material instantly", { projectId, userId, actionCount: actions.length });
+              return streamPlainAssistantText(replyText, "surface-material-fastpath-text");
             }
           }
 
@@ -4684,12 +4897,13 @@ export const Route = createFileRoute("/api/chat")({
 
 
                   if (actions.length === 0 && proceduralFallbackAllowed) {
-                    actions = proceduralModeActive
-                      ? proceduralEnvironmentStudioActions(userText, languageName).map(normalizePluginAction)
-                      : recoveryStudioActions(userText).map(normalizePluginAction);
-                    cleanContent = proceduralModeActive
-                      ? `${cleanContent.trim()}\n\n_Procedural Generation sent: BloxSmith will create original Studio geometry/terrain for the requested assets without Toolbox models._`
-                      : `${cleanContent.trim()}\n\n_Auto-execute recovery sent a safe starter build because the selected model did not produce valid Studio actions._`;
+                    actions = (isRobloxSystemRequest(userText)
+                      ? recoveryStudioActions(userText)
+                      : proceduralEnvironmentStudioActions(userText, languageName)
+                    ).map(normalizePluginAction);
+                    cleanContent = isRobloxSystemRequest(userText)
+                      ? `${cleanContent.trim()}\n\n_Auto-execute recovery sent a safe starter build because the selected model did not produce valid Studio actions._`
+                      : `${cleanContent.trim()}\n\n_Visible fallback sent: no safe Toolbox result was available, so BloxSmith is building original Studio geometry/terrain for this request instead of skipping it._`;
                   } else if (actions.length === 0) {
                     cleanContent = `${cleanContent.trim()}\n\n_No safe structured Studio action was produced. Procedural fallback is disabled, so BloxSmith did not create placeholder blocks._`;
                   }
@@ -5358,7 +5572,7 @@ export const Route = createFileRoute("/api/chat")({
               case "toolbox_only":
                 return `\n[ASSET MODE: TOOLBOX ONLY]\nThe user has chosen Toolbox Assets Only. Hard rules for this turn:\n- Think of Roblox Toolbox / Creator Store as a live searchable asset universe. You do not rely on memory or invented IDs; you search it.\n- For full games, maps, screenshots, cities, worlds, lobbies, or multi-prop scenes, call search_toolbox_set FIRST with every visual category needed. Example city = road/street, building/skyscraper/shop, street light, sidewalk, car/vehicle, sign/decor, NPC if needed. Example forest = tree, rock, bush, cabin, campfire, animal/NPC if needed.\n- For one-off visual assets, call search_toolbox. For follow-up gaps after search_toolbox_set, call search_toolbox with narrower keywords.\n- For every visual model (trees, buildings, vehicles, NPCs, pets, weapons, props, decor, furniture, roads, shops, cities, forests, maps, worlds, and environment kits) emit insert_asset actions with safe returned ids and fallback_ids.\n- DO NOT build trees, houses, roads, cars, NPCs, weapons, decorations, maps, or random scenery from primitives in run_lua. DO NOT emit raw "part" actions to fake real-world objects.\n- Only use run_lua for placement/scaling/rotation of inserted assets, clean organization, service setup, scripts, UI wiring, and non-visual support logic.\n- If a required search_toolbox_set request returns status "missing" or search_toolbox returns source "none", tell the user plainly that no safe free Toolbox asset was found and ASK whether to fall back to generated geometry.\n- Briefly list which assets you inserted (name + creatorName + id) in your explanation.\n`;
               case "both":
-                return `\n[ASSET MODE: TOOLBOX + SCRIPTED SYSTEMS]\nUse Toolbox assets via search_toolbox_set/search_toolbox + insert_asset for all visual models and environment content. For full scenes or game templates, call search_toolbox_set with each needed category before building. Use run_lua for placement, scaling, rotation, scripted systems, UI, remotes, storage organization, and light terrain/support edits only. If no safe relevant Toolbox asset exists, ask before generating fallback geometry.\n`;
+                return `\n[ASSET MODE: AUTO BUILD — TOOLBOX FIRST + GUARANTEED VISIBLE FALLBACK]\nUse safe free Toolbox assets via search_toolbox_set/search_toolbox + insert_asset for visual models when good matches exist. If Toolbox returns no safe relevant asset, DO NOT stop or ask — immediately create a polished procedural fallback with run_lua/Terrain/Parts so the user always sees the requested result in Studio. For material/terrain requests (snow, gravel, grass, sand, roads, water, mountains, caves, islands), procedural terrain/material actions are allowed and preferred when they produce the exact requested visible change. End meaningful builds with scan_project.\n`;
               case "procedural":
                 return `\n[ASSET MODE: PROCEDURAL BUILD — NO TOOLBOX]\nThe user has chosen PROCEDURAL mode. Hard rules for this turn:\n- Do NOT call search_toolbox or search_toolbox_set. Do NOT emit insert_asset actions. Everything must be generated from scratch.\n- Build every visual element from primitives (Part, MeshPart, WedgePart, TrussPart, CornerWedgePart, SpecialMesh, BlockMesh, CylinderMesh) and Terrain (FillBlock, FillBall, FillCylinder, FillWedge, FillRegion, SetMaterialColors) via run_lua actions.\n- For maps: use Terrain sculpting + tiled Part construction. Groups: Roads/Sidewalks/Buildings/Props/Foliage/Lighting/SpawnZones as folders inside Workspace. Every building must be composed (walls, floor, roof, windows, doors, interior parts) — never a single box called "House".\n- For NPCs, vehicles, weapons, and pets: build them from parts + welds + Motor6D. Add HumanoidRootPart/Humanoid for characters, VehicleSeat for cars, Tool + Handle for weapons. Wire animations with AnimationController or Humanoid:LoadAnimation using default Roblox animation ids only when needed.\n- Use Lighting properties (Ambient, OutdoorAmbient, Brightness, ClockTime, FogEnd, FogColor, ExposureCompensation) + Atmosphere/Sky/Bloom/ColorCorrection/DepthOfField/SunRays for the mood.\n- Ship full gameplay scripts (script/localscript/modulescript) with remotes/datastores/UI, wired to the procedural world.\n- End with organize_project + autofix_project + scan_project. Everything must be real, named, grouped, and playable — no empty folders, no placeholders, no TODOs.\n- Vary shapes, colors, and layout across turns so procedural worlds feel handmade, not templated.\n`;
               default:
