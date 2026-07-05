@@ -923,12 +923,14 @@ export async function searchRobloxToolbox(
   const cached = cacheGet(cacheKey);
   if (cached) return cached;
   const recentIds = new Set(recentAssetsByKey.get(usageKey) ?? []);
-  // Widen the search fan-out on deeper pages so we surface fresh assets.
-  const activeTerms = terms.slice(0, page > 2 ? 12 : 8);
-  const perPage = 100;
+  // Single-object requests need one good result fast. Keep those searches
+  // shallow so “add one tree/button/car” does not wait on dozens of Roblox
+  // endpoint calls before the Studio queue is populated.
+  const activeTerms = singleAssetOnly ? terms.slice(0, 3) : terms.slice(0, page > 2 ? 12 : 8);
+  const perPage = singleAssetOnly ? 40 : 100;
   // Scale page depth with the requested page so users can keep browsing.
   // Each source pages up to ~30 pages of 100 → ~3000 per source per term.
-  const maxPagesPerTerm = Math.min(3 + page * 2, 30);
+  const maxPagesPerTerm = singleAssetOnly ? 1 : Math.min(3 + page * 2, 30);
   // Track how many distinct expanded terms each asset matched on — strong signal of true relevance.
   const termHitCount = new Map<number, number>();
   const bumpHit = (id: number, term: string, name: string) => {
