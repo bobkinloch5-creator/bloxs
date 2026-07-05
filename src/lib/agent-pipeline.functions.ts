@@ -225,7 +225,7 @@ async function runAgent(
       : { temperature: agent === "critic" ? 0.2 : 0.4 }),
     ...(fb.modelSettings?.topP !== undefined ? { topP: fb.modelSettings.topP } : {}),
     ...(fb.extraBody ? { providerOptions: { nvidia: fb.extraBody as Record<string, never> } as never } : {}),
-    maxOutputTokens: agent === "planner" ? 360 : agent === "critic" ? 220 : 1400,
+    maxOutputTokens: agent === "planner" ? 360 : agent === "critic" ? 220 : agent === "scripter" || agent === "ui_designer" ? 3200 : 1800,
   });
 
   let full = "";
