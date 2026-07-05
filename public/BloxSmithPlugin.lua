@@ -681,6 +681,41 @@ local function verifyInsertedScript(inst, className, expectedSource)
     return true, nil
 end
 
+local function collectScriptSet()
+    local set = {}
+    for _, inst in ipairs(game:GetDescendants()) do
+        if inst:IsA("Script") or inst:IsA("LocalScript") or inst:IsA("ModuleScript") then
+            set[inst] = true
+        end
+    end
+    return set
+end
+
+local function verifyNewScriptsCreatedByRunLua(beforeSet)
+    local checked = 0
+    local failures = {}
+    for _, inst in ipairs(game:GetDescendants()) do
+        if (inst:IsA("Script") or inst:IsA("LocalScript") or inst:IsA("ModuleScript")) and not beforeSet[inst] then
+            checked += 1
+            local source = ""
+            pcall(function() source = inst.Source end)
+            local ok, err = validateLuaSource(source, inst.Name)
+            if ok then
+                ok, err = verifyInsertedScript(inst, inst.ClassName, source)
+            end
+            if not ok then
+                local path = fullPath(inst)
+                pcall(function() inst:Destroy() end)
+                table.insert(failures, path .. " - " .. tostring(err))
+            end
+        end
+    end
+    if #failures > 0 then
+        error("run_lua created invalid script(s); removed before leaving broken code in Studio: " .. table.concat(failures, "; "))
+    end
+    return checked
+end
+
 local function makeScript(className, action, parent)
     local payload = action.payload or {}
     local source, origin = pickActionSource(action)
@@ -1268,9 +1303,11 @@ end
         for k, v in pairs(props) do safeSet(inst, k, v) end
     end
 
+    local beforeScripts = collectScriptSet()
     local ok, runErr = pcall(builder, p, plugin, safeSet, safeSetProps)
     if not ok then error("runtime error: " .. tostring(runErr)) end
-    return { ran = a.name }
+    local verifiedScripts = verifyNewScriptsCreatedByRunLua(beforeScripts)
+    return { ran = a.name, scripts_verified = verifiedScripts }
 end
 
 local function describeAction(a)
