@@ -538,7 +538,7 @@ function isNarrowFeatureRequest(userText: string) {
 }
 
 function needsGameplayRemoteWiring(userText: string) {
-  return /\b(button|keybind|key\s*bind|space\s*bar|keyboard|hotkey|speed\s*boost|sprint|dash|double\s*jump|high\s*jump|super\s*jump|jump\s*boost|ability|power|tool|door|checkpoint|timer|kill\s*brick|teleport|multiplayer|replicated|server[-\s]*authoritative)\b/i.test(userText);
+  return /\b(button|keybind|key\s*bind|space\s*bar|keyboard|hotkey|speed\s*boost|sprint|dash|double\s*jump|high\s*jump|super\s*jump|jump\s*boost|fly|flying|flight|ability|power|tool|door|checkpoint|save\s*point|timer|kill\s*brick|teleport)\b/i.test(userText);
 }
 
 function shouldUseGenericRobloxSystemGuard(userText: string, buildQuality?: "basic" | "better" | "premium" | "full_game") {
