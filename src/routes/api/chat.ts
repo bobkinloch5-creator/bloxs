@@ -4106,9 +4106,26 @@ export const Route = createFileRoute("/api/chat")({
                   }, {}),
                 });
 
+                if (!cleanContent.trim()) {
+                  if (actions.length > 0 && mode === "build") {
+                    const kinds = actions.reduce<Record<string, number>>((acc, a) => {
+                      const k = String((a as { kind?: string })?.kind || "action");
+                      acc[k] = (acc[k] ?? 0) + 1;
+                      return acc;
+                    }, {});
+                    const summary = Object.entries(kinds)
+                      .map(([k, n]) => `${n} ${k.replace(/_/g, " ")}`)
+                      .join(", ");
+                    cleanContent = `Building your request now.\n\nHere's what I'll do:\n✅ ${summary}\n✅ Send it to Roblox Studio\n\n📤 Sent to Studio — waiting for the plugin to confirm.`;
+                  } else {
+                    cleanContent = "Done.";
+                  }
+                }
+
                 if (actions.length > 0 && mode === "build") {
                   cleanContent = `${cleanContent.trim()}\n\n_Queued ${actions.length} Studio action(s). Waiting for the Roblox Studio plugin to confirm execution before this build is marked complete._`;
                 }
+
 
                 const { data: msgRow } = await supabase.from("chat_messages").insert({
                   project_id: projectId,
