@@ -6,7 +6,7 @@
 // Contract: returns a repaired Luau source string on success, or `null` if the
 // key is missing, the request fails, or the model refuses. Never throws.
 
-import { stripCodeFences } from "@/lib/luau-validator";
+import { stripCodeFences, validateLuau } from "@/lib/luau-validator";
 
 type CritiqueInput = {
   source: string;
@@ -102,6 +102,7 @@ export async function repairLuauWithNvidia(input: CritiqueInput): Promise<string
   // Sanity: repair must not be trivially empty or a refusal.
   if (cleaned.length < Math.min(40, Math.floor(src.length * 0.3))) return null;
   if (/^(i\s|sorry|as an ai|cannot|i can't|i'm unable)/i.test(cleaned)) return null;
+  if (validateLuau(cleaned).some((i) => i.severity === "error")) return null;
   return cleaned;
 }
 
@@ -153,5 +154,6 @@ export async function generateLuauReplacementWithNvidia(input: GenerateInput): P
   if (cleaned.length < 40) return null;
   if (/^(i\s|sorry|as an ai|cannot|i can't|i'm unable)/i.test(cleaned)) return null;
   if (/TODO|placeholder|add your code here/i.test(cleaned)) return null;
+  if (validateLuau(cleaned).some((i) => i.severity === "error")) return null;
   return cleaned;
 }
