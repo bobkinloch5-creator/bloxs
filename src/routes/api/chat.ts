@@ -4343,6 +4343,73 @@ export const Route = createFileRoute("/api/chat")({
             }
           }
 
+          // ── INSTANT VISIBLE SURFACE MATERIAL FAST-PATH ──────────────────
+          // Requests like "fill the ground with gravel" must visibly change the
+          // current Studio place even if Toolbox search has no exact material kit.
+          if (mode === "build" && projectId && userText && isSurfaceMaterialRequest(userText) && !imageGenerationRequested) {
+            const actions = visibleSurfaceMaterialStudioActions(userText)
+              .map(normalizePluginAction)
+              .filter((action) => finalScriptIssues(action).length === 0)
+              .map((action: any) => ({
+                ...action,
+                payload: {
+                  ...(action.payload ?? {}),
+                  _bloxsmith: {
+                    execution_mode: "fast",
+                    structured: true,
+                    exact_scope: true,
+                    visible_output_required: true,
+                    surface_material_fast_path: true,
+                    no_empty_folders: true,
+                    no_fake_assets: true,
+                  },
+                },
+              }));
+            if (actions.length > 0) {
+              const replyText = "Sent a visible ground-material build to Studio — it will apply the surface and focus the camera on it.";
+              const { data: msgRow } = await supabase
+                .from("chat_messages")
+                .insert({
+                  project_id: projectId,
+                  user_id: userId,
+                  role: "assistant",
+                  content: replyText,
+                  status: "sending",
+                  model: "deterministic-surface-material-fastpath",
+                  actions,
+                })
+                .select("id")
+                .single();
+              await supabase.from("plugin_actions").insert(
+                actions.map((action, i) => ({
+                  project_id: projectId,
+                  user_id: userId,
+                  message_id: msgRow?.id ?? null,
+                  kind: action.kind,
+                  parent_path: action.parent_path,
+                  name: action.name,
+                  payload: action.payload,
+                  position: i,
+                })),
+              );
+              await supabase.from("build_history").insert({
+                project_id: projectId,
+                user_id: userId,
+                prompt: userText,
+                model: "deterministic-surface-material-fastpath",
+                files_count: actions.length,
+                plugin_status: "Queued",
+                applied: false,
+              });
+              await supabase
+                .from("projects")
+                .update({ updated_at: new Date().toISOString() })
+                .eq("id", projectId);
+              console.info("[chat/fastpath] queued visible surface material instantly", { projectId, userId, actionCount: actions.length });
+              return streamPlainAssistantText(replyText, "surface-material-fastpath-text");
+            }
+          }
+
           // ── INSTANT NARROW FEATURE FAST-PATH ───────────────────────────
           // One small thing (a button, jump/speed/dash script, checkpoint,
           // door, kill brick, teleport, etc.) should not wait for a full model
