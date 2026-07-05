@@ -1695,6 +1695,7 @@ local function pollOnce(force)
     ChangeHistoryService:SetWaypoint("BloxSmith batch start")
     local okN, failN = 0, 0
     local results = {}
+    local focusTargets = {}
     for _, a in ipairs(actions) do
         local stage, sub = statusForAction(a)
         setStatus(stage, Color3.fromRGB(160,200,255), sub)
@@ -1703,6 +1704,7 @@ local function pollOnce(force)
             okN += 1; lastAction = describeAction(a)
             log("??? " .. lastAction, "action")
             results[#results+1] = { action_id = a.id, status = "done", result = reportableResult(errOrInst) }
+            pcall(collectInstancesFromResult, focusTargets, errOrInst)
         else
             failN += 1
             log("??? " .. a.kind .. " '" .. tostring(a.name) .. "': " .. tostring(errOrInst), "error")
@@ -1723,10 +1725,15 @@ local function pollOnce(force)
     ChangeHistoryService:SetWaypoint("BloxSmith batch done")
     -- Report all results in a single HTTP call, off the hot path.
     task.spawn(reportBatch, results)
+    -- Auto-focus Studio's camera on whatever just got built so the user
+    -- immediately sees the new geometry without hunting for it.
+    if #focusTargets > 0 and failN == 0 then
+        pcall(focusCameraOn, focusTargets)
+    end
     if failN > 0 then
         setStatus("Build failed with reason", Color3.fromRGB(255,180,80), ("%d command(s) failed. Check activity log for details."):format(failN))
     else
-        setStatus("Build complete", Color3.fromRGB(120,220,160), "Studio executed all commands.")
+        setStatus("Build complete", Color3.fromRGB(120,220,160), ("Built %d thing(s). Camera focused."):format(okN))
     end
     log(("Batch complete ??? %d ok, %d failed."):format(okN, failN), failN > 0 and "warn" or "success")
     return #actions
