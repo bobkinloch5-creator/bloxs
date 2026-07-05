@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { Bell, Bot, Box, Brain, CheckCircle2, Gauge, ImageIcon, Lightbulb, ListChecks, ScrollText, ShieldCheck, Sparkles, Users, Wrench } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Bell, Bot, Box, Brain, Check, CheckCircle2, ChevronDown, Copy, Gauge, ImageIcon, Lightbulb, Link2, ListChecks, Palette, Rocket, ScrollText, Search, Share2, ShieldCheck, Sparkles, Users, Wrench, X, Zap } from "lucide-react";
 
 const CHANGELOG_VERSION = "2026-07-04-full-city-placement-scripts";
 
@@ -507,6 +507,55 @@ const CHANGELOG_ITEMS = [
   },
 ];
 
+type Category = "feature" | "bug" | "perf" | "ui" | "security" | "improvement";
+
+const CATEGORY_META: Record<Category, { label: string; emoji: string; icon: typeof Sparkles; accent: string; ring: string; chip: string }> = {
+  feature:     { label: "New",         emoji: "🆕", icon: Sparkles,     accent: "text-indigo-300",  ring: "ring-indigo-400/30",  chip: "bg-indigo-500/15 text-indigo-200 border-indigo-400/30" },
+  bug:         { label: "Bug fix",     emoji: "🐛", icon: Wrench,       accent: "text-amber-300",   ring: "ring-amber-400/30",   chip: "bg-amber-500/15 text-amber-200 border-amber-400/30" },
+  perf:        { label: "Performance", emoji: "⚡", icon: Zap,          accent: "text-yellow-300",  ring: "ring-yellow-400/30",  chip: "bg-yellow-500/15 text-yellow-200 border-yellow-400/30" },
+  ui:          { label: "UI",          emoji: "🎨", icon: Palette,      accent: "text-pink-300",    ring: "ring-pink-400/30",    chip: "bg-pink-500/15 text-pink-200 border-pink-400/30" },
+  security:    { label: "Security",    emoji: "🔒", icon: ShieldCheck,  accent: "text-emerald-300", ring: "ring-emerald-400/30", chip: "bg-emerald-500/15 text-emerald-200 border-emerald-400/30" },
+  improvement: { label: "Improvement", emoji: "✨", icon: CheckCircle2, accent: "text-sky-300",     ring: "ring-sky-400/30",     chip: "bg-sky-500/15 text-sky-200 border-sky-400/30" },
+};
+
+function inferCategory(item: (typeof CHANGELOG_ITEMS)[number]): Category {
+  const t = item.title;
+  if (/🐛|🛠️|🔌|🔧/u.test(t)) return "bug";
+  if (/⚡/u.test(t)) return "perf";
+  if (/🎨|🖼️|🖌️/u.test(t)) return "ui";
+  if (/🔒|🛡️|🔑/u.test(t)) return "security";
+  if (/🆕|🎉|🚀|📌|🏙️|🏔️|🌍|🎬|🧰|📜|🌳|🦴|🏆|✨/u.test(t)) return "feature";
+  const Ic = item.icon;
+  if (Ic === Wrench) return "bug";
+  if (Ic === ShieldCheck) return "security";
+  if (Ic === Gauge) return "perf";
+  if (Ic === ImageIcon) return "ui";
+  if (Ic === Sparkles || Ic === Box) return "feature";
+  return "improvement";
+}
+
+const MONTHS: Record<string, number> = { Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11 };
+function parseDate(s: string): Date | null {
+  const m = s.match(/^([A-Z][a-z]{2})\s+(\d{1,2})$/);
+  if (!m) return null;
+  const now = new Date();
+  const mo = MONTHS[m[1]];
+  if (mo == null) return null;
+  let y = now.getFullYear();
+  const d = new Date(y, mo, parseInt(m[2], 10));
+  if (d.getTime() - now.getTime() > 1000 * 60 * 60 * 24 * 30) d.setFullYear(y - 1);
+  return d;
+}
+
+const FILTERS: Array<{ id: "all" | Category; label: string }> = [
+  { id: "all", label: "All" },
+  { id: "feature", label: "New" },
+  { id: "bug", label: "Fixes" },
+  { id: "perf", label: "Performance" },
+  { id: "ui", label: "UI" },
+  { id: "security", label: "Security" },
+];
+
 export function ChangelogNotifications({
   buttonClassName = "bs-icon-btn",
   iconClassName = "h-4 w-4",
@@ -516,6 +565,11 @@ export function ChangelogNotifications({
 }) {
   const [open, setOpen] = useState(false);
   const [seen, setSeen] = useState(true);
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<"all" | Category>("all");
+  const [sort, setSort] = useState<"newest" | "oldest">("newest");
+  const [expandedAll, setExpandedAll] = useState<null | boolean>(null);
+  const [expandedMap, setExpandedMap] = useState<Record<string, boolean>>({});
   const rootRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -529,9 +583,42 @@ export function ChangelogNotifications({
     const onPointerDown = (event: PointerEvent) => {
       if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
     };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
     window.addEventListener("pointerdown", onPointerDown);
-    return () => window.removeEventListener("pointerdown", onPointerDown);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("keydown", onKey);
+    };
   }, [open]);
+
+  const items = useMemo(() => {
+    const now = Date.now();
+    const enriched = CHANGELOG_ITEMS.map((it, i) => {
+      const d = parseDate(it.date);
+      const cat = inferCategory(it);
+      const daysAgo = d ? Math.floor((now - d.getTime()) / (1000 * 60 * 60 * 24)) : 999;
+      const slug = it.title.toLowerCase().replace(/[^\w]+/g, "-").replace(/(^-|-$)+/g, "").slice(0, 60) || `update-${i}`;
+      return { ...it, cat, ts: d ? d.getTime() : -i, isNew: daysAgo >= 0 && daysAgo <= 7, slug, index: i };
+    });
+    const q = query.trim().toLowerCase();
+    const filtered = enriched.filter((it) =>
+      (filter === "all" || it.cat === filter) &&
+      (!q || it.title.toLowerCase().includes(q) || it.body.toLowerCase().includes(q))
+    );
+    filtered.sort((a, b) => sort === "newest" ? b.ts - a.ts || a.index - b.index : a.ts - b.ts || a.index - b.index);
+    return filtered;
+  }, [query, filter, sort]);
+
+  const anyExpanded = Object.values(expandedMap).some(Boolean);
+  const toggleAll = () => {
+    if (anyExpanded) { setExpandedMap({}); setExpandedAll(false); }
+    else {
+      const all: Record<string, boolean> = {};
+      items.forEach((it) => { all[it.slug] = true; });
+      setExpandedMap(all); setExpandedAll(true);
+    }
+  };
 
   return (
     <div ref={rootRef} className="relative">
@@ -549,67 +636,237 @@ export function ChangelogNotifications({
 
       {open && (
         <>
-          {/* Backdrop so taps outside close the panel and don't accidentally hit stuff behind it */}
           <button
             type="button"
             aria-label="Close notifications"
-            className="fixed inset-0 z-40 cursor-default bg-black/20 backdrop-blur-[1px]"
+            className="fixed inset-0 z-40 cursor-default bg-black/40 backdrop-blur-[2px] animate-fade-in"
             onClick={() => setOpen(false)}
           />
           <div
-            className="fixed right-3 top-[64px] z-50 w-[min(94vw,420px)] max-h-[min(76vh,620px)] overflow-hidden rounded-2xl border shadow-2xl sm:right-6 sm:top-[72px]"
-            style={{ background: "var(--bs-card)", borderColor: "var(--bs-border)" }}
+            className="fixed right-3 top-[64px] z-50 w-[min(94vw,460px)] max-h-[min(82vh,720px)] flex flex-col overflow-hidden rounded-2xl border border-white/10 shadow-[0_20px_60px_-15px_rgba(99,102,241,0.35),0_0_0_1px_rgba(255,255,255,0.04)] sm:right-6 sm:top-[72px] animate-scale-in bs-changelog-panel"
+            style={{
+              background: "linear-gradient(180deg, rgba(15,17,32,0.96) 0%, rgba(10,12,24,0.96) 100%)",
+              backdropFilter: "blur(20px) saturate(140%)",
+            }}
           >
-            <div className="border-b px-4 py-3" style={{ borderColor: "var(--bs-border)" }}>
-              <div className="text-sm font-bold">BloxSmith updates</div>
-              <div className="mt-0.5 text-xs" style={{ color: "var(--bs-muted-fg)" }}>
-                Latest changes across the workspace.
+            {/* Sticky header */}
+            <div className="sticky top-0 z-10 border-b border-white/10 px-4 pt-4 pb-3" style={{ background: "linear-gradient(180deg, rgba(20,22,40,0.98), rgba(15,17,32,0.92))" }}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <div className="grid h-7 w-7 place-items-center rounded-lg bg-gradient-to-br from-indigo-500 to-fuchsia-500 shadow-[0_0_20px_rgba(129,140,248,0.4)]">
+                      <Rocket className="h-4 w-4 text-white" />
+                    </div>
+                    <h2 className="text-[15px] font-bold tracking-tight text-white">BloxSmith Updates</h2>
+                  </div>
+                  <p className="mt-1 text-[11.5px] text-white/50">Latest improvements, fixes, and new features.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={toggleAll}
+                  className="shrink-0 rounded-md border border-white/10 bg-white/[0.03] px-2 py-1 text-[10.5px] font-semibold uppercase tracking-wide text-white/70 hover:bg-white/[0.08] hover:text-white transition"
+                  title={anyExpanded ? "Collapse all" : "Expand all"}
+                >
+                  {anyExpanded ? "Collapse all" : "Expand all"}
+                </button>
+              </div>
+
+              {/* Search */}
+              <div className="mt-3 flex items-center gap-2 rounded-lg border border-white/10 bg-black/30 px-2.5 py-1.5 focus-within:border-indigo-400/40 focus-within:ring-2 focus-within:ring-indigo-400/20 transition">
+                <Search className="h-3.5 w-3.5 text-white/40" />
+                <input
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search updates…"
+                  className="min-w-0 flex-1 bg-transparent text-[12.5px] text-white placeholder:text-white/30 outline-none"
+                />
+                {query && (
+                  <button type="button" onClick={() => setQuery("")} className="text-white/40 hover:text-white/80" aria-label="Clear search">
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Filter chips + sort */}
+              <div className="mt-2.5 flex items-center gap-2">
+                <div className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto bs-hide-scroll">
+                  {FILTERS.map((f) => {
+                    const active = filter === f.id;
+                    return (
+                      <button
+                        key={f.id}
+                        type="button"
+                        onClick={() => setFilter(f.id)}
+                        className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition ${
+                          active
+                            ? "border-indigo-400/50 bg-indigo-500/20 text-indigo-100 shadow-[0_0_12px_rgba(129,140,248,0.25)]"
+                            : "border-white/10 bg-white/[0.02] text-white/60 hover:bg-white/[0.06] hover:text-white/90"
+                        }`}
+                      >
+                        {f.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <select
+                  value={sort}
+                  onChange={(e) => setSort(e.target.value as "newest" | "oldest")}
+                  className="shrink-0 rounded-md border border-white/10 bg-black/30 px-2 py-1 text-[11px] font-semibold text-white/70 outline-none hover:text-white transition"
+                  aria-label="Sort updates"
+                >
+                  <option value="newest">Newest</option>
+                  <option value="oldest">Oldest</option>
+                </select>
               </div>
             </div>
 
-            <div className="max-h-[calc(min(76vh,620px)-64px)] overflow-y-auto divide-y" style={{ borderColor: "var(--bs-border)" }}>
-              {CHANGELOG_ITEMS.map((item) => (
-                <ChangelogRow key={item.title} item={item} />
-              ))}
+            {/* Scrollable list */}
+            <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2.5 bs-thin-scroll">
+              {items.length === 0 ? (
+                <div className="grid place-items-center py-16 text-center">
+                  <Search className="h-6 w-6 text-white/20" />
+                  <p className="mt-3 text-[13px] font-semibold text-white/70">No updates found</p>
+                  <p className="mt-1 text-[11.5px] text-white/40">Try a different search or filter.</p>
+                </div>
+              ) : (
+                items.map((item) => (
+                  <ChangelogCard
+                    key={item.slug}
+                    item={item}
+                    expanded={!!expandedMap[item.slug]}
+                    onToggle={() =>
+                      setExpandedMap((m) => ({ ...m, [item.slug]: !m[item.slug] }))
+                    }
+                  />
+                ))
+              )}
             </div>
           </div>
+
+          <style>{`
+            .bs-thin-scroll::-webkit-scrollbar { width: 6px; }
+            .bs-thin-scroll::-webkit-scrollbar-track { background: transparent; }
+            .bs-thin-scroll::-webkit-scrollbar-thumb { background: rgba(129,140,248,0.25); border-radius: 999px; }
+            .bs-thin-scroll::-webkit-scrollbar-thumb:hover { background: rgba(129,140,248,0.45); }
+            .bs-hide-scroll::-webkit-scrollbar { display: none; }
+            .bs-hide-scroll { scrollbar-width: none; }
+            .bs-changelog-card { transition: transform 200ms ease, border-color 200ms ease, box-shadow 250ms ease, background 200ms ease; }
+            .bs-changelog-card:hover { transform: translateY(-1px); border-color: rgba(129,140,248,0.35); box-shadow: 0 8px 24px -8px rgba(99,102,241,0.35), 0 0 0 1px rgba(129,140,248,0.15) inset; }
+            .bs-expand { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 260ms ease, opacity 220ms ease; opacity: 0; }
+            .bs-expand.open { grid-template-rows: 1fr; opacity: 1; }
+            .bs-expand > div { overflow: hidden; }
+          `}</style>
         </>
       )}
     </div>
   );
 }
 
-type ChangelogItem = (typeof CHANGELOG_ITEMS)[number];
+type EnrichedItem = (typeof CHANGELOG_ITEMS)[number] & { cat: Category; isNew: boolean; slug: string };
 
-function ChangelogRow({ item }: { item: ChangelogItem }) {
-  const [expanded, setExpanded] = useState(false);
-  const Icon = item.icon;
-  const PREVIEW_LIMIT = 160;
+function ChangelogCard({ item, expanded, onToggle }: { item: EnrichedItem; expanded: boolean; onToggle: () => void }) {
+  const meta = CATEGORY_META[item.cat];
+  const Icon = meta.icon;
+  const [copied, setCopied] = useState(false);
+  const PREVIEW_LIMIT = 150;
   const isLong = item.body.length > PREVIEW_LIMIT;
-  const preview = isLong && !expanded ? item.body.slice(0, PREVIEW_LIMIT).trimEnd() + "…" : item.body;
+  const preview = isLong ? item.body.slice(0, PREVIEW_LIMIT).trimEnd() + "…" : item.body;
+
+  const buildUrl = () => {
+    if (typeof window === "undefined") return "";
+    const u = new URL(window.location.href);
+    u.hash = `update-${item.slug}`;
+    return u.toString();
+  };
+
+  const handleCopy = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(buildUrl());
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1400);
+    } catch {}
+  };
+
+  const handleShare = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const url = buildUrl();
+    const nav = navigator as Navigator & { share?: (d: ShareData) => Promise<void> };
+    if (nav.share) {
+      try { await nav.share({ title: item.title, text: item.title, url }); return; } catch {}
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1400);
+    } catch {}
+  };
+
   return (
-    <div className="px-4 py-3.5 transition hover:bg-[var(--bs-card-2)]">
+    <article
+      id={`update-${item.slug}`}
+      className="bs-changelog-card group relative rounded-xl border border-white/10 bg-white/[0.02] p-3.5"
+    >
       <div className="flex items-start gap-3">
-        <div className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg" style={{ background: "var(--bs-primary-soft)", color: "var(--bs-primary)" }}>
-          <Icon className="h-3.5 w-3.5" />
+        <div className={`mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg ring-1 ${meta.ring} bg-black/30 ${meta.accent}`}>
+          <Icon className="h-4 w-4" />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="flex items-baseline justify-between gap-3">
-            <div className="text-[13px] font-semibold leading-snug text-white/95">{item.title}</div>
-            <div className="shrink-0 text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--bs-muted-fg)" }}>{item.date}</div>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wide ${meta.chip}`}>
+                  <span>{meta.emoji}</span>{meta.label}
+                </span>
+                {item.isNew && (
+                  <span className="inline-flex items-center rounded-full bg-gradient-to-r from-emerald-400 to-teal-400 px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wide text-emerald-950 shadow-[0_0_10px_rgba(52,211,153,0.4)]">
+                    New
+                  </span>
+                )}
+              </div>
+              <h3 className="mt-1.5 text-[13.5px] font-bold leading-snug text-white">{item.title}</h3>
+            </div>
+            <div className="shrink-0 text-[10px] font-semibold uppercase tracking-wider text-white/40">{item.date}</div>
           </div>
-          <p className="mt-1.5 text-xs leading-relaxed" style={{ color: "var(--bs-muted-fg)" }}>{preview}</p>
-          {isLong && (
-            <button
-              type="button"
-              onClick={() => setExpanded((v) => !v)}
-              className="mt-1.5 text-[11px] font-semibold text-[var(--bs-primary)] hover:underline"
-            >
-              {expanded ? "Show less" : "Show more"}
-            </button>
-          )}
+
+          <p className="mt-1.5 text-[12px] leading-relaxed text-white/65">{expanded || !isLong ? item.body : preview}</p>
+
+          <div className="mt-2.5 flex items-center justify-between gap-2">
+            {isLong ? (
+              <button
+                type="button"
+                onClick={onToggle}
+                className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] font-semibold text-indigo-300 hover:text-indigo-200 hover:bg-indigo-500/10 transition"
+              >
+                {expanded ? "Show less" : "Show more"}
+                <ChevronDown className={`h-3 w-3 transition-transform ${expanded ? "rotate-180" : ""}`} />
+              </button>
+            ) : <span />}
+            <div className="flex items-center gap-1 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100">
+              <button
+                type="button"
+                onClick={handleCopy}
+                title="Copy link"
+                aria-label="Copy link to update"
+                className="grid h-6 w-6 place-items-center rounded-md text-white/50 hover:bg-white/10 hover:text-white transition"
+              >
+                {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Link2 className="h-3.5 w-3.5" />}
+              </button>
+              <button
+                type="button"
+                onClick={handleShare}
+                title="Share"
+                aria-label="Share update"
+                className="grid h-6 w-6 place-items-center rounded-md text-white/50 hover:bg-white/10 hover:text-white transition"
+              >
+                <Share2 className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+    </article>
   );
 }
+
