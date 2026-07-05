@@ -19,7 +19,7 @@ local CollectionService     = game:GetService("CollectionService")
 
 local API_BASE       = "https://bloxsmith.pro"
 local POLL_INTERVAL  = 0.5
-local PLUGIN_VERSION = "2.1.12"
+local PLUGIN_VERSION = "2.1.13"
 
 ------------------------------------------------------------------- token helpers
 local TOKEN_KEY = "token"
@@ -606,11 +606,31 @@ local function pickActionSource(action)
     return "", "missing"
 end
 
+-- Best-effort in-plugin repair for JSON-style tables the model sometimes
+-- emits ({"key": value}) — convert to Luau ({key = value}) before we validate.
+local function autoRepairJsonTables(source)
+    if type(source) ~= "string" or source == "" then return source, false end
+    local changed = false
+    local repaired = source:gsub('([{,]%s*)"([%a_][%w_]*)"%s*:', function(pre, key)
+        changed = true
+        return pre .. key .. " = "
+    end)
+    repaired = repaired:gsub('([{,]%s*)"([^"\n]+)"%s*:', function(pre, key)
+        changed = true
+        return pre .. '["' .. key .. '"] = '
+    end)
+    repaired = repaired:gsub('([{,]%s*)([%a_][%w_]*)%s*:%s*([^%a_])', function(pre, key, after)
+        changed = true
+        return pre .. key .. " = " .. after
+    end)
+    return repaired, changed
+end
+
 local function validateLuaSource(source, scriptName)
     if type(source) ~= "string" or source:match("^%s*$") then
         return false, "empty script source"
     end
-    if source:find("{%s*[%w_]+%s*:") then
+    if source:find("{%s*[%w_]+%s*:") or source:find('{%s*"[%w_]+"%s*:') then
         return false, "JSON-style table syntax found; use key = value in Luau tables"
     end
     local fn, err = loadstring(source, "=BloxSmithScript/" .. tostring(scriptName or "Script"))
@@ -625,6 +645,11 @@ local function makeScript(className, action, parent)
     local source, origin = pickActionSource(action)
     log(("Validating %s '%s' source from %s (%d chars).")
         :format(tostring(className), tostring(action.name), tostring(origin), #source), "debug")
+    local repaired, changed = autoRepairJsonTables(source)
+    if changed then
+        log(("Auto-repaired JSON-style tables in '%s'."):format(tostring(action.name)), "warn")
+        source = repaired
+    end
     local ok, err = validateLuaSource(source, action.name)
     if not ok then
         error("script validation failed for " .. tostring(action.name) .. " before insertion: " .. tostring(err) .. " (source=" .. tostring(origin) .. ", chars=" .. tostring(#source) .. ")")
@@ -1380,6 +1405,16 @@ local function pollOnce(force)
     for _, a in ipairs(actions) do
         if isScriptActionKind(a.kind) then
             local source, origin = pickActionSource(a)
+            -- Auto-repair JSON-style tables in-place so the build isn't blocked
+            -- by a syntax slip the model can produce. If repair happens, the
+            -- healed source is written back to payload.source before insertion.
+            local repaired, changed = autoRepairJsonTables(source)
+            if changed then
+                log(("Auto-repaired JSON-style tables in '%s' during preflight."):format(tostring(a.name)), "warn")
+                a.payload = a.payload or {}
+                a.payload.source = repaired
+                source = repaired
+            end
             local ok, err = validateLuaSource(source, a.name)
             log(("Preflight %s '%s': source=%s chars=%d.")
                 :format(tostring(a.kind), tostring(a.name), tostring(origin), #source), ok and "debug" or "error")

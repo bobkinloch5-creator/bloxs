@@ -3,7 +3,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { normalizePluginAction } from "@/lib/plugin-actions";
 import { sanitizeInsertAssetActions } from "@/lib/roblox-toolbox.server";
-import { stripCodeFences, validateLuau } from "@/lib/luau-validator";
+import { stripCodeFences, validateLuau, autoFixLuau } from "@/lib/luau-validator";
 
 const SCRIPT_ACTION_KINDS = new Set(["script", "localscript", "modulescript", "run_lua"]);
 
@@ -52,6 +52,20 @@ function scriptValidationErrors(action: { kind?: string; name?: string; payload?
 }
 
 async function repairPreparedScriptActions<T extends { kind?: string; name?: string; parent_path?: string; payload?: Record<string, unknown> }>(actions: T[]) {
+  // First pass: cheap deterministic autofix (JSON-style tables → Luau,
+  // deprecated globals, stray markdown fences). Fixes the most common LLM
+  // slip-ups without a model round-trip so builds don't stall.
+  for (const action of actions) {
+    if (!SCRIPT_ACTION_KINDS.has(String(action.kind ?? ""))) continue;
+    const rawSource = action.payload?.source;
+    if (typeof rawSource !== "string" || !rawSource.trim()) continue;
+    const { source, fixes } = autoFixLuau(rawSource);
+    if (fixes.length > 0 && source !== rawSource) {
+      action.payload = { ...(action.payload ?? {}), source };
+      console.info("[chat.functions] autoFixLuau applied", { name: action.name, fixes });
+    }
+  }
+
   const invalid = actions
     .map((action) => ({ action, errors: scriptValidationErrors(action) }))
     .filter((entry) => entry.errors.length > 0)
