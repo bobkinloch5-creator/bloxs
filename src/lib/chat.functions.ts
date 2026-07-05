@@ -211,12 +211,12 @@ export const getBuildExecutionStatus = createServerFn({ method: "GET" })
       message = `Build failed: ${failed} of ${total} action(s) failed.`;
     } else if (done === total) {
       state = "done";
-      message = `Studio confirmed ${done} of ${total} action(s) executed.`;
+      message = `Studio executed ${done} of ${total} action(s).`;
     } else if (sent > 0) {
       state = ageMs > 120_000 ? "stalled" : "sent";
       message = state === "stalled"
-        ? `Studio received ${sent} action(s), but has not confirmed completion yet.`
-        : `Studio received ${sent} of ${total} action(s); waiting for confirmation.`;
+        ? `Studio received ${sent} action(s), but they did not finish.`
+        : `Studio is executing ${sent} of ${total} action(s).`;
     } else if (pending > 0 && ageMs > 120_000) {
       state = "stalled";
       message = `Studio has not picked up ${pending} action(s). Check the plugin is open and polling.`;
