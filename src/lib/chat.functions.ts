@@ -23,16 +23,17 @@ function preparedActionPayload(action: {
   return payload;
 }
 
-function pickPreparedActionKind(action: { kind?: string; action?: string; type?: string; payload?: unknown; source?: unknown; code?: unknown; lua?: unknown; luau?: unknown; script?: unknown }) {
+function pickPreparedActionKind(action: { kind?: string; action?: string; type?: string; payload?: unknown; source?: unknown; code?: unknown; lua?: unknown; luau?: unknown; script?: unknown; asset_id?: unknown; assetId?: unknown }) {
   const explicitKind = typeof action.kind === "string" && action.kind.trim() ? action.kind.trim() : undefined;
   if (explicitKind) return explicitKind;
   const actionValue = typeof action.action === "string" && action.action.trim() ? action.action.trim() : undefined;
   const typeValue = typeof action.type === "string" && action.type.trim() ? action.type.trim() : undefined;
   const actionIsVerb = actionValue ? /^(create|add|make|build|insert|update|edit|patch|set|generate|write|spawn)$/i.test(actionValue) : false;
   if (typeValue && (!actionValue || actionIsVerb)) return typeValue;
-  if (actionValue) return actionValue;
+  if (actionValue && !actionIsVerb) return actionValue;
   if (typeValue) return typeValue;
   const payload = preparedActionPayload(action);
+  if (actionIsVerb && (action.asset_id ?? action.assetId ?? payload.asset_id ?? payload.assetId) !== undefined) return "insert_asset";
   return typeof payload.source === "string" && payload.source.trim() ? "script" : "";
 }
 
@@ -327,6 +328,13 @@ export const queuePreparedStudioActions = createServerFn({ method: "POST" })
       lua: z.string().optional(),
       luau: z.string().optional(),
       script: z.string().optional(),
+      asset_id: z.union([z.string(), z.number()]).optional(),
+      assetId: z.union([z.string(), z.number()]).optional(),
+      fallback_ids: z.any().optional(),
+      fallbackIds: z.any().optional(),
+      target_path: z.string().optional(),
+      target: z.string().optional(),
+      properties: z.record(z.string(), z.any()).optional(),
     })).min(1).max(80),
   }).parse(input))
   .handler(async ({ data, context }) => {
