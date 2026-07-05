@@ -576,6 +576,8 @@ function hasRealLuauSource(action: any) {
     .trim();
   if (withoutComments.length < 25) return false;
   if (/TODO|placeholder|add your code here|simple server script is running/i.test(source)) return false;
+  if (/\bPlayers\s*:\s*GetPlayerFromInput\s*\(/i.test(source)) return false;
+  if (/\bUserInputService\b/i.test(source) && /\bPlayers\.PlayerAdded\b/i.test(source)) return false;
   return true;
 }
 
