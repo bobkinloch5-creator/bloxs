@@ -19,7 +19,7 @@ local CollectionService     = game:GetService("CollectionService")
 
 local API_BASE       = "https://bloxsmith.pro"
 local POLL_INTERVAL  = 0.5
-local PLUGIN_VERSION = "2.1.13"
+local PLUGIN_VERSION = "2.1.14"
 
 ------------------------------------------------------------------- token helpers
 local TOKEN_KEY = "token"
@@ -333,7 +333,10 @@ local function ensureProjectFolders()
 end
 
 local SUSPICIOUS_SOURCE_PATTERNS = {
-    "require%s*%(",
+    -- Normal require(path.to.ModuleScript) is required for real Roblox systems.
+    -- Only quarantine external asset-id requires, which are commonly abused and
+    -- are not needed for BloxSmith-authored code.
+    "require%s*%(%s*%d",
     "loadstring%s*%(",
     "getfenv%s*%(",
     "setfenv%s*%(",
@@ -509,13 +512,9 @@ local function organizeProject()
             table.insert(moved, from .. " -> " .. fullPath(ReplicatedStorage.Modules))
         end
     end
-    for _, inst in ipairs(ServerScriptService:GetChildren()) do
-        if inst:IsA("Script") and inst.Name ~= "BloxSmith_Leaderstats" and inst.Name ~= "Systems" then
-            local from = fullPath(inst)
-            inst.Parent = ServerScriptService.Systems
-            table.insert(moved, from .. " -> " .. fullPath(ServerScriptService.Systems))
-        end
-    end
+    -- Do not move newly-created server Scripts after insertion. Roblox scripts
+    -- often use script.Parent or sibling paths during startup; moving them here
+    -- can make a valid script appear to "not run" or lose dependencies.
     return { moved = moved, moved_count = #moved }
 end
 
@@ -608,36 +607,182 @@ end
 
 -- Best-effort in-plugin repair for JSON-style tables the model sometimes
 -- emits ({"key": value}) — convert to Luau ({key = value}) before we validate.
+-- This scanner skips comments and normal string literals so JSON-looking UI
+-- text is not modified.
+local function previousNonWhitespace(text)
+    for i = #text, 1, -1 do
+        local ch = text:sub(i, i)
+        if not ch:match("%s") then return ch end
+    end
+    return ""
+end
+
+local function nextNonWhitespaceIndex(text, index)
+    local i = index
+    while i <= #text and text:sub(i, i):match("%s") do i += 1 end
+    return i
+end
+
+local function readQuotedString(text, index)
+    local quote = text:sub(index, index)
+    if quote ~= '"' and quote ~= "'" then return nil, nil end
+    local value = ""
+    local i = index + 1
+    while i <= #text do
+        local ch = text:sub(i, i)
+        if ch == "\\" then
+            value = value .. text:sub(i, math.min(i + 1, #text))
+            i += 2
+        elseif ch == quote then
+            return i + 1, value
+        else
+            value = value .. ch
+            i += 1
+        end
+    end
+    return nil, nil
+end
+
+local function luaQuote(value)
+    value = tostring(value or ""):gsub("\\", "\\\\"):gsub('"', '\\"')
+    return '"' .. value .. '"'
+end
+
 local function autoRepairJsonTables(source)
     if type(source) ~= "string" or source == "" then return source, false end
+    local out = {}
     local changed = false
-    local repaired = source:gsub('([{,]%s*)"([%a_][%w_]*)"%s*:', function(pre, key)
-        changed = true
-        return pre .. key .. " = "
-    end)
-    repaired = repaired:gsub('([{,]%s*)"([^"\n]+)"%s*:', function(pre, key)
-        changed = true
-        return pre .. '["' .. key .. '"] = '
-    end)
-    repaired = repaired:gsub('([{,]%s*)([%a_][%w_]*)%s*:%s*([^%a_])', function(pre, key, after)
-        changed = true
-        return pre .. key .. " = " .. after
-    end)
-    return repaired, changed
+    local i = 1
+    while i <= #source do
+        if source:sub(i, i + 3) == "--[[" then
+            local stop = source:find("]]", i + 4, true)
+            stop = stop and (stop + 1) or #source
+            table.insert(out, source:sub(i, stop)); i = stop + 1
+        elseif source:sub(i, i + 1) == "--" then
+            local stop = source:find("\n", i + 2, true) or (#source + 1)
+            table.insert(out, source:sub(i, stop - 1)); i = stop
+        else
+            local ch = source:sub(i, i)
+            if ch == '"' or ch == "'" then
+                local stop, key = readQuotedString(source, i)
+                if stop then
+                    local nextIndex = nextNonWhitespaceIndex(source, stop)
+                    local prev = previousNonWhitespace(table.concat(out))
+                    if (prev == "{" or prev == ",") and source:sub(nextIndex, nextIndex) == ":" then
+                        if key:match("^[%a_][%w_]*$") then
+                            table.insert(out, key .. " = ")
+                        else
+                            table.insert(out, "[" .. luaQuote(key) .. "] = ")
+                        end
+                        i = nextIndex + 1
+                        changed = true
+                    else
+                        table.insert(out, source:sub(i, stop - 1)); i = stop
+                    end
+                else
+                    table.insert(out, ch); i += 1
+                end
+            elseif ch:match("[%a_]") and (previousNonWhitespace(table.concat(out)) == "{" or previousNonWhitespace(table.concat(out)) == ",") then
+                local key = source:sub(i):match("^([%a_][%w_]*)")
+                local endIndex = key and (i + #key - 1) or i
+                local nextIndex = key and nextNonWhitespaceIndex(source, endIndex + 1) or i
+                if key and source:sub(nextIndex, nextIndex) == ":" then
+                    table.insert(out, key .. " = ")
+                    i = nextIndex + 1
+                    changed = true
+                else
+                    table.insert(out, ch); i += 1
+                end
+            else
+                table.insert(out, ch); i += 1
+            end
+        end
+    end
+    return table.concat(out), changed
 end
 
 local function validateLuaSource(source, scriptName)
     if type(source) ~= "string" or source:match("^%s*$") then
         return false, "empty script source"
     end
-    if source:find("{%s*[%w_]+%s*:") or source:find('{%s*"[%w_]+"%s*:') then
-        return false, "JSON-style table syntax found; use key = value in Luau tables"
-    end
     local fn, err = loadstring(source, "=BloxSmithScript/" .. tostring(scriptName or "Script"))
     if not fn then
         return false, tostring(err)
     end
     return true, nil
+end
+
+local function scriptPlacementIssue(className, inst)
+    if typeof(inst) ~= "Instance" then return "script instance was not created" end
+    if className == "Script" then
+        if inst:IsDescendantOf(ServerScriptService) or inst:IsDescendantOf(Workspace) then return nil end
+        return "Script must be under ServerScriptService or Workspace to run at play time; got " .. fullPath(inst.Parent)
+    elseif className == "LocalScript" then
+        if inst:IsDescendantOf(StarterPlayer) or inst:IsDescendantOf(StarterGui) or inst:IsDescendantOf(StarterPack) then return nil end
+        return "LocalScript must be under StarterPlayerScripts, StarterCharacterScripts, StarterGui/PlayerGui, or a Tool; got " .. fullPath(inst.Parent)
+    elseif className == "ModuleScript" then
+        if inst:IsDescendantOf(ReplicatedStorage) or inst:IsDescendantOf(ServerScriptService) or inst:IsDescendantOf(ServerStorage) or inst:IsDescendantOf(StarterPlayer) or inst:IsDescendantOf(StarterGui) then return nil end
+        return "ModuleScript is in a nonstandard location and may not be require-able: " .. fullPath(inst.Parent)
+    end
+    return nil
+end
+
+local function verifyInsertedScript(inst, className, expectedSource)
+    if typeof(inst) ~= "Instance" or not inst:IsA(className) then
+        return false, "created instance is not a " .. tostring(className)
+    end
+    local actual = ""
+    local readOk, readErr = pcall(function() actual = inst.Source end)
+    if not readOk then return false, "could not read script source after insertion: " .. tostring(readErr) end
+    if type(actual) ~= "string" or actual:match("^%s*$") then return false, "inserted script source is empty" end
+    if actual ~= expectedSource then return false, "inserted script source changed during write" end
+    local placement = scriptPlacementIssue(className, inst)
+    if placement then return false, placement end
+    if className == "Script" or className == "LocalScript" then
+        local enabledOk, enabledErr = pcall(function() inst.Disabled = false end)
+        if not enabledOk then return false, "could not enable script after insertion: " .. tostring(enabledErr) end
+    end
+    pcall(function()
+        inst:SetAttribute("BloxSmithValidated", true)
+        inst:SetAttribute("BloxSmithValidatedAt", os.time())
+        inst:SetAttribute("BloxSmithClass", className)
+    end)
+    return true, nil
+end
+
+local function collectScriptSet()
+    local set = {}
+    for _, inst in ipairs(game:GetDescendants()) do
+        if inst:IsA("Script") or inst:IsA("LocalScript") or inst:IsA("ModuleScript") then
+            set[inst] = true
+        end
+    end
+    return set
+end
+
+local function verifyNewScriptsCreatedByRunLua(beforeSet)
+    local checked = 0
+    local failures = {}
+    for _, inst in ipairs(game:GetDescendants()) do
+        if (inst:IsA("Script") or inst:IsA("LocalScript") or inst:IsA("ModuleScript")) and not beforeSet[inst] then
+            checked += 1
+            local source = ""
+            pcall(function() source = inst.Source end)
+            local ok, err = validateLuaSource(source, inst.Name)
+            if ok then
+                ok, err = verifyInsertedScript(inst, inst.ClassName, source)
+            end
+            if not ok then
+                local path = fullPath(inst)
+                pcall(function() inst:Destroy() end)
+                table.insert(failures, path .. " - " .. tostring(err))
+            end
+        end
+    end
+    if #failures > 0 then
+        error("run_lua created invalid script(s); removed before leaving broken code in Studio: " .. table.concat(failures, "; "))
+    end
+    return checked
 end
 
 local function makeScript(className, action, parent)
@@ -659,7 +804,13 @@ local function makeScript(className, action, parent)
     local s = Instance.new(className)
     s.Name = action.name
     s.Source = source
-    s.Parent = parent; return s
+    s.Parent = parent
+    local verified, verifyErr = verifyInsertedScript(s, className, source)
+    if not verified then
+        pcall(function() s:Destroy() end)
+        error("script post-insertion verification failed for " .. tostring(action.name) .. ": " .. tostring(verifyErr))
+    end
+    return s
 end
 
 Exec.folder = function(a, p)
@@ -1192,6 +1343,11 @@ Exec.run_lua = function(a, p)
     if type(source) ~= "string" or source:match("^%s*$") then
         error("run_lua missing source before execution (source=" .. tostring(origin) .. ", chars=" .. tostring(#source) .. ")")
     end
+    local repaired, changed = autoRepairJsonTables(source)
+    if changed then
+        log(("Auto-repaired JSON-style tables in run_lua '%s'."):format(tostring(a.name)), "warn")
+        source = repaired
+    end
     local wrapped = [[
 return function(parent, plugin, safeSet, safeSetProps, ...)
 ]] .. source .. [[
@@ -1216,9 +1372,11 @@ end
         for k, v in pairs(props) do safeSet(inst, k, v) end
     end
 
+    local beforeScripts = collectScriptSet()
     local ok, runErr = pcall(builder, p, plugin, safeSet, safeSetProps)
     if not ok then error("runtime error: " .. tostring(runErr)) end
-    return { ran = a.name }
+    local verifiedScripts = verifyNewScriptsCreatedByRunLua(beforeScripts)
+    return { ran = a.name, scripts_verified = verifiedScripts }
 end
 
 local function describeAction(a)
