@@ -30,7 +30,7 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
       POST: async ({ request }) => {
         try {
           const body = (await request.json().catch(() => ({}))) as {
-            token?: string; place_id?: string; studio_version?: string; plugin_version?: string; project_id?: string | null;
+            token?: string; place_id?: string; studio_version?: string; plugin_version?: string; project_id?: string | null; force?: boolean;
           };
           const headerToken =
             request.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim() ||
@@ -101,7 +101,7 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
           // Long-poll: hold briefly if nothing is pending, checking very often
           // so Studio receives newly-created actions almost immediately without
           // spamming Roblox HTTP requests while idle.
-          if (actions.length === 0) {
+          if (actions.length === 0 && body.force !== true) {
             const deadline = Date.now() + 8_000;
             while (Date.now() < deadline) {
               await new Promise((r) => setTimeout(r, 100));

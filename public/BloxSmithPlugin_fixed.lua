@@ -1534,6 +1534,7 @@ local function pollOnce(force)
         :format(API_BASE, tostring(game.PlaceId or 0), PLUGIN_VERSION), "debug") end
     local data, err, status = post("/api/public/plugin/poll", {
         token = token, place_id = tostring(game.PlaceId or 0), studio_version = studioVersion(), plugin_version = PLUGIN_VERSION,
+        force = force == true,
     }, { verbose = VERBOSE, force = force })
     if err then
         if status == 401 then
