@@ -19,7 +19,7 @@ local CollectionService     = game:GetService("CollectionService")
 
 local API_BASE       = "https://bloxsmith.pro"
 local POLL_INTERVAL  = 0.5
-local PLUGIN_VERSION = "2.1.12"
+local PLUGIN_VERSION = "2.1.14"
 
 ------------------------------------------------------------------- token helpers
 local TOKEN_KEY = "token"
@@ -333,7 +333,10 @@ local function ensureProjectFolders()
 end
 
 local SUSPICIOUS_SOURCE_PATTERNS = {
-    "require%s*%(",
+    -- Normal require(path.to.ModuleScript) is required for real Roblox systems.
+    -- Only quarantine external asset-id requires, which are commonly abused and
+    -- are not needed for BloxSmith-authored code.
+    "require%s*%(%s*%d",
     "loadstring%s*%(",
     "getfenv%s*%(",
     "setfenv%s*%(",
@@ -606,11 +609,31 @@ local function pickActionSource(action)
     return "", "missing"
 end
 
+-- Best-effort in-plugin repair for JSON-style tables the model sometimes
+-- emits ({"key": value}) — convert to Luau ({key = value}) before we validate.
+local function autoRepairJsonTables(source)
+    if type(source) ~= "string" or source == "" then return source, false end
+    local changed = false
+    local repaired = source:gsub('([{,]%s*)"([%a_][%w_]*)"%s*:', function(pre, key)
+        changed = true
+        return pre .. key .. " = "
+    end)
+    repaired = repaired:gsub('([{,]%s*)"([^"\n]+)"%s*:', function(pre, key)
+        changed = true
+        return pre .. '["' .. key .. '"] = '
+    end)
+    repaired = repaired:gsub('([{,]%s*)([%a_][%w_]*)%s*:%s*([^%a_])', function(pre, key, after)
+        changed = true
+        return pre .. key .. " = " .. after
+    end)
+    return repaired, changed
+end
+
 local function validateLuaSource(source, scriptName)
     if type(source) ~= "string" or source:match("^%s*$") then
         return false, "empty script source"
     end
-    if source:find("{%s*[%w_]+%s*:") then
+    if source:find("{%s*[%w_]+%s*:") or source:find('{%s*"[%w_]+"%s*:') then
         return false, "JSON-style table syntax found; use key = value in Luau tables"
     end
     local fn, err = loadstring(source, "=BloxSmithScript/" .. tostring(scriptName or "Script"))
@@ -620,11 +643,89 @@ local function validateLuaSource(source, scriptName)
     return true, nil
 end
 
+local function scriptPlacementIssue(className, inst)
+    if typeof(inst) ~= "Instance" then return "script instance was not created" end
+    if className == "Script" then
+        if inst:IsDescendantOf(ServerScriptService) or inst:IsDescendantOf(Workspace) then return nil end
+        return "Script must be under ServerScriptService or Workspace to run at play time; got " .. fullPath(inst.Parent)
+    elseif className == "LocalScript" then
+        if inst:IsDescendantOf(StarterPlayer) or inst:IsDescendantOf(StarterGui) or inst:IsDescendantOf(StarterPack) then return nil end
+        return "LocalScript must be under StarterPlayerScripts, StarterCharacterScripts, StarterGui/PlayerGui, or a Tool; got " .. fullPath(inst.Parent)
+    elseif className == "ModuleScript" then
+        if inst:IsDescendantOf(ReplicatedStorage) or inst:IsDescendantOf(ServerScriptService) or inst:IsDescendantOf(ServerStorage) or inst:IsDescendantOf(StarterPlayer) or inst:IsDescendantOf(StarterGui) then return nil end
+        return "ModuleScript is in a nonstandard location and may not be require-able: " .. fullPath(inst.Parent)
+    end
+    return nil
+end
+
+local function verifyInsertedScript(inst, className, expectedSource)
+    if typeof(inst) ~= "Instance" or not inst:IsA(className) then
+        return false, "created instance is not a " .. tostring(className)
+    end
+    local actual = ""
+    local readOk, readErr = pcall(function() actual = inst.Source end)
+    if not readOk then return false, "could not read script source after insertion: " .. tostring(readErr) end
+    if type(actual) ~= "string" or actual:match("^%s*$") then return false, "inserted script source is empty" end
+    if actual ~= expectedSource then return false, "inserted script source changed during write" end
+    local placement = scriptPlacementIssue(className, inst)
+    if placement then return false, placement end
+    if className == "Script" or className == "LocalScript" then
+        local enabledOk, enabledErr = pcall(function() inst.Disabled = false end)
+        if not enabledOk then return false, "could not enable script after insertion: " .. tostring(enabledErr) end
+    end
+    pcall(function()
+        inst:SetAttribute("BloxSmithValidated", true)
+        inst:SetAttribute("BloxSmithValidatedAt", os.time())
+        inst:SetAttribute("BloxSmithClass", className)
+    end)
+    return true, nil
+end
+
+local function collectScriptSet()
+    local set = {}
+    for _, inst in ipairs(game:GetDescendants()) do
+        if inst:IsA("Script") or inst:IsA("LocalScript") or inst:IsA("ModuleScript") then
+            set[inst] = true
+        end
+    end
+    return set
+end
+
+local function verifyNewScriptsCreatedByRunLua(beforeSet)
+    local checked = 0
+    local failures = {}
+    for _, inst in ipairs(game:GetDescendants()) do
+        if (inst:IsA("Script") or inst:IsA("LocalScript") or inst:IsA("ModuleScript")) and not beforeSet[inst] then
+            checked += 1
+            local source = ""
+            pcall(function() source = inst.Source end)
+            local ok, err = validateLuaSource(source, inst.Name)
+            if ok then
+                ok, err = verifyInsertedScript(inst, inst.ClassName, source)
+            end
+            if not ok then
+                local path = fullPath(inst)
+                pcall(function() inst:Destroy() end)
+                table.insert(failures, path .. " - " .. tostring(err))
+            end
+        end
+    end
+    if #failures > 0 then
+        error("run_lua created invalid script(s); removed before leaving broken code in Studio: " .. table.concat(failures, "; "))
+    end
+    return checked
+end
+
 local function makeScript(className, action, parent)
     local payload = action.payload or {}
     local source, origin = pickActionSource(action)
     log(("Validating %s '%s' source from %s (%d chars).")
         :format(tostring(className), tostring(action.name), tostring(origin), #source), "debug")
+    local repaired, changed = autoRepairJsonTables(source)
+    if changed then
+        log(("Auto-repaired JSON-style tables in '%s'."):format(tostring(action.name)), "warn")
+        source = repaired
+    end
     local ok, err = validateLuaSource(source, action.name)
     if not ok then
         error("script validation failed for " .. tostring(action.name) .. " before insertion: " .. tostring(err) .. " (source=" .. tostring(origin) .. ", chars=" .. tostring(#source) .. ")")
@@ -634,7 +735,13 @@ local function makeScript(className, action, parent)
     local s = Instance.new(className)
     s.Name = action.name
     s.Source = source
-    s.Parent = parent; return s
+    s.Parent = parent
+    local verified, verifyErr = verifyInsertedScript(s, className, source)
+    if not verified then
+        pcall(function() s:Destroy() end)
+        error("script post-insertion verification failed for " .. tostring(action.name) .. ": " .. tostring(verifyErr))
+    end
+    return s
 end
 
 Exec.folder = function(a, p)
@@ -1167,6 +1274,11 @@ Exec.run_lua = function(a, p)
     if type(source) ~= "string" or source:match("^%s*$") then
         error("run_lua missing source before execution (source=" .. tostring(origin) .. ", chars=" .. tostring(#source) .. ")")
     end
+    local repaired, changed = autoRepairJsonTables(source)
+    if changed then
+        log(("Auto-repaired JSON-style tables in run_lua '%s'."):format(tostring(a.name)), "warn")
+        source = repaired
+    end
     local wrapped = [[
 return function(parent, plugin, safeSet, safeSetProps, ...)
 ]] .. source .. [[
@@ -1191,9 +1303,11 @@ end
         for k, v in pairs(props) do safeSet(inst, k, v) end
     end
 
+    local beforeScripts = collectScriptSet()
     local ok, runErr = pcall(builder, p, plugin, safeSet, safeSetProps)
     if not ok then error("runtime error: " .. tostring(runErr)) end
-    return { ran = a.name }
+    local verifiedScripts = verifyNewScriptsCreatedByRunLua(beforeScripts)
+    return { ran = a.name, scripts_verified = verifiedScripts }
 end
 
 local function describeAction(a)
@@ -1380,6 +1494,16 @@ local function pollOnce(force)
     for _, a in ipairs(actions) do
         if isScriptActionKind(a.kind) then
             local source, origin = pickActionSource(a)
+            -- Auto-repair JSON-style tables in-place so the build isn't blocked
+            -- by a syntax slip the model can produce. If repair happens, the
+            -- healed source is written back to payload.source before insertion.
+            local repaired, changed = autoRepairJsonTables(source)
+            if changed then
+                log(("Auto-repaired JSON-style tables in '%s' during preflight."):format(tostring(a.name)), "warn")
+                a.payload = a.payload or {}
+                a.payload.source = repaired
+                source = repaired
+            end
             local ok, err = validateLuaSource(source, a.name)
             log(("Preflight %s '%s': source=%s chars=%d.")
                 :format(tostring(a.kind), tostring(a.name), tostring(origin), #source), ok and "debug" or "error")
@@ -1804,6 +1928,25 @@ task.spawn(function()
                 end
                 if (errOrCount or 0) == 0 then break end
             end
+        end
+    end
+end)
+
+-- Independent heartbeat: keeps the web UI's "online" indicator green even
+-- while the main poll coroutine is blocked executing a long build.
+task.spawn(function()
+    while true do
+        task.wait(10)
+        local token = validToken()
+        if token then
+            pcall(function()
+                post("/api/public/plugin/heartbeat", {
+                    token = token,
+                    place_id = tostring(game.PlaceId or 0),
+                    studio_version = studioVersion(),
+                    plugin_version = PLUGIN_VERSION,
+                }, { verbose = false })
+            end)
         end
     end
 end)
