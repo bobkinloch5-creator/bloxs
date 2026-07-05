@@ -249,8 +249,8 @@ export function normalizePluginAction(action: any) {
   }
   // Luau sanity check + auto-fix. Strip stray markdown fences, then fix the
   // most common LLM slip-ups deterministically before shipping to Studio.
-  if (payload.source && (kind === "script" || kind === "localscript" || kind === "modulescript" || kind === "run_lua")) {
-    let src = stripCodeFences(String(payload.source));
+  if (kind === "script" || kind === "localscript" || kind === "modulescript" || kind === "run_lua") {
+    let src = stripCodeFences(String(payload.source ?? action?.source ?? ""));
     // Modernize deprecated APIs so scripts don't throw at runtime.
     src = src
       .replace(/(?<!task\.)\bwait\s*\(/g, "task.wait(")
@@ -272,7 +272,7 @@ export function normalizePluginAction(action: any) {
     // "attempt to call a nil value" style error becomes a warning instead of
     // marking the whole build as failed. Real Scripts/LocalScripts/ModuleScripts
     // are left untouched because they need to run in Roblox as authored.
-    if (kind === "run_lua" && !/^--\s*BloxSmith:\s*_wrapped/m.test(payload.source)) {
+    if (kind === "run_lua" && !issues.some((i) => i.severity === "error") && !/^--\s*BloxSmith:\s*_wrapped/m.test(payload.source)) {
       const safeName = String(action?.name || "run_lua").replace(/"/g, '\\"');
       payload.source = `-- BloxSmith: _wrapped\nlocal ok, err = xpcall(function()\n${payload.source}\nend, function(e) return tostring(e) .. "\\n" .. debug.traceback() end)\nif not ok then warn("[BloxSmith] run_lua (${safeName}) recovered from error: " .. tostring(err)) end\n`;
     }

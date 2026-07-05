@@ -10,6 +10,7 @@ import { describeImageWithNvidiaPaliGemma } from "@/lib/nvidia-vision.server";
 import { generateUiConceptImage } from "@/lib/ui-concept-image.server";
 import { generateGeneralImage, isUiConceptRequest } from "@/lib/general-image.server";
 import { normalizePluginAction } from "@/lib/plugin-actions";
+import { stripCodeFences, validateLuau, type LuauIssue } from "@/lib/luau-validator";
 import { summarizeSceneScan } from "@/lib/scene-digest.server";
 import { searchRoblox, fetchDocPage } from "@/lib/roblox-research.server";
 import { productionSystemsStudioActions, detectLuaTemplates } from "@/lib/lua-templates";
@@ -587,6 +588,23 @@ function hasRealLuauSource(action: any) {
   if (/\bPlayers\s*:\s*GetPlayerFromInput\s*\(/i.test(source)) return false;
   if (/\bUserInputService\b/i.test(source) && /\bPlayers\.PlayerAdded\b/i.test(source)) return false;
   return true;
+}
+
+function finalScriptIssues(action: any): LuauIssue[] {
+  if (!isScriptLikeAction(action)) return [];
+  const source = stripCodeFences(String(action?.payload?.source ?? action?.source ?? ""));
+  const issues = validateLuau(source).filter((i) => i.severity === "error");
+  if (!hasRealLuauSource({ ...action, payload: { ...(action?.payload ?? {}), source } })) {
+    issues.unshift({ severity: "error", message: "Script source is empty, comment-only, placeholder, or not executable enough for Studio insertion." });
+  }
+  return issues;
+}
+
+function scriptIssueLabel(action: any, issues: LuauIssue[]) {
+  const name = String(action?.name || "unnamed script").slice(0, 80);
+  const kind = String(action?.kind || "script");
+  const first = issues[0]?.message || "invalid Luau";
+  return `${kind} ${name}: ${first}`;
 }
 
 function narrowFeatureFallbackStudioActions(userText: string, languageName: string) {

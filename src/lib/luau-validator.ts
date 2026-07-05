@@ -24,13 +24,28 @@ const STRIP_STRINGS = [
 
 export function validateLuau(rawSource: string): LuauIssue[] {
   const issues: LuauIssue[] = [];
-  if (!rawSource || typeof rawSource !== "string") return issues;
+  if (typeof rawSource !== "string") {
+    return [{ severity: "error", message: "Script source is missing." }];
+  }
+
+  const trimmedSource = stripCodeFences(rawSource).trim();
+  if (!trimmedSource) {
+    return [{ severity: "error", message: "Script source is empty." }];
+  }
+
+  const executableSource = trimmedSource
+    .replace(/--\[\[[\s\S]*?\]\]/g, "")
+    .replace(/--[^\n]*/g, "")
+    .trim();
+  if (!executableSource) {
+    issues.push({ severity: "error", message: "Script source only contains comments; executable Luau is required." });
+  }
 
   if (/^\s*```/.test(rawSource) || /```\s*$/.test(rawSource)) {
     issues.push({ severity: "warn", message: "Source contained markdown code fences; strip ``` before sending." });
   }
 
-  let src = rawSource;
+  let src = trimmedSource;
   for (const re of STRIP_STRINGS) src = src.replace(re, "");
 
   const opens = (src.match(OPENERS) ?? []).length;
