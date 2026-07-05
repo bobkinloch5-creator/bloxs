@@ -216,6 +216,7 @@ function RootComponent() {
           <MaintenanceGate>
             <Outlet />
           </MaintenanceGate>
+          <HelpChatWidget />
         </HelpModeProvider>
       </LanguageProvider>
     </QueryClientProvider>
