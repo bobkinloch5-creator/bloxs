@@ -132,10 +132,10 @@ function userExplicitlyRequestedToolbox(userText: string) {
 
 function neutralizePrematureBuildSuccess(text: string) {
   return text
-    .replace(/🎉\s*Done!?/gi, "📤 Sent to Studio")
-    .replace(/\bSuccessfully\s+(?:added|created|built|inserted|generated)\b/gi, "Queued")
-    .replace(/\b(?:Live|Ready)\s+(?:inside|in)\s+(?:your\s+)?Roblox\s+Studio\b/gi, "Waiting for Roblox Studio verification")
-    .replace(/\b(?:executed|completed)\s+(?:in|inside)\s+(?:Roblox\s+)?Studio\b/gi, "sent to Studio for verification");
+    .replace(/🎉\s*Done!?/gi, "📤 Executing in Studio")
+    .replace(/\bSuccessfully\s+(?:added|created|built|inserted|generated)\b/gi, "Sent")
+    .replace(/\b(?:Live|Ready)\s+(?:inside|in)\s+(?:your\s+)?Roblox\s+Studio\b/gi, "Executing in Roblox Studio")
+    .replace(/\b(?:executed|completed)\s+(?:in|inside)\s+(?:Roblox\s+)?Studio\b/gi, "executing in Studio");
 }
 
 function stripImageFilePartsFromMessages(messages: UIMessage[]): UIMessage[] {
@@ -3939,7 +3939,7 @@ export const Route = createFileRoute("/api/chat")({
                 },
               },
             }));
-            const replyText = "Clearing the project and keeping only the Baseplate — queued for Studio now.";
+            const replyText = "Clearing the project and keeping only the Baseplate — executing in Studio now.";
             const { data: msgRow } = await supabase
               .from("chat_messages")
               .insert({
@@ -4067,8 +4067,8 @@ export const Route = createFileRoute("/api/chat")({
                     })
                   : [finalFirst];
                 const replyText = quantity > 1
-                  ? `Adding ${quantity} ${label}${label.endsWith("s") ? "" : "s"} to your workspace from the Toolbox — queued for Studio now.`
-                  : `Adding a ${label} to your workspace from the Toolbox — queued for Studio now.`;
+                  ? `Adding ${quantity} ${label}${label.endsWith("s") ? "" : "s"} to your workspace from the Toolbox — executing in Studio now.`
+                  : `Adding a ${label} to your workspace from the Toolbox — executing in Studio now.`;
                 const { data: msgRow } = await supabase
                   .from("chat_messages")
                   .insert({
@@ -4391,8 +4391,8 @@ export const Route = createFileRoute("/api/chat")({
                       ? proceduralEnvironmentStudioActions(userText, languageName).map(normalizePluginAction)
                       : recoveryStudioActions(userText).map(normalizePluginAction);
                     cleanContent = proceduralModeActive
-                      ? `${cleanContent.trim()}\n\n_Procedural Generation queued: BloxSmith will create original Studio geometry/terrain for the requested assets without Toolbox models._`
-                      : `${cleanContent.trim()}\n\n_Auto-execute recovery queued a safe starter build because the selected model did not produce valid Studio actions._`;
+                      ? `${cleanContent.trim()}\n\n_Procedural Generation sent: BloxSmith will create original Studio geometry/terrain for the requested assets without Toolbox models._`
+                      : `${cleanContent.trim()}\n\n_Auto-execute recovery sent a safe starter build because the selected model did not produce valid Studio actions._`;
                   } else if (actions.length === 0) {
                     cleanContent = `${cleanContent.trim()}\n\n_No safe structured Studio action was produced. Procedural fallback is disabled, so BloxSmith did not create placeholder blocks._`;
                   }
@@ -4409,8 +4409,8 @@ export const Route = createFileRoute("/api/chat")({
                     ].includes(a.name)),
                     ...(existingProcedural ? [] : proceduralActions),
                   ];
-                  if (!/Procedural Generation queued/i.test(cleanContent)) {
-                    cleanContent = `${cleanContent.trim()}\n\n_Procedural Generation queued: original terrain, foliage, buildings/props/NPCs/roads/water requested in your prompt will be created directly in Studio. Toolbox is bypassed unless you explicitly ask for it._`;
+                  if (!/Procedural Generation (queued|sent)/i.test(cleanContent)) {
+                    cleanContent = `${cleanContent.trim()}\n\n_Procedural Generation sent: original terrain, foliage, buildings/props/NPCs/roads/water requested in your prompt will be created directly in Studio. Toolbox is bypassed unless you explicitly ask for it._`;
                   }
                 }
 
@@ -4420,7 +4420,7 @@ export const Route = createFileRoute("/api/chat")({
                     ...actions.filter((a) => a.name !== "BloxSmith_Apply_Visible_Grass"),
                   ];
                   if (!/visible grass/i.test(cleanContent)) {
-                    cleanContent = `${cleanContent.trim()}\n\n_Visible grass enforcement queued: large flat ground parts are recolored to Grass material, a grass surface is created, and Terrain grass decoration is enabled._`;
+                    cleanContent = `${cleanContent.trim()}\n\n_Visible grass enforcement sent: large flat ground parts are recolored to Grass material, a grass surface is created, and Terrain grass decoration is enabled._`;
                   }
                 }
 
@@ -4443,7 +4443,7 @@ export const Route = createFileRoute("/api/chat")({
                       }),
                     ];
                     if (!/Toolbox Asset Finder/i.test(cleanContent)) {
-                      cleanContent = `${cleanContent.trim()}\n\n_Toolbox Asset Finder queued: BloxSmith searched safe free public Creator Store assets, will insert the best real matching asset(s), disable imported scripts, ground-snap/organize them, and report the asset name and ID._`;
+                      cleanContent = `${cleanContent.trim()}\n\n_Toolbox Asset Finder sent: BloxSmith searched safe free public Creator Store assets, will insert the best real matching asset(s), disable imported scripts, ground-snap/organize them, and report the asset name and ID._`;
                     }
                   } else if (assetMode === "toolbox_only") {
                     actions = actions.filter((a) => !["part", "model", "terrain", "insert_asset", "run_lua"].includes(a.kind));
@@ -4474,7 +4474,7 @@ export const Route = createFileRoute("/api/chat")({
                       }),
                     ];
                     if (!/toolbox map assets/i.test(cleanContent)) {
-                      cleanContent = `${cleanContent.trim()}\n\n_Toolbox-only map build queued: BloxSmith searched safe free Creator Store assets, disabled procedural fallback, inserted real matching assets, and will organize/ground-snap them into districts._`;
+                      cleanContent = `${cleanContent.trim()}\n\n_Toolbox-only map build sent: BloxSmith searched safe free Creator Store assets, disabled procedural fallback, inserted real matching assets, and will organize/ground-snap them into districts._`;
                     }
                   } else if (assetMode === "toolbox_only") {
                     actions = actions.filter((a) => !["part", "model", "terrain", "insert_asset", "run_lua"].includes(a.kind));
@@ -4499,7 +4499,7 @@ export const Route = createFileRoute("/api/chat")({
                       ...systemActions,
                     ];
                     if (!/UI and systems guard/i.test(cleanContent)) {
-                      cleanContent = `${cleanContent.trim()}\n\n_UI and systems guard queued: BloxSmith will create real StarterGui screens, LocalScript wiring, RemoteEvents, leaderstats, and a server script in Roblox Studio._`;
+                      cleanContent = `${cleanContent.trim()}\n\n_UI and systems guard sent: BloxSmith will create real StarterGui screens, LocalScript wiring, RemoteEvents, leaderstats, and a server script in Roblox Studio._`;
                     }
                   }
                 }
@@ -4516,7 +4516,7 @@ export const Route = createFileRoute("/api/chat")({
                       ...templateActions,
                     ];
                     if (!/Production Lua templates/i.test(cleanContent)) {
-                      cleanContent = `${cleanContent.trim()}\n\n_Production Lua templates queued (${templateNames}): full ModuleScripts installed under ServerScriptService.BloxSmith_Systems with a bootstrap Script — session-locked DataStore, atomic Economy + leaderstats, stack Inventory + RemoteEvent, server-authoritative Combat with cooldown/range validation, Quests with rewards, Pets with follow controller. Dependencies auto-included._`;
+                      cleanContent = `${cleanContent.trim()}\n\n_Production Lua templates sent (${templateNames}): full ModuleScripts installed under ServerScriptService.BloxSmith_Systems with a bootstrap Script — session-locked DataStore, atomic Economy + leaderstats, stack Inventory + RemoteEvent, server-authoritative Combat with cooldown/range validation, Quests with rewards, Pets with follow controller. Dependencies auto-included._`;
                     }
                   }
                 }
@@ -4529,7 +4529,7 @@ export const Route = createFileRoute("/api/chat")({
                       ...guardActions,
                     ];
                     if (!/visibility guard/i.test(cleanContent)) {
-                      cleanContent = `${cleanContent.trim()}\n\n_Visibility guard queued: BloxSmith will verify the request leaves an obvious Studio result for common build intents._`;
+                      cleanContent = `${cleanContent.trim()}\n\n_Visibility guard sent: BloxSmith will verify the request leaves an obvious Studio result for common build intents._`;
                     }
                   }
                 } else if (mode === "build" && !proceduralFallbackAllowed && !/procedural fallback disabled/i.test(cleanContent)) {
@@ -4569,7 +4569,7 @@ export const Route = createFileRoute("/api/chat")({
                       }]
                     : [];
                   cleanContent = actions.length > 0
-                    ? `${cleanContent.trim()}\n\n_Single asset scope: queued exactly one safe free Toolbox ${label} model only — no packs, scripts, props, decorations, terrain, UI, scans, or extra actions._`
+                    ? `${cleanContent.trim()}\n\n_Single asset scope: sending exactly one safe free Toolbox ${label} model only — no packs, scripts, props, decorations, terrain, UI, scans, or extra actions._`
                     : `${cleanContent.trim()}\n\n_No clean free authorized single ${label} model was found, so BloxSmith did not insert a pack or placeholder._`;
                 } else if (mode === "build" && isNarrowFeatureRequest(userText)) {
                   const requestedRemote = /\b(remote\s*event|remoteevent|remote\s*function|remotefunction|server\s*event|server[-\s]*authoritative|multiplayer|replicated)\b/i.test(userText) || needsGameplayRemoteWiring(userText);
@@ -4612,7 +4612,7 @@ export const Route = createFileRoute("/api/chat")({
                     const fallback = narrowFeatureFallbackStudioActions(userText, languageName).map(normalizePluginAction);
                     if (fallback.length > 0) {
                       actions = fallback;
-                      cleanContent = `${cleanContent.trim()}\n\n_Narrow feature fallback queued: BloxSmith wrote the missing Luau directly instead of sending an empty/no-op script._`;
+                      cleanContent = `${cleanContent.trim()}\n\n_Narrow feature fallback sent: BloxSmith wrote the missing Luau directly instead of sending an empty/no-op script._`;
                     }
                   }
                   if (!/single item scope/i.test(cleanContent)) {
@@ -4725,13 +4725,13 @@ export const Route = createFileRoute("/api/chat")({
                       const rescue = (await toolboxAssetFinderStudioActions(userText)).map(normalizePluginAction);
                       if (rescue.length > 0) {
                         actions = [...rescue, ...actions];
-                        cleanContent = `${cleanContent.trim()}\n\n_Rescue: the plan only contained cleanup actions and would not have created anything visible, so BloxSmith queued a safe free Toolbox asset for your request instead._`;
+                        cleanContent = `${cleanContent.trim()}\n\n_Rescue: the plan only contained cleanup actions and would not have created anything visible, so BloxSmith sent a safe free Toolbox asset for your request instead._`;
                         console.warn("[chat] no-creation rescue triggered", { projectId, userId, model: usedModelId });
                       } else if (proceduralFallbackAllowed) {
                         const proc = proceduralEnvironmentStudioActions(userText, languageName).map(normalizePluginAction);
                         if (proc.length > 0) {
                           actions = [...proc, ...actions];
-                          cleanContent = `${cleanContent.trim()}\n\n_Rescue: no Toolbox match found, so BloxSmith queued a procedural build so your request is not silently skipped._`;
+                          cleanContent = `${cleanContent.trim()}\n\n_Rescue: no Toolbox match found, so BloxSmith sent a procedural build so your request is not silently skipped._`;
                         }
                       }
                     } catch (rescueErr) {
@@ -4869,7 +4869,7 @@ export const Route = createFileRoute("/api/chat")({
                       .filter((action) => finalScriptIssues(action).length === 0);
                     if (normalizedRescue.length > 0) {
                       actions = normalizedRescue;
-                      cleanContent = `${cleanContent.trim()}\n\n_BloxSmith regenerated a safe executable build plan for this request instead of sending the broken script._`;
+                      cleanContent = `${cleanContent.trim()}\n\n_BloxSmith regenerated and sent a safe executable build plan for this request instead of sending the broken script._`;
                       blockedScriptMessages = [];
                       console.warn("[chat] replaced invalid-only build with deterministic rescue", { queued: actions.length });
                     }
@@ -4922,7 +4922,7 @@ export const Route = createFileRoute("/api/chat")({
                     const summary = Object.entries(kinds)
                       .map(([k, n]) => `${n} ${k.replace(/_/g, " ")}`)
                       .join(", ");
-                    cleanContent = `Building your request now.\n\nHere's what I'll do:\n✅ ${summary}\n✅ Send it to Roblox Studio\n\n📤 Sent to Studio — waiting for the plugin to confirm.`;
+                    cleanContent = `Building your request now.\n\nHere's what I'll do:\n✅ ${summary}\n✅ Execute it in Roblox Studio\n\n📤 Sent to Studio now.`;
                   } else {
                     cleanContent = "Done.";
                   }
@@ -5042,7 +5042,7 @@ export const Route = createFileRoute("/api/chat")({
           // Try the requested model. On upstream error, retry once with fallback.
           const modeHeader = `\n\n[MODE: ${mode}]\n${mode === "chat"
             ? "The user is in CHAT MODE — brainstorming and conversation only. RULES:\n- You MUST NOT emit a `bloxsmith-actions` block this turn.\n- You MUST NOT call the search_toolbox tool (it isn't available this turn).\n- BUT — you are NOT capability-less. In Build Mode you CAN delete instances, clear the workspace, modify properties, rename, move, insert Toolbox assets, run arbitrary Luau via run_lua, and build complete systems. NEVER tell the user 'I don't have a tool for that' or 'I can't delete/modify your project' — that is FALSE and forbidden. The correct response is: 'I can do that in Build Mode — switch the toggle next to the send button to Build and re-send, and I'll <delete X / clear the workspace / modify Y> for you.' You may also show the exact Luau they could paste into the Command Bar themselves as a manual alternative, but ALWAYS offer the Build Mode path first.\n- Otherwise: help them think, plan, compare options, sketch systems in words, answer questions, give Roblox advice.\n- If the user explicitly types 'build it now', 'go build', 'yes build', or 'apply build' you MAY emit actions this turn.\nThis rule overrides every other instruction about emitting actions or using tools."
-            : "STRICT MODE (ABSOLUTE, overrides every completeness instruction below): Build ONLY exactly what the user's current message names. Do NOT create main menus, loading screens, splash/title/intro screens, HUDs, notification toasts, camera effects, background music, sound libraries, particle FX, tutorial popups, settings panels, extra folders, controllers, managers, unrelated RemoteEvents, ModuleScripts, leaderstats, or DataStores unless the user's message explicitly asks for that thing by name. Required wiring is not extra scope: for a named gameplay button/keybind/ability, create the minimum RemoteEvent plus LocalScript and server Script needed for it to work. Do NOT modify or redesign existing UI. If the user asks for a script or a button, ship ONLY that script/button and required wiring — typically 1-3 actions total, never a full-system build. Scripts are always original Luau written by YOU inside script/localscript/modulescript/run_lua actions — NEVER fetch code via search_toolbox or insert_asset (Toolbox is for visual/audio assets only). The 'build FULL system' / '10-30 actions' guidance below applies ONLY when the user's message itself names a full system (shop, tycoon, obby, inventory, quest system, round-based game, full game). For anything smaller, ship the minimum and offer more in a one-line follow-up. Before emitting the actions block, self-check: does every action correspond to something the user literally asked for, and is every visible button/keybind connected to real runtime logic? Drop anything that fails that test.\n\nYou are using the shared BloxSmith Core Brain. This Core Brain applies to EVERY model/provider, including the currently selected model: Roblox knowledge, Luau rules, safe Toolbox/Creator Store asset rules (for visual/audio only), planning, plugin execution, testing/fixing, memory, and quality standards are mandatory and consistent across models. You have FULL EXECUTION CAPABILITY: insert Toolbox assets (visual/audio only), build parts/UI/scripts/remotes, modify properties, rename, move, DELETE instances (use the `delete` action with target_path, or run_lua with :Destroy() for batch deletes like clearing the workspace except the Baseplate), and run arbitrary Luau via run_lua. If the user asks to erase / clear / wipe / delete everything except X, emit ONE run_lua action that iterates the relevant services and Destroys children whose name isn't in the keep-list — do not refuse. IMPORTANT: do NOT claim Roblox Studio already completed/succeeded until the plugin confirms execution; say the actions are queued/sent for Studio verification. Folders must only exist when they contain real content; never emit folder-only scaffolding. For visual Roblox content ONLY (not scripts/logic), use safe free Toolbox / Creator Store models via search_toolbox + insert_asset. Use run_lua for placement, scaling, rotation, scripts, UI wiring, and deletion/cleanup. If no safe relevant Toolbox asset is found for a visual, ask the user before generating fallback geometry. NO fake buttons, NO empty folders, NO placeholder scripts, NO TODOs."}\n`;
+            : "STRICT MODE (ABSOLUTE, overrides every completeness instruction below): Build ONLY exactly what the user's current message names. Do NOT create main menus, loading screens, splash/title/intro screens, HUDs, notification toasts, camera effects, background music, sound libraries, particle FX, tutorial popups, settings panels, extra folders, controllers, managers, unrelated RemoteEvents, ModuleScripts, leaderstats, or DataStores unless the user's message explicitly asks for that thing by name. Required wiring is not extra scope: for a named gameplay button/keybind/ability, create the minimum RemoteEvent plus LocalScript and server Script needed for it to work. Do NOT modify or redesign existing UI. If the user asks for a script or a button, ship ONLY that script/button and required wiring — typically 1-3 actions total, never a full-system build. Scripts are always original Luau written by YOU inside script/localscript/modulescript/run_lua actions — NEVER fetch code via search_toolbox or insert_asset (Toolbox is for visual/audio assets only). The 'build FULL system' / '10-30 actions' guidance below applies ONLY when the user's message itself names a full system (shop, tycoon, obby, inventory, quest system, round-based game, full game). For anything smaller, ship the minimum and offer more in a one-line follow-up. Before emitting the actions block, self-check: does every action correspond to something the user literally asked for, and is every visible button/keybind connected to real runtime logic? Drop anything that fails that test.\n\nYou are using the shared BloxSmith Core Brain. This Core Brain applies to EVERY model/provider, including the currently selected model: Roblox knowledge, Luau rules, safe Toolbox/Creator Store asset rules (for visual/audio only), planning, plugin execution, testing/fixing, memory, and quality standards are mandatory and consistent across models. You have FULL EXECUTION CAPABILITY: insert Toolbox assets (visual/audio only), build parts/UI/scripts/remotes, modify properties, rename, move, DELETE instances (use the `delete` action with target_path, or run_lua with :Destroy() for batch deletes like clearing the workspace except the Baseplate), and run arbitrary Luau via run_lua. If the user asks to erase / clear / wipe / delete everything except X, emit ONE run_lua action that iterates the relevant services and Destroys children whose name isn't in the keep-list — do not refuse. IMPORTANT: do NOT claim Roblox Studio already completed/succeeded until the plugin confirms execution; say the actions were sent to Studio and are executing now. Folders must only exist when they contain real content; never emit folder-only scaffolding. For visual Roblox content ONLY (not scripts/logic), use safe free Toolbox / Creator Store models via search_toolbox + insert_asset. Use run_lua for placement, scaling, rotation, scripts, UI wiring, and deletion/cleanup. If no safe relevant Toolbox asset is found for a visual, ask the user before generating fallback geometry. NO fake buttons, NO empty folders, NO placeholder scripts, NO TODOs."}\n`;
 
           const languageHeader = `\n[LANGUAGE: ${languageCode} / ${languageName}]\nRespond ENTIRELY in ${languageName}. Translate every sentence, heading, button name, status message, error message, and explanation into natural, fluent, idiomatic ${languageName}. Keep code identifiers, Roblox API names (Instance class names, services, property names like Workspace, Part, ScreenGui, HumanoidRootPart), and the bloxsmith-actions block contents in English exactly as required by Roblox. Translate UI strings the player will see (TextLabel.Text, button text, GUI titles, error notifications shown to players) into ${languageName}. Markdown formatting stays the same.\n`;
           const narrowFeature = isNarrowFeatureRequest(userText);

@@ -158,7 +158,7 @@ export const getBuildExecutionStatus = createServerFn({ method: "GET" })
       return actionCount > 0 || row.status === "sending" || row.status === "failed";
     });
 
-    if (!msg) return { state: "idle" as const, message: "No build has been queued yet." };
+    if (!msg) return { state: "idle" as const, message: "No build has been sent yet." };
 
     const { data: actions, error } = await context.supabase
       .from("plugin_actions")
@@ -188,7 +188,7 @@ export const getBuildExecutionStatus = createServerFn({ method: "GET" })
     const errors = failedRows.map((a) => `${a.kind} ${a.name}: ${a.error || "failed"}`).slice(0, 8);
 
     let state: "idle" | "queued" | "sent" | "done" | "failed" | "stalled" = "queued";
-    let message = `${total} action(s) queued for Studio.`;
+    let message = `${total} action(s) ready for Studio.`;
     if (total === 0) {
       // No plugin_actions were tied to this assistant message. That's only a
       // failure if the message itself failed — otherwise it's a chat-only
@@ -211,19 +211,51 @@ export const getBuildExecutionStatus = createServerFn({ method: "GET" })
       message = `Build failed: ${failed} of ${total} action(s) failed.`;
     } else if (done === total) {
       state = "done";
-      message = `Studio confirmed ${done} of ${total} action(s) executed.`;
+      message = `Studio executed ${done} of ${total} action(s).`;
     } else if (sent > 0) {
       state = ageMs > 120_000 ? "stalled" : "sent";
       message = state === "stalled"
-        ? `Studio received ${sent} action(s), but has not confirmed completion yet.`
-        : `Studio received ${sent} of ${total} action(s); waiting for confirmation.`;
+        ? `Studio received ${sent} action(s), but they did not finish.`
+        : `Studio is executing ${sent} of ${total} action(s).`;
     } else if (pending > 0 && ageMs > 120_000) {
       state = "stalled";
-      message = `Studio has not picked up ${pending} queued action(s). Check the plugin is open and polling.`;
+      message = `Studio has not picked up ${pending} action(s). Check the plugin is open and polling.`;
     }
 
 
     return { state, message, total, sent, done, failed, pending, inFlight, durationMs, errors, actions: rows.slice(0, 20) };
+  });
+
+export const executeQueuedActionsNow = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) => z.object({ projectId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { data: pendingRows, error: pendingError } = await context.supabase
+      .from("plugin_actions")
+      .select("id")
+      .eq("project_id", data.projectId)
+      .eq("user_id", context.userId)
+      .eq("status", "pending")
+      .limit(200);
+    if (pendingError) throw new Error(pendingError.message);
+
+    // If Studio missed a delivery, re-arm sent actions so the next plugin poll
+    // executes them instead of leaving the user stuck. A short grace period
+    // avoids duplicating actions that Studio is actively processing.
+    const staleCutoff = new Date(Date.now() - 20_000).toISOString();
+    const { data: rearmedRows, error: rearmError } = await context.supabase
+      .from("plugin_actions")
+      .update({ status: "pending", sent_at: null, completed_at: null, error: null })
+      .eq("project_id", data.projectId)
+      .eq("user_id", context.userId)
+      .eq("status", "sent")
+      .lt("sent_at", staleCutoff)
+      .select("id");
+    if (rearmError) throw new Error(rearmError.message);
+
+    const pending = pendingRows?.length ?? 0;
+    const rearmed = rearmedRows?.length ?? 0;
+    return { ok: true, pending, rearmed, totalReady: pending + rearmed };
   });
 
 export const queuePluginCommand = createServerFn({ method: "POST" })

@@ -511,7 +511,7 @@ export function ChatStatusBar({
         <Zap className="h-3 w-3" /> {isAdmin ? "∞ credits" : `${credits}/${maxCredits} credits`}
       </span>
       <span className="inline-flex items-center gap-1.5">
-        <Box className="h-3 w-3" /> Queue: {queued}
+        <Box className="h-3 w-3" /> Live: {queued}
       </span>
       <span className="ml-auto inline-flex items-center gap-1.5 truncate" style={{ color: busy ? "var(--bs-primary)" : "var(--bs-muted-fg)" }}>
         {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />}

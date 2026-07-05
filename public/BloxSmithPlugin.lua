@@ -18,8 +18,8 @@ local InsertService         = game:GetService("InsertService")
 local CollectionService     = game:GetService("CollectionService")
 
 local API_BASE       = "https://bloxsmith.pro"
-local POLL_INTERVAL  = 0.1
-local PLUGIN_VERSION = "2.1.16"
+local POLL_INTERVAL  = 0.05
+local PLUGIN_VERSION = "2.1.17"
 
 ------------------------------------------------------------------- token helpers
 local TOKEN_KEY = "token"
@@ -70,7 +70,7 @@ label(main, "Execution bridge for Roblox Studio", UDim2.new(0,12,0,32), UDim2.ne
 local statusLabel = label(main, "Status: not connected", UDim2.new(0,12,0,58), UDim2.new(1,-24,0,18), Enum.Font.GothamMedium, 13)
 local subStatus   = label(main, "Click Connect to link this Studio session.", UDim2.new(0,12,0,78), UDim2.new(1,-24,0,16), nil, 12, Color3.fromRGB(150,155,170))
 
-local infoLabel   = label(main, "Project: ???    Queue: 0", UDim2.new(0,12,0,98), UDim2.new(1,-24,0,16), nil, 12, Color3.fromRGB(160,165,180))
+local infoLabel   = label(main, "Place: ???    Live: 0    v" .. PLUGIN_VERSION, UDim2.new(0,12,0,98), UDim2.new(1,-24,0,16), nil, 12, Color3.fromRGB(160,165,180))
 local lastLabel   = label(main, "Last action: ???", UDim2.new(0,12,0,116), UDim2.new(1,-24,0,16), nil, 12, Color3.fromRGB(160,165,180))
 
 -- primary connect button
@@ -114,8 +114,8 @@ end
 
 local reconnectBtn = ctrlBtn("Reconnect", 1)
 local syncBtn      = ctrlBtn("Sync", 2)
-local execBtn      = ctrlBtn("Run Queue", 3)
-local clearBtn     = ctrlBtn("Clear Queue", 4)
+local execBtn      = ctrlBtn("Execute Now", 3)
+local clearBtn     = ctrlBtn("Clear Stuck", 4)
 local errorsBtn    = ctrlBtn("View Errors", 5)
 local openWebBtn   = ctrlBtn("Open Website", 6)
 local scanBtn      = ctrlBtn("Scan Game", 7)
@@ -1497,7 +1497,7 @@ local function setStatus(text, color, sub)
     if sub then subStatus.Text = sub end
 end
 local function refreshInfo()
-    infoLabel.Text = ("Place: %s    Queue: %d    v%s"):format(tostring(game.PlaceId or 0), queueLen, PLUGIN_VERSION)
+    infoLabel.Text = ("Place: %s    Live: %d    v%s"):format(tostring(game.PlaceId or 0), queueLen, PLUGIN_VERSION)
     lastLabel.Text = "Last: " .. lastAction
 end
 
@@ -1534,6 +1534,7 @@ local function pollOnce(force)
         :format(API_BASE, tostring(game.PlaceId or 0), PLUGIN_VERSION), "debug") end
     local data, err, status = post("/api/public/plugin/poll", {
         token = token, place_id = tostring(game.PlaceId or 0), studio_version = studioVersion(), plugin_version = PLUGIN_VERSION,
+        force = force == true,
     }, { verbose = VERBOSE, force = force })
     if err then
         if status == 401 then
@@ -1632,7 +1633,7 @@ local function pollOnce(force)
     if failN > 0 then
         setStatus("Build failed with reason", Color3.fromRGB(255,180,80), ("%d command(s) failed. Check activity log for details."):format(failN))
     else
-        setStatus("Build complete", Color3.fromRGB(120,220,160), "Studio confirmed all queued commands finished.")
+        setStatus("Build complete", Color3.fromRGB(120,220,160), "Studio executed all commands.")
     end
     log(("Batch complete ??? %d ok, %d failed."):format(okN, failN), failN > 0 and "warn" or "success")
     return #actions
@@ -1716,7 +1717,7 @@ end)
 
 execBtn.MouseButton1Click:Connect(function()
     if not connected then log("Not connected.", "warn"); return end
-    log("Running queue???", "info"); pollOnce(true)
+    log("Executing now???", "info"); pollOnce(true)
 end)
 
 clearBtn.MouseButton1Click:Connect(function()
@@ -1990,7 +1991,7 @@ task.spawn(function()
     while true do
         task.wait(POLL_INTERVAL)
         if connected then
-            -- Drain: keep polling immediately while the server has work queued.
+            -- Drain: keep polling immediately while the server has work ready.
             for _ = 1, 20 do
                 local ok, errOrCount = pcall(pollOnce)
                 if not ok then

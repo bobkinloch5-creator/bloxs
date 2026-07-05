@@ -30,7 +30,7 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
       POST: async ({ request }) => {
         try {
           const body = (await request.json().catch(() => ({}))) as {
-            token?: string; place_id?: string; studio_version?: string; plugin_version?: string; project_id?: string | null;
+            token?: string; place_id?: string; studio_version?: string; plugin_version?: string; project_id?: string | null; force?: boolean;
           };
           const headerToken =
             request.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim() ||
@@ -65,25 +65,30 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
           const actionSelect = "id, project_id, message_id, kind, parent_path, name, payload, position, created_at, sent_at";
 
           async function fetchPending(): Promise<PluginActionRow[] | { error: string }> {
-            const lp = await sb.from("plugin_actions")
+            const latest = await sb.from("plugin_actions")
               .select("project_id, message_id, created_at")
               .eq("user_id", profileId)
               .eq("status", "pending")
               .order("created_at", { ascending: false })
               .limit(1)
               .maybeSingle();
-            if (lp.error) return { error: lp.error.message };
-            if (!lp.data) return [];
-            const newestAt = new Date(lp.data.created_at).getTime();
-            const recentBuildWindow = new Date(newestAt - 10 * 60_000).toISOString();
-            const pending = await sb.from("plugin_actions")
+            if (latest.error) return { error: latest.error.message };
+            if (!latest.data) return [];
+
+            // Execute the newest generated build first. Older pending rows from
+            // previous attempts must not sit ahead of the current prompt and
+            // make the website look stuck on "queued".
+            let pendingQuery = sb.from("plugin_actions")
               .select(actionSelect)
               .eq("user_id", profileId)
               .eq("status", "pending")
-              .gte("created_at", recentBuildWindow)
               .order("created_at", { ascending: true })
               .order("position", { ascending: true })
               .limit(100);
+            pendingQuery = latest.data.message_id
+              ? pendingQuery.eq("message_id", latest.data.message_id)
+              : pendingQuery.eq("project_id", latest.data.project_id);
+            const pending = await pendingQuery;
             if (pending.error) return { error: pending.error.message };
             return pending.data ?? [];
           }
@@ -94,11 +99,12 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
           actions = first;
 
           // Long-poll: hold briefly if nothing is pending, checking very often
-          // so Studio receives newly-created actions almost immediately.
-          if (actions.length === 0) {
-            const deadline = Date.now() + 10_000;
+          // so Studio receives newly-created actions almost immediately without
+          // spamming Roblox HTTP requests while idle.
+          if (actions.length === 0 && body.force !== true) {
+            const deadline = Date.now() + 8_000;
             while (Date.now() < deadline) {
-              await new Promise((r) => setTimeout(r, 150));
+              await new Promise((r) => setTimeout(r, 100));
               const next = await fetchPending();
               if (!Array.isArray(next)) return json({ error: next.error }, 500);
               if (next.length > 0) { actions = next; break; }

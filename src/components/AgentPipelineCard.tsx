@@ -101,7 +101,7 @@ export function AgentPipelineCard({ projectId }: { projectId: string }) {
       queryClient.invalidateQueries({ queryKey: ["agent-pipelines", projectId] });
       if (res.skipped) return;
       if (res.fixesQueued > 0) {
-        toast.success(`Auto-repair: ${res.fixesQueued} fix${res.fixesQueued === 1 ? "" : "es"} queued for Studio.`);
+        toast.success(`Auto-repair: ${res.fixesQueued} fix${res.fixesQueued === 1 ? "" : "es"} sent to Studio.`);
       }
     },
     onError: (err) => toast.error(friendlyPipelineError(err)),
