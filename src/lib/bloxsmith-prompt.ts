@@ -1174,6 +1174,20 @@ const HOISTABLE_PAYLOAD_KEYS = [
   "reset_on_spawn",
 ];
 
+function pickParsedActionKind(a: Record<string, unknown>, payload: Record<string, unknown>, hasSource: boolean) {
+  const explicitKind = typeof a.kind === "string" && a.kind.trim() ? a.kind : undefined;
+  if (explicitKind) return explicitKind;
+
+  const action = typeof a.action === "string" && a.action.trim() ? a.action.trim() : undefined;
+  const type = typeof a.type === "string" && a.type.trim() ? a.type.trim() : undefined;
+  const actionIsVerb = action ? /^(create|add|make|build|insert|update|edit|patch|set|generate|write|spawn)$/i.test(action) : false;
+  if (type && (!action || actionIsVerb)) return type;
+  if (action && !actionIsVerb) return action;
+  if (type) return type;
+  if (actionIsVerb && (a.asset_id ?? a.assetId ?? payload.asset_id ?? payload.assetId) !== undefined) return "insert_asset";
+  return hasSource ? "script" : "";
+}
+
 export function parseActions(content: string): { cleanContent: string; actions: ParsedAction[] } {
   const re = /```bloxsmith-actions\s*\n?([\s\S]*?)```/gi;
   const matches = Array.from(content.matchAll(re));
@@ -1199,9 +1213,9 @@ export function parseActions(content: string): { cleanContent: string; actions: 
   try {
     if (rawActions.length === 0) return { cleanContent: content, actions: [] };
     const cleaned = content.replace(re, "").trimEnd();
-    const actions: ParsedAction[] = rawActions
+    const actions = rawActions
       .filter((a: unknown): a is Record<string, unknown> => !!a && typeof a === "object")
-      .map((a: Record<string, unknown>) => {
+      .reduce<ParsedAction[]>((acc, a: Record<string, unknown>) => {
         const payload: Record<string, unknown> =
           a.payload && typeof a.payload === "object" ? { ...(a.payload as Record<string, unknown>) } : {};
         for (const key of HOISTABLE_PAYLOAD_KEYS) {
@@ -1223,8 +1237,10 @@ export function parseActions(content: string): { cleanContent: string; actions: 
         }
         const topSource = typeof a.source === "string" && a.source.trim().length > 0 ? a.source : undefined;
         const payloadSource = typeof payload.source === "string" && payload.source.trim().length > 0 ? payload.source : undefined;
-        return {
-          kind: String(a.kind ?? "script"),
+        const kind = pickParsedActionKind(a, payload, Boolean(topSource ?? payloadSource));
+        if (!kind) return acc;
+        acc.push({
+          kind,
           parent_path: String(a.parent_path ?? a.parent ?? a.target ?? "ServerScriptService"),
           name: String(a.name ?? "BloxSmithItem"),
           payload,
@@ -1233,8 +1249,9 @@ export function parseActions(content: string): { cleanContent: string; actions: 
           properties: a.properties && typeof a.properties === "object" ? (a.properties as Record<string, unknown>) : undefined,
           asset_id: (a.asset_id ?? a.assetId) as string | number | undefined,
           fallback_ids: a.fallback_ids ?? a.fallbackIds,
-        };
-      });
+        });
+        return acc;
+      }, []);
     return { cleanContent: cleaned, actions };
   } catch {
     return { cleanContent: content, actions: [] };

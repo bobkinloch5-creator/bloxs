@@ -4848,6 +4848,36 @@ export const Route = createFileRoute("/api/chat")({
                   }
                 }
 
+                if (mode === "build" && blockedScriptMessages.length > 0 && actions.length === 0) {
+                  try {
+                    let rescueActions: any[] = [];
+                    if (isNarrowFeatureRequest(userText)) {
+                      rescueActions = narrowFeatureFallbackStudioActions(userText, languageName);
+                    }
+                    if (rescueActions.length === 0 && isRobloxSystemRequest(userText)) {
+                      rescueActions = robloxSystemStudioActions(userText, languageName);
+                    }
+                    if (rescueActions.length === 0 && proceduralFallbackAllowed) {
+                      rescueActions = proceduralEnvironmentStudioActions(userText, languageName);
+                    }
+                    if (rescueActions.length === 0 && !proceduralFallbackAllowed) {
+                      rescueActions = await toolboxAssetFinderStudioActions(userText);
+                    }
+
+                    const normalizedRescue = rescueActions
+                      .map(normalizePluginAction)
+                      .filter((action) => finalScriptIssues(action).length === 0);
+                    if (normalizedRescue.length > 0) {
+                      actions = normalizedRescue;
+                      cleanContent = `${cleanContent.trim()}\n\n_BloxSmith regenerated a safe executable build plan for this request instead of sending the broken script._`;
+                      blockedScriptMessages = [];
+                      console.warn("[chat] replaced invalid-only build with deterministic rescue", { queued: actions.length });
+                    }
+                  } catch (rescueErr) {
+                    console.warn("[chat] invalid-script rescue failed", rescueErr);
+                  }
+                }
+
                 if (blockedScriptMessages.length > 0) {
                   cleanContent = `${cleanContent.trim()}\n\n⚠️ Code generation retry failed for ${blockedScriptMessages.length} script action${blockedScriptMessages.length === 1 ? "" : "s"}, so BloxSmith blocked them instead of inserting empty or invalid scripts into Roblox Studio.\n${blockedScriptMessages.map((m) => `- ${m}`).join("\n")}`;
                 }

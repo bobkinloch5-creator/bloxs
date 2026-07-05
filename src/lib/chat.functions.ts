@@ -3,6 +3,90 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { normalizePluginAction } from "@/lib/plugin-actions";
 import { sanitizeInsertAssetActions } from "@/lib/roblox-toolbox.server";
+import { stripCodeFences, validateLuau } from "@/lib/luau-validator";
+
+const SCRIPT_ACTION_KINDS = new Set(["script", "localscript", "modulescript", "run_lua"]);
+
+function preparedActionPayload(action: {
+  payload?: unknown;
+  source?: unknown;
+  code?: unknown;
+  lua?: unknown;
+  luau?: unknown;
+  script?: unknown;
+}) {
+  const payload = action.payload && typeof action.payload === "object" ? { ...(action.payload as Record<string, unknown>) } : {};
+  if (!(typeof payload.source === "string" && payload.source.trim())) {
+    const alt = action.source ?? action.code ?? action.lua ?? action.luau ?? action.script ?? payload.code ?? payload.lua ?? payload.luau ?? payload.script;
+    if (typeof alt === "string" && alt.trim()) payload.source = alt;
+  }
+  return payload;
+}
+
+function pickPreparedActionKind(action: { kind?: string; action?: string; type?: string; payload?: unknown; source?: unknown; code?: unknown; lua?: unknown; luau?: unknown; script?: unknown; asset_id?: unknown; assetId?: unknown }) {
+  const explicitKind = typeof action.kind === "string" && action.kind.trim() ? action.kind.trim() : undefined;
+  if (explicitKind) return explicitKind;
+  const actionValue = typeof action.action === "string" && action.action.trim() ? action.action.trim() : undefined;
+  const typeValue = typeof action.type === "string" && action.type.trim() ? action.type.trim() : undefined;
+  const actionIsVerb = actionValue ? /^(create|add|make|build|insert|update|edit|patch|set|generate|write|spawn)$/i.test(actionValue) : false;
+  if (typeValue && (!actionValue || actionIsVerb)) return typeValue;
+  if (actionValue && !actionIsVerb) return actionValue;
+  if (typeValue) return typeValue;
+  const payload = preparedActionPayload(action);
+  if (actionIsVerb && (action.asset_id ?? action.assetId ?? payload.asset_id ?? payload.assetId) !== undefined) return "insert_asset";
+  return typeof payload.source === "string" && payload.source.trim() ? "script" : "";
+}
+
+function scriptValidationErrors(action: { kind?: string; name?: string; payload?: Record<string, unknown> }) {
+  if (!SCRIPT_ACTION_KINDS.has(String(action.kind ?? ""))) return [];
+  const source = stripCodeFences(String(action.payload?.source ?? ""));
+  const errors = validateLuau(source).filter((issue) => issue.severity === "error").map((issue) => issue.message);
+  const executable = source
+    .replace(/--\[\[[\s\S]*?\]\]/g, "")
+    .replace(/--[^\n]*/g, "")
+    .trim();
+  if (executable.length < 25 || /TODO|placeholder|add your code here|simple server script is running/i.test(source)) {
+    errors.unshift("Script source is empty, placeholder, comment-only, or too small to be executable.");
+  }
+  return errors;
+}
+
+async function repairPreparedScriptActions<T extends { kind?: string; name?: string; parent_path?: string; payload?: Record<string, unknown> }>(actions: T[]) {
+  const invalid = actions
+    .map((action) => ({ action, errors: scriptValidationErrors(action) }))
+    .filter((entry) => entry.errors.length > 0)
+    .slice(0, 12);
+  if (invalid.length === 0) return actions;
+
+  try {
+    const { generateLuauReplacementWithNvidia } = await import("@/lib/nvidia-critique.server");
+    const repaired = await Promise.allSettled(invalid.map(({ action, errors }) =>
+      generateLuauReplacementWithNvidia({
+        issues: errors.map((message) => ({ severity: "error", message })),
+        actionName: action.name,
+        actionKind: action.kind,
+        parentPath: action.parent_path,
+        userRequest: String(action.payload?.request ?? action.payload?.userRequest ?? action.name ?? "Roblox Studio script"),
+      })
+    ));
+    repaired.forEach((result, index) => {
+      if (result.status === "fulfilled" && result.value) {
+        invalid[index].action.payload = { ...(invalid[index].action.payload ?? {}), source: result.value };
+      }
+    });
+  } catch (error) {
+    console.warn("[chat.functions] prepared script repair failed", error);
+  }
+
+  return actions.filter((action) => {
+    const errors = scriptValidationErrors(action);
+    if (errors.length > 0) {
+      console.error("[chat.functions] blocked invalid prepared script before Studio queue", { kind: action.kind, name: action.name, errors });
+      return false;
+    }
+    return true;
+  });
+}
 
 export const listMessages = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -227,23 +311,45 @@ export const queuePreparedStudioActions = createServerFn({ method: "POST" })
     projectId: z.string().uuid(),
     executionMode: z.enum(["safe", "fast", "owner"]).optional().default("fast"),
     actions: z.array(z.object({
-      kind: z.preprocess(
-        (v) => (typeof v === "string" && v.trim() === "" ? "script" : v),
-        z.string().trim().min(1).max(80),
-      ).default("script"),
+      kind: z.string().trim().min(1).max(80).optional(),
+      action: z.string().trim().min(1).max(80).optional(),
+      type: z.string().trim().min(1).max(80).optional(),
       parent_path: z.preprocess(
         (v) => (typeof v === "string" && v.trim() === "" ? "Workspace" : v),
         z.string().trim().min(1).max(400),
       ).default("Workspace"),
+      parent: z.string().trim().min(1).max(400).optional(),
+      target_parent_path: z.string().trim().min(1).max(400).optional(),
+      target_parent: z.string().trim().min(1).max(400).optional(),
       name: z.preprocess(
         (v) => (typeof v === "string" && v.trim() === "" ? "BloxSmithAction" : v),
         z.string().trim().min(1).max(160),
       ).default("BloxSmithAction"),
       payload: z.any().optional(),
-    })).min(1).max(80),
+      source: z.string().optional(),
+      code: z.string().optional(),
+      lua: z.string().optional(),
+      luau: z.string().optional(),
+      script: z.string().optional(),
+      asset_id: z.union([z.string(), z.number()]).optional(),
+      assetId: z.union([z.string(), z.number()]).optional(),
+      fallback_ids: z.any().optional(),
+      fallbackIds: z.any().optional(),
+      target_path: z.string().optional(),
+      target: z.string().optional(),
+      asset_name: z.string().optional(),
+      source_query: z.string().optional(),
+      properties: z.record(z.string(), z.any()).optional(),
+    }).passthrough()).min(1).max(80),
   }).parse(input))
   .handler(async ({ data, context }) => {
-    const normalizedActions = data.actions.map(normalizePluginAction);
+    const normalizedInputActions = data.actions
+      .map((action) => ({ ...action, kind: pickPreparedActionKind(action), payload: preparedActionPayload(action) }))
+      .filter((action) => action.kind);
+    const normalizedActions = await repairPreparedScriptActions(normalizedInputActions.map(normalizePluginAction));
+    if (normalizedActions.length === 0) {
+      throw new Error("No valid Studio actions were generated. Please resend the build request so BloxSmith can regenerate it instead of sending empty scripts.");
+    }
     const { data: recent } = await context.supabase
       .from("plugin_actions")
       .select("id, created_at")
