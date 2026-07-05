@@ -4928,9 +4928,7 @@ export const Route = createFileRoute("/api/chat")({
                   }
                 }
 
-                if (actions.length > 0 && mode === "build") {
-                  cleanContent = `${cleanContent.trim()}\n\n_Queued ${actions.length} Studio action(s). Waiting for the Roblox Studio plugin to confirm execution before this build is marked complete._`;
-                }
+                cleanContent = cleanContent.trim();
 
 
                 const { data: msgRow } = await supabase.from("chat_messages").insert({
