@@ -44,12 +44,12 @@ export function validateLuau(rawSource: string): LuauIssue[] {
   if (/^\s*```/.test(rawSource) || /```\s*$/.test(rawSource)) {
     issues.push({ severity: "warn", message: "Source contained markdown code fences; strip ``` before sending." });
   }
-  if (/[{,]\s*"[^"\n]+"\s*:/.test(trimmedSource) || /[{,]\s*[A-Za-z_][A-Za-z0-9_]*\s*:(?!\s*[A-Za-z_][A-Za-z0-9_]*\s*\()/.test(trimmedSource)) {
-    issues.push({ severity: "error", message: "JSON-style table syntax found; use key = value in Luau tables." });
-  }
-
   let src = trimmedSource;
   for (const re of STRIP_STRINGS) src = src.replace(re, "");
+
+  if (/[{,]\s*"[^"\n]+"\s*:/.test(src) || /[{,]\s*[A-Za-z_][A-Za-z0-9_]*\s*:(?!\s*[A-Za-z_][A-Za-z0-9_]*\s*\()/.test(src)) {
+    issues.push({ severity: "error", message: "JSON-style table syntax found; use key = value in Luau tables." });
+  }
 
   const opens = (src.match(OPENERS) ?? []).length;
   const closes = (src.match(CLOSERS) ?? []).length;
