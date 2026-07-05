@@ -3,6 +3,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
 import { sanitizeInsertAssetActions, type InsertSanitizeReport } from "@/lib/roblox-toolbox.server";
+import { normalizePluginAction } from "@/lib/plugin-actions";
 
 function admin() {
   return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
@@ -122,7 +123,29 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
           }
 
           if (actions.length > 0) {
-            const before = actions.map((a) => ({ id: a.id, message_id: a.message_id, payload: a.payload }));
+            const before = actions.map((a) => ({
+              id: a.id,
+              message_id: a.message_id,
+              kind: a.kind,
+              parent_path: a.parent_path,
+              name: a.name,
+              payload: a.payload,
+            }));
+            actions = actions.map((a) => {
+              try {
+                const normalized = normalizePluginAction(a);
+                return {
+                  ...a,
+                  kind: normalized.kind,
+                  parent_path: normalized.parent_path,
+                  name: normalized.name,
+                  payload: normalized.payload,
+                };
+              } catch (e) {
+                console.warn("[plugin/poll] action normalize failed; sending original", { actionId: a.id, error: e instanceof Error ? e.message : String(e) });
+                return a;
+              }
+            });
             const report: InsertSanitizeReport = { dropped: [], replaced: [] };
             await sanitizeInsertAssetActions(actions as unknown as Array<Record<string, unknown>>, report);
             const survivingIds = new Set(actions.map((a) => a.id));
@@ -151,8 +174,9 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
             }
             await Promise.all(actions.map(async (a) => {
               const old = before.find((row) => row.id === a.id);
-              if (JSON.stringify(old?.payload ?? null) === JSON.stringify(a.payload ?? null)) return;
-              await sb.from("plugin_actions").update({ payload: a.payload }).eq("id", a.id);
+              const changed = old?.kind !== a.kind || old?.parent_path !== a.parent_path || old?.name !== a.name || JSON.stringify(old?.payload ?? null) !== JSON.stringify(a.payload ?? null);
+              if (!changed) return;
+              await sb.from("plugin_actions").update({ kind: a.kind, parent_path: a.parent_path, name: a.name, payload: a.payload }).eq("id", a.id);
             }));
             if (report.dropped.length > 0 || report.replaced.length > 0) {
               console.info("[plugin/poll] sanitized insert assets before Studio", {
