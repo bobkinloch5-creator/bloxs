@@ -606,11 +606,31 @@ local function pickActionSource(action)
     return "", "missing"
 end
 
+-- Best-effort in-plugin repair for JSON-style tables the model sometimes
+-- emits ({"key": value}) — convert to Luau ({key = value}) before we validate.
+local function autoRepairJsonTables(source)
+    if type(source) ~= "string" or source == "" then return source, false end
+    local changed = false
+    local repaired = source:gsub('([{,]%s*)"([%a_][%w_]*)"%s*:', function(pre, key)
+        changed = true
+        return pre .. key .. " = "
+    end)
+    repaired = repaired:gsub('([{,]%s*)"([^"\n]+)"%s*:', function(pre, key)
+        changed = true
+        return pre .. '["' .. key .. '"] = '
+    end)
+    repaired = repaired:gsub('([{,]%s*)([%a_][%w_]*)%s*:%s*([^%a_])', function(pre, key, after)
+        changed = true
+        return pre .. key .. " = " .. after
+    end)
+    return repaired, changed
+end
+
 local function validateLuaSource(source, scriptName)
     if type(source) ~= "string" or source:match("^%s*$") then
         return false, "empty script source"
     end
-    if source:find("{%s*[%w_]+%s*:") then
+    if source:find("{%s*[%w_]+%s*:") or source:find('{%s*"[%w_]+"%s*:') then
         return false, "JSON-style table syntax found; use key = value in Luau tables"
     end
     local fn, err = loadstring(source, "=BloxSmithScript/" .. tostring(scriptName or "Script"))
