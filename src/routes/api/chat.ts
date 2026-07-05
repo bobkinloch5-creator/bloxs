@@ -559,6 +559,254 @@ function actionLooksLikeUnrequestedUiShell(action: any, userText: string) {
   return false;
 }
 
+function isScriptLikeAction(action: any) {
+  return ["script", "localscript", "modulescript", "run_lua"].includes(String(action?.kind ?? ""));
+}
+
+function hasRealLuauSource(action: any) {
+  if (!isScriptLikeAction(action)) return true;
+  const source = String(action?.payload?.source ?? action?.source ?? "").trim();
+  if (source.length < 40) return false;
+  const withoutComments = source
+    .replace(/--\[\[[\s\S]*?\]\]/g, "")
+    .replace(/--[^\n]*/g, "")
+    .trim();
+  if (withoutComments.length < 25) return false;
+  if (/TODO|placeholder|add your code here|simple server script is running/i.test(source)) return false;
+  return true;
+}
+
+function narrowFeatureFallbackStudioActions(userText: string, languageName: string) {
+  if (!isNarrowFeatureRequest(userText)) return [];
+  const text = userText.toLowerCase();
+  const safePrompt = userText.trim().slice(0, 220) || "single Roblox feature";
+
+  if (/\b(speed\s*boost|speed\s*button|sprint|run\s*faster)\b/i.test(text)) {
+    const source = `
+local StarterGui = game:GetService("StarterGui")
+
+local old = StarterGui:FindFirstChild("BloxSmith_SpeedBoostButton")
+if old then old:Destroy() end
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "BloxSmith_SpeedBoostButton"
+gui.ResetOnSpawn = false
+gui.IgnoreGuiInset = true
+gui.DisplayOrder = 50
+gui.Parent = StarterGui
+
+local button = Instance.new("TextButton")
+button.Name = "SpeedBoostButton"
+button.AnchorPoint = Vector2.new(1, 1)
+button.Position = UDim2.new(1, -24, 1, -96)
+button.Size = UDim2.fromOffset(170, 56)
+button.BackgroundColor3 = Color3.fromRGB(42, 145, 255)
+button.BorderSizePixel = 0
+button.Font = Enum.Font.GothamBold
+button.Text = "Speed Boost"
+button.TextColor3 = Color3.fromRGB(255, 255, 255)
+button.TextScaled = true
+button.AutoButtonColor = true
+button.Parent = gui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 10)
+corner.Parent = button
+
+local stroke = Instance.new("UIStroke")
+stroke.Color = Color3.fromRGB(220, 240, 255)
+stroke.Transparency = 0.25
+stroke.Thickness = 1
+stroke.Parent = button
+
+local scriptObj = Instance.new("LocalScript")
+scriptObj.Name = "SpeedBoostClient"
+scriptObj.Source = [==[
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local button = script.Parent
+
+local BOOST_SPEED = 32
+local BOOST_TIME = 5
+local COOLDOWN = 8
+local ready = true
+
+local function getHumanoid()
+  local character = player.Character or player.CharacterAdded:Wait()
+  return character:FindFirstChildOfClass("Humanoid") or character:WaitForChild("Humanoid", 5)
+end
+
+local function setButton(text, active)
+  button.Text = text
+  button.Active = active
+  button.AutoButtonColor = active
+  button.BackgroundTransparency = active and 0 or 0.35
+end
+
+button.Activated:Connect(function()
+  if not ready then return end
+  local humanoid = getHumanoid()
+  if not humanoid then return end
+
+  ready = false
+  local normalSpeed = humanoid.WalkSpeed
+  humanoid.WalkSpeed = math.max(normalSpeed, BOOST_SPEED)
+  setButton("Boosting...", false)
+
+  task.delay(BOOST_TIME, function()
+    if humanoid and humanoid.Parent then
+      humanoid.WalkSpeed = normalSpeed
+    end
+    for remaining = COOLDOWN, 1, -1 do
+      setButton("Cooldown " .. remaining, false)
+      task.wait(1)
+    end
+    setButton("Speed Boost", true)
+    ready = true
+  end)
+end)
+]==]
+scriptObj.Parent = button
+
+gui:SetAttribute("BloxSmithRequest", ${JSON.stringify(safePrompt)})
+gui:SetAttribute("Language", ${JSON.stringify(languageName)})
+`;
+    return [{
+      kind: "run_lua",
+      parent_path: "StarterGui",
+      name: "BloxSmith_Create_SpeedBoost_Button",
+      payload: { source },
+    }];
+  }
+
+  if (/\b(double\s*jump|doublejump)\b/i.test(text)) {
+    return [{
+      kind: "localscript",
+      parent_path: "StarterPlayer.StarterPlayerScripts",
+      name: "BloxSmith_DoubleJumpClient",
+      payload: {
+        source: `local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local player = Players.LocalPlayer
+
+local extraJumps = 1
+local jumpsUsed = 0
+local humanoid: Humanoid? = nil
+
+local function bindCharacter(character: Model)
+  humanoid = character:WaitForChild("Humanoid", 5) :: Humanoid?
+  jumpsUsed = 0
+  if humanoid then
+    humanoid.StateChanged:Connect(function(_, newState)
+      if newState == Enum.HumanoidStateType.Landed or newState == Enum.HumanoidStateType.Running then
+        jumpsUsed = 0
+      end
+    end)
+  end
+end
+
+if player.Character then bindCharacter(player.Character) end
+player.CharacterAdded:Connect(bindCharacter)
+
+UserInputService.JumpRequest:Connect(function()
+  if not humanoid or humanoid.FloorMaterial ~= Enum.Material.Air then return end
+  if jumpsUsed >= extraJumps then return end
+  jumpsUsed += 1
+  humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+end)`,
+      },
+    }];
+  }
+
+  if (/\b(kill\s*brick|damage\s*brick|lava\s*brick)\b/i.test(text)) {
+    const source = `
+local Workspace = game:GetService("Workspace")
+
+local brick = Workspace:FindFirstChild("BloxSmith_KillBrick")
+if not brick then
+  brick = Instance.new("Part")
+  brick.Name = "BloxSmith_KillBrick"
+  brick.Size = Vector3.new(12, 1, 12)
+  brick.Position = Vector3.new(0, 1, -18)
+  brick.Anchored = true
+  brick.CanCollide = true
+  brick.Material = Enum.Material.Neon
+  brick.Color = Color3.fromRGB(255, 70, 40)
+  brick.Parent = Workspace
+end
+
+local oldScript = brick:FindFirstChild("KillOnTouch")
+if oldScript then oldScript:Destroy() end
+
+local scriptObj = Instance.new("Script")
+scriptObj.Name = "KillOnTouch"
+scriptObj.Source = [==[
+local brick = script.Parent
+local debounce = {}
+
+brick.Touched:Connect(function(hit)
+  local character = hit:FindFirstAncestorOfClass("Model")
+  local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+  if not humanoid or debounce[humanoid] then return end
+  debounce[humanoid] = true
+  humanoid.Health = 0
+  task.delay(1, function() debounce[humanoid] = nil end)
+end)
+]==]
+scriptObj.Parent = brick
+`;
+    return [{ kind: "run_lua", parent_path: "Workspace", name: "BloxSmith_Create_KillBrick", payload: { source } }];
+  }
+
+  if (/\b(button)\b/i.test(text)) {
+    const source = `
+local StarterGui = game:GetService("StarterGui")
+
+local old = StarterGui:FindFirstChild("BloxSmith_SingleButton")
+if old then old:Destroy() end
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "BloxSmith_SingleButton"
+gui.ResetOnSpawn = false
+gui.Parent = StarterGui
+
+local button = Instance.new("TextButton")
+button.Name = "RequestedButton"
+button.AnchorPoint = Vector2.new(0.5, 1)
+button.Position = UDim2.new(0.5, 0, 1, -80)
+button.Size = UDim2.fromOffset(190, 54)
+button.BackgroundColor3 = Color3.fromRGB(42, 145, 255)
+button.BorderSizePixel = 0
+button.Font = Enum.Font.GothamBold
+button.Text = "Button"
+button.TextColor3 = Color3.fromRGB(255, 255, 255)
+button.TextScaled = true
+button.Parent = gui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 10)
+corner.Parent = button
+
+local scriptObj = Instance.new("LocalScript")
+scriptObj.Name = "ButtonClient"
+scriptObj.Source = [==[
+local button = script.Parent
+
+button.Activated:Connect(function()
+  button.Text = "Clicked"
+  task.delay(0.8, function()
+    if button.Parent then button.Text = "Button" end
+  end)
+end)
+]==]
+scriptObj.Parent = button
+`;
+    return [{ kind: "run_lua", parent_path: "StarterGui", name: "BloxSmith_Create_Single_Button", payload: { source } }];
+  }
+
+  return [];
+}
+
 const TOOLBOX_ASSET_FINDER_CATEGORIES = [
   { label: "pistol", role: "weapon", folder: "Weapons", test: /\b(pistol|handgun)\b/i, keyword: "pistol weapon model" },
   { label: "rifle", role: "weapon", folder: "Weapons", test: /\b(rifle|gun|blaster|laser\s*gun)\b/i, keyword: "rifle gun weapon model" },
