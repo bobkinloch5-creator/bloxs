@@ -63,20 +63,20 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
           // after the user opens a different project on the web app, which made
           // Studio poll the wrong queue and appear to ignore new prompts.
           const actionSelect = "id, project_id, message_id, kind, parent_path, name, payload, position, created_at, sent_at";
-          const latestPending = await sb.from("plugin_actions")
-            .select("project_id, message_id, created_at")
-            .eq("user_id", profile.id)
-            .eq("status", "pending")
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle();
-          if (latestPending.error) return json({ error: latestPending.error.message }, 500);
 
-          let actions: PluginActionRow[] = [];
-          if (latestPending.data) {
-            const newestAt = new Date(latestPending.data.created_at).getTime();
+          async function fetchPending(): Promise<PluginActionRow[] | { error: string }> {
+            const lp = await sb.from("plugin_actions")
+              .select("project_id, message_id, created_at")
+              .eq("user_id", profile.id)
+              .eq("status", "pending")
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            if (lp.error) return { error: lp.error.message };
+            if (!lp.data) return [];
+            const newestAt = new Date(lp.data.created_at).getTime();
             const recentBuildWindow = new Date(newestAt - 10 * 60_000).toISOString();
-            let q = sb.from("plugin_actions")
+            const pending = await sb.from("plugin_actions")
               .select(actionSelect)
               .eq("user_id", profile.id)
               .eq("status", "pending")
@@ -84,10 +84,26 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
               .order("created_at", { ascending: true })
               .order("position", { ascending: true })
               .limit(100);
+            if (pending.error) return { error: pending.error.message };
+            return pending.data ?? [];
+          }
 
-            const pending = await q;
-            if (pending.error) return json({ error: pending.error.message }, 500);
-            actions = pending.data ?? [];
+          let actions: PluginActionRow[] = [];
+          const first = await fetchPending();
+          if (!Array.isArray(first)) return json({ error: first.error }, 500);
+          actions = first;
+
+          // Long-poll: hold the connection up to ~18s if nothing is pending,
+          // returning the instant new actions appear. Drops queue->execute
+          // latency to sub-second regardless of the plugin's poll cadence.
+          if (actions.length === 0) {
+            const deadline = Date.now() + 18_000;
+            while (Date.now() < deadline) {
+              await new Promise((r) => setTimeout(r, 600));
+              const next = await fetchPending();
+              if (!Array.isArray(next)) return json({ error: next.error }, 500);
+              if (next.length > 0) { actions = next; break; }
+            }
           }
 
           if (actions.length === 0) {
