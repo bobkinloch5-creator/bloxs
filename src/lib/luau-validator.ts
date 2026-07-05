@@ -44,7 +44,6 @@ export function validateLuau(rawSource: string): LuauIssue[] {
   if (/^\s*```/.test(rawSource) || /```\s*$/.test(rawSource)) {
     issues.push({ severity: "warn", message: "Source contained markdown code fences; strip ``` before sending." });
   }
-	occur
   if (/[{,]\s*"[^"\n]+"\s*:/.test(trimmedSource) || /[{,]\s*[A-Za-z_][A-Za-z0-9_]*\s*:(?!\s*[A-Za-z_][A-Za-z0-9_]*\s*\()/.test(trimmedSource)) {
     issues.push({ severity: "error", message: "JSON-style table syntax found; use key = value in Luau tables." });
   }
