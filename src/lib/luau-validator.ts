@@ -97,3 +97,39 @@ export function stripCodeFences(src: string): string {
     .replace(/\n```\s*$/i, "")
     .trim();
 }
+
+// Safe automatic fixes applied to every emitted Luau source before it ships
+// to Studio. Only touches things that are ALWAYS wrong (deprecated globals,
+// stray fences, :connect casing) — never edits logic. Returns the possibly
+// modified source plus a list of applied fixes for logging.
+export function autoFixLuau(rawSource: string): { source: string; fixes: string[] } {
+  if (typeof rawSource !== "string" || !rawSource) return { source: rawSource, fixes: [] };
+  const fixes: string[] = [];
+  let src = stripCodeFences(rawSource);
+  if (src !== rawSource.trim() && /```/.test(rawSource)) fixes.push("stripped markdown fences");
+
+  // Preserve string literals and comments — protect them from replacements
+  // by swapping in unique tokens, applying fixes, then restoring.
+  const guards: string[] = [];
+  const guard = (m: string) => {
+    guards.push(m);
+    return `\u0000${guards.length - 1}\u0000`;
+  };
+  src = src
+    .replace(/--\[\[[\s\S]*?\]\]/g, guard)
+    .replace(/--[^\n]*/g, guard)
+    .replace(/\[(=*)\[[\s\S]*?\]\1\]/g, guard)
+    .replace(/"(?:\\.|[^"\\\n])*"/g, guard)
+    .replace(/'(?:\\.|[^'\\\n])*'/g, guard);
+
+  const before = src;
+  src = src.replace(/(?<![.:\w])wait\s*\(/g, "task.wait(");
+  src = src.replace(/(?<![.:\w])spawn\s*\(\s*function/g, "task.spawn(function");
+  src = src.replace(/(?<![.:\w])delay\s*\(/g, "task.delay(");
+  src = src.replace(/:connect\s*\(/g, ":Connect(");
+  if (src !== before) fixes.push("normalized deprecated globals (wait/spawn/delay/:connect)");
+
+  src = src.replace(/\u0000(\d+)\u0000/g, (_m, i) => guards[Number(i)]);
+  return { source: src, fixes };
+}
+
