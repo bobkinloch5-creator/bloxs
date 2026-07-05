@@ -56,7 +56,7 @@ export function HelpChatWidget() {
           type="button"
           onClick={() => setOpen(true)}
           aria-label="Open BloxSmith help chat"
-          className="fixed bottom-20 right-4 z-[90] group flex items-center gap-2 rounded-full bg-gradient-to-br from-indigo-500 to-fuchsia-500 px-4 py-3 text-white shadow-xl shadow-indigo-500/40 transition hover:scale-105 hover:shadow-indigo-500/60 sm:bottom-24 sm:right-6 lg:bottom-6"
+          className="fixed bottom-20 left-4 z-[90] group flex items-center gap-2 rounded-full bg-gradient-to-br from-indigo-500 to-fuchsia-500 px-4 py-3 text-white shadow-xl shadow-indigo-500/40 transition hover:scale-105 hover:shadow-indigo-500/60 sm:bottom-6 sm:left-6"
         >
           <MessageCircle className="h-5 w-5" />
           <span className="hidden text-sm font-semibold sm:inline">Need help?</span>
