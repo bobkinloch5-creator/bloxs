@@ -4139,10 +4139,11 @@ export const Route = createFileRoute("/api/chat")({
           if (projErr || !project) return jsonError("Project not found or you don't have access to it.", 404, "project_not_found");
 
           // Per-user asset preference (stored in profiles.settings.asset_mode).
-          // Old "auto" / "primitives_only" settings are treated as toolbox-only
-          // so visual builds do not silently become procedural placeholders.
-          let assetMode: "toolbox_only" | "both" | "procedural" = "toolbox_only";
-          let proceduralFallbackAllowed = false;
+          // Default to hybrid so BloxSmith always creates a visible result: use
+          // safe Toolbox assets when available, then deterministic procedural
+          // geometry/terrain when Toolbox has no usable match.
+          let assetMode: "toolbox_only" | "both" | "procedural" = "both";
+          let proceduralFallbackAllowed = true;
           try {
             const { data: prof } = await supabase
               .from("profiles")
@@ -4151,9 +4152,10 @@ export const Route = createFileRoute("/api/chat")({
               .maybeSingle();
             const s = (prof?.settings && typeof prof.settings === "object" ? prof.settings : {}) as Record<string, unknown>;
             const m = s.asset_mode;
-            if (m === "both") assetMode = "both";
+            if (m === "toolbox_only") assetMode = "toolbox_only";
             else if (m === "procedural") assetMode = "procedural";
-            proceduralFallbackAllowed = assetMode === "procedural" || (s.procedural_fallback_enabled === true && s.disable_procedural_fallback !== true);
+            else assetMode = "both";
+            proceduralFallbackAllowed = assetMode !== "toolbox_only" && s.disable_procedural_fallback !== true;
           } catch { /* ignore */ }
 
           // Per-request Procedural Generation toggle (from the composer) overrides
@@ -4163,8 +4165,8 @@ export const Route = createFileRoute("/api/chat")({
             assetMode = "procedural";
             proceduralFallbackAllowed = true;
           } else if (proceduralGenerationOverride === false) {
-            assetMode = "toolbox_only";
-            proceduralFallbackAllowed = false;
+            assetMode = "both";
+            proceduralFallbackAllowed = true;
           }
 
 
