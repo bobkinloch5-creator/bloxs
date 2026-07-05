@@ -4945,7 +4945,15 @@ export const Route = createFileRoute("/api/chat")({
                   // Validate every insert_asset against Roblox's toolbox-details
                   // API and the runtime blacklist before Studio ever sees it.
                   await sanitizeInsertAssetActions(actions as unknown as Array<Record<string, unknown>>).catch(() => null);
-                  const insertable = actions.filter((a) => a && (a as { kind?: string }).kind);
+                  const insertable = actions.filter((a) => {
+                    if (!a || !(a as { kind?: string }).kind) return false;
+                    const issues = finalScriptIssues(a);
+                    if (issues.length > 0) {
+                      console.error("[chat] queue-time script block", { name: (a as any)?.name, kind: (a as any)?.kind, issues });
+                      return false;
+                    }
+                    return true;
+                  });
                   if (insertable.length > 0) {
                     await supabase.from("plugin_actions").insert(
                       insertable.map((a, i) => ({
