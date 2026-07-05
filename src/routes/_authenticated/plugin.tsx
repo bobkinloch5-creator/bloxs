@@ -28,6 +28,21 @@ function timeAgo(iso?: string | null) {
   return `${Math.floor(s / 86400)}d ago`;
 }
 
+function compareVersions(current?: string | null, required?: string | null) {
+  const parse = (value?: string | null) => String(value ?? "")
+    .split(".")
+    .map((part) => Number.parseInt(part.replace(/\D+/g, ""), 10))
+    .map((n) => (Number.isFinite(n) ? n : 0));
+  const a = parse(current);
+  const b = parse(required);
+  const len = Math.max(a.length, b.length, 3);
+  for (let i = 0; i < len; i += 1) {
+    const delta = (a[i] ?? 0) - (b[i] ?? 0);
+    if (delta !== 0) return delta;
+  }
+  return 0;
+}
+
 function PluginPage() {
   const profileFn = useServerFn(getMyProfile);
   const sessionFn = useServerFn(getPluginSession);
@@ -40,6 +55,7 @@ function PluginPage() {
 
   const online = !!session?.online && !!session?.last_seen
     && (Date.now() - new Date(session.last_seen).getTime()) < 90_000;
+  const outdated = online && compareVersions(session?.plugin_version, PLUGIN_VERSION) < 0;
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-10">
@@ -79,6 +95,11 @@ function PluginPage() {
         </div>
         {session?.place_id && (
           <p className="mt-2 text-xs text-muted-foreground">Linked place: <span className="font-mono text-foreground">{session.place_id}</span></p>
+        )}
+        {outdated && (
+          <p className="mt-3 rounded-lg border border-amber-400/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
+            Your open Studio plugin is v{session?.plugin_version}; download v{PLUGIN_VERSION} below, replace the old file, then reload plugins so actions do not get stuck behind slow Roblox asset inserts.
+          </p>
         )}
         {!online && (
           <p className="mt-3 text-sm text-muted-foreground">

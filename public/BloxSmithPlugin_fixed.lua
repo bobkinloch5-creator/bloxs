@@ -20,7 +20,7 @@ local Selection             = game:GetService("Selection")
 
 local API_BASE       = "https://bloxsmith.pro"
 local POLL_INTERVAL  = 0.05
-local PLUGIN_VERSION = "2.1.18"
+local PLUGIN_VERSION = "2.1.19"
 
 ------------------------------------------------------------------- token helpers
 local TOKEN_KEY = "token"
@@ -1413,6 +1413,33 @@ local function executeAction(action)
     return handler(action, parent)
 end
 
+local function actionTimeoutSeconds(action)
+    local kind = tostring(action and action.kind or "")
+    if kind == "insert_asset" then return 14 end
+    if kind == "scan_project" or kind == "autofix_project" or kind == "organize_project" then return 10 end
+    if kind == "run_lua" then return 12 end
+    return 6
+end
+
+local function executeActionWithTimeout(action)
+    local finished = false
+    local ok = false
+    local value = nil
+    local thread = task.spawn(function()
+        ok, value = pcall(executeAction, action)
+        finished = true
+    end)
+    local timeoutAt = os.clock() + actionTimeoutSeconds(action)
+    while not finished and os.clock() < timeoutAt do
+        task.wait(0.025)
+    end
+    if not finished then
+        pcall(task.cancel, thread)
+        return false, ("Studio action timed out after %ds; skipped so newer builds can execute immediately."):format(actionTimeoutSeconds(action))
+    end
+    return ok, value
+end
+
 local function reportableResult(value)
     if typeof(value) == "Instance" then
         return { path = fullPath(value), class = value.ClassName, name = value.Name }
@@ -1699,7 +1726,7 @@ local function pollOnce(force)
     for _, a in ipairs(actions) do
         local stage, sub = statusForAction(a)
         setStatus(stage, Color3.fromRGB(160,200,255), sub)
-        local ok, errOrInst = pcall(executeAction, a)
+        local ok, errOrInst = executeActionWithTimeout(a)
         if ok then
             okN += 1; lastAction = describeAction(a)
             log("??? " .. lastAction, "action")
@@ -1711,20 +1738,23 @@ local function pollOnce(force)
             results[#results+1] = { action_id = a.id, status = "failed", error = tostring(errOrInst) }
         end
     end
-    local fixOk, fixResult = pcall(autoFixProject)
-    if fixOk and fixResult then
-        local moved = fixResult.moved_count or 0
-        local fixed = fixResult.fixed_count or 0
-        if moved > 0 or fixed > 0 then
-            log(("Auto-cleanup after batch ??? %d moved, %d fixed."):format(moved, fixed), "success")
+    -- Confirm completion immediately; cleanup must never delay the website from
+    -- showing that a one-action build finished.
+    task.spawn(reportBatch, results)
+    if #actions > 1 then
+        local fixOk, fixResult = pcall(autoFixProject)
+        if fixOk and fixResult then
+            local moved = fixResult.moved_count or 0
+            local fixed = fixResult.fixed_count or 0
+            if moved > 0 or fixed > 0 then
+                log(("Auto-cleanup after batch ??? %d moved, %d fixed."):format(moved, fixed), "success")
+            end
+        elseif not fixOk then
+            log("Auto-cleanup skipped: " .. tostring(fixResult), "warn")
         end
-    elseif not fixOk then
-        log("Auto-cleanup skipped: " .. tostring(fixResult), "warn")
     end
     queueLen = 0; refreshInfo()
     ChangeHistoryService:SetWaypoint("BloxSmith batch done")
-    -- Report all results in a single HTTP call, off the hot path.
-    task.spawn(reportBatch, results)
     -- Auto-focus Studio's camera on whatever just got built so the user
     -- immediately sees the new geometry without hunting for it.
     if #focusTargets > 0 and failN == 0 then
