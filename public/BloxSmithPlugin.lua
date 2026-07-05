@@ -512,13 +512,9 @@ local function organizeProject()
             table.insert(moved, from .. " -> " .. fullPath(ReplicatedStorage.Modules))
         end
     end
-    for _, inst in ipairs(ServerScriptService:GetChildren()) do
-        if inst:IsA("Script") and inst.Name ~= "BloxSmith_Leaderstats" and inst.Name ~= "Systems" then
-            local from = fullPath(inst)
-            inst.Parent = ServerScriptService.Systems
-            table.insert(moved, from .. " -> " .. fullPath(ServerScriptService.Systems))
-        end
-    end
+    -- Do not move newly-created server Scripts after insertion. Roblox scripts
+    -- often use script.Parent or sibling paths during startup; moving them here
+    -- can make a valid script appear to "not run" or lose dependencies.
     return { moved = moved, moved_count = #moved }
 end
 
