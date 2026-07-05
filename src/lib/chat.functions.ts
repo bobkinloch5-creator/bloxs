@@ -340,7 +340,7 @@ export const queuePreparedStudioActions = createServerFn({ method: "POST" })
       asset_name: z.string().optional(),
       source_query: z.string().optional(),
       properties: z.record(z.string(), z.any()).optional(),
-    })).min(1).max(80),
+    }).passthrough()).min(1).max(80),
   }).parse(input))
   .handler(async ({ data, context }) => {
     const normalizedInputActions = data.actions
