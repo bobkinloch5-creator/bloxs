@@ -533,7 +533,7 @@ function isNarrowFeatureRequest(userText: string) {
   if (!text || isExplicitFullSystemRequest(text)) return false;
   if (/\b(map|world|city|town|lobby|level|multiple|several|bunch|pack)\b/.test(text)) return false;
   if (/\b(main\s*menu|loading\s*screen|load\s*screen|splash|title\s*screen|hud|shop\s*system|inventory\s*system|settings\s*menu)\b/.test(text)) return false;
-  if (/\b(button|script|local\s*script|server\s*script|module\s*script|remote\s*event|remoteevent|speed\s*boost|sprint|dash|double\s*jump|high\s*jump|super\s*jump|jump\s*boost|tool|door|checkpoint|timer|kill\s*brick|teleport)\b/.test(text)) return true;
+  if (/\b(button|script|local\s*script|server\s*script|module\s*script|remote\s*event|remoteevent|speed\s*boost|sprint|dash|double\s*jump|high\s*jump|super\s*jump|jump\s*boost|fly|flying|flight|tool|door|checkpoint|save\s*point|timer|kill\s*brick|teleport)\b/.test(text)) return true;
   return isSimpleSingleThingRequest(text);
 }
 
