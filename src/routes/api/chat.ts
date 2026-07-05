@@ -3946,7 +3946,7 @@ export const Route = createFileRoute("/api/chat")({
                 project_id: projectId,
                 user_id: userId,
                 role: "assistant",
-                content: `${replyText}\n\n_Queued ${actions.length} Studio action(s). Waiting for the Roblox Studio plugin to confirm execution before this build is marked complete._`,
+                content: replyText,
                 status: "sending",
                 model: activeModelId,
                 actions,
@@ -4075,7 +4075,7 @@ export const Route = createFileRoute("/api/chat")({
                     project_id: projectId,
                     user_id: userId,
                     role: "assistant",
-                    content: `${replyText}\n\n_Queued ${allInserts.length} Studio action${allInserts.length === 1 ? "" : "s"}. Waiting for the Roblox Studio plugin to confirm execution before this build is marked complete._`,
+                    content: replyText,
                     status: "sending",
                     model: activeModelId,
                     actions: allInserts,
@@ -4928,9 +4928,7 @@ export const Route = createFileRoute("/api/chat")({
                   }
                 }
 
-                if (actions.length > 0 && mode === "build") {
-                  cleanContent = `${cleanContent.trim()}\n\n_Queued ${actions.length} Studio action(s). Waiting for the Roblox Studio plugin to confirm execution before this build is marked complete._`;
-                }
+                cleanContent = cleanContent.trim();
 
 
                 const { data: msgRow } = await supabase.from("chat_messages").insert({
