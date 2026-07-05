@@ -47,6 +47,7 @@ import { Route as AuthenticatedProjectProjectIdRouteImport } from './routes/_aut
 import { Route as AuthenticatedModelsProjectIdRouteImport } from './routes/_authenticated/models.$projectId'
 import { Route as ApiPublicPluginScanRouteImport } from './routes/api/public/plugin/scan'
 import { Route as ApiPublicPluginPollRouteImport } from './routes/api/public/plugin/poll'
+import { Route as ApiPublicPluginHeartbeatRouteImport } from './routes/api/public/plugin/heartbeat'
 import { Route as ApiPublicPluginErrorRouteImport } from './routes/api/public/plugin/error'
 import { Route as ApiPublicPluginCompleteRouteImport } from './routes/api/public/plugin/complete'
 import { Route as ApiPublicPluginClearRouteImport } from './routes/api/public/plugin/clear'
@@ -251,6 +252,12 @@ const ApiPublicPluginPollRoute = ApiPublicPluginPollRouteImport.update({
   path: '/api/public/plugin/poll',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicPluginHeartbeatRoute =
+  ApiPublicPluginHeartbeatRouteImport.update({
+    id: '/api/public/plugin/heartbeat',
+    path: '/api/public/plugin/heartbeat',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicPluginErrorRoute = ApiPublicPluginErrorRouteImport.update({
   id: '/api/public/plugin/error',
   path: '/api/public/plugin/error',
@@ -341,6 +348,7 @@ export interface FileRoutesByFullPath {
   '/api/public/plugin/clear': typeof ApiPublicPluginClearRoute
   '/api/public/plugin/complete': typeof ApiPublicPluginCompleteRoute
   '/api/public/plugin/error': typeof ApiPublicPluginErrorRoute
+  '/api/public/plugin/heartbeat': typeof ApiPublicPluginHeartbeatRoute
   '/api/public/plugin/poll': typeof ApiPublicPluginPollRoute
   '/api/public/plugin/scan': typeof ApiPublicPluginScanRoute
   '/api/public/plugin/execution/report': typeof ApiPublicPluginExecutionReportRoute
@@ -389,6 +397,7 @@ export interface FileRoutesByTo {
   '/api/public/plugin/clear': typeof ApiPublicPluginClearRoute
   '/api/public/plugin/complete': typeof ApiPublicPluginCompleteRoute
   '/api/public/plugin/error': typeof ApiPublicPluginErrorRoute
+  '/api/public/plugin/heartbeat': typeof ApiPublicPluginHeartbeatRoute
   '/api/public/plugin/poll': typeof ApiPublicPluginPollRoute
   '/api/public/plugin/scan': typeof ApiPublicPluginScanRoute
   '/api/public/plugin/execution/report': typeof ApiPublicPluginExecutionReportRoute
@@ -439,6 +448,7 @@ export interface FileRoutesById {
   '/api/public/plugin/clear': typeof ApiPublicPluginClearRoute
   '/api/public/plugin/complete': typeof ApiPublicPluginCompleteRoute
   '/api/public/plugin/error': typeof ApiPublicPluginErrorRoute
+  '/api/public/plugin/heartbeat': typeof ApiPublicPluginHeartbeatRoute
   '/api/public/plugin/poll': typeof ApiPublicPluginPollRoute
   '/api/public/plugin/scan': typeof ApiPublicPluginScanRoute
   '/api/public/plugin/execution/report': typeof ApiPublicPluginExecutionReportRoute
@@ -489,6 +499,7 @@ export interface FileRouteTypes {
     | '/api/public/plugin/clear'
     | '/api/public/plugin/complete'
     | '/api/public/plugin/error'
+    | '/api/public/plugin/heartbeat'
     | '/api/public/plugin/poll'
     | '/api/public/plugin/scan'
     | '/api/public/plugin/execution/report'
@@ -537,6 +548,7 @@ export interface FileRouteTypes {
     | '/api/public/plugin/clear'
     | '/api/public/plugin/complete'
     | '/api/public/plugin/error'
+    | '/api/public/plugin/heartbeat'
     | '/api/public/plugin/poll'
     | '/api/public/plugin/scan'
     | '/api/public/plugin/execution/report'
@@ -586,6 +598,7 @@ export interface FileRouteTypes {
     | '/api/public/plugin/clear'
     | '/api/public/plugin/complete'
     | '/api/public/plugin/error'
+    | '/api/public/plugin/heartbeat'
     | '/api/public/plugin/poll'
     | '/api/public/plugin/scan'
     | '/api/public/plugin/execution/report'
@@ -620,6 +633,7 @@ export interface RootRouteChildren {
   ApiPublicPluginClearRoute: typeof ApiPublicPluginClearRoute
   ApiPublicPluginCompleteRoute: typeof ApiPublicPluginCompleteRoute
   ApiPublicPluginErrorRoute: typeof ApiPublicPluginErrorRoute
+  ApiPublicPluginHeartbeatRoute: typeof ApiPublicPluginHeartbeatRoute
   ApiPublicPluginPollRoute: typeof ApiPublicPluginPollRoute
   ApiPublicPluginScanRoute: typeof ApiPublicPluginScanRoute
   ApiPublicPluginExecutionReportRoute: typeof ApiPublicPluginExecutionReportRoute
@@ -898,6 +912,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicPluginPollRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/plugin/heartbeat': {
+      id: '/api/public/plugin/heartbeat'
+      path: '/api/public/plugin/heartbeat'
+      fullPath: '/api/public/plugin/heartbeat'
+      preLoaderRoute: typeof ApiPublicPluginHeartbeatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/plugin/error': {
       id: '/api/public/plugin/error'
       path: '/api/public/plugin/error'
@@ -1049,6 +1070,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicPluginClearRoute: ApiPublicPluginClearRoute,
   ApiPublicPluginCompleteRoute: ApiPublicPluginCompleteRoute,
   ApiPublicPluginErrorRoute: ApiPublicPluginErrorRoute,
+  ApiPublicPluginHeartbeatRoute: ApiPublicPluginHeartbeatRoute,
   ApiPublicPluginPollRoute: ApiPublicPluginPollRoute,
   ApiPublicPluginScanRoute: ApiPublicPluginScanRoute,
   ApiPublicPluginExecutionReportRoute: ApiPublicPluginExecutionReportRoute,

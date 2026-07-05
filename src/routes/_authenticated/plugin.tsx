@@ -39,7 +39,7 @@ function PluginPage() {
   });
 
   const online = !!session?.online && !!session?.last_seen
-    && (Date.now() - new Date(session.last_seen).getTime()) < 30_000;
+    && (Date.now() - new Date(session.last_seen).getTime()) < 90_000;
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-10">

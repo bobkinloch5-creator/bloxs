@@ -19,7 +19,7 @@ local CollectionService     = game:GetService("CollectionService")
 
 local API_BASE       = "https://bloxsmith.pro"
 local POLL_INTERVAL  = 1
-local PLUGIN_VERSION = "2.1.10"
+local PLUGIN_VERSION = "2.1.11"
 
 ------------------------------------------------------------------- token helpers
 local TOKEN_KEY = "token"
@@ -1804,6 +1804,25 @@ task.spawn(function()
                 end
                 if (errOrCount or 0) == 0 then break end
             end
+        end
+    end
+end)
+
+-- Independent heartbeat: keeps the web UI's "online" indicator green even
+-- while the main poll coroutine is blocked executing a long build.
+task.spawn(function()
+    while true do
+        task.wait(10)
+        local token = validToken()
+        if token then
+            pcall(function()
+                post("/api/public/plugin/heartbeat", {
+                    token = token,
+                    place_id = tostring(game.PlaceId or 0),
+                    studio_version = studioVersion(),
+                    plugin_version = PLUGIN_VERSION,
+                }, { verbose = false })
+            end)
         end
     end
 end)

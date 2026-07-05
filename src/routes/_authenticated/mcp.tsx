@@ -25,7 +25,7 @@ function MCPPage() {
   const [open, setOpen] = useState<ToolKey | null>(null);
 
   const pluginOnline = !!(pluginSession?.online && pluginSession?.last_seen &&
-    Date.now() - new Date(pluginSession.last_seen).getTime() < 30_000);
+    Date.now() - new Date(pluginSession.last_seen).getTime() < 90_000);
 
   const origin = typeof window !== "undefined" ? window.location.origin : "https://bloxsmith.pro";
   const mcpUrl = `${origin}/api/public/mcp`;
