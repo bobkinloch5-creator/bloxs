@@ -607,30 +607,103 @@ end
 
 -- Best-effort in-plugin repair for JSON-style tables the model sometimes
 -- emits ({"key": value}) — convert to Luau ({key = value}) before we validate.
+-- This scanner skips comments and normal string literals so JSON-looking UI
+-- text is not modified.
+local function previousNonWhitespace(text)
+    for i = #text, 1, -1 do
+        local ch = text:sub(i, i)
+        if not ch:match("%s") then return ch end
+    end
+    return ""
+end
+
+local function nextNonWhitespaceIndex(text, index)
+    local i = index
+    while i <= #text and text:sub(i, i):match("%s") do i += 1 end
+    return i
+end
+
+local function readQuotedString(text, index)
+    local quote = text:sub(index, index)
+    if quote ~= '"' and quote ~= "'" then return nil, nil end
+    local value = ""
+    local i = index + 1
+    while i <= #text do
+        local ch = text:sub(i, i)
+        if ch == "\\" then
+            value = value .. text:sub(i, math.min(i + 1, #text))
+            i += 2
+        elseif ch == quote then
+            return i + 1, value
+        else
+            value = value .. ch
+            i += 1
+        end
+    end
+    return nil, nil
+end
+
+local function luaQuote(value)
+    value = tostring(value or ""):gsub("\\", "\\\\"):gsub('"', '\\"')
+    return '"' .. value .. '"'
+end
+
 local function autoRepairJsonTables(source)
     if type(source) ~= "string" or source == "" then return source, false end
+    local out = {}
     local changed = false
-    local repaired = source:gsub('([{,]%s*)"([%a_][%w_]*)"%s*:', function(pre, key)
-        changed = true
-        return pre .. key .. " = "
-    end)
-    repaired = repaired:gsub('([{,]%s*)"([^"\n]+)"%s*:', function(pre, key)
-        changed = true
-        return pre .. '["' .. key .. '"] = '
-    end)
-    repaired = repaired:gsub('([{,]%s*)([%a_][%w_]*)%s*:%s*([^%a_])', function(pre, key, after)
-        changed = true
-        return pre .. key .. " = " .. after
-    end)
-    return repaired, changed
+    local i = 1
+    while i <= #source do
+        if source:sub(i, i + 3) == "--[[" then
+            local stop = source:find("]]", i + 4, true)
+            stop = stop and (stop + 1) or #source
+            table.insert(out, source:sub(i, stop)); i = stop + 1
+        elseif source:sub(i, i + 1) == "--" then
+            local stop = source:find("\n", i + 2, true) or (#source + 1)
+            table.insert(out, source:sub(i, stop - 1)); i = stop
+        else
+            local ch = source:sub(i, i)
+            if ch == '"' or ch == "'" then
+                local stop, key = readQuotedString(source, i)
+                if stop then
+                    local nextIndex = nextNonWhitespaceIndex(source, stop)
+                    local prev = previousNonWhitespace(table.concat(out))
+                    if (prev == "{" or prev == ",") and source:sub(nextIndex, nextIndex) == ":" then
+                        if key:match("^[%a_][%w_]*$") then
+                            table.insert(out, key .. " = ")
+                        else
+                            table.insert(out, "[" .. luaQuote(key) .. "] = ")
+                        end
+                        i = nextIndex + 1
+                        changed = true
+                    else
+                        table.insert(out, source:sub(i, stop - 1)); i = stop
+                    end
+                else
+                    table.insert(out, ch); i += 1
+                end
+            elseif ch:match("[%a_]") and (previousNonWhitespace(table.concat(out)) == "{" or previousNonWhitespace(table.concat(out)) == ",") then
+                local key = source:sub(i):match("^([%a_][%w_]*)")
+                local endIndex = key and (i + #key - 1) or i
+                local nextIndex = key and nextNonWhitespaceIndex(source, endIndex + 1) or i
+                if key and source:sub(nextIndex, nextIndex) == ":" then
+                    table.insert(out, key .. " = ")
+                    i = nextIndex + 1
+                    changed = true
+                else
+                    table.insert(out, ch); i += 1
+                end
+            else
+                table.insert(out, ch); i += 1
+            end
+        end
+    end
+    return table.concat(out), changed
 end
 
 local function validateLuaSource(source, scriptName)
     if type(source) ~= "string" or source:match("^%s*$") then
         return false, "empty script source"
-    end
-    if source:find("{%s*[%w_]+%s*:") or source:find('{%s*"[%w_]+"%s*:') then
-        return false, "JSON-style table syntax found; use key = value in Luau tables"
     end
     local fn, err = loadstring(source, "=BloxSmithScript/" .. tostring(scriptName or "Script"))
     if not fn then
