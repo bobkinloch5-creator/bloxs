@@ -20,7 +20,7 @@ local Selection             = game:GetService("Selection")
 
 local API_BASE       = "https://bloxsmith.pro"
 local POLL_INTERVAL  = 0.05
-local PLUGIN_VERSION = "2.1.21"
+local PLUGIN_VERSION = "2.1.22"
 
 ------------------------------------------------------------------- token helpers
 local TOKEN_KEY = "token"
@@ -1307,23 +1307,49 @@ Exec.set_properties = function(a, _)
 end
 
 Exec.rename = function(a, _)
-    local inst = findByPath(a.payload and a.payload.target_path)
-    if not inst then error("target not found") end
+    local path = a.payload and a.payload.target_path
+    local inst = findByPath(path)
+    if not inst and a.parent_path and a.name then
+        local parent = resolveParent(a.parent_path, "folder")
+        inst = parent and parent:FindFirstChild(a.name)
+    end
+    if not inst then
+        log(("rename skipped — target not found: %s"):format(tostring(path)), "warn")
+        return { skipped = true, reason = "target_not_found", target_path = path }
+    end
     inst.Name = a.payload.new_name or inst.Name; return inst
 end
 
 Exec.move = function(a, _)
-    local inst = findByPath(a.payload and a.payload.target_path)
-    if not inst then error("target not found") end
+    local path = a.payload and a.payload.target_path
+    local inst = findByPath(path)
+    if not inst and a.parent_path and a.name then
+        local parent = resolveParent(a.parent_path, "folder")
+        inst = parent and parent:FindFirstChild(a.name)
+    end
+    if not inst then
+        log(("move skipped — target not found: %s"):format(tostring(path)), "warn")
+        return { skipped = true, reason = "target_not_found", target_path = path }
+    end
     local dest = resolveParent(a.payload.new_parent_path, "folder")
     inst.Parent = dest; return inst
 end
 
 Exec.delete = function(a, _)
-    local inst = findByPath(a.payload and a.payload.target_path)
-    if not inst then error("target not found") end
-    -- safety: never delete a top-level service
-    if inst.Parent == game then error("refuse to delete service " .. inst.Name) end
+    local path = a.payload and a.payload.target_path
+    local inst = findByPath(path)
+    if not inst and a.parent_path and a.name then
+        local parent = resolveParent(a.parent_path, "folder")
+        inst = parent and parent:FindFirstChild(a.name)
+    end
+    if not inst then
+        log(("delete skipped — target not found: %s"):format(tostring(path)), "warn")
+        return { skipped = true, reason = "target_not_found", target_path = path }
+    end
+    if inst.Parent == game then
+        log(("delete skipped — refuses to delete service %s"):format(inst.Name), "warn")
+        return { skipped = true, reason = "is_service", target_path = path }
+    end
     local name = inst:GetFullName()
     inst:Destroy()
     return { deleted = name }
