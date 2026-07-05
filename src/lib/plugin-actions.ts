@@ -354,22 +354,23 @@ export function normalizePluginAction(action: any) {
     };
   }
   const finalParent = normalizeParentPath(kind, action);
-  const rawName = String(action?.name || action?.target_path || "").trim();
+  const rawName = pickActionName(action, payload, kind);
   // Guard against generic collision-prone names ("BloxSmithItem", "Part", "Model")
   // which cause the plugin to reuse an existing sibling of a different ClassName
   // (e.g. a leftover Script), producing errors like:
   //   "Anchored is not a valid member of Script 'ServerScriptService.BloxSmithItem'"
   const NAME_COLLISION_RE = /^(BloxSmithItem|BloxSmithAction|Part|Model|Item|NewPart|NewModel)$/i;
-  const needsUnique = !rawName || NAME_COLLISION_RE.test(rawName);
+  const needsUnique = !rawName || NAME_COLLISION_RE.test(rawName) || unsafePhysicalNameFromCodePath(kind, action, payload);
   const uniqueSuffix = Math.random().toString(36).slice(2, 6);
   const finalName = needsUnique
     ? `BloxSmith_${kind}_${uniqueSuffix}`
-    : rawName;
+    : sanitizeInstanceName(rawName, kind);
+  const finalPayload = sanitizePluginPayload(kind, payload, finalParent, finalName, action);
   return {
     kind,
     parent_path: finalParent,
     name: finalName,
-    payload,
+    payload: finalPayload,
   };
 }
 
@@ -378,6 +379,15 @@ export function normalizePluginAction(action: any) {
 // these, we bounce the object to its natural home instead of crashing the
 // Studio plugin with "X is not a valid member of Script".
 const CODE_ONLY_SERVICE_RE = /^(ServerScriptService|ServerStorage|ReplicatedStorage|StarterPlayer|StarterPlayerScripts|StarterCharacterScripts)(\.|$)/i;
+
+const CREATE_INSTANCE_KINDS = new Set<PluginActionKind>([
+  "script", "localscript", "modulescript",
+  "gui", "screengui", "frame", "textlabel", "textbutton", "imagelabel",
+  "part", "model", "terrain", "tool", "sound", "team",
+  "remoteevent", "remotefunction", "bindableevent", "leaderstats", "insert_asset",
+]);
+
+const PHYSICAL_KINDS = new Set<PluginActionKind>(["part", "model", "terrain", "insert_asset"]);
 
 export function normalizeParentPath(kind: PluginActionKind, action: any): string {
   const payload = action?.payload && typeof action.payload === "object" ? action.payload : {};
@@ -443,4 +453,74 @@ function serviceOr(path: string, fallback: string): string {
     return path;
   }
   return fallback;
+}
+
+function pathLeaf(value: unknown): string {
+  const raw = String(value ?? "").trim().replace(/\\/g, "/").replace(/\//g, ".");
+  if (!raw) return "";
+  const parts = raw.split(".").filter(Boolean);
+  return parts[parts.length - 1] ?? raw;
+}
+
+function pickActionName(action: any, payload: Record<string, unknown>, kind: PluginActionKind): string {
+  const explicit = action?.name ?? payload.name ?? payload.instance_name ?? payload.asset_name;
+  if (explicit) return sanitizeInstanceName(pathLeaf(explicit), kind);
+  return sanitizeInstanceName(pathLeaf(action?.target_path ?? payload.target_path), kind);
+}
+
+function sanitizeInstanceName(name: string, kind: PluginActionKind | string): string {
+  const fallback = `BloxSmith_${String(kind || "item").replace(/[^a-zA-Z0-9_]/g, "_")}`;
+  const clean = String(name || "")
+    .trim()
+    .replace(/[\r\n\t]+/g, " ")
+    .replace(/[./\\]+/g, "_")
+    .replace(/[^\w\- ]+/g, "")
+    .slice(0, 80)
+    .trim();
+  return clean || fallback;
+}
+
+function unsafePhysicalNameFromCodePath(kind: PluginActionKind, action: any, payload: Record<string, unknown>) {
+  if (!PHYSICAL_KINDS.has(kind)) return false;
+  const targetPath = String(action?.target_path || payload.target_path || action?.parent_path || payload.parent_path || "").replace(/\//g, ".");
+  return CODE_ONLY_SERVICE_RE.test(targetPath);
+}
+
+function sanitizePluginPayload(
+  kind: PluginActionKind,
+  payload: Record<string, unknown>,
+  finalParent: string,
+  finalName: string,
+  action: any,
+) {
+  const clean: Record<string, unknown> = { ...payload };
+
+  if (CREATE_INSTANCE_KINDS.has(kind)) {
+    // Several installed plugin versions read parent/name from payload before
+    // the top-level action fields. Mirror the normalized safe values there so
+    // stale model output like `payload.parent_path = ServerScriptService` cannot
+    // make a Part reuse a Script named BloxSmithItem and then set Anchored on it.
+    clean.parent_path = finalParent;
+    clean.target_parent_path = finalParent;
+    clean.name = finalName;
+
+    const targetPath = String(clean.target_path || action?.target_path || "").replace(/\//g, ".");
+    if (!targetPath || CODE_ONLY_SERVICE_RE.test(targetPath) || /\.BloxSmithItem$/i.test(targetPath)) {
+      clean.target_path = `${finalParent}.${finalName}`;
+    }
+  }
+
+  if (kind === "part" || kind === "model" || kind === "terrain") {
+    clean.workspace_only = true;
+    clean.parent_path = "Workspace";
+    clean.target_parent_path = "Workspace";
+    clean.target_path = `Workspace.${finalName}`;
+  }
+
+  if (kind === "insert_asset") {
+    clean.parent_path = finalParent;
+    clean.target_parent_path = finalParent;
+  }
+
+  return clean;
 }

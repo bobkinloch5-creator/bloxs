@@ -829,9 +829,26 @@ end
 ----------------------------------------------------------------
 local Actions = {}
 
+local function isCodeOnlyParentPath(path)
+	path = tostring(path or ""):gsub("/", ".")
+	return path:match("^ServerScriptService")
+		or path:match("^ServerStorage")
+		or path:match("^ReplicatedStorage")
+		or path:match("^StarterPlayer")
+		or path:match("^StarterPlayerScripts")
+		or path:match("^StarterCharacterScripts")
+end
+
+local function isPhysicalActionKind(kind)
+	return kind == "part" or kind == "create_part" or kind == "model" or kind == "create_model" or kind == "terrain" or kind == "insert_asset"
+end
+
 local function normParent(kind, parentPath, payload)
 	-- honour the server's already-normalized parent_path first
-	if parentPath and parentPath ~= "" then return parentPath end
+	if parentPath and parentPath ~= "" then
+		if isPhysicalActionKind(kind) and isCodeOnlyParentPath(parentPath) then return "Workspace" end
+		return parentPath
+	end
 	-- sensible fallbacks
 	if kind == "script"          then return "ServerScriptService" end
 	if kind == "localscript"     then return "StarterPlayer/StarterPlayerScripts" end
@@ -881,7 +898,12 @@ function Actions.part(a)
 	local _, name, parent, payload = normalizeAction(a)
 	local p = resolvePath(parent, true)
 	if not p then return false, "bad parent" end
-	local part = p:FindFirstChild(name) or Instance.new("Part")
+	if not p:IsA("Workspace") and isCodeOnlyParentPath(p:GetFullName()) then
+		p = Workspace
+	end
+	local part = p:FindFirstChild(name)
+	if part and not part:IsA("BasePart") then part:Destroy(); part = nil end
+	part = part or Instance.new("Part")
 	part.Name = name
 	if payload.size     then part.Size     = toVector3(payload.size, Vector3.new(4,4,4)) end
 	if payload.position then part.Position = toVector3(payload.position, Vector3.new(0,5,0)) end

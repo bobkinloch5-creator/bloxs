@@ -253,7 +253,22 @@ local DEFAULT_PARENT = {
 
 local function defaultParentFor(kind) return DEFAULT_PARENT[kind] or Workspace end
 
+local function isPhysicalKind(kind)
+    return kind == "part" or kind == "model" or kind == "terrain" or kind == "insert_asset"
+end
+
+local function isCodeOnlyPath(path)
+    path = tostring(path or ""):gsub("/", ".")
+    return path:match("^ServerScriptService")
+        or path:match("^ServerStorage")
+        or path:match("^ReplicatedStorage")
+        or path:match("^StarterPlayer")
+        or path:match("^StarterPlayerScripts")
+        or path:match("^StarterCharacterScripts")
+end
+
 local function resolveParent(path, kind)
+    if isPhysicalKind(kind) and isCodeOnlyPath(path) then return Workspace end
     if not path or path == "" then return defaultParentFor(kind) end
     local parts = string.split(path, ".")
     local first = parts[1]
@@ -648,6 +663,7 @@ Exec.bindableevent  = function(a,p) return ensureRemote("BindableEvent", a, p) e
 
 Exec.part = function(a, p)
     local payload = a.payload or {}
+    if p and not p:IsA("Workspace") and isCodeOnlyPath(p:GetFullName()) then p = Workspace end
     local part = Instance.new("Part"); part.Name = a.name
     part.Size = vec3(payload.size, {4,1,4})
     part.Position = vec3(payload.position, {0,5,0})
