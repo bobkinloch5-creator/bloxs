@@ -16,6 +16,7 @@ local Workspace             = game:GetService("Workspace")
 local ChangeHistoryService  = game:GetService("ChangeHistoryService")
 local InsertService         = game:GetService("InsertService")
 local CollectionService     = game:GetService("CollectionService")
+local Selection             = game:GetService("Selection")
 
 local API_BASE       = "https://bloxsmith.pro"
 local POLL_INTERVAL  = 0.05
@@ -1421,6 +1422,98 @@ local function reportableResult(value)
     return nil
 end
 
+-- Collect concrete Instance handles from an action's return value so the
+-- camera can focus on freshly created objects after the batch completes.
+local function collectInstancesFromResult(bucket, value)
+    if typeof(value) == "Instance" then
+        table.insert(bucket, value)
+        return
+    end
+    if type(value) ~= "table" then return end
+    if typeof(value.instance) == "Instance" then table.insert(bucket, value.instance) end
+    if type(value.path) == "string" then
+        local ok, inst = pcall(findByPath, value.path)
+        if ok and typeof(inst) == "Instance" then table.insert(bucket, inst) end
+    end
+    for _, key in ipairs({ "inserted", "created", "children" }) do
+        local list = value[key]
+        if type(list) == "table" then
+            for _, entry in ipairs(list) do
+                if typeof(entry) == "Instance" then
+                    table.insert(bucket, entry)
+                elseif type(entry) == "table" and type(entry.path) == "string" then
+                    local ok, inst = pcall(findByPath, entry.path)
+                    if ok and typeof(inst) == "Instance" then table.insert(bucket, inst) end
+                end
+            end
+        end
+    end
+end
+
+-- Compute a combined bounding box for a set of instances (parts + models).
+local function combinedBounds(instances)
+    local minV, maxV
+    local function extend(cf, size)
+        if not cf or not size then return end
+        local half = size / 2
+        local corners = {
+            cf.Position + Vector3.new(-half.X, -half.Y, -half.Z),
+            cf.Position + Vector3.new( half.X,  half.Y,  half.Z),
+        }
+        for _, p in ipairs(corners) do
+            if not minV then minV = p; maxV = p
+            else
+                minV = Vector3.new(math.min(minV.X,p.X), math.min(minV.Y,p.Y), math.min(minV.Z,p.Z))
+                maxV = Vector3.new(math.max(maxV.X,p.X), math.max(maxV.Y,p.Y), math.max(maxV.Z,p.Z))
+            end
+        end
+    end
+    for _, inst in ipairs(instances) do
+        if inst and inst.Parent then
+            if inst:IsA("Model") then
+                local ok, cf, sz = pcall(function() return inst:GetBoundingBox() end)
+                if ok then extend(cf, sz) end
+            elseif inst:IsA("BasePart") then
+                extend(inst.CFrame, inst.Size)
+            else
+                for _, d in ipairs(inst:GetDescendants()) do
+                    if d:IsA("BasePart") then extend(d.CFrame, d.Size) end
+                end
+            end
+        end
+    end
+    if not minV then return nil end
+    local center = (minV + maxV) / 2
+    local size = maxV - minV
+    return center, size
+end
+
+-- Select the freshly-built instances and pull the Studio camera in to frame
+-- them, so the user immediately SEES what just got built.
+local function focusCameraOn(instances)
+    local visible = {}
+    for _, inst in ipairs(instances) do
+        if inst and inst.Parent and (inst:IsA("BasePart") or inst:IsA("Model") or inst:FindFirstChildWhichIsA("BasePart", true)) then
+            table.insert(visible, inst)
+        end
+    end
+    if #visible == 0 then return end
+    pcall(function() Selection:Set(visible) end)
+    local center, size = combinedBounds(visible)
+    if not center or not size then return end
+    local radius = math.max(size.Magnitude, 8)
+    local distance = math.clamp(radius * 1.6, 12, 400)
+    local camera = Workspace.CurrentCamera
+    if not camera then return end
+    local offset = Vector3.new(distance * 0.75, distance * 0.55, distance * 0.75)
+    pcall(function()
+        camera.CameraType = Enum.CameraType.Fixed
+        camera.CFrame = CFrame.new(center + offset, center)
+        camera.Focus = CFrame.new(center)
+    end)
+end
+
+
 ------------------------------------------------------------------- HTTP
 local function studioVersion()
     local ok, v = pcall(function() return version() end)
@@ -1602,6 +1695,7 @@ local function pollOnce(force)
     ChangeHistoryService:SetWaypoint("BloxSmith batch start")
     local okN, failN = 0, 0
     local results = {}
+    local focusTargets = {}
     for _, a in ipairs(actions) do
         local stage, sub = statusForAction(a)
         setStatus(stage, Color3.fromRGB(160,200,255), sub)
@@ -1610,6 +1704,7 @@ local function pollOnce(force)
             okN += 1; lastAction = describeAction(a)
             log("??? " .. lastAction, "action")
             results[#results+1] = { action_id = a.id, status = "done", result = reportableResult(errOrInst) }
+            pcall(collectInstancesFromResult, focusTargets, errOrInst)
         else
             failN += 1
             log("??? " .. a.kind .. " '" .. tostring(a.name) .. "': " .. tostring(errOrInst), "error")
@@ -1630,10 +1725,15 @@ local function pollOnce(force)
     ChangeHistoryService:SetWaypoint("BloxSmith batch done")
     -- Report all results in a single HTTP call, off the hot path.
     task.spawn(reportBatch, results)
+    -- Auto-focus Studio's camera on whatever just got built so the user
+    -- immediately sees the new geometry without hunting for it.
+    if #focusTargets > 0 and failN == 0 then
+        pcall(focusCameraOn, focusTargets)
+    end
     if failN > 0 then
         setStatus("Build failed with reason", Color3.fromRGB(255,180,80), ("%d command(s) failed. Check activity log for details."):format(failN))
     else
-        setStatus("Build complete", Color3.fromRGB(120,220,160), "Studio executed all commands.")
+        setStatus("Build complete", Color3.fromRGB(120,220,160), ("Built %d thing(s). Camera focused."):format(okN))
     end
     log(("Batch complete ??? %d ok, %d failed."):format(okN, failN), failN > 0 and "warn" or "success")
     return #actions
