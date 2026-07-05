@@ -4232,7 +4232,61 @@ export const Route = createFileRoute("/api/chat")({
               parts.push(
                 `RECENT ROBLOX STUDIO OUTPUT (newest first). If any of these were caused by your previous builds, emit corrected actions to fix them in this response:\n${errLines}`,
               );
+
+              // Error-pattern-aware guidance: scan the recent Studio errors for
+              // known failure modes and inject a targeted nudge so the model
+              // stops repeating the same mistake. This makes the AI smarter
+              // ACROSS TURNS instead of only reacting to the current prompt.
+              const errText = recentErrors.map((e) => String(e.message ?? "")).join("\n").toLowerCase();
+              const nudges: string[] = [];
+              if (/attempt to (call|index) a nil value/.test(errText)) {
+                nudges.push(
+                  "• Nil-value calls detected in recent builds. Before emitting any script this turn: for EVERY game:GetService, ReplicatedStorage child, RemoteEvent, and cross-script reference, use :WaitForChild(name, 5) on the client and :WaitForChild(name) on the server. Never assume an instance exists — always fetch defensively.",
+                );
+              }
+              if (/infinite yield.*waitforchild|waitforchild.*(timed out|infinite yield)/.test(errText)) {
+                nudges.push(
+                  "• Infinite yield on WaitForChild detected. Something you referenced was never actually created. This turn: audit every WaitForChild target and confirm the parent creation script runs BEFORE the consumer. If a RemoteEvent is missing, create it in the same run_lua action that fires it, not a separate one.",
+                );
+              }
+              if (/is not a valid member|is not a valid child/.test(errText)) {
+                nudges.push(
+                  "• 'Not a valid member' errors detected. You referenced a property or child that doesn't exist on that class. This turn: verify every property name against the actual Roblox API for that instance type. Use FindFirstChild before indexing children whose existence isn't guaranteed.",
+                );
+              }
+              if (/players\.playeradded.*local|userinputservice.*server|localplayer.*script/.test(errText)) {
+                nudges.push(
+                  "• Client/server script placement mismatch detected. LocalPlayer, UserInputService, and RenderStepped only work in LocalScripts under StarterPlayerScripts / StarterCharacterScripts / StarterGui / a Tool. Players.PlayerAdded and DataStoreService only work in server Scripts under ServerScriptService. Never mix them in one script.",
+                );
+              }
+              if (/humanoid.*nil|character.*nil|humanoidrootpart.*nil/.test(errText)) {
+                nudges.push(
+                  "• Humanoid/Character nil errors detected. Character/Humanoid can be nil between respawns. This turn: use `local character = player.Character or player.CharacterAdded:Wait()` then `local humanoid = character:FindFirstChildOfClass(\"Humanoid\") or character:WaitForChild(\"Humanoid\", 5)`. Re-hook on CharacterAdded so respawn doesn't break the feature.",
+                );
+              }
+              if (/attempt to call.*wait|task\.wait.*expected|deprecated/.test(errText)) {
+                nudges.push(
+                  "• Deprecated API errors detected. Use task.wait / task.spawn / task.delay / :Connect (capital C) only. Never emit bare wait(), spawn(), delay(), or :connect().",
+                );
+              }
+              if (/httpservice|http requests are not enabled/.test(errText)) {
+                nudges.push(
+                  "• HttpService errors detected. Wrap HttpService calls in pcall and tell the user in one sentence to enable HTTP requests in Game Settings — don't ship code that crashes when HTTP is off.",
+                );
+              }
+              if (/datastore.*(throttl|fail|forbidden)|cannot store|save.*fail/.test(errText)) {
+                nudges.push(
+                  "• DataStore errors detected. Wrap every :GetAsync / :SetAsync / :UpdateAsync in pcall with exponential retry (task.wait(2^i * 0.1)). Never save inside a tight loop — batch writes and always save on PlayerRemoving + BindToClose.",
+                );
+              }
+
+              if (nudges.length > 0) {
+                parts.push(
+                  `🧠 ERROR-PATTERN-AWARE GUIDANCE (based on the errors above — the model has been failing these specific ways):\n${nudges.join("\n")}`,
+                );
+              }
             }
+
             parts.push(
               `MEMORY WRITE PROTOCOL (be PROACTIVE — this is how the AI remembers everything about the project across sessions).\n\nAppend ONE fenced block at the END of your reply whenever the user mentions ANY of the following for the first time OR changes a previous answer:\n• Game genre / sub-genre (e.g. "medieval RPG", "tower-defense tycoon")\n• Core gameplay mechanics ("combat is melee only", "players earn XP by mining")\n• Art / visual style ("stylized low-poly", "dark horror", "cartoon pastel")\n• Named characters / NPCs / bosses (name + role)\n• Currency name and how it's earned\n• World/lore rules ("night is always dangerous", "PvP disabled in town")\n• Folder / organization conventions ("all NPCs live under ServerStorage.NPCs")\n• Systems already decided ("uses ProfileService for saving", "mobile-first UI")\n• Design decisions the user explicitly makes ("no gambling mechanics", "keep it kid-friendly")\n• Progress milestones the user calls out ("shop system is done")\n\nFormat (JSON array, up to 10 items per turn):\n\`\`\`bloxsmith-memory\n[\n  { "key": "genre", "value": "medieval fantasy RPG", "kind": "lore", "importance": 9 },\n  { "key": "art_style", "value": "stylized low-poly, warm palette", "kind": "style", "importance": 8 },\n  { "key": "hero_name", "value": "Kael the wandering swordsman", "kind": "character", "importance": 8 },\n  { "key": "currency", "value": "Gold — earned from quests & monster drops", "kind": "system", "importance": 7 },\n  { "key": "npc_folder", "value": "ServerStorage/NPCs", "kind": "decision", "importance": 6 }\n]\n\`\`\`\nRules:\n• Allowed kinds: lore, rule, decision, character, system, style\n• Keys: short snake_case, ≤ 80 chars, stable (reuse same key to overwrite an updated fact)\n• Values: ≤ 280 chars, self-contained (no "see above")\n• importance 1–10 (8+ for genre / hero / core mechanics)\n• Skip the block entirely if the user said nothing memorable this turn — don't invent facts\n• Never contradict existing PROJECT LORE above; if the user overrides one, re-emit the SAME key with the new value.`,
             );
