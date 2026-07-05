@@ -3946,7 +3946,7 @@ export const Route = createFileRoute("/api/chat")({
                 project_id: projectId,
                 user_id: userId,
                 role: "assistant",
-                content: `${replyText}\n\n_Queued ${actions.length} Studio action(s). Waiting for the Roblox Studio plugin to confirm execution before this build is marked complete._`,
+                content: replyText,
                 status: "sending",
                 model: activeModelId,
                 actions,
