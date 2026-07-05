@@ -353,13 +353,31 @@ export function normalizePluginAction(action: any) {
       },
     };
   }
+  const finalParent = normalizeParentPath(kind, action);
+  const rawName = String(action?.name || action?.target_path || "").trim();
+  // Guard against generic collision-prone names ("BloxSmithItem", "Part", "Model")
+  // which cause the plugin to reuse an existing sibling of a different ClassName
+  // (e.g. a leftover Script), producing errors like:
+  //   "Anchored is not a valid member of Script 'ServerScriptService.BloxSmithItem'"
+  const NAME_COLLISION_RE = /^(BloxSmithItem|BloxSmithAction|Part|Model|Item|NewPart|NewModel)$/i;
+  const needsUnique = !rawName || NAME_COLLISION_RE.test(rawName);
+  const uniqueSuffix = Math.random().toString(36).slice(2, 6);
+  const finalName = needsUnique
+    ? `BloxSmith_${kind}_${uniqueSuffix}`
+    : rawName;
   return {
     kind,
-    parent_path: normalizeParentPath(kind, action),
-    name: String(action?.name || action?.target_path || "BloxSmithAction"),
+    parent_path: finalParent,
+    name: finalName,
     payload,
   };
 }
+
+// Services that only accept Scripts / code — parts, models, GUI, sounds, etc.
+// must never be parented here. If the AI (or a stale path) points at one of
+// these, we bounce the object to its natural home instead of crashing the
+// Studio plugin with "X is not a valid member of Script".
+const CODE_ONLY_SERVICE_RE = /^(ServerScriptService|ServerStorage|ReplicatedStorage|StarterPlayer|StarterPlayerScripts|StarterCharacterScripts)(\.|$)/i;
 
 export function normalizeParentPath(kind: PluginActionKind, action: any): string {
   const payload = action?.payload && typeof action.payload === "object" ? action.payload : {};
@@ -380,20 +398,40 @@ export function normalizeParentPath(kind: PluginActionKind, action: any): string
     if (/^ReplicatedStorage\.Remotes(\.|$)/i.test(path)) return path;
     return "ReplicatedStorage.Remotes";
   }
-  if (kind === "screengui" || kind === "gui") return serviceOr(path, "StarterGui");
+  if (kind === "screengui" || kind === "gui") {
+    if (CODE_ONLY_SERVICE_RE.test(path)) return "StarterGui";
+    return serviceOr(path, "StarterGui");
+  }
   if (kind === "frame" || kind === "textlabel" || kind === "textbutton" || kind === "imagelabel") {
+    if (CODE_ONLY_SERVICE_RE.test(path)) return "StarterGui";
     return serviceOr(path, "StarterGui");
   }
   if (kind === "tool") return serviceOr(path, "StarterPack");
   if (kind === "sound") return serviceOr(path, "SoundService");
   if (kind === "team") return "Teams";
   if (kind === "insert_asset") {
+    // Route Lighting-only assets (Sky, Skybox, Atmosphere, Clouds, ColorCorrection,
+    // Bloom, Blur, SunRays, DepthOfField) to Lighting so they actually take effect
+    // instead of being dumped in Workspace where they do nothing.
+    const assetName = String(payload.asset_name || action?.name || "").toLowerCase();
+    const query = String(payload.source_query || "").toLowerCase();
+    const category = String(payload.category || "").toLowerCase();
+    const lightingHint = /\b(sky|skybox|atmosphere|cloud|colorcorrection|bloom|sunray|depthoffield|blur)\b/;
+    if (lightingHint.test(assetName) || lightingHint.test(query) || lightingHint.test(category)) {
+      return "Lighting";
+    }
     if (String(payload.folder_name || "").includes("Imported") || /import/i.test(String(action?.name || ""))) {
       return "Workspace.BloxSmith_Imported_Models";
     }
+    if (CODE_ONLY_SERVICE_RE.test(path)) return "Workspace";
     return serviceOr(path, "Workspace");
   }
-  if (kind === "part" || kind === "model" || kind === "terrain") return serviceOr(path, "Workspace");
+  if (kind === "part" || kind === "model" || kind === "terrain") {
+    // Parts/models must live in Workspace. Never allow a Script-holding service —
+    // that's what causes "Anchored is not a valid member of Script" crashes.
+    if (CODE_ONLY_SERVICE_RE.test(path)) return "Workspace";
+    return serviceOr(path, "Workspace");
+  }
   return serviceOr(path, "Workspace");
 }
 
