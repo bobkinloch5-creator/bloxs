@@ -4044,7 +4044,7 @@ export const Route = createFileRoute("/api/chat")({
                 prompt: userText,
                 model: "deterministic-fastpath",
                 files_count: generated.length,
-                plugin_status: "Sent",
+                plugin_status: "Queued",
                 applied: false,
               });
               await supabase
