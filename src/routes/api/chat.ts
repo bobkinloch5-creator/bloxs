@@ -769,6 +769,11 @@ gui:SetAttribute("Language", ${JSON.stringify(languageName)})
     const buttonBuild = wantsButton ? `
 local oldGui = StarterGui:FindFirstChild("BloxSmith_HighJumpButton")
 if oldGui then oldGui:Destroy() end
+local starterScriptsForCleanup = StarterPlayer:FindFirstChild("StarterPlayerScripts")
+if starterScriptsForCleanup then
+  local oldStandalone = starterScriptsForCleanup:FindFirstChild("BloxSmith_HighJumpClient")
+  if oldStandalone then oldStandalone:Destroy() end
+end
 
 local gui = Instance.new("ScreenGui")
 gui.Name = "BloxSmith_HighJumpButton"
@@ -823,9 +828,10 @@ client.Parent = button
 ` : `
 local scripts = StarterPlayer:FindFirstChild("StarterPlayerScripts")
 if not scripts then
-  scripts = Instance.new("StarterPlayerScripts")
-  scripts.Parent = StarterPlayer
+  error("StarterPlayerScripts container is missing; Roblox should create it under StarterPlayer")
 end
+local oldGui = StarterGui:FindFirstChild("BloxSmith_HighJumpButton")
+if oldGui then oldGui:Destroy() end
 local oldClient = scripts:FindFirstChild("BloxSmith_HighJumpClient")
 if oldClient then oldClient:Destroy() end
 local client = makeClientScript("BloxSmith_HighJumpClient", false)
