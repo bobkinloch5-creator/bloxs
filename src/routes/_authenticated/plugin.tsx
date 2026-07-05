@@ -163,8 +163,8 @@ function PluginPage() {
         <ul className="mt-3 grid gap-2 sm:grid-cols-2 text-sm text-muted-foreground list-disc pl-5">
           <li><b className="text-foreground">Connect</b> — opens one-click approval link</li>
           <li><b className="text-foreground">Reconnect</b> — re-uses saved token</li>
-          <li><b className="text-foreground">Sync / Run Queue</b> — pulls pending actions now</li>
-          <li><b className="text-foreground">Clear Queue</b> — drops stuck actions safely</li>
+          <li><b className="text-foreground">Sync / Execute Now</b> — pulls and runs actions immediately</li>
+          <li><b className="text-foreground">Clear Stuck</b> — drops stuck actions safely</li>
           <li><b className="text-foreground">View Errors</b> — recent failures inline</li>
           <li><b className="text-foreground">Open Website</b> — copies BloxSmith URL</li>
           <li><b className="text-foreground">Verbose</b> — log every HTTP request</li>
@@ -179,7 +179,7 @@ function PluginPage() {
           <li><b className="text-foreground">Button missing in Studio?</b> File must end in <span className="font-mono">.lua</span> and sit directly in the Plugins folder. Then Reload Plugins.</li>
           <li><b className="text-foreground">"Allow HTTP Requests" prompt?</b> Approve it — the plugin only talks to BloxSmith.</li>
           <li><b className="text-foreground">Approval link asks me to sign in?</b> Sign in to BloxSmith first, then click Connect again in the plugin.</li>
-          <li><b className="text-foreground">Queue stuck?</b> Click <span className="font-mono">Clear Queue</span> in the plugin and ask the AI to retry.</li>
+          <li><b className="text-foreground">Execution stuck?</b> Click <span className="font-mono">Execute Now</span>, or <span className="font-mono">Clear Stuck</span> and ask the AI to retry.</li>
           <li><b className="text-foreground">Toolbox asset failed?</b> The asset may be private or removed. Pick another and try again.</li>
           <li><b className="text-foreground">Still stuck?</b> Tap <span className="font-mono">Verbose</span>, then <span className="font-mono">Copy log</span>, and share in the <a className="text-primary underline" href="https://discord.gg/6QDYT3RUkv" target="_blank" rel="noreferrer">Discord</a>.</li>
         </ul>
