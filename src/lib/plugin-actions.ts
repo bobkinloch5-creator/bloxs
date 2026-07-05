@@ -354,7 +354,7 @@ export function normalizePluginAction(action: any) {
     };
   }
   const finalParent = normalizeParentPath(kind, action);
-  const rawName = pickActionName(action, payload);
+  const rawName = pickActionName(action, payload, kind);
   // Guard against generic collision-prone names ("BloxSmithItem", "Part", "Model")
   // which cause the plugin to reuse an existing sibling of a different ClassName
   // (e.g. a leftover Script), producing errors like:
@@ -462,10 +462,10 @@ function pathLeaf(value: unknown): string {
   return parts[parts.length - 1] ?? raw;
 }
 
-function pickActionName(action: any, payload: Record<string, unknown>): string {
+function pickActionName(action: any, payload: Record<string, unknown>, kind: PluginActionKind): string {
   const explicit = action?.name ?? payload.name ?? payload.instance_name ?? payload.asset_name;
-  if (explicit) return sanitizeInstanceName(pathLeaf(explicit), String(action?.kind ?? action?.action ?? action?.type ?? "item") as PluginActionKind);
-  return sanitizeInstanceName(pathLeaf(action?.target_path ?? payload.target_path), String(action?.kind ?? action?.action ?? action?.type ?? "item") as PluginActionKind);
+  if (explicit) return sanitizeInstanceName(pathLeaf(explicit), kind);
+  return sanitizeInstanceName(pathLeaf(action?.target_path ?? payload.target_path), kind);
 }
 
 function sanitizeInstanceName(name: string, kind: PluginActionKind | string): string {
