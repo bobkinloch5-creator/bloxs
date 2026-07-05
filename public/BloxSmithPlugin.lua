@@ -20,7 +20,7 @@ local Selection             = game:GetService("Selection")
 
 local API_BASE       = "https://bloxsmith.pro"
 local POLL_INTERVAL  = 0.05
-local PLUGIN_VERSION = "2.1.18"
+local PLUGIN_VERSION = "2.1.19"
 
 ------------------------------------------------------------------- token helpers
 local TOKEN_KEY = "token"
@@ -1413,6 +1413,33 @@ local function executeAction(action)
     return handler(action, parent)
 end
 
+local function actionTimeoutSeconds(action)
+    local kind = tostring(action and action.kind or "")
+    if kind == "insert_asset" then return 14 end
+    if kind == "scan_project" or kind == "autofix_project" or kind == "organize_project" then return 10 end
+    if kind == "run_lua" then return 12 end
+    return 6
+end
+
+local function executeActionWithTimeout(action)
+    local finished = false
+    local ok = false
+    local value = nil
+    local thread = task.spawn(function()
+        ok, value = pcall(executeAction, action)
+        finished = true
+    end)
+    local timeoutAt = os.clock() + actionTimeoutSeconds(action)
+    while not finished and os.clock() < timeoutAt do
+        task.wait(0.025)
+    end
+    if not finished then
+        pcall(task.cancel, thread)
+        return false, ("Studio action timed out after %ds; skipped so newer builds can execute immediately."):format(actionTimeoutSeconds(action))
+    end
+    return ok, value
+end
+
 local function reportableResult(value)
     if typeof(value) == "Instance" then
         return { path = fullPath(value), class = value.ClassName, name = value.Name }
@@ -1699,7 +1726,7 @@ local function pollOnce(force)
     for _, a in ipairs(actions) do
         local stage, sub = statusForAction(a)
         setStatus(stage, Color3.fromRGB(160,200,255), sub)
-        local ok, errOrInst = pcall(executeAction, a)
+        local ok, errOrInst = executeActionWithTimeout(a)
         if ok then
             okN += 1; lastAction = describeAction(a)
             log("??? " .. lastAction, "action")
