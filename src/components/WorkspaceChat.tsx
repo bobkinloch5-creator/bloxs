@@ -16,7 +16,7 @@ import {
 import ReactMarkdown from "react-markdown";
 import { supabase } from "@/integrations/supabase/client";
 import { createProject } from "@/lib/projects.functions";
-import { listMessages, getPluginSession, getBuildExecutionStatus, clearMessages } from "@/lib/chat.functions";
+import { listMessages, getPluginSession, getBuildExecutionStatus, clearMessages, executeQueuedActionsNow } from "@/lib/chat.functions";
 import { improvePrompt } from "@/lib/improve.functions";
 import { saveProjectAsset } from "@/lib/project-assets.functions";
 import { Link } from "@tanstack/react-router";
@@ -180,6 +180,7 @@ export function WorkspaceChat({
   const improveFn = useServerFn(improvePrompt);
   const sessFn = useServerFn(getPluginSession);
   const execStatusFn = useServerFn(getBuildExecutionStatus);
+  const executeNowFn = useServerFn(executeQueuedActionsNow);
 
   // Live Studio plugin status — Build actions only run if this is online.
   const { data: pluginSession } = useQuery({
@@ -386,6 +387,20 @@ export function WorkspaceChat({
     if (typeof window !== "undefined" && !window.confirm("Clear this project's chat history and any queued plugin actions?")) return;
     clearMut.mutate();
   };
+
+  const executeNowMut = useMutation({
+    mutationFn: async () => {
+      if (!activeProjectId) throw new Error("Open a project first.");
+      return executeNowFn({ data: { projectId: activeProjectId } });
+    },
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ["build-execution-status", activeProjectId] });
+      qc.invalidateQueries({ queryKey: ["plugin-actions", activeProjectId] });
+      qc.invalidateQueries({ queryKey: ["pluginSession"] });
+      toast.success(res.totalReady > 0 ? "Pushed to Studio now." : "Studio is already up to date.");
+    },
+    onError: (e) => toast.error(friendlyError(e, { fallback: "Couldn't execute now." })),
+  });
 
   // Hydrate the useChat store with server history when it (re)loads.
   useEffect(() => {
@@ -629,16 +644,30 @@ export function WorkspaceChat({
           <span className="text-[11px] uppercase tracking-wider text-white/40">
             {messages.length} message{messages.length === 1 ? "" : "s"}
           </span>
-          <button
-            type="button"
-            onClick={handleClearChat}
-            disabled={clearMut.isPending}
-            className="inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-[11px] text-white/70 hover:bg-red-500/10 hover:text-red-300 hover:border-red-500/30 disabled:opacity-50 transition"
-            title="Clear chat history for this project"
-          >
-            {clearMut.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
-            Clear chat
-          </button>
+          <div className="flex items-center gap-2">
+            {isBuild && activeProjectId && (
+              <button
+                type="button"
+                onClick={() => executeNowMut.mutate()}
+                disabled={executeNowMut.isPending || !pluginOnline}
+                className="inline-flex items-center gap-1.5 rounded-md border border-emerald-400/30 bg-emerald-500/15 px-2 py-1 text-[11px] font-bold text-emerald-100 hover:bg-emerald-500/25 disabled:cursor-not-allowed disabled:opacity-50 transition"
+                title={pluginOnline ? "Execute pending Studio actions now" : "Connect the Studio plugin first"}
+              >
+                {executeNowMut.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
+                Execute now
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={handleClearChat}
+              disabled={clearMut.isPending}
+              className="inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-[11px] text-white/70 hover:bg-red-500/10 hover:text-red-300 hover:border-red-500/30 disabled:opacity-50 transition"
+              title="Clear chat history for this project"
+            >
+              {clearMut.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+              Clear chat
+            </button>
+          </div>
         </div>
       )}
       {messages.length > 0 && (
