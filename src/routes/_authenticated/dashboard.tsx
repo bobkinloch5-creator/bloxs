@@ -96,7 +96,7 @@ function Dashboard() {
   const credits = profile?.credits ?? 0;
   const maxCredits = profile?.max_credits ?? 0;
   const pluginOnline = !!(pluginSession?.online && pluginSession?.last_seen &&
-    (Date.now() - new Date(pluginSession.last_seen).getTime() < 30_000));
+    (Date.now() - new Date(pluginSession.last_seen).getTime() < 90_000));
 
   const displayName = profile?.display_name || profile?.username || "Builder";
   const shortName = displayName.split(/[\s_@]/)[0];
