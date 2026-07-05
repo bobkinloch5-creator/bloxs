@@ -4202,7 +4202,7 @@ export const Route = createFileRoute("/api/chat")({
                     ? `${cleanContent.trim()}\n\n_Single asset scope: queued exactly one safe free Toolbox ${label} model only — no packs, scripts, props, decorations, terrain, UI, scans, or extra actions._`
                     : `${cleanContent.trim()}\n\n_No clean free authorized single ${label} model was found, so BloxSmith did not insert a pack or placeholder._`;
                 } else if (mode === "build" && isNarrowFeatureRequest(userText)) {
-                  const requestedRemote = /\b(remote\s*event|remoteevent|remote\s*function|remotefunction|server\s*event|server[-\s]*authoritative|multiplayer|replicated)\b/i.test(userText);
+                  const requestedRemote = /\b(remote\s*event|remoteevent|remote\s*function|remotefunction|server\s*event|server[-\s]*authoritative|multiplayer|replicated)\b/i.test(userText) || needsGameplayRemoteWiring(userText);
                   const requestedModule = /\b(module\s*script|modulescript|module)\b/i.test(userText);
                   const requestedScan = /\b(scan|autofix|organize|verify|test)\b/i.test(userText);
                   const requestedData = /\b(leaderstats?|data\s*store|datastore|save\s*data|currency|coins?|cash)\b/i.test(userText);
@@ -4237,7 +4237,8 @@ export const Route = createFileRoute("/api/chat")({
                     if (["screengui", "gui", "frame", "textlabel", "textbutton", "imagelabel", "tool", "part", "model", "terrain", "insert_asset", "remoteevent", "remotefunction", "bindableevent", "sound", "leaderstats", "set_properties", "rename", "move", "delete"].includes(a.kind)) return true;
                     return false;
                   });
-                  if (!hasWorkingNarrowAction) {
+                  const shouldUseDeterministicAbilityTemplate = /\b(high\s*jump|super\s*jump|jump\s*boost|jump\s*button|space\s*bar.*jump|jump.*space\s*bar)\b/i.test(userText);
+                  if (!hasWorkingNarrowAction || shouldUseDeterministicAbilityTemplate) {
                     const fallback = narrowFeatureFallbackStudioActions(userText, languageName).map(normalizePluginAction);
                     if (fallback.length > 0) {
                       actions = fallback;
