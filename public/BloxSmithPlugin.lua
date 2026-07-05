@@ -683,7 +683,8 @@ local function autoRepairJsonTables(source)
                     table.insert(out, ch); i += 1
                 end
             elseif ch:match("[%a_]") and (previousNonWhitespace(table.concat(out)) == "{" or previousNonWhitespace(table.concat(out)) == ",") then
-                local _, endIndex, key = source:find("^([%a_][%w_]*)", i)
+                local key = source:sub(i):match("^([%a_][%w_]*)")
+                local endIndex = key and (i + #key - 1) or i
                 local nextIndex = key and nextNonWhitespaceIndex(source, endIndex + 1) or i
                 if key and source:sub(nextIndex, nextIndex) == ":" then
                     table.insert(out, key .. " = ")
