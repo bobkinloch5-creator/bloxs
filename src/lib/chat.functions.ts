@@ -318,6 +318,9 @@ export const queuePreparedStudioActions = createServerFn({ method: "POST" })
         (v) => (typeof v === "string" && v.trim() === "" ? "Workspace" : v),
         z.string().trim().min(1).max(400),
       ).default("Workspace"),
+      parent: z.string().trim().min(1).max(400).optional(),
+      target_parent_path: z.string().trim().min(1).max(400).optional(),
+      target_parent: z.string().trim().min(1).max(400).optional(),
       name: z.preprocess(
         (v) => (typeof v === "string" && v.trim() === "" ? "BloxSmithAction" : v),
         z.string().trim().min(1).max(160),
@@ -334,6 +337,8 @@ export const queuePreparedStudioActions = createServerFn({ method: "POST" })
       fallbackIds: z.any().optional(),
       target_path: z.string().optional(),
       target: z.string().optional(),
+      asset_name: z.string().optional(),
+      source_query: z.string().optional(),
       properties: z.record(z.string(), z.any()).optional(),
     })).min(1).max(80),
   }).parse(input))
