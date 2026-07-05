@@ -1176,39 +1176,59 @@ const HOISTABLE_PAYLOAD_KEYS = [
 
 export function parseActions(content: string): { cleanContent: string; actions: ParsedAction[] } {
   const re = /```bloxsmith-actions\s*\n?([\s\S]*?)```/gi;
-  let lastMatch: RegExpExecArray | null = null;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(content)) !== null) lastMatch = m;
-  if (!lastMatch) return { cleanContent: content, actions: [] };
+  const matches = Array.from(content.matchAll(re));
+  if (matches.length === 0) return { cleanContent: content, actions: [] };
+
+  const rawActions: unknown[] = [];
+  for (const match of matches) {
+    try {
+      const json = JSON.parse(match[1].trim());
+      const blockActions = Array.isArray(json)
+        ? json
+        : json && typeof json === "object" && Array.isArray((json as { actions?: unknown }).actions)
+        ? (json as { actions: unknown[] }).actions
+        : [];
+      rawActions.push(...blockActions);
+    } catch {
+      // Ignore one malformed/truncated block if another block in the same
+      // response contains valid executable actions. This prevents a trailing
+      // scan/status block from shadowing the real script block.
+    }
+  }
+
   try {
-    const json = JSON.parse(lastMatch[1].trim());
-    const rawActions = Array.isArray(json)
-      ? json
-      : json && typeof json === "object" && Array.isArray((json as { actions?: unknown }).actions)
-      ? (json as { actions: unknown[] }).actions
-      : [];
     if (rawActions.length === 0) return { cleanContent: content, actions: [] };
-    const cleaned = (content.slice(0, lastMatch.index) + content.slice(lastMatch.index + lastMatch[0].length)).trimEnd();
+    const cleaned = content.replace(re, "").trimEnd();
     const actions: ParsedAction[] = rawActions
       .filter((a: unknown): a is Record<string, unknown> => !!a && typeof a === "object")
       .map((a: Record<string, unknown>) => {
         const payload: Record<string, unknown> =
           a.payload && typeof a.payload === "object" ? { ...(a.payload as Record<string, unknown>) } : {};
         for (const key of HOISTABLE_PAYLOAD_KEYS) {
-          if (a[key] !== undefined && payload[key] === undefined) payload[key] = a[key];
+          const topValue = a[key];
+          const currentValue = payload[key];
+          if (["source", "code", "script", "lua", "luau"].includes(key)) {
+            if (typeof topValue === "string" && topValue.trim().length > 0 && !(typeof currentValue === "string" && currentValue.trim().length > 0)) {
+              payload[key] = topValue;
+            }
+          } else if (topValue !== undefined && payload[key] === undefined) {
+            payload[key] = topValue;
+          }
         }
-        if (payload.source === undefined) {
+        if (!(typeof payload.source === "string" && payload.source.trim().length > 0)) {
           const alt =
             payload.code ?? payload.lua ?? payload.luau ??
             (typeof payload.script === "string" ? payload.script : undefined);
-          if (typeof alt === "string" && alt.length > 0) payload.source = alt;
+          if (typeof alt === "string" && alt.trim().length > 0) payload.source = alt;
         }
+        const topSource = typeof a.source === "string" && a.source.trim().length > 0 ? a.source : undefined;
+        const payloadSource = typeof payload.source === "string" && payload.source.trim().length > 0 ? payload.source : undefined;
         return {
           kind: String(a.kind ?? "script"),
           parent_path: String(a.parent_path ?? a.parent ?? a.target ?? "ServerScriptService"),
           name: String(a.name ?? "BloxSmithItem"),
           payload,
-          source: typeof a.source === "string" ? a.source : (typeof payload.source === "string" ? payload.source : undefined),
+          source: topSource ?? payloadSource,
           target_path: typeof a.target_path === "string" ? a.target_path : undefined,
           properties: a.properties && typeof a.properties === "object" ? (a.properties as Record<string, unknown>) : undefined,
           asset_id: (a.asset_id ?? a.assetId) as string | number | undefined,

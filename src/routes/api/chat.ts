@@ -10,6 +10,7 @@ import { describeImageWithNvidiaPaliGemma } from "@/lib/nvidia-vision.server";
 import { generateUiConceptImage } from "@/lib/ui-concept-image.server";
 import { generateGeneralImage, isUiConceptRequest } from "@/lib/general-image.server";
 import { normalizePluginAction } from "@/lib/plugin-actions";
+import { stripCodeFences, validateLuau, type LuauIssue } from "@/lib/luau-validator";
 import { summarizeSceneScan } from "@/lib/scene-digest.server";
 import { searchRoblox, fetchDocPage } from "@/lib/roblox-research.server";
 import { productionSystemsStudioActions, detectLuaTemplates } from "@/lib/lua-templates";
@@ -587,6 +588,23 @@ function hasRealLuauSource(action: any) {
   if (/\bPlayers\s*:\s*GetPlayerFromInput\s*\(/i.test(source)) return false;
   if (/\bUserInputService\b/i.test(source) && /\bPlayers\.PlayerAdded\b/i.test(source)) return false;
   return true;
+}
+
+function finalScriptIssues(action: any): LuauIssue[] {
+  if (!isScriptLikeAction(action)) return [];
+  const source = stripCodeFences(String(action?.payload?.source ?? action?.source ?? ""));
+  const issues = validateLuau(source).filter((i) => i.severity === "error");
+  if (!hasRealLuauSource({ ...action, payload: { ...(action?.payload ?? {}), source } })) {
+    issues.unshift({ severity: "error", message: "Script source is empty, comment-only, placeholder, or not executable enough for Studio insertion." });
+  }
+  return issues;
+}
+
+function scriptIssueLabel(action: any, issues: LuauIssue[]) {
+  const name = String(action?.name || "unnamed script").slice(0, 80);
+  const kind = String(action?.kind || "script");
+  const first = issues[0]?.message || "invalid Luau";
+  return `${kind} ${name}: ${first}`;
 }
 
 function narrowFeatureFallbackStudioActions(userText: string, languageName: string) {
@@ -4773,13 +4791,73 @@ export const Route = createFileRoute("/api/chat")({
                   }
                 }
 
+                // Final script gate: Studio must never receive an empty or
+                // invalid script source. Try one NVIDIA generation retry for
+                // every remaining script error (including totally empty source),
+                // then block only the still-invalid scripts with a visible note.
+                let blockedScriptMessages: string[] = [];
+                let invalidScripts = (actions as any[])
+                  .map((action) => ({ action, issues: finalScriptIssues(action) }))
+                  .filter((x) => x.issues.length > 0);
+
+                if (invalidScripts.length > 0) {
+                  try {
+                    const { generateLuauReplacementWithNvidia } = await import("@/lib/nvidia-critique.server");
+                    const regenTargets = invalidScripts.slice(0, REPAIR_CAP);
+                    const regenerations = await Promise.allSettled(regenTargets.map(({ action, issues }) =>
+                      generateLuauReplacementWithNvidia({
+                        issues,
+                        actionName: action?.name,
+                        actionKind: action?.kind,
+                        parentPath: action?.parent_path,
+                        userRequest: userText,
+                      })
+                    ));
+                    let regeneratedCount = 0;
+                    regenerations.forEach((r, i) => {
+                      if (r.status === "fulfilled" && r.value) {
+                        const target = regenTargets[i].action;
+                        const renorm = normalizePluginAction({
+                          kind: target.kind,
+                          name: target.name,
+                          parent_path: target.parent_path,
+                          payload: { ...(target.payload ?? {}), _needs_retry: undefined, _luau_issues: undefined, source: r.value },
+                        });
+                        target.payload = renorm.payload;
+                        regeneratedCount += 1;
+                      }
+                    });
+                    if (regeneratedCount > 0) {
+                      console.info("[chat] nvidia regenerated invalid/empty scripts", { regenerated: regeneratedCount, of: regenTargets.length });
+                    }
+                  } catch (regenErr) {
+                    console.warn("[chat] nvidia script regeneration failed", regenErr);
+                  }
+
+                  invalidScripts = (actions as any[])
+                    .map((action) => ({ action, issues: finalScriptIssues(action) }))
+                    .filter((x) => x.issues.length > 0);
+
+                  if (invalidScripts.length > 0) {
+                    const blocked = new Set(invalidScripts.map((x) => x.action));
+                    blockedScriptMessages = invalidScripts.map((x) => scriptIssueLabel(x.action, x.issues)).slice(0, 5);
+                    actions = (actions as any[]).filter((a) => !blocked.has(a));
+                    const hasMeaningfulRemainingAction = actions.some((a: any) => !["scan_project", "autofix_project", "organize_project", "playtest"].includes(String(a?.kind)));
+                    if (!hasMeaningfulRemainingAction) actions = [];
+                    console.warn("[chat] blocked invalid scripts before Studio queue", { blocked: blockedScriptMessages });
+                  }
+                }
+
+                if (blockedScriptMessages.length > 0) {
+                  cleanContent = `${cleanContent.trim()}\n\n⚠️ Code generation retry failed for ${blockedScriptMessages.length} script action${blockedScriptMessages.length === 1 ? "" : "s"}, so BloxSmith blocked them instead of inserting empty or invalid scripts into Roblox Studio.\n${blockedScriptMessages.map((m) => `- ${m}`).join("\n")}`;
+                }
+
                 // Log any remaining validator hits, then strip internal fields
-                // so the plugin never sees them. We keep flagged actions in the
-                // queue because the balance heuristic false-fires on valid code
-                // and dropping them silently empties the Studio queue.
+                // so the plugin never sees them. Only warn-level issues should
+                // survive this point; error-level scripts were regenerated or blocked.
                 for (const a of actions as any[]) {
                   if (a?.payload?._luau_issues?.length) {
-                    console.warn("[chat] Luau validator flagged action (kept)", {
+                    console.warn("[chat] Luau validator flagged action (warn-only kept)", {
                       name: a?.name, kind: a?.kind, issues: a.payload._luau_issues,
                     });
                   }
@@ -4867,7 +4945,15 @@ export const Route = createFileRoute("/api/chat")({
                   // Validate every insert_asset against Roblox's toolbox-details
                   // API and the runtime blacklist before Studio ever sees it.
                   await sanitizeInsertAssetActions(actions as unknown as Array<Record<string, unknown>>).catch(() => null);
-                  const insertable = actions.filter((a) => a && (a as { kind?: string }).kind);
+                  const insertable = actions.filter((a) => {
+                    if (!a || !(a as { kind?: string }).kind) return false;
+                    const issues = finalScriptIssues(a);
+                    if (issues.length > 0) {
+                      console.error("[chat] queue-time script block", { name: (a as any)?.name, kind: (a as any)?.kind, issues });
+                      return false;
+                    }
+                    return true;
+                  });
                   if (insertable.length > 0) {
                     await supabase.from("plugin_actions").insert(
                       insertable.map((a, i) => ({
