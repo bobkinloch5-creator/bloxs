@@ -235,7 +235,7 @@ export function normalizePluginActionKind(kind: unknown): PluginActionKind {
   throw new Error(`Unsupported Studio action kind "${String(kind ?? "")}". Use one of: ${PLUGIN_ACTION_KINDS.join(", ")}.`);
 }
 
-import { validateLuau, stripCodeFences } from "@/lib/luau-validator";
+import { validateLuau, stripCodeFences, autoFixLuau } from "@/lib/luau-validator";
 
 export function normalizePluginAction(action: any) {
   const rawKind = action?.kind ?? action?.action ?? action?.type;
@@ -251,6 +251,8 @@ export function normalizePluginAction(action: any) {
   // most common LLM slip-ups deterministically before shipping to Studio.
   if (kind === "script" || kind === "localscript" || kind === "modulescript" || kind === "run_lua") {
     let src = stripCodeFences(String(payload.source ?? action?.source ?? ""));
+    const fixed = autoFixLuau(src);
+    src = fixed.source;
     // Modernize deprecated APIs so scripts don't throw at runtime.
     src = src
       .replace(/(?<!task\.)\bwait\s*\(/g, "task.wait(")
