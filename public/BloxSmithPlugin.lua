@@ -645,6 +645,11 @@ local function makeScript(className, action, parent)
     local source, origin = pickActionSource(action)
     log(("Validating %s '%s' source from %s (%d chars).")
         :format(tostring(className), tostring(action.name), tostring(origin), #source), "debug")
+    local repaired, changed = autoRepairJsonTables(source)
+    if changed then
+        log(("Auto-repaired JSON-style tables in '%s'."):format(tostring(action.name)), "warn")
+        source = repaired
+    end
     local ok, err = validateLuaSource(source, action.name)
     if not ok then
         error("script validation failed for " .. tostring(action.name) .. " before insertion: " .. tostring(err) .. " (source=" .. tostring(origin) .. ", chars=" .. tostring(#source) .. ")")
