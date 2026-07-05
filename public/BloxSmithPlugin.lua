@@ -19,7 +19,7 @@ local CollectionService     = game:GetService("CollectionService")
 
 local API_BASE       = "https://bloxsmith.pro"
 local POLL_INTERVAL  = 0.5
-local PLUGIN_VERSION = "2.1.13"
+local PLUGIN_VERSION = "2.1.14"
 
 ------------------------------------------------------------------- token helpers
 local TOKEN_KEY = "token"
@@ -333,7 +333,10 @@ local function ensureProjectFolders()
 end
 
 local SUSPICIOUS_SOURCE_PATTERNS = {
-    "require%s*%(",
+    -- Normal require(path.to.ModuleScript) is required for real Roblox systems.
+    -- Only quarantine external asset-id requires, which are commonly abused and
+    -- are not needed for BloxSmith-authored code.
+    "require%s*%(%s*%d",
     "loadstring%s*%(",
     "getfenv%s*%(",
     "setfenv%s*%(",
@@ -640,6 +643,44 @@ local function validateLuaSource(source, scriptName)
     return true, nil
 end
 
+local function scriptPlacementIssue(className, inst)
+    if typeof(inst) ~= "Instance" then return "script instance was not created" end
+    if className == "Script" then
+        if inst:IsDescendantOf(ServerScriptService) or inst:IsDescendantOf(Workspace) then return nil end
+        return "Script must be under ServerScriptService or Workspace to run at play time; got " .. fullPath(inst.Parent)
+    elseif className == "LocalScript" then
+        if inst:IsDescendantOf(StarterPlayer) or inst:IsDescendantOf(StarterGui) or inst:IsDescendantOf(StarterPack) then return nil end
+        return "LocalScript must be under StarterPlayerScripts, StarterCharacterScripts, StarterGui/PlayerGui, or a Tool; got " .. fullPath(inst.Parent)
+    elseif className == "ModuleScript" then
+        if inst:IsDescendantOf(ReplicatedStorage) or inst:IsDescendantOf(ServerScriptService) or inst:IsDescendantOf(ServerStorage) or inst:IsDescendantOf(StarterPlayer) or inst:IsDescendantOf(StarterGui) then return nil end
+        return "ModuleScript is in a nonstandard location and may not be require-able: " .. fullPath(inst.Parent)
+    end
+    return nil
+end
+
+local function verifyInsertedScript(inst, className, expectedSource)
+    if typeof(inst) ~= "Instance" or not inst:IsA(className) then
+        return false, "created instance is not a " .. tostring(className)
+    end
+    local actual = ""
+    local readOk, readErr = pcall(function() actual = inst.Source end)
+    if not readOk then return false, "could not read script source after insertion: " .. tostring(readErr) end
+    if type(actual) ~= "string" or actual:match("^%s*$") then return false, "inserted script source is empty" end
+    if actual ~= expectedSource then return false, "inserted script source changed during write" end
+    local placement = scriptPlacementIssue(className, inst)
+    if placement then return false, placement end
+    if className == "Script" or className == "LocalScript" then
+        local enabledOk, enabledErr = pcall(function() inst.Disabled = false end)
+        if not enabledOk then return false, "could not enable script after insertion: " .. tostring(enabledErr) end
+    end
+    pcall(function()
+        inst:SetAttribute("BloxSmithValidated", true)
+        inst:SetAttribute("BloxSmithValidatedAt", os.time())
+        inst:SetAttribute("BloxSmithClass", className)
+    end)
+    return true, nil
+end
+
 local function makeScript(className, action, parent)
     local payload = action.payload or {}
     local source, origin = pickActionSource(action)
@@ -659,7 +700,13 @@ local function makeScript(className, action, parent)
     local s = Instance.new(className)
     s.Name = action.name
     s.Source = source
-    s.Parent = parent; return s
+    s.Parent = parent
+    local verified, verifyErr = verifyInsertedScript(s, className, source)
+    if not verified then
+        pcall(function() s:Destroy() end)
+        error("script post-insertion verification failed for " .. tostring(action.name) .. ": " .. tostring(verifyErr))
+    end
+    return s
 end
 
 Exec.folder = function(a, p)
@@ -1191,6 +1238,11 @@ Exec.run_lua = function(a, p)
         :format(tostring(a.name), tostring(origin), #source), "debug")
     if type(source) ~= "string" or source:match("^%s*$") then
         error("run_lua missing source before execution (source=" .. tostring(origin) .. ", chars=" .. tostring(#source) .. ")")
+    end
+    local repaired, changed = autoRepairJsonTables(source)
+    if changed then
+        log(("Auto-repaired JSON-style tables in run_lua '%s'."):format(tostring(a.name)), "warn")
+        source = repaired
     end
     local wrapped = [[
 return function(parent, plugin, safeSet, safeSetProps, ...)
