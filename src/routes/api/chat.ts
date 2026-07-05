@@ -2855,7 +2855,7 @@ Workspace.StreamingEnabled = true
 }
 
 function isRobloxSystemRequest(userText: string) {
-  return /\b(script|scripting|code|system|gui|ui|screen|loading|load\s*screen|main\s*menu|menu|hud|button|shop|inventory|settings|gamepass|quest|health|cash|coins|leaderstats|remote|event|datastore|save|checkpoint|timer|round|notification|mobile\s*controls?)\b/i.test(userText);
+  return /\b(script|scripting|code|system|gui|ui|screen|loading|load\s*screen|main\s*menu|menu|hud|button|shop|inventory|settings|gamepass|quest|health|cash|coins|leaderstats|remote|event|datastore|save|checkpoint|timer|round|notification|mobile\s*controls?|speed\s*boost|sprint|dash|double\s*jump|high\s*jump|super\s*jump|jump\s*boost|space\s*bar|keybind|key\s*bind|ability|power)\b/i.test(userText);
 }
 
 function robloxSystemStudioActions(userText: string, languageName: string) {
