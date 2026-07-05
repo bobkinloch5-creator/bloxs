@@ -584,6 +584,28 @@ end
 ------------------------------------------------------------------- action executors
 local Exec = {}
 
+local function isScriptActionKind(kind)
+    return kind == "script" or kind == "localscript" or kind == "modulescript" or kind == "run_lua"
+end
+
+local function pickActionSource(action)
+    local payload = action.payload or {}
+    local candidates = {
+        { value = payload.source, origin = "payload.source" },
+        { value = action.source, origin = "action.source" },
+        { value = payload.code, origin = "payload.code" },
+        { value = payload.lua, origin = "payload.lua" },
+        { value = payload.luau, origin = "payload.luau" },
+        { value = payload.script, origin = "payload.script" },
+    }
+    for _, candidate in ipairs(candidates) do
+        if type(candidate.value) == "string" and not candidate.value:match("^%s*$") then
+            return candidate.value, candidate.origin
+        end
+    end
+    return "", "missing"
+end
+
 local function validateLuaSource(source, scriptName)
     if type(source) ~= "string" or source:match("^%s*$") then
         return false, "empty script source"
@@ -600,10 +622,12 @@ end
 
 local function makeScript(className, action, parent)
     local payload = action.payload or {}
-    local source = payload.source or ""
+    local source, origin = pickActionSource(action)
+    log(("Validating %s '%s' source from %s (%d chars).")
+        :format(tostring(className), tostring(action.name), tostring(origin), #source), "debug")
     local ok, err = validateLuaSource(source, action.name)
     if not ok then
-        error("script validation failed for " .. tostring(action.name) .. ": " .. tostring(err))
+        error("script validation failed for " .. tostring(action.name) .. " before insertion: " .. tostring(err) .. " (source=" .. tostring(origin) .. ", chars=" .. tostring(#source) .. ")")
     end
     local existing = parent:FindFirstChild(action.name)
     if existing and existing:IsA(className) then existing:Destroy() end
@@ -1137,9 +1161,11 @@ end
 -- (e.g. workspace.Terrain.Decoration) can't kill the whole build.
 Exec.run_lua = function(a, p)
     local payload = a.payload or {}
-    local source = payload.source
-    if type(source) ~= "string" or source == "" then
-        error("run_lua missing payload.source")
+    local source, origin = pickActionSource(a)
+    log(("Validating run_lua '%s' source from %s (%d chars).")
+        :format(tostring(a.name), tostring(origin), #source), "debug")
+    if type(source) ~= "string" or source:match("^%s*$") then
+        error("run_lua missing source before execution (source=" .. tostring(origin) .. ", chars=" .. tostring(#source) .. ")")
     end
     local wrapped = [[
 return function(parent, plugin, safeSet, safeSetProps, ...)
@@ -1175,7 +1201,8 @@ local function describeAction(a)
     local meta = payload._bloxsmith or {}
     local extra = ""
     if a.kind == "script" or a.kind == "localscript" or a.kind == "modulescript" then
-        extra = (" (%d chars)"):format(#(payload.source or ""))
+        local source = pickActionSource(a)
+        extra = (" (%d chars)"):format(#source)
     elseif a.kind == "part" then
         local sz = payload.size or {}
         extra = (" %sx%sx%s"):format(tostring(sz[1] or "?"), tostring(sz[2] or "?"), tostring(sz[3] or "?"))
@@ -1349,6 +1376,33 @@ local function pollOnce(force)
     if #actions == 0 then return 0 end
     setStatus("Planning build", Color3.fromRGB(160,200,255), ("Received %d structured command(s)."):format(#actions))
     log(("Received %d action(s)."):format(#actions), "success")
+    local preflightFailures = {}
+    for _, a in ipairs(actions) do
+        if isScriptActionKind(a.kind) then
+            local source, origin = pickActionSource(a)
+            local ok, err = validateLuaSource(source, a.name)
+            log(("Preflight %s '%s': source=%s chars=%d.")
+                :format(tostring(a.kind), tostring(a.name), tostring(origin), #source), ok and "debug" or "error")
+            if not ok then
+                table.insert(preflightFailures, {
+                    action = a,
+                    error = "script preflight failed before insertion: " .. tostring(err) .. " (source=" .. tostring(origin) .. ", chars=" .. tostring(#source) .. ")"
+                })
+            end
+        end
+    end
+    if #preflightFailures > 0 then
+        local results = {}
+        for _, failure in ipairs(preflightFailures) do
+            log("Blocked build before execution: " .. tostring(failure.action.kind) .. " '" .. tostring(failure.action.name) .. "': " .. tostring(failure.error), "error")
+            results[#results+1] = { action_id = failure.action.id, status = "failed", error = failure.error }
+        end
+        task.spawn(reportBatch, results)
+        setStatus("Build blocked", Color3.fromRGB(255,180,80), ("%d script validation issue(s). No scripts were inserted."):format(#preflightFailures))
+        log(("Batch blocked before Studio insertion -- %d invalid script action(s).")
+            :format(#preflightFailures), "error")
+        return #actions
+    end
     ChangeHistoryService:SetWaypoint("BloxSmith batch start")
     local okN, failN = 0, 0
     local results = {}
