@@ -3827,6 +3827,18 @@ export const Route = createFileRoute("/api/chat")({
                     }
                     return true;
                   });
+                  const hasWorkingNarrowAction = actions.some((a: any) => {
+                    if (["script", "localscript", "modulescript", "run_lua"].includes(a.kind)) return hasRealLuauSource(a);
+                    if (["screengui", "gui", "frame", "textlabel", "textbutton", "imagelabel", "tool", "part", "model", "terrain", "insert_asset", "remoteevent", "remotefunction", "bindableevent", "sound", "leaderstats", "set_properties", "rename", "move", "delete"].includes(a.kind)) return true;
+                    return false;
+                  });
+                  if (!hasWorkingNarrowAction) {
+                    const fallback = narrowFeatureFallbackStudioActions(userText, languageName).map(normalizePluginAction);
+                    if (fallback.length > 0) {
+                      actions = fallback;
+                      cleanContent = `${cleanContent.trim()}\n\n_Narrow feature fallback queued: BloxSmith wrote the missing Luau directly instead of sending an empty/no-op script._`;
+                    }
+                  }
                   if (!/single item scope/i.test(cleanContent)) {
                     cleanContent = `${cleanContent.trim()}\n\n_Single item scope: BloxSmith will only create the requested item, not a bundle of extra objects._`;
                   }
