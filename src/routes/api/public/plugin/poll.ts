@@ -46,7 +46,7 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
             .eq("plugin_token", token)
             .maybeSingle();
           if (!profile) return json({ error: "invalid token" }, 401);
-          const profileId = profile.id as string;
+          const profileId: string = profile.id;
 
           // Heartbeat
           await sb.from("plugin_sessions").upsert({
