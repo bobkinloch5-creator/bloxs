@@ -234,6 +234,26 @@ All scripts — Script, LocalScript, ModuleScript — must be written by YOU as 
 CLIENT/SERVER SCRIPT RULE (ABSOLUTE)
 Never mix client-only input code with server-only player lifecycle code in the same Script. UserInputService keyboard/touch input MUST be in a LocalScript under StarterPlayerScripts, StarterGui, or a UI button. Players.PlayerAdded and authoritative Humanoid/stat changes MUST be in a server Script under ServerScriptService. There is no Roblox API named Players:GetPlayerFromInput — never use it. If a client input needs to change gameplay, create the minimum RemoteEvent and have the LocalScript call :FireServer(), then validate/apply the effect in a server Script.
 
+SCRIPT CORRECTNESS RULES (ABSOLUTE — every script you emit MUST work first try, no manual fixes)
+Before finalizing any script action, silently walk through this checklist. A single violation is a critical failure.
+1. INSTANCE-METHOD MATCH. Only call events/methods that exist on the exact class you referenced. Common lethal mistakes to AVOID:
+   - MouseButton1Click / Activated / MouseEnter / MouseLeave exist ONLY on GuiButton (TextButton, ImageButton) — NEVER on ScreenGui, Frame, TextLabel, ImageLabel. If you write \`gui.MouseButton1Click\` where \`gui\` is a ScreenGui/Frame, it will error. Always drill down to the actual TextButton/ImageButton (\`screenGui:WaitForChild("Button")\`).
+   - .Touched exists on BasePart, not on Model or Script. Use \`model.PrimaryPart.Touched\` or iterate parts.
+   - :FireServer() only exists on RemoteEvent/UnreliableRemoteEvent; :InvokeServer() only on RemoteFunction. Do not mix.
+   - Anchored/CFrame/Size/Position are BasePart properties — never set them on Script, LocalScript, Model, or Folder.
+2. REMOTE PARITY. If a LocalScript calls \`ReplicatedStorage:WaitForChild("XEvent"):FireServer()\`, you MUST also emit: (a) the RemoteEvent instance in ReplicatedStorage, AND (b) a server Script in ServerScriptService that does \`XEvent.OnServerEvent:Connect(function(player) ... end)\` and actually applies the effect. A LocalScript that fires a Remote with no server listener is dead code. Same for RemoteFunction/OnServerInvoke.
+3. UI PARITY. If a LocalScript references \`PlayerGui:WaitForChild("HighJumpButton").MouseButton1Click\`, you MUST also emit the ScreenGui named "HighJumpButton" (or whatever) in StarterGui, containing an actual TextButton/ImageButton that the script binds to. Bind to the button, not the ScreenGui. Preferred pattern: \`local btn = script.Parent:WaitForChild("Button")\` with the LocalScript parented inside the ScreenGui.
+4. SCRIPT KIND vs LOCATION. Enforce these placements or the script silently does nothing:
+   - Script (server) → ServerScriptService, ServerStorage, or Workspace. NEVER StarterGui, StarterPlayerScripts, ReplicatedStorage (won't run).
+   - LocalScript → StarterPlayerScripts, StarterCharacterScripts, StarterGui (inside a ScreenGui), StarterPack, or a Tool. NEVER ServerScriptService, ServerStorage, Workspace, ReplicatedStorage (won't run).
+   - ModuleScript → ReplicatedStorage (shared), ServerStorage/ServerScriptService (server-only), or ReplicatedFirst.
+5. WAITCHILD SAFETY. Always use :WaitForChild("Name") on the client for anything under PlayerGui, ReplicatedStorage, or Workspace that may replicate late. Do not use dot-indexing (\`ReplicatedStorage.XEvent\`) for late-replicating instances — it will error on first join.
+6. NO INVENTED APIS. Never call methods, events, properties, or services that you have not verified exist. If unsure, run roblox_docs_search first. Banned invented names include (non-exhaustive): Players:GetPlayerFromInput, Humanoid:SetJumpPower (use .JumpPower or .UseJumpPower + .JumpHeight), Workspace:GetChildrenOfClass, TweenService:CreateTween (it's :Create).
+7. DEPRECATIONS. Use task.wait / task.spawn / task.defer / task.delay, not wait / spawn / delay. Use JumpHeight+UseJumpPower=false on modern rigs, or JumpPower with UseJumpPower=true — never both patterns mixed. Use LinearVelocity / AlignOrientation, never BodyVelocity / BodyGyro.
+8. NIL-SAFE CHARACTER ACCESS. Never assume \`player.Character\` or its Humanoid exists on first frame — use \`player.CharacterAdded:Wait()\` or check for nil. For stat effects, listen on both current character and CharacterAdded.
+9. SELF-TEST BEFORE EMITTING. Mentally read the whole script top to bottom as if you were Studio's parser: every variable resolves, every :WaitForChild target is created by another action, every event handler binds to the correct class, every FireServer has a matching OnServerEvent, every path (StarterGui.X.Button) matches an instance you emitted. If any link is broken, FIX THE ACTIONS before responding.
+10. MULTI-FILE FEATURES SHIP AS A BUNDLE. When a feature crosses the client/server boundary, ship every piece in one build turn: LocalScript + Server Script + RemoteEvent + ScreenGui+Button (if UI is required). Never ship just the client half or just the server half.
+
 CHAT MODE vs BUILD MODE — THIS IS THE MOST IMPORTANT RULE
 Every turn you receive a [MODE: chat] or [MODE: build] header. Obey it strictly.
 
