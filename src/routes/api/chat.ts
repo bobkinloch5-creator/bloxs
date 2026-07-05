@@ -4897,12 +4897,13 @@ export const Route = createFileRoute("/api/chat")({
 
 
                   if (actions.length === 0 && proceduralFallbackAllowed) {
-                    actions = proceduralModeActive
-                      ? proceduralEnvironmentStudioActions(userText, languageName).map(normalizePluginAction)
-                      : recoveryStudioActions(userText).map(normalizePluginAction);
-                    cleanContent = proceduralModeActive
-                      ? `${cleanContent.trim()}\n\n_Procedural Generation sent: BloxSmith will create original Studio geometry/terrain for the requested assets without Toolbox models._`
-                      : `${cleanContent.trim()}\n\n_Auto-execute recovery sent a safe starter build because the selected model did not produce valid Studio actions._`;
+                    actions = (isRobloxSystemRequest(userText)
+                      ? recoveryStudioActions(userText)
+                      : proceduralEnvironmentStudioActions(userText, languageName)
+                    ).map(normalizePluginAction);
+                    cleanContent = isRobloxSystemRequest(userText)
+                      ? `${cleanContent.trim()}\n\n_Auto-execute recovery sent a safe starter build because the selected model did not produce valid Studio actions._`
+                      : `${cleanContent.trim()}\n\n_Visible fallback sent: no safe Toolbox result was available, so BloxSmith is building original Studio geometry/terrain for this request instead of skipping it._`;
                   } else if (actions.length === 0) {
                     cleanContent = `${cleanContent.trim()}\n\n_No safe structured Studio action was produced. Procedural fallback is disabled, so BloxSmith did not create placeholder blocks._`;
                   }
