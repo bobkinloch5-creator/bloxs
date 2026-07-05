@@ -649,9 +649,9 @@ export function WorkspaceChat({
               <button
                 type="button"
                 onClick={() => executeNowMut.mutate()}
-                disabled={executeNowMut.isPending || !pluginOnline}
+                disabled={executeNowMut.isPending}
                 className="inline-flex items-center gap-1.5 rounded-md border border-emerald-400/30 bg-emerald-500/15 px-2 py-1 text-[11px] font-bold text-emerald-100 hover:bg-emerald-500/25 disabled:cursor-not-allowed disabled:opacity-50 transition"
-                title={pluginOnline ? "Execute pending Studio actions now" : "Connect the Studio plugin first"}
+                title={pluginOnline ? "Execute pending Studio actions now" : "Re-arm pending actions; open the Studio plugin to pick them up"}
               >
                 {executeNowMut.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
                 Execute now
@@ -752,6 +752,25 @@ export function WorkspaceChat({
             <div className="mt-2 rounded-lg border border-rose-500/40 bg-rose-500/15 px-3 py-2 text-xs text-rose-100">
               <div className="font-bold">Build not verified</div>
               <div>{executionStatus.message}</div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => executeNowMut.mutate()}
+                  disabled={executeNowMut.isPending || !activeProjectId}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-emerald-300/40 bg-emerald-500/20 px-2.5 py-1 text-[11px] font-bold text-emerald-50 hover:bg-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {executeNowMut.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
+                  Execute now
+                </button>
+                {executionStatus.pluginOutdated ? (
+                  <Link
+                    to="/plugin"
+                    className="inline-flex items-center gap-1.5 rounded-md border border-amber-300/40 bg-amber-500/20 px-2.5 py-1 text-[11px] font-bold text-amber-50 hover:bg-amber-500/30"
+                  >
+                    <Download className="h-3 w-3" /> Update plugin
+                  </Link>
+                ) : null}
+              </div>
               {executionStatus.errors?.length ? (
                 <ul className="mt-1 list-disc pl-4 text-[11px]">
                   {executionStatus.errors.map((err: string, i: number) => <li key={i}>{err}</li>)}
