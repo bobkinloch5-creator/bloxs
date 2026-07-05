@@ -735,6 +735,19 @@ export function WorkspaceChat({
               {friendlyError(error, { fallback: "The AI request failed." })}
             </div>
           )}
+          {isBuild && executionStatus && executionStatus.state === "done" && (executionStatus.total ?? 0) > 0 && (
+            <div className="mt-2 rounded-lg border border-emerald-500/40 bg-emerald-500/15 px-3 py-2 text-xs text-emerald-100">
+              <div className="font-bold">✅ Built in Studio</div>
+              <div>{executionStatus.message}{executionStatus.durationMs ? ` (${(executionStatus.durationMs/1000).toFixed(1)}s)` : ""}</div>
+              <div className="mt-0.5 text-[11px] opacity-80">Camera focused on the new objects.</div>
+            </div>
+          )}
+          {isBuild && executionStatus && (executionStatus.state === "queued" || executionStatus.state === "sent") && (
+            <div className="mt-2 rounded-lg border border-sky-500/40 bg-sky-500/15 px-3 py-2 text-xs text-sky-100">
+              <div className="flex items-center gap-2 font-bold"><Loader2 className="h-3 w-3 animate-spin" /> Building in Studio…</div>
+              <div>{executionStatus.done ?? 0} of {executionStatus.total ?? 0} done</div>
+            </div>
+          )}
           {isBuild && executionStatus && (executionStatus.state === "failed" || executionStatus.state === "stalled") && (
             <div className="mt-2 rounded-lg border border-rose-500/40 bg-rose-500/15 px-3 py-2 text-xs text-rose-100">
               <div className="font-bold">Build not verified</div>
