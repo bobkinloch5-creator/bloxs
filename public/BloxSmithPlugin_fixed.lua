@@ -20,7 +20,7 @@ local Selection             = game:GetService("Selection")
 
 local API_BASE       = "https://bloxsmith.pro"
 local POLL_INTERVAL  = 0.05
-local PLUGIN_VERSION = "2.1.20"
+local PLUGIN_VERSION = "2.1.21"
 
 ------------------------------------------------------------------- token helpers
 local TOKEN_KEY = "token"
@@ -1560,9 +1560,12 @@ local function focusCameraOn(instances)
     if not camera then return end
     local offset = Vector3.new(distance * 0.75, distance * 0.55, distance * 0.75)
     pcall(function()
-        camera.CameraType = Enum.CameraType.Fixed
+        camera.CameraType = Enum.CameraType.Scriptable
         camera.CFrame = CFrame.new(center + offset, center)
         camera.Focus = CFrame.new(center)
+        task.delay(0.35, function()
+            if camera then camera.CameraType = Enum.CameraType.Custom end
+        end)
     end)
 end
 
