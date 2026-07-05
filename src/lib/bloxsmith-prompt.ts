@@ -1199,9 +1199,9 @@ export function parseActions(content: string): { cleanContent: string; actions: 
   try {
     if (rawActions.length === 0) return { cleanContent: content, actions: [] };
     const cleaned = content.replace(re, "").trimEnd();
-    const actions: ParsedAction[] = rawActions
+    const actions = rawActions
       .filter((a: unknown): a is Record<string, unknown> => !!a && typeof a === "object")
-      .map((a: Record<string, unknown>) => {
+      .reduce<ParsedAction[]>((acc, a: Record<string, unknown>) => {
         const payload: Record<string, unknown> =
           a.payload && typeof a.payload === "object" ? { ...(a.payload as Record<string, unknown>) } : {};
         for (const key of HOISTABLE_PAYLOAD_KEYS) {
@@ -1226,8 +1226,8 @@ export function parseActions(content: string): { cleanContent: string; actions: 
         const rawKind = a.kind ?? a.action ?? a.type;
         const inferredKind = topSource ?? payloadSource ? "script" : "";
         const kind = String(rawKind ?? inferredKind).trim();
-        if (!kind) return null;
-        return {
+        if (!kind) return acc;
+        acc.push({
           kind,
           parent_path: String(a.parent_path ?? a.parent ?? a.target ?? "ServerScriptService"),
           name: String(a.name ?? "BloxSmithItem"),
@@ -1237,9 +1237,9 @@ export function parseActions(content: string): { cleanContent: string; actions: 
           properties: a.properties && typeof a.properties === "object" ? (a.properties as Record<string, unknown>) : undefined,
           asset_id: (a.asset_id ?? a.assetId) as string | number | undefined,
           fallback_ids: a.fallback_ids ?? a.fallbackIds,
-        };
-      })
-      .filter((a): a is ParsedAction => !!a);
+        });
+        return acc;
+      }, []);
     return { cleanContent: cleaned, actions };
   } catch {
     return { cleanContent: content, actions: [] };
