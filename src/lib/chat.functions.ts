@@ -140,6 +140,23 @@ export const getPluginSession = createServerFn({ method: "GET" })
     return data;
   });
 
+function compareVersions(current?: string | null, required?: string | null) {
+  const parse = (value?: string | null) => String(value ?? "")
+    .split(".")
+    .map((part) => Number.parseInt(part.replace(/\D+/g, ""), 10))
+    .map((n) => (Number.isFinite(n) ? n : 0));
+  const a = parse(current);
+  const b = parse(required);
+  const len = Math.max(a.length, b.length, 3);
+  for (let i = 0; i < len; i += 1) {
+    const delta = (a[i] ?? 0) - (b[i] ?? 0);
+    if (delta !== 0) return delta;
+  }
+  return 0;
+}
+
+const MIN_FAST_POLL_PLUGIN_VERSION = "2.1.17";
+
 export const getBuildExecutionStatus = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) => z.object({ projectId: z.string().uuid() }).parse(input))
@@ -168,6 +185,19 @@ export const getBuildExecutionStatus = createServerFn({ method: "GET" })
       .eq("message_id", msg.id)
       .order("position", { ascending: true });
     if (error) throw new Error(error.message);
+
+    const { data: session } = await context.supabase
+      .from("plugin_sessions")
+      .select("last_seen, online, plugin_version")
+      .eq("user_id", context.userId)
+      .maybeSingle();
+    const pluginOnline = !!(
+      session?.online &&
+      session?.last_seen &&
+      Date.now() - new Date(session.last_seen).getTime() < 30_000
+    );
+    const pluginVersion = session?.plugin_version ?? null;
+    const pluginOutdated = pluginOnline && compareVersions(pluginVersion, MIN_FAST_POLL_PLUGIN_VERSION) < 0;
 
     const rows = actions ?? [];
     const total = rows.length;
@@ -217,33 +247,52 @@ export const getBuildExecutionStatus = createServerFn({ method: "GET" })
       message = state === "stalled"
         ? `Studio received ${sent} action(s), but they did not finish.`
         : `Studio is executing ${sent} of ${total} action(s).`;
-    } else if (pending > 0 && ageMs > 120_000) {
+    } else if (pending > 0 && pluginOutdated) {
       state = "stalled";
-      message = `Studio has not picked up ${pending} action(s). Check the plugin is open and polling.`;
+      message = `Your Studio plugin is v${pluginVersion}; update to v${MIN_FAST_POLL_PLUGIN_VERSION}+ so new builds execute immediately.`;
+    } else if (pending > 0 && !pluginOnline && ageMs > 20_000) {
+      state = "stalled";
+      message = `Studio is not connected. Open the BloxSmith plugin in Roblox Studio, then click Execute Now.`;
+    } else if (pending > 0 && ageMs > 30_000) {
+      state = "stalled";
+      message = `Studio has not picked up ${pending} action(s). Click Execute Now in Studio or on this page.`;
     }
 
 
-    return { state, message, total, sent, done, failed, pending, inFlight, durationMs, errors, actions: rows.slice(0, 20) };
+    return { state, message, total, sent, done, failed, pending, inFlight, durationMs, errors, pluginOnline, pluginVersion, pluginOutdated, actions: rows.slice(0, 20) };
   });
 
 export const executeQueuedActionsNow = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) => z.object({ projectId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const { data: pendingRows, error: pendingError } = await context.supabase
+    const { data: latestAction, error: latestError } = await context.supabase
+      .from("plugin_actions")
+      .select("message_id, project_id, created_at")
+      .eq("project_id", data.projectId)
+      .eq("user_id", context.userId)
+      .in("status", ["pending", "sent"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (latestError) throw new Error(latestError.message);
+
+    let pendingQuery = context.supabase
       .from("plugin_actions")
       .select("id")
       .eq("project_id", data.projectId)
       .eq("user_id", context.userId)
       .eq("status", "pending")
       .limit(200);
+    if (latestAction?.message_id) pendingQuery = pendingQuery.eq("message_id", latestAction.message_id);
+    const { data: pendingRows, error: pendingError } = await pendingQuery;
     if (pendingError) throw new Error(pendingError.message);
 
     // If Studio missed a delivery, re-arm sent actions so the next plugin poll
     // executes them instead of leaving the user stuck. A short grace period
     // avoids duplicating actions that Studio is actively processing.
     const staleCutoff = new Date(Date.now() - 20_000).toISOString();
-    const { data: rearmedRows, error: rearmError } = await context.supabase
+    let rearmQuery = context.supabase
       .from("plugin_actions")
       .update({ status: "pending", sent_at: null, completed_at: null, error: null })
       .eq("project_id", data.projectId)
@@ -251,6 +300,8 @@ export const executeQueuedActionsNow = createServerFn({ method: "POST" })
       .eq("status", "sent")
       .lt("sent_at", staleCutoff)
       .select("id");
+    if (latestAction?.message_id) rearmQuery = rearmQuery.eq("message_id", latestAction.message_id);
+    const { data: rearmedRows, error: rearmError } = await rearmQuery;
     if (rearmError) throw new Error(rearmError.message);
 
     const pending = pendingRows?.length ?? 0;
