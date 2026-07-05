@@ -69,7 +69,7 @@ export function HelpChatWidget() {
 
       {/* Panel */}
       {open && (
-        <div className="fixed bottom-4 right-4 z-[80] flex h-[560px] max-h-[85vh] w-[calc(100vw-2rem)] max-w-[380px] flex-col overflow-hidden rounded-2xl border border-white/10 bg-slate-950/95 shadow-2xl shadow-black/50 backdrop-blur-xl sm:bottom-6 sm:right-6">
+        <div className="fixed bottom-4 left-4 z-[90] flex h-[560px] max-h-[85vh] w-[calc(100vw-2rem)] max-w-[380px] flex-col overflow-hidden rounded-2xl border border-white/10 bg-slate-950/95 shadow-2xl shadow-black/50 backdrop-blur-xl sm:bottom-6 sm:left-6">
           {/* Header */}
           <div className="flex items-center justify-between border-b border-white/10 bg-gradient-to-r from-indigo-600/30 to-fuchsia-600/30 px-4 py-3">
             <div className="flex items-center gap-2">
