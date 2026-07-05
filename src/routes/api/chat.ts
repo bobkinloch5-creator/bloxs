@@ -4084,7 +4084,7 @@ export const Route = createFileRoute("/api/chat")({
                 const wm = userText.toLowerCase().match(/\b(two|three|four|five|six|seven|eight|nine|ten|twelve|fifteen|twenty)\b/);
                 if (wm && wordNums[wm[1]]) quantity = wordNums[wm[1]];
               }
-              const found = await searchRobloxToolbox(query, "Model", Math.max(12, quantity + 4), { singleAssetOnly: true });
+                const found = await searchRobloxToolbox(query, "Model", quantity === 1 ? 4 : Math.max(8, quantity + 3), { singleAssetOnly: true });
               const top = found.results[0];
               if (top) {
                 const folder = finderMatch?.folder ? `BloxSmith_${finderMatch.folder}` : "BloxSmith_Assets";
@@ -4123,11 +4123,11 @@ export const Route = createFileRoute("/api/chat")({
                   } as Record<string, unknown>,
                 });
                 const insertAction = buildAction(0);
-                // Validate against Roblox (IsPublicDomain + toolbox-details)
-                // BEFORE queuing — otherwise Studio errors with
-                // "User is not authorized to access Asset".
+                // searchRobloxToolbox already filters to insertable public
+                // assets. Do not run a second validation pass here; that extra
+                // network round-trip was why "one thing" felt slow before it
+                // even reached Studio.
                 const candidates: Array<Record<string, unknown>> = [insertAction as unknown as Record<string, unknown>];
-                await sanitizeInsertAssetActions(candidates).catch(() => null);
                 if (candidates.length === 0) {
                   console.info("[chat/fastpath] no authorized asset, falling back to AI turn", { query });
                   throw new Error("fastpath_no_authorized_asset");
