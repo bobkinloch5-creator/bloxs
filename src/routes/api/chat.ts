@@ -4791,13 +4791,73 @@ export const Route = createFileRoute("/api/chat")({
                   }
                 }
 
+                // Final script gate: Studio must never receive an empty or
+                // invalid script source. Try one NVIDIA generation retry for
+                // every remaining script error (including totally empty source),
+                // then block only the still-invalid scripts with a visible note.
+                let blockedScriptMessages: string[] = [];
+                let invalidScripts = (actions as any[])
+                  .map((action) => ({ action, issues: finalScriptIssues(action) }))
+                  .filter((x) => x.issues.length > 0);
+
+                if (invalidScripts.length > 0) {
+                  try {
+                    const { generateLuauReplacementWithNvidia } = await import("@/lib/nvidia-critique.server");
+                    const regenTargets = invalidScripts.slice(0, REPAIR_CAP);
+                    const regenerations = await Promise.allSettled(regenTargets.map(({ action, issues }) =>
+                      generateLuauReplacementWithNvidia({
+                        issues,
+                        actionName: action?.name,
+                        actionKind: action?.kind,
+                        parentPath: action?.parent_path,
+                        userRequest: userText,
+                      })
+                    ));
+                    let regeneratedCount = 0;
+                    regenerations.forEach((r, i) => {
+                      if (r.status === "fulfilled" && r.value) {
+                        const target = regenTargets[i].action;
+                        const renorm = normalizePluginAction({
+                          kind: target.kind,
+                          name: target.name,
+                          parent_path: target.parent_path,
+                          payload: { ...(target.payload ?? {}), _needs_retry: undefined, _luau_issues: undefined, source: r.value },
+                        });
+                        target.payload = renorm.payload;
+                        regeneratedCount += 1;
+                      }
+                    });
+                    if (regeneratedCount > 0) {
+                      console.info("[chat] nvidia regenerated invalid/empty scripts", { regenerated: regeneratedCount, of: regenTargets.length });
+                    }
+                  } catch (regenErr) {
+                    console.warn("[chat] nvidia script regeneration failed", regenErr);
+                  }
+
+                  invalidScripts = (actions as any[])
+                    .map((action) => ({ action, issues: finalScriptIssues(action) }))
+                    .filter((x) => x.issues.length > 0);
+
+                  if (invalidScripts.length > 0) {
+                    const blocked = new Set(invalidScripts.map((x) => x.action));
+                    blockedScriptMessages = invalidScripts.map((x) => scriptIssueLabel(x.action, x.issues)).slice(0, 5);
+                    actions = (actions as any[]).filter((a) => !blocked.has(a));
+                    const hasMeaningfulRemainingAction = actions.some((a: any) => !["scan_project", "autofix_project", "organize_project", "playtest"].includes(String(a?.kind)));
+                    if (!hasMeaningfulRemainingAction) actions = [];
+                    console.warn("[chat] blocked invalid scripts before Studio queue", { blocked: blockedScriptMessages });
+                  }
+                }
+
+                if (blockedScriptMessages.length > 0) {
+                  cleanContent = `${cleanContent.trim()}\n\n⚠️ Code generation retry failed for ${blockedScriptMessages.length} script action${blockedScriptMessages.length === 1 ? "" : "s"}, so BloxSmith blocked them instead of inserting empty or invalid scripts into Roblox Studio.\n${blockedScriptMessages.map((m) => `- ${m}`).join("\n")}`;
+                }
+
                 // Log any remaining validator hits, then strip internal fields
-                // so the plugin never sees them. We keep flagged actions in the
-                // queue because the balance heuristic false-fires on valid code
-                // and dropping them silently empties the Studio queue.
+                // so the plugin never sees them. Only warn-level issues should
+                // survive this point; error-level scripts were regenerated or blocked.
                 for (const a of actions as any[]) {
                   if (a?.payload?._luau_issues?.length) {
-                    console.warn("[chat] Luau validator flagged action (kept)", {
+                    console.warn("[chat] Luau validator flagged action (warn-only kept)", {
                       name: a?.name, kind: a?.kind, issues: a.payload._luau_issues,
                     });
                   }
