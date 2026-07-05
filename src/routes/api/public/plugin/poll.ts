@@ -98,9 +98,18 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
           if (!Array.isArray(first)) return json({ error: first.error }, 500);
           actions = first;
 
-          // Return immediately. The Studio plugin polls at a very short cadence;
-          // holding this request open can make Roblox Studio appear stuck before
-          // the next execution cycle starts.
+          // Long-poll: hold briefly if nothing is pending, checking very often
+          // so Studio receives newly-created actions almost immediately without
+          // spamming Roblox HTTP requests while idle.
+          if (actions.length === 0) {
+            const deadline = Date.now() + 8_000;
+            while (Date.now() < deadline) {
+              await new Promise((r) => setTimeout(r, 100));
+              const next = await fetchPending();
+              if (!Array.isArray(next)) return json({ error: next.error }, 500);
+              if (next.length > 0) { actions = next; break; }
+            }
+          }
 
           if (actions.length === 0) {
             const staleSentCutoff = new Date(Date.now() - 45_000).toISOString();
