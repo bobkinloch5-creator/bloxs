@@ -1093,6 +1093,276 @@ end)`,
     }];
   }
 
+  if (/\b(dash|dashing|air\s*dash|forward\s*dash)\b/i.test(text)) {
+    const source = `
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
+local StarterPlayer = game:GetService("StarterPlayer")
+
+local remotes = ReplicatedStorage:FindFirstChild("BloxSmith_Remotes")
+if not remotes then
+  remotes = Instance.new("Folder")
+  remotes.Name = "BloxSmith_Remotes"
+  remotes.Parent = ReplicatedStorage
+end
+local request = remotes:FindFirstChild("RequestDash") or Instance.new("RemoteEvent")
+request.Name = "RequestDash"
+request.Parent = remotes
+
+local oldServer = ServerScriptService:FindFirstChild("BloxSmith_DashServer")
+if oldServer then oldServer:Destroy() end
+local server = Instance.new("Script")
+server.Name = "BloxSmith_DashServer"
+server.Source = [==[
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local request = ReplicatedStorage:WaitForChild("BloxSmith_Remotes"):WaitForChild("RequestDash")
+
+local DASH_POWER = 90
+local COOLDOWN = 1.25
+local last = {}
+
+request.OnServerEvent:Connect(function(player, direction)
+  if typeof(direction) ~= "Vector3" then return end
+  local now = os.clock()
+  if last[player] and now - last[player] < COOLDOWN then return end
+  local char = player.Character; if not char then return end
+  local hrp = char:FindFirstChild("HumanoidRootPart")
+  local hum = char:FindFirstChildOfClass("Humanoid")
+  if not hrp or not hum or hum.Health <= 0 then return end
+  last[player] = now
+
+  local dir = Vector3.new(direction.X, 0, direction.Z)
+  if dir.Magnitude < 0.1 then dir = hrp.CFrame.LookVector end
+  dir = dir.Unit
+
+  local bv = Instance.new("BodyVelocity")
+  bv.MaxForce = Vector3.new(1, 0, 1) * math.huge
+  bv.Velocity = dir * DASH_POWER
+  bv.Parent = hrp
+  game:GetService("Debris"):AddItem(bv, 0.22)
+end)
+
+Players.PlayerRemoving:Connect(function(p) last[p] = nil end)
+]==]
+server.Parent = ServerScriptService
+
+local scripts = StarterPlayer:FindFirstChild("StarterPlayerScripts")
+if scripts then
+  local old = scripts:FindFirstChild("BloxSmith_DashClient")
+  if old then old:Destroy() end
+  local client = Instance.new("LocalScript")
+  client.Name = "BloxSmith_DashClient"
+  client.Source = [==[
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ContextActionService = game:GetService("ContextActionService")
+local UserInputService = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+local request = ReplicatedStorage:WaitForChild("BloxSmith_Remotes"):WaitForChild("RequestDash")
+local ACTION = "BloxSmithDash"
+local COOLDOWN = 1.25
+local ready = true
+
+local function moveDir()
+  local char = player.Character; if not char then return Vector3.zero end
+  local hum = char:FindFirstChildOfClass("Humanoid"); if not hum then return Vector3.zero end
+  local v = hum.MoveDirection
+  if v.Magnitude > 0.1 then return v end
+  local hrp = char:FindFirstChild("HumanoidRootPart")
+  return hrp and hrp.CFrame.LookVector or Vector3.new(0,0,-1)
+end
+
+local function fire()
+  if not ready then return end
+  ready = false
+  request:FireServer(moveDir())
+  task.delay(COOLDOWN, function() ready = true end)
+end
+
+ContextActionService:UnbindAction(ACTION)
+ContextActionService:BindActionAtPriority(ACTION, function(_, state)
+  if state == Enum.UserInputState.Begin then fire() end
+  return Enum.ContextActionResult.Pass
+end, true, Enum.ContextActionPriority.High.Value, Enum.KeyCode.Q, Enum.KeyCode.ButtonL1)
+ContextActionService:SetTitle(ACTION, "Dash")
+
+player.CharacterAdded:Connect(function() ready = true end)
+]==]
+  client.Parent = scripts
+end
+`;
+    return [{
+      kind: "run_lua",
+      parent_path: "ServerScriptService",
+      name: "BloxSmith_Create_Dash_System",
+      payload: { source, request: safePrompt, language: languageName },
+    }];
+  }
+
+  if (/\b(fly|flying|flight|toggle\s*fly)\b/i.test(text) && !/\bfly\s*trap\b/i.test(text)) {
+    const source = `
+local StarterPlayer = game:GetService("StarterPlayer")
+local scripts = StarterPlayer:FindFirstChild("StarterPlayerScripts")
+if not scripts then error("StarterPlayerScripts missing") end
+local old = scripts:FindFirstChild("BloxSmith_FlyToggle")
+if old then old:Destroy() end
+local client = Instance.new("LocalScript")
+client.Name = "BloxSmith_FlyToggle"
+client.Source = [==[
+local Players = game:GetService("Players")
+local ContextActionService = game:GetService("ContextActionService")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local SPEED = 60
+local ACTION = "BloxSmithFly"
+local flying = false
+local bg, bv
+local heartbeat
+
+local function stop()
+  flying = false
+  if bg then bg:Destroy(); bg = nil end
+  if bv then bv:Destroy(); bv = nil end
+  if heartbeat then heartbeat:Disconnect(); heartbeat = nil end
+  local char = player.Character
+  local hum = char and char:FindFirstChildOfClass("Humanoid")
+  if hum then hum.PlatformStand = false end
+end
+
+local function start()
+  local char = player.Character or player.CharacterAdded:Wait()
+  local hrp = char:WaitForChild("HumanoidRootPart", 5)
+  local hum = char:FindFirstChildOfClass("Humanoid")
+  if not hrp or not hum then return end
+  flying = true
+  hum.PlatformStand = true
+
+  bg = Instance.new("BodyGyro"); bg.MaxTorque = Vector3.new(1,1,1)*math.huge; bg.P = 9000; bg.CFrame = hrp.CFrame; bg.Parent = hrp
+  bv = Instance.new("BodyVelocity"); bv.MaxForce = Vector3.new(1,1,1)*math.huge; bv.Velocity = Vector3.zero; bv.Parent = hrp
+
+  local camera = workspace.CurrentCamera
+  heartbeat = RunService.RenderStepped:Connect(function()
+    if not flying or not hrp.Parent then stop(); return end
+    local move = hum.MoveDirection
+    local look = camera.CFrame.LookVector
+    local right = camera.CFrame.RightVector
+    local up = 0
+    if UserInputService:IsKeyDown(Enum.KeyCode.Space) then up = 1 end
+    if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then up = up - 1 end
+    local dir = (right * move.X) + (look * -move.Z) + Vector3.new(0, up, 0)
+    bv.Velocity = dir.Magnitude > 0 and dir.Unit * SPEED or Vector3.zero
+    bg.CFrame = camera.CFrame
+  end)
+end
+
+ContextActionService:UnbindAction(ACTION)
+ContextActionService:BindActionAtPriority(ACTION, function(_, state)
+  if state == Enum.UserInputState.Begin then
+    if flying then stop() else start() end
+  end
+  return Enum.ContextActionResult.Pass
+end, true, Enum.ContextActionPriority.High.Value, Enum.KeyCode.F)
+ContextActionService:SetTitle(ACTION, "Toggle Fly")
+
+player.CharacterAdded:Connect(function() stop() end)
+]==]
+client.Parent = scripts
+`;
+    return [{
+      kind: "run_lua",
+      parent_path: "StarterPlayer.StarterPlayerScripts",
+      name: "BloxSmith_Create_Fly_Toggle",
+      payload: { source, request: safePrompt, language: languageName },
+    }];
+  }
+
+  if (/\b(checkpoint|checkpoints|spawn\s*point.*save|save\s*point)\b/i.test(text)) {
+    const source = `
+local Workspace = game:GetService("Workspace")
+local ServerScriptService = game:GetService("ServerScriptService")
+
+local folder = Workspace:FindFirstChild("Checkpoints")
+if not folder then
+  folder = Instance.new("Folder"); folder.Name = "Checkpoints"; folder.Parent = Workspace
+end
+
+-- Seed 3 sample checkpoints in a line if none exist yet.
+if #folder:GetChildren() == 0 then
+  for i = 1, 3 do
+    local p = Instance.new("Part")
+    p.Name = "Checkpoint" .. i
+    p.Size = Vector3.new(8, 1, 8)
+    p.Position = Vector3.new(i * 30, 1, -20)
+    p.Anchored = true
+    p.CanCollide = true
+    p.Material = Enum.Material.Neon
+    p.Color = Color3.fromRGB(120, 220, 255)
+    p:SetAttribute("Stage", i)
+    p.Parent = folder
+  end
+end
+
+local old = ServerScriptService:FindFirstChild("BloxSmith_CheckpointServer")
+if old then old:Destroy() end
+local server = Instance.new("Script")
+server.Name = "BloxSmith_CheckpointServer"
+server.Source = [==[
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local folder = Workspace:WaitForChild("Checkpoints")
+local saved = {}
+
+local function respawnAt(player, cframe)
+  local char = player.Character
+  local hrp = char and char:FindFirstChild("HumanoidRootPart")
+  if hrp then hrp.CFrame = cframe + Vector3.new(0, 4, 0) end
+end
+
+Players.PlayerAdded:Connect(function(player)
+  local leaderstats = Instance.new("Folder"); leaderstats.Name = "leaderstats"; leaderstats.Parent = player
+  local stage = Instance.new("IntValue"); stage.Name = "Stage"; stage.Value = 0; stage.Parent = leaderstats
+
+  player.CharacterAdded:Connect(function()
+    task.wait(0.25)
+    local cframe = saved[player.UserId]
+    if cframe then respawnAt(player, cframe) end
+  end)
+end)
+
+Players.PlayerRemoving:Connect(function(p) saved[p.UserId] = nil end)
+
+for _, part in ipairs(folder:GetChildren()) do
+  if part:IsA("BasePart") then
+    part.Touched:Connect(function(hit)
+      local char = hit:FindFirstAncestorOfClass("Model")
+      local player = char and Players:GetPlayerFromCharacter(char)
+      if not player then return end
+      local stageNum = tonumber(part:GetAttribute("Stage")) or 0
+      local stats = player:FindFirstChild("leaderstats")
+      local stat = stats and stats:FindFirstChild("Stage")
+      if stat and stageNum > stat.Value then
+        stat.Value = stageNum
+        saved[player.UserId] = part.CFrame
+      end
+    end)
+  end
+end
+]==]
+server.Parent = ServerScriptService
+`;
+    return [{
+      kind: "run_lua",
+      parent_path: "Workspace",
+      name: "BloxSmith_Create_Checkpoint_System",
+      payload: { source, request: safePrompt, language: languageName },
+    }];
+  }
+
+
   if (/\b(kill\s*brick|damage\s*brick|lava\s*brick)\b/i.test(text)) {
     const source = `
 local Workspace = game:GetService("Workspace")
