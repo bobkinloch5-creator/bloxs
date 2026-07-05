@@ -117,37 +117,11 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
             }
           }
 
-          if (actions.length === 0) {
-            const staleSentCutoff = new Date(Date.now() - 45_000).toISOString();
-            const latestStaleSent = await sb.from("plugin_actions")
-              .select("project_id, message_id, sent_at")
-              .eq("user_id", profileId)
-              .eq("status", "sent")
-              .lt("sent_at", staleSentCutoff)
-              .order("sent_at", { ascending: false })
-              .limit(1)
-              .maybeSingle();
-            if (latestStaleSent.error) return json({ error: latestStaleSent.error.message }, 500);
-
-            if (latestStaleSent.data) {
-              let retryQ = sb.from("plugin_actions")
-                .select(actionSelect)
-                .eq("user_id", profileId)
-                .eq("status", "sent")
-                .lt("sent_at", staleSentCutoff)
-                .order("sent_at", { ascending: true })
-                .order("position", { ascending: true })
-                .limit(100);
-              if (latestStaleSent.data.message_id) {
-                retryQ = retryQ.eq("message_id", latestStaleSent.data.message_id);
-              } else {
-                retryQ = retryQ.eq("project_id", latestStaleSent.data.project_id);
-              }
-              const retry = await retryQ;
-              if (retry.error) return json({ error: retry.error.message }, 500);
-              actions = retry.data ?? [];
-            }
-          }
+          // Do not auto-replay old `sent` rows from normal polling. A previous
+          // Studio window can hang on a heavy asset, and replaying that stale
+          // batch on reconnect blocks brand-new one-action builds. The website's
+          // explicit "Execute now" path can re-arm the newest in-flight message
+          // when the user asks, but passive polling only pulls fresh pending work.
 
           if (actions.length > 0) {
             const before = actions.map((a) => ({
@@ -197,6 +171,7 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
               placeId: body.place_id ?? null,
               studioVersion: body.studio_version ?? null,
               pluginVersion: body.plugin_version ?? null,
+              mode: "pending_only",
             });
           } else {
             console.info("[plugin/poll] heartbeat no actions", {
