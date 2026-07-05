@@ -103,6 +103,7 @@ Rules:
 - Prefer insert_asset only when an asset id is explicitly present in the plan. Include payload.asset_id and payload.fallback_ids when known.
 - If Asset mode is procedural, do not emit insert_asset. Use run_lua/terrain/parts to generate original visible content in Studio.
 - Use run_lua for placement, safe cleanup, scripting, UI wiring, lighting, spawns, collision fixes, batch deletes, and validation helpers.
+- Any script, localscript, modulescript, or run_lua action MUST include payload.source with complete runnable Luau. A script action without source is invalid and must not be emitted.
 - Do not emit delete actions unless the user explicitly asked to delete or clear something.
 - If the user asks to erase/clear/wipe/delete everything except Baseplate, output exactly one run_lua action that deletes Workspace children except Baseplate, clears Terrain, clears StarterGui/StarterPack/StarterPlayer scripts/ReplicatedStorage/ServerScriptService/ServerStorage/Lighting/SoundService/Teams, then scan_project. Do not answer with manual instructions.
 - Never produce empty folders, placeholders, TODOs, comments pretending work is done, or unsupported action kinds.
@@ -154,6 +155,8 @@ const FAST_CHAT_SYSTEM_PROMPT = `You are BloxSmith, a friendly senior Roblox dev
 const FAST_BUILD_SYSTEM_PROMPT = `You are BloxSmith, an expert Roblox Studio game-building agent. Build real, playable Roblox results through structured Studio actions. Keep visible prose concise and human. Never expose internal tool names, raw payloads, debug details, model/provider names, or JSON except the hidden executable action block. Use modern Luau, server-authoritative gameplay, safe free Toolbox assets when Toolbox mode is active, clean organization, mobile-safe UI, no placeholders, no fake buttons, no empty folders, no invented asset IDs, and no deprecated APIs.
 
 EXACT-SCOPE LAW (highest priority): Create ONLY the files/instances/systems the user explicitly names. Do not add main menus, loading screens, splash/title screens, HUDs, shops, inventories, settings panels, tutorials, music, camera effects, remotes, ModuleScripts, leaderstats, DataStores, managers, folders, or extra polish unless the current user message asks for that exact thing. A request like "make a speed boost button" means create the speed boost button and its required Luau only — not a menu, not a loading screen, not a full UI package.
+
+SCRIPT SOURCE CONTRACT (non-negotiable): Every script, localscript, modulescript, and run_lua action MUST contain payload.source with complete runnable Luau written by you. Never emit an empty script, a placeholder script, a comment-only script, or a script action that only names where code should go.
 
 COMPLETENESS CONTRACT (non-negotiable):
 - Enumerate every distinct feature/thing the user asked for in this turn. For EACH one, emit at least one concrete action (run_lua, insert_asset, part, script, screengui, remoteevent, set_properties, etc.) that actually creates or modifies it in Studio. Do not silently skip items.
@@ -557,6 +560,290 @@ function actionLooksLikeUnrequestedUiShell(action: any, userText: string) {
   if (!requestedInventory && /\b(RequestInventory|InventoryButton|Player items and rewards can appear here)\b/i.test(haystack)) return true;
   if (!requestedSettings && /\b(SaveSettings|SettingsButton|Volume, graphics, and gameplay options are ready to wire)\b/i.test(haystack)) return true;
   return false;
+}
+
+function isScriptLikeAction(action: any) {
+  return ["script", "localscript", "modulescript", "run_lua"].includes(String(action?.kind ?? ""));
+}
+
+function hasRealLuauSource(action: any) {
+  if (!isScriptLikeAction(action)) return true;
+  const source = String(action?.payload?.source ?? action?.source ?? "").trim();
+  if (source.length < 40) return false;
+  const withoutComments = source
+    .replace(/--\[\[[\s\S]*?\]\]/g, "")
+    .replace(/--[^\n]*/g, "")
+    .trim();
+  if (withoutComments.length < 25) return false;
+  if (/TODO|placeholder|add your code here|simple server script is running/i.test(source)) return false;
+  return true;
+}
+
+function narrowFeatureFallbackStudioActions(userText: string, languageName: string) {
+  if (!isNarrowFeatureRequest(userText)) return [];
+  const text = userText.toLowerCase();
+  const safePrompt = userText.trim().slice(0, 220) || "single Roblox feature";
+
+  if (/\b(speed\s*boost|speed\s*button|sprint|run\s*faster)\b/i.test(text)) {
+    const source = `
+local StarterGui = game:GetService("StarterGui")
+
+local old = StarterGui:FindFirstChild("BloxSmith_SpeedBoostButton")
+if old then old:Destroy() end
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "BloxSmith_SpeedBoostButton"
+gui.ResetOnSpawn = false
+gui.IgnoreGuiInset = true
+gui.DisplayOrder = 50
+gui.Parent = StarterGui
+
+local button = Instance.new("TextButton")
+button.Name = "SpeedBoostButton"
+button.AnchorPoint = Vector2.new(1, 1)
+button.Position = UDim2.new(1, -24, 1, -96)
+button.Size = UDim2.fromOffset(170, 56)
+button.BackgroundColor3 = Color3.fromRGB(42, 145, 255)
+button.BorderSizePixel = 0
+button.Font = Enum.Font.GothamBold
+button.Text = "Speed Boost"
+button.TextColor3 = Color3.fromRGB(255, 255, 255)
+button.TextScaled = true
+button.AutoButtonColor = true
+button.Parent = gui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 10)
+corner.Parent = button
+
+local stroke = Instance.new("UIStroke")
+stroke.Color = Color3.fromRGB(220, 240, 255)
+stroke.Transparency = 0.25
+stroke.Thickness = 1
+stroke.Parent = button
+
+local scriptObj = Instance.new("LocalScript")
+scriptObj.Name = "SpeedBoostClient"
+scriptObj.Source = [==[
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local button = script.Parent
+
+local BOOST_SPEED = 32
+local BOOST_TIME = 5
+local COOLDOWN = 8
+local ready = true
+
+local function getHumanoid()
+  local character = player.Character or player.CharacterAdded:Wait()
+  return character:FindFirstChildOfClass("Humanoid") or character:WaitForChild("Humanoid", 5)
+end
+
+local function setButton(text, active)
+  button.Text = text
+  button.Active = active
+  button.AutoButtonColor = active
+  button.BackgroundTransparency = active and 0 or 0.35
+end
+
+button.Activated:Connect(function()
+  if not ready then return end
+  local humanoid = getHumanoid()
+  if not humanoid then return end
+
+  ready = false
+  local normalSpeed = humanoid.WalkSpeed
+  humanoid.WalkSpeed = math.max(normalSpeed, BOOST_SPEED)
+  setButton("Boosting...", false)
+
+  task.delay(BOOST_TIME, function()
+    if humanoid and humanoid.Parent then
+      humanoid.WalkSpeed = normalSpeed
+    end
+    for remaining = COOLDOWN, 1, -1 do
+      setButton("Cooldown " .. remaining, false)
+      task.wait(1)
+    end
+    setButton("Speed Boost", true)
+    ready = true
+  end)
+end)
+]==]
+scriptObj.Parent = button
+
+gui:SetAttribute("BloxSmithRequest", ${JSON.stringify(safePrompt)})
+gui:SetAttribute("Language", ${JSON.stringify(languageName)})
+`;
+    return [{
+      kind: "run_lua",
+      parent_path: "StarterGui",
+      name: "BloxSmith_Create_SpeedBoost_Button",
+      payload: { source },
+    }];
+  }
+
+  if (/\b(double\s*jump|doublejump)\b/i.test(text)) {
+    return [{
+      kind: "localscript",
+      parent_path: "StarterPlayer.StarterPlayerScripts",
+      name: "BloxSmith_DoubleJumpClient",
+      payload: {
+        source: `local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local player = Players.LocalPlayer
+
+local extraJumps = 1
+local jumpsUsed = 0
+local humanoid: Humanoid? = nil
+
+local function bindCharacter(character: Model)
+  humanoid = character:WaitForChild("Humanoid", 5) :: Humanoid?
+  jumpsUsed = 0
+  if humanoid then
+    humanoid.StateChanged:Connect(function(_, newState)
+      if newState == Enum.HumanoidStateType.Landed or newState == Enum.HumanoidStateType.Running then
+        jumpsUsed = 0
+      end
+    end)
+  end
+end
+
+if player.Character then bindCharacter(player.Character) end
+player.CharacterAdded:Connect(bindCharacter)
+
+UserInputService.JumpRequest:Connect(function()
+  if not humanoid or humanoid.FloorMaterial ~= Enum.Material.Air then return end
+  if jumpsUsed >= extraJumps then return end
+  jumpsUsed += 1
+  humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+end)`,
+      },
+    }];
+  }
+
+  if (/\b(kill\s*brick|damage\s*brick|lava\s*brick)\b/i.test(text)) {
+    const source = `
+local Workspace = game:GetService("Workspace")
+
+local brick = Workspace:FindFirstChild("BloxSmith_KillBrick")
+if not brick then
+  brick = Instance.new("Part")
+  brick.Name = "BloxSmith_KillBrick"
+  brick.Size = Vector3.new(12, 1, 12)
+  brick.Position = Vector3.new(0, 1, -18)
+  brick.Anchored = true
+  brick.CanCollide = true
+  brick.Material = Enum.Material.Neon
+  brick.Color = Color3.fromRGB(255, 70, 40)
+  brick.Parent = Workspace
+end
+
+local oldScript = brick:FindFirstChild("KillOnTouch")
+if oldScript then oldScript:Destroy() end
+
+local scriptObj = Instance.new("Script")
+scriptObj.Name = "KillOnTouch"
+scriptObj.Source = [==[
+local brick = script.Parent
+local debounce = {}
+
+brick.Touched:Connect(function(hit)
+  local character = hit:FindFirstAncestorOfClass("Model")
+  local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+  if not humanoid or debounce[humanoid] then return end
+  debounce[humanoid] = true
+  humanoid.Health = 0
+  task.delay(1, function() debounce[humanoid] = nil end)
+end)
+]==]
+scriptObj.Parent = brick
+`;
+    return [{ kind: "run_lua", parent_path: "Workspace", name: "BloxSmith_Create_KillBrick", payload: { source } }];
+  }
+
+  if (/\b(button)\b/i.test(text)) {
+    const source = `
+local StarterGui = game:GetService("StarterGui")
+
+local old = StarterGui:FindFirstChild("BloxSmith_SingleButton")
+if old then old:Destroy() end
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "BloxSmith_SingleButton"
+gui.ResetOnSpawn = false
+gui.Parent = StarterGui
+
+local button = Instance.new("TextButton")
+button.Name = "RequestedButton"
+button.AnchorPoint = Vector2.new(0.5, 1)
+button.Position = UDim2.new(0.5, 0, 1, -80)
+button.Size = UDim2.fromOffset(190, 54)
+button.BackgroundColor3 = Color3.fromRGB(42, 145, 255)
+button.BorderSizePixel = 0
+button.Font = Enum.Font.GothamBold
+button.Text = "Button"
+button.TextColor3 = Color3.fromRGB(255, 255, 255)
+button.TextScaled = true
+button.Parent = gui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 10)
+corner.Parent = button
+
+local scriptObj = Instance.new("LocalScript")
+scriptObj.Name = "ButtonClient"
+scriptObj.Source = [==[
+local button = script.Parent
+
+button.Activated:Connect(function()
+  button.Text = "Clicked"
+  task.delay(0.8, function()
+    if button.Parent then button.Text = "Button" end
+  end)
+end)
+]==]
+scriptObj.Parent = button
+`;
+    return [{ kind: "run_lua", parent_path: "StarterGui", name: "BloxSmith_Create_Single_Button", payload: { source } }];
+  }
+
+  if (/\b(script|server\s*script|local\s*script)\b/i.test(text)) {
+    const wantsLocal = /\b(local\s*script|localscript|client\s*script)\b/i.test(text);
+    const scriptSource = wantsLocal
+      ? `local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+local function onCharacterAdded(character)
+  local humanoid = character:WaitForChild("Humanoid", 5)
+  if humanoid then
+    print("[BloxSmith] Client script connected for " .. player.Name)
+  end
+end
+
+if player.Character then
+  onCharacterAdded(player.Character)
+end
+player.CharacterAdded:Connect(onCharacterAdded)`
+      : `local Players = game:GetService("Players")
+
+local function onPlayerAdded(player)
+  player:SetAttribute("BloxSmithScriptActive", true)
+  print("[BloxSmith] Server script connected for " .. player.Name)
+end
+
+Players.PlayerAdded:Connect(onPlayerAdded)
+for _, player in ipairs(Players:GetPlayers()) do
+  onPlayerAdded(player)
+end`;
+    return [{
+      kind: wantsLocal ? "localscript" : "script",
+      parent_path: wantsLocal ? "StarterPlayer.StarterPlayerScripts" : "ServerScriptService",
+      name: wantsLocal ? "BloxSmith_ClientScript" : "BloxSmith_ServerScript",
+      payload: { source: scriptSource, request: safePrompt, language: languageName },
+    }];
+  }
+
+  return [];
 }
 
 const TOOLBOX_ASSET_FINDER_CATEGORIES = [
@@ -3579,6 +3866,18 @@ export const Route = createFileRoute("/api/chat")({
                     }
                     return true;
                   });
+                  const hasWorkingNarrowAction = actions.some((a: any) => {
+                    if (["script", "localscript", "modulescript", "run_lua"].includes(a.kind)) return hasRealLuauSource(a);
+                    if (["screengui", "gui", "frame", "textlabel", "textbutton", "imagelabel", "tool", "part", "model", "terrain", "insert_asset", "remoteevent", "remotefunction", "bindableevent", "sound", "leaderstats", "set_properties", "rename", "move", "delete"].includes(a.kind)) return true;
+                    return false;
+                  });
+                  if (!hasWorkingNarrowAction) {
+                    const fallback = narrowFeatureFallbackStudioActions(userText, languageName).map(normalizePluginAction);
+                    if (fallback.length > 0) {
+                      actions = fallback;
+                      cleanContent = `${cleanContent.trim()}\n\n_Narrow feature fallback queued: BloxSmith wrote the missing Luau directly instead of sending an empty/no-op script._`;
+                    }
+                  }
                   if (!/single item scope/i.test(cleanContent)) {
                     cleanContent = `${cleanContent.trim()}\n\n_Single item scope: BloxSmith will only create the requested item, not a bundle of extra objects._`;
                   }
