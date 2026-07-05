@@ -123,6 +123,20 @@ export function autoFixLuau(rawSource: string): { source: string; fixes: string[
   let src = stripCodeFences(rawSource);
   if (src !== rawSource.trim() && /```/.test(rawSource)) fixes.push("stripped markdown fences");
 
+  // JSON-style table syntax → Luau table syntax.
+  // Runs BEFORE string-guarding because guarding turns `"key":` into a token
+  // and we'd never see it. Restricted to keys that immediately follow `{` or
+  // `,` (with optional whitespace/newline) so we don't touch method calls or
+  // string contents like `"http://…"`.
+  const jsonKeyPre = src;
+  src = src.replace(/([{,]\s*)"([A-Za-z_][A-Za-z0-9_]*)"\s*:/g, "$1$2 = ");
+  src = src.replace(/([{,]\s*)"([^"\n]+)"\s*:/g, '$1["$2"] = ');
+  // Bare unquoted JSON-ish keys: `{ key: value, other: value }` → `{ key = value, other = value }`
+  // Guard against `obj:method(` (colon followed by an identifier + `(`) by requiring the colon
+  // is NOT immediately followed by an identifier that starts a call.
+  src = src.replace(/([{,]\s*)([A-Za-z_][A-Za-z0-9_]*)\s*:(?!\s*[A-Za-z_][A-Za-z0-9_]*\s*\()/g, "$1$2 = ");
+  if (src !== jsonKeyPre) fixes.push("converted JSON-style table keys to Luau assignment");
+
   // Preserve string literals and comments — protect them from replacements
   // by swapping in unique tokens, applying fixes, then restoring.
   const guards: string[] = [];
