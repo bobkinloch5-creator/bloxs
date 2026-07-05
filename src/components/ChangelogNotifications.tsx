@@ -1,9 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Bell, Bot, Box, Brain, Check, CheckCircle2, ChevronDown, Copy, Gauge, ImageIcon, Lightbulb, Link2, ListChecks, Palette, Rocket, ScrollText, Search, Share2, ShieldCheck, Sparkles, Users, Wrench, X, Zap } from "lucide-react";
 
-const CHANGELOG_VERSION = "2026-07-04-full-city-placement-scripts";
+const CHANGELOG_VERSION = "2026-07-05-updates-panel-redesign";
 
 const CHANGELOG_ITEMS = [
+  {
+    title: "🎨 BloxSmith Updates panel — full changelog redesign",
+    date: "Jul 5",
+    icon: Sparkles,
+    body: "Rebuilt the notifications panel into a premium changelog. Every update is now its own rounded glass card with a color-coded category badge (🆕 New, 🐛 Bug fix, ⚡ Performance, 🎨 UI, 🔒 Security, ✨ Improvement), release date in the top-right, hover lift + soft indigo glow, and a Show more / Show less toggle that smoothly expands the full body. Added a sticky header with search across titles and bodies, filter chips per category, Newest/Oldest sort, and an Expand-all / Collapse-all button. Each card exposes hover-reveal Copy link and Share buttons (native share sheet on mobile, clipboard fallback), a 'New' badge for anything released in the last 7 days, and a thin custom scrollbar. Fully responsive down to phone widths with large touch targets and no overlapping text.",
+  },
+  {
+    title: "💬 AI Help Chat — assistant on every page",
+    date: "Jul 5",
+    icon: Bot,
+    body: "Added a site-wide AI Help Chat widget mounted from the root route so it's reachable from every page (home, docs, plugin, support, dashboard, auth). The launcher lives in the bottom-left corner so it never collides with the Donate button or the mobile BottomNav. The panel uses the block-tech BloxSmith look: gradient indigo header with Sparkles branding, assistant/user bubbles with role labels, three suggested prompt chips (install plugin, build not verified, start project), Enter-to-send composer with a Send / Loader button, and a subtle stud motif. Open/closed state persists across navigations via sessionStorage. Backed by a new /api/help-chat server route so answers cover BloxSmith features, plugin install, common errors, and general Roblox dev guidance, with a graceful 'contact support' fallback when it doesn't know.",
+  },
   {
     title: "📌 Perfect placement — nothing floats, nothing clips (raycast ground-snap + overlap resolver)",
     date: "Jul 4",
