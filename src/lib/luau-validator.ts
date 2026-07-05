@@ -64,6 +64,7 @@ export function validateLuau(rawSource: string): LuauIssue[] {
   const NIL_CALL_PATTERNS: Array<[RegExp, string]> = [
     [/\bLighting\s*:\s*GetEffect\b/, "Lighting has no :GetEffect — use :FindFirstChildOfClass or iterate :GetChildren()."],
     [/\bWorkspace\s*:\s*GetPart\b/, "Workspace has no :GetPart — use :FindFirstChild or :GetDescendants()."],
+    [/\bPlayers\s*:\s*GetPlayerFromInput\s*\(/, "Players:GetPlayerFromInput does not exist — use Players.LocalPlayer in a LocalScript, or pass intent to the server through a RemoteEvent."],
     [/:connect\s*\(/, "Use :Connect (capital C) — :connect was removed."],
     [/(?<!task\.)\bwait\s*\(/, "Use task.wait(n) — legacy wait() is throttled and deprecated."],
     [/(?<!task\.)\bspawn\s*\(\s*function/, "Use task.spawn(fn) — legacy spawn() is deprecated."],
@@ -71,6 +72,10 @@ export function validateLuau(rawSource: string): LuauIssue[] {
   ];
   for (const [re, msg] of NIL_CALL_PATTERNS) {
     if (re.test(src)) issues.push({ severity: "warn", message: msg });
+  }
+
+  if (/\bUserInputService\b/.test(src) && /\bPlayers\.PlayerAdded\b/.test(src)) {
+    issues.push({ severity: "error", message: "Mixed server/client script: UserInputService input belongs in a LocalScript, while Players.PlayerAdded belongs in a server Script." });
   }
 
   return issues;
