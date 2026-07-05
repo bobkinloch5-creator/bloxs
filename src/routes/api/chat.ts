@@ -1033,7 +1033,7 @@ local function onAction(_, inputState)
 end
 
 ContextActionService:UnbindAction(ACTION_NAME)
-ContextActionService:BindActionAtPriority(ACTION_NAME, onAction, true, Enum.ContextActionPriority.High.Value, Enum.KeyCode.Space, Enum.KeyCode.ButtonA)
+ContextActionService:BindActionAtPriority(ACTION_NAME, onAction, button == nil, Enum.ContextActionPriority.High.Value, Enum.KeyCode.Space, Enum.KeyCode.ButtonA)
 ContextActionService:SetTitle(ACTION_NAME, "High Jump")
 
 player.CharacterAdded:Connect(function()
