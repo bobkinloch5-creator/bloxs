@@ -1405,6 +1405,16 @@ local function pollOnce(force)
     for _, a in ipairs(actions) do
         if isScriptActionKind(a.kind) then
             local source, origin = pickActionSource(a)
+            -- Auto-repair JSON-style tables in-place so the build isn't blocked
+            -- by a syntax slip the model can produce. If repair happens, the
+            -- healed source is written back to payload.source before insertion.
+            local repaired, changed = autoRepairJsonTables(source)
+            if changed then
+                log(("Auto-repaired JSON-style tables in '%s' during preflight."):format(tostring(a.name)), "warn")
+                a.payload = a.payload or {}
+                a.payload.source = repaired
+                source = repaired
+            end
             local ok, err = validateLuaSource(source, a.name)
             log(("Preflight %s '%s': source=%s chars=%d.")
                 :format(tostring(a.kind), tostring(a.name), tostring(origin), #source), ok and "debug" or "error")
