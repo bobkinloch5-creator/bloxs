@@ -18,6 +18,7 @@ import { HelpModeProvider } from "@/components/SmartTooltip";
 import { Toaster } from "@/components/ui/sonner";
 import { MaintenanceGate } from "@/components/MaintenanceGate";
 import { CommandPalette } from "@/components/CommandPalette";
+import { HelpChatWidget } from "@/components/HelpChatWidget";
 
 function NotFoundComponent() {
   return (
@@ -215,6 +216,7 @@ function RootComponent() {
           <MaintenanceGate>
             <Outlet />
           </MaintenanceGate>
+          <HelpChatWidget />
         </HelpModeProvider>
       </LanguageProvider>
     </QueryClientProvider>
