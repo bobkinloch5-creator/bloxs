@@ -2,7 +2,6 @@
 // Also updates plugin_sessions heartbeat.
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
-import { sanitizeInsertAssetActions, type InsertSanitizeReport } from "@/lib/roblox-toolbox.server";
 import { normalizePluginAction } from "@/lib/plugin-actions";
 
 function admin() {
@@ -94,13 +93,12 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
           if (!Array.isArray(first)) return json({ error: first.error }, 500);
           actions = first;
 
-          // Long-poll: hold the connection up to ~18s if nothing is pending,
-          // returning the instant new actions appear. Drops queue->execute
-          // latency to sub-second regardless of the plugin's poll cadence.
+          // Long-poll: hold briefly if nothing is pending, checking very often
+          // so Studio receives newly-created actions almost immediately.
           if (actions.length === 0) {
-            const deadline = Date.now() + 18_000;
+            const deadline = Date.now() + 10_000;
             while (Date.now() < deadline) {
-              await new Promise((r) => setTimeout(r, 600));
+              await new Promise((r) => setTimeout(r, 150));
               const next = await fetchPending();
               if (!Array.isArray(next)) return json({ error: next.error }, 500);
               if (next.length > 0) { actions = next; break; }
@@ -142,7 +140,6 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
           if (actions.length > 0) {
             const before = actions.map((a) => ({
               id: a.id,
-              message_id: a.message_id,
               kind: a.kind,
               parent_path: a.parent_path,
               name: a.name,
@@ -163,45 +160,12 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
                 return a;
               }
             });
-            const report: InsertSanitizeReport = { dropped: [], replaced: [] };
-            await sanitizeInsertAssetActions(actions as unknown as Array<Record<string, unknown>>, report);
-            const survivingIds = new Set(actions.map((a) => a.id));
-            const droppedIds = before.filter((a) => !survivingIds.has(a.id)).map((a) => a.id);
-            if (droppedIds.length > 0) {
-              await sb.from("plugin_actions")
-                .update({ status: "failed", error: "No authorized ginsert/GetObjects-compatible Toolbox asset found.", completed_at: new Date().toISOString() })
-                .in("id", droppedIds);
-              const affectedMessageIds = [...new Set(before
-                .filter((row) => droppedIds.includes(row.id))
-                .map((row) => row.message_id)
-                .filter((id): id is string => typeof id === "string" && id.length > 0))];
-              await Promise.all(affectedMessageIds.map(async (messageId) => {
-                const { data: rows } = await sb.from("plugin_actions")
-                  .select("status")
-                  .eq("message_id", messageId)
-                  .eq("user_id", profileId);
-                const remaining = rows?.some((row) => row.status !== "done" && row.status !== "failed") ?? false;
-                if (!remaining) {
-                  await sb.from("chat_messages")
-                    .update({ status: "failed", error: "No authorized ginsert/GetObjects-compatible Toolbox asset was found for that request." })
-                    .eq("id", messageId)
-                    .eq("user_id", profileId);
-                }
-              }));
-            }
             await Promise.all(actions.map(async (a) => {
               const old = before.find((row) => row.id === a.id);
               const changed = old?.kind !== a.kind || old?.parent_path !== a.parent_path || old?.name !== a.name || JSON.stringify(old?.payload ?? null) !== JSON.stringify(a.payload ?? null);
               if (!changed) return;
               await sb.from("plugin_actions").update({ kind: a.kind, parent_path: a.parent_path, name: a.name, payload: a.payload }).eq("id", a.id);
             }));
-            if (report.dropped.length > 0 || report.replaced.length > 0) {
-              console.info("[plugin/poll] sanitized insert assets before Studio", {
-                userId: profile.id,
-                dropped: report.dropped,
-                replaced: report.replaced,
-              });
-            }
           }
 
           if (actions && actions.length > 0) {
