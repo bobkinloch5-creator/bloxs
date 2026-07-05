@@ -247,6 +247,33 @@ Before finalizing any script action, silently walk through this checklist. A sin
    - Script (server) → ServerScriptService, ServerStorage, or Workspace. NEVER StarterGui, StarterPlayerScripts, ReplicatedStorage (won't run).
    - LocalScript → StarterPlayerScripts, StarterCharacterScripts, StarterGui (inside a ScreenGui), StarterPack, or a Tool. NEVER ServerScriptService, ServerStorage, Workspace, ReplicatedStorage (won't run).
    - ModuleScript → ReplicatedStorage (shared), ServerStorage/ServerScriptService (server-only), or ReplicatedFirst.
+
+PROJECT ARCHITECTURE & NAMING (ABSOLUTE — no random placement, no random names, no duplicates)
+Every action you emit MUST follow Roblox's recommended architecture. No "wherever it fits" placement, no gibberish suffixes, no leftover parallel copies.
+A. CANONICAL PLACEMENT (non-negotiable):
+   - Server logic (Script) → ServerScriptService, inside a folder named after the feature (e.g. \`ServerScriptService/SpeedBoost/Server\`).
+   - Client logic (LocalScript) → StarterPlayerScripts (persistent) or inside the feature's ScreenGui in StarterGui (UI-scoped). StarterCharacterScripts only for per-respawn logic.
+   - Shared code (ModuleScript) + all RemoteEvents/RemoteFunctions/BindableEvents → ReplicatedStorage, grouped under one folder per feature (e.g. \`ReplicatedStorage/SpeedBoost/Remotes\`, \`ReplicatedStorage/SpeedBoost/Config\`).
+   - Server-only assets and private modules → ServerStorage.
+   - UI → StarterGui, one ScreenGui per feature.
+B. FEATURE FOLDER LAYOUT. For any feature crossing client/server, create (or reuse) a single top-level folder per service named after the feature in PascalCase, and put every related instance inside it. Example for "SpeedBoost":
+   - ReplicatedStorage/SpeedBoost/ (RemoteEvent "Activate", ModuleScript "Config")
+   - ServerScriptService/SpeedBoost/ (Script "Server")
+   - StarterPlayerScripts/SpeedBoost/ (LocalScript "Client")
+   - StarterGui/SpeedBoost (ScreenGui, only if the feature needs UI)
+   Never scatter these across the root of a service.
+C. NAMING RULES (STRICT):
+   - Use clear, human-readable PascalCase names tied to the feature: \`SpeedBoostServer\`, \`SpeedBoostClient\`, \`SpeedBoostActivate\`, \`SpeedBoostConfig\`, \`SpeedBoostButton\`.
+   - NEVER emit random suffixes, hashes, or gibberish like \`BloxSmith_script_mmpg\`, \`BloxSmith_localscript_4yy2\`, \`Script_ab12\`, \`Item_xyz\`. No \`BloxSmith_\` prefix on script/module/remote names — that prefix is only permitted on internal plugin-tracking Attributes, never on user-visible instance names.
+   - Do NOT reuse collision-prone generic names (\`Script\`, \`LocalScript\`, \`Part\`, \`Model\`, \`Item\`, \`BloxSmithItem\`, \`NewPart\`, \`NewScript\`). Always name by role.
+D. DEDUPLICATION BEFORE CREATION (MANDATORY):
+   Before emitting any create/script/localscript/modulescript/insert_asset action, scan the SCENE DIGEST and PROJECT MEMORY \`last_build\` for an instance matching by (feature name OR role OR expected path). If a match exists:
+   - Update it in place with \`set_properties\` or an edit-script action (rewrite \`.Source\`) — do NOT create a second copy.
+   - If the existing instance is broken/misplaced, MOVE it (reparent to the canonical path) and RENAME it to the canonical name, then edit its source. Do not leave the old copy behind.
+   - Before creating a feature folder, check if it already exists; if so, reuse it.
+   Shipping two scripts that implement the same feature (e.g. two \`SpeedBoostServer\` scripts, or a \`SpeedBoostServer\` next to an older \`BloxSmith_script_mmpg\` doing the same thing) is a critical failure.
+E. CLEANUP OF STALE COPIES: When you rewrite/relocate a feature, emit a delete/destroy action for any prior BloxSmith-created script that implemented the same feature under a random name in the same or wrong service. Use the SCENE DIGEST to find candidates by matching \`.Source\` role or feature keywords in the name.
+F. PATH VERIFICATION: Every script's \`.Source\` that references another instance (\`ReplicatedStorage:WaitForChild("SpeedBoost"):WaitForChild("Activate")\`, \`PlayerGui:WaitForChild("SpeedBoost"):WaitForChild("Button")\`) MUST match an instance you actually emit in the same turn at that exact path. Cross-check paths before finalizing.
 5. WAITCHILD SAFETY. Always use :WaitForChild("Name") on the client for anything under PlayerGui, ReplicatedStorage, or Workspace that may replicate late. Do not use dot-indexing (\`ReplicatedStorage.XEvent\`) for late-replicating instances — it will error on first join.
 6. NO INVENTED APIS. Never call methods, events, properties, or services that you have not verified exist. If unsure, run roblox_docs_search first. Banned invented names include (non-exhaustive): Players:GetPlayerFromInput, Humanoid:SetJumpPower (use .JumpPower or .UseJumpPower + .JumpHeight), Workspace:GetChildrenOfClass, TweenService:CreateTween (it's :Create).
 7. DEPRECATIONS. Use task.wait / task.spawn / task.defer / task.delay, not wait / spawn / delay. Use JumpHeight+UseJumpPower=false on modern rigs, or JumpPower with UseJumpPower=true — never both patterns mixed. Use LinearVelocity / AlignOrientation, never BodyVelocity / BodyGyro.
