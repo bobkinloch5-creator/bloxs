@@ -1808,6 +1808,25 @@ task.spawn(function()
     end
 end)
 
+-- Independent heartbeat: keeps the web UI's "online" indicator green even
+-- while the main poll coroutine is blocked executing a long build.
+task.spawn(function()
+    while true do
+        task.wait(10)
+        local token = validToken()
+        if token then
+            pcall(function()
+                post("/api/public/plugin/heartbeat", {
+                    token = token,
+                    place_id = tostring(game.PlaceId or 0),
+                    studio_version = studioVersion(),
+                    plugin_version = PLUGIN_VERSION,
+                }, { verbose = false })
+            end)
+        end
+    end
+end)
+
 log("BloxSmith v" .. PLUGIN_VERSION .. " loaded.", "success")
 log("API: " .. API_BASE, "debug")
 log("Studio " .. studioVersion() .. " ??? place " .. tostring(game.PlaceId or 0), "debug")
