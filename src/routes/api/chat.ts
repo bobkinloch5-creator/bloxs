@@ -764,7 +764,7 @@ gui:SetAttribute("Language", ${JSON.stringify(languageName)})
     }];
   }
 
-  if (/\b(high\s*jump|super\s*jump|jump\s*boost|jump\s*button|space\s*bar.*jump|jump.*space\s*bar)\b/i.test(text)) {
+  if (/\b(high\s*jump|super\s*jump|jump\s*boost|jump\s*button|space\s*bar.*jump|jump.*space\s*bar|jump\s*(script|keybind|key\s*bind|button)|(?:script|keybind|key\s*bind|button).*jump)\b/i.test(text)) {
     const wantsButton = /\b(button|ui|gui|screen|mobile)\b/i.test(text);
     const buttonBuild = wantsButton ? `
 local oldGui = StarterGui:FindFirstChild("BloxSmith_HighJumpButton")
@@ -4237,7 +4237,7 @@ export const Route = createFileRoute("/api/chat")({
                     if (["screengui", "gui", "frame", "textlabel", "textbutton", "imagelabel", "tool", "part", "model", "terrain", "insert_asset", "remoteevent", "remotefunction", "bindableevent", "sound", "leaderstats", "set_properties", "rename", "move", "delete"].includes(a.kind)) return true;
                     return false;
                   });
-                  const shouldUseDeterministicAbilityTemplate = /\b(high\s*jump|super\s*jump|jump\s*boost|jump\s*button|space\s*bar.*jump|jump.*space\s*bar)\b/i.test(userText);
+                  const shouldUseDeterministicAbilityTemplate = /\b(high\s*jump|super\s*jump|jump\s*boost|jump\s*button|space\s*bar.*jump|jump.*space\s*bar|jump\s*(script|keybind|key\s*bind|button)|(?:script|keybind|key\s*bind|button).*jump)\b/i.test(userText);
                   if (!hasWorkingNarrowAction || shouldUseDeterministicAbilityTemplate) {
                     const fallback = narrowFeatureFallbackStudioActions(userText, languageName).map(normalizePluginAction);
                     if (fallback.length > 0) {
