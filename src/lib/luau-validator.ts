@@ -44,12 +44,13 @@ export function validateLuau(rawSource: string): LuauIssue[] {
   if (/^\s*```/.test(rawSource) || /```\s*$/.test(rawSource)) {
     issues.push({ severity: "warn", message: "Source contained markdown code fences; strip ``` before sending." });
   }
-  let src = trimmedSource;
-  for (const re of STRIP_STRINGS) src = src.replace(re, "");
 
-  if (/[{,]\s*"[^"\n]+"\s*:/.test(src) || /[{,]\s*[A-Za-z_][A-Za-z0-9_]*\s*:(?!\s*[A-Za-z_][A-Za-z0-9_]*\s*\()/.test(src)) {
+  if (hasJsonStyleTableSyntax(trimmedSource)) {
     issues.push({ severity: "error", message: "JSON-style table syntax found; use key = value in Luau tables." });
   }
+
+  let src = trimmedSource;
+  for (const re of STRIP_STRINGS) src = src.replace(re, "");
 
   const opens = (src.match(OPENERS) ?? []).length;
   const closes = (src.match(CLOSERS) ?? []).length;
@@ -106,6 +107,25 @@ function balance(s: string, open: string, close: string): number {
     else if (s[i] === close) n--;
   }
   return n;
+}
+
+function hasJsonStyleTableSyntax(source: string): boolean {
+  let src = source
+    .replace(/--\[\[[\s\S]*?\]\]/g, "")
+    .replace(/--[^\n]*/g, "");
+
+  src = src.replace(/"(?:\\.|[^"\\\n])*"/g, (match, offset, full) => {
+    let before = offset - 1;
+    while (before >= 0 && /\s/.test(full[before])) before -= 1;
+    let after = offset + match.length;
+    while (after < full.length && /\s/.test(full[after])) after += 1;
+    if ((full[before] === "{" || full[before] === ",") && full[after] === ":") return match;
+    return '""';
+  });
+  src = src.replace(/'(?:\\.|[^'\\\n])*'/g, "''");
+
+  return /[{,]\s*"[^"\n]+"\s*:/.test(src)
+    || /[{,]\s*[A-Za-z_][A-Za-z0-9_]*\s*:(?!\s*[A-Za-z_][A-Za-z0-9_]*\s*\()/.test(src);
 }
 
 export function stripCodeFences(src: string): string {
