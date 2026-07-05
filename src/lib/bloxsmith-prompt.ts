@@ -1174,6 +1174,19 @@ const HOISTABLE_PAYLOAD_KEYS = [
   "reset_on_spawn",
 ];
 
+function pickParsedActionKind(a: Record<string, unknown>, hasSource: boolean) {
+  const explicitKind = typeof a.kind === "string" && a.kind.trim() ? a.kind : undefined;
+  if (explicitKind) return explicitKind;
+
+  const action = typeof a.action === "string" && a.action.trim() ? a.action.trim() : undefined;
+  const type = typeof a.type === "string" && a.type.trim() ? a.type.trim() : undefined;
+  const actionIsVerb = action ? /^(create|add|make|build|insert|update|edit|patch|set|generate|write|spawn)$/i.test(action) : false;
+  if (type && (!action || actionIsVerb)) return type;
+  if (action) return action;
+  if (type) return type;
+  return hasSource ? "script" : "";
+}
+
 export function parseActions(content: string): { cleanContent: string; actions: ParsedAction[] } {
   const re = /```bloxsmith-actions\s*\n?([\s\S]*?)```/gi;
   const matches = Array.from(content.matchAll(re));
@@ -1223,9 +1236,7 @@ export function parseActions(content: string): { cleanContent: string; actions: 
         }
         const topSource = typeof a.source === "string" && a.source.trim().length > 0 ? a.source : undefined;
         const payloadSource = typeof payload.source === "string" && payload.source.trim().length > 0 ? payload.source : undefined;
-        const rawKind = a.kind ?? a.action ?? a.type;
-        const inferredKind = topSource ?? payloadSource ? "script" : "";
-        const kind = String(rawKind ?? inferredKind).trim();
+        const kind = pickParsedActionKind(a, Boolean(topSource ?? payloadSource));
         if (!kind) return acc;
         acc.push({
           kind,
