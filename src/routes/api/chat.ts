@@ -513,6 +513,11 @@ function isGrassRequest(userText: string) {
   return /\b(grass|grassy|lawn|turf|field|ground\s+cover|realistic\s+ground)\b/i.test(userText);
 }
 
+function isSnowTerrainRequest(userText: string) {
+  return /\b(snow|snowy|winter|arctic|tundra|ice|glacier)\b/i.test(userText) &&
+    /\b(terrain|ground|map|world|environment|area|biome|landscape|floor|baseplate|scene|make|add|build|create)\b/i.test(userText);
+}
+
 function isSimpleSingleThingRequest(userText: string) {
   const text = userText.toLowerCase().trim();
   if (!text) return false;
@@ -1876,6 +1881,153 @@ Lighting.Brightness = math.max(Lighting.Brightness, 2)
       parent_path: "Workspace",
       name: "BloxSmith_Apply_Visible_Grass",
       payload: { source },
+    },
+  ];
+}
+
+function visibleSnowTerrainStudioActions(userText: string) {
+  const safePrompt = userText.trim().slice(0, 220) || "add snow terrain";
+  const source = `
+local Workspace = game:GetService("Workspace")
+local Lighting = game:GetService("Lighting")
+local Terrain = Workspace.Terrain
+
+local request = ${JSON.stringify(safePrompt)}
+
+local root = Workspace:FindFirstChild("BloxSmith_Snow_Terrain")
+if root then root:Destroy() end
+root = Instance.new("Folder")
+root.Name = "BloxSmith_Snow_Terrain"
+root.Parent = Workspace
+
+local created = {}
+local function remember(inst)
+  table.insert(created, inst)
+  return inst
+end
+
+local function part(parent, name, size, cf, color, material, shape)
+  local p = Instance.new("Part")
+  p.Name = name
+  p.Anchored = true
+  p.CanCollide = true
+  p.Size = size
+  p.CFrame = cf
+  p.Color = color
+  p.Material = material or Enum.Material.Snow
+  p.TopSurface = Enum.SurfaceType.Smooth
+  p.BottomSurface = Enum.SurfaceType.Smooth
+  if shape then p.Shape = shape end
+  p.Parent = parent
+  return remember(p)
+end
+
+local function model(parent, name)
+  local m = Instance.new("Model")
+  m.Name = name
+  m.Parent = parent
+  remember(m)
+  return m
+end
+
+pcall(function()
+  Terrain:SetMaterialColor(Enum.Material.Snow, Color3.fromRGB(238, 244, 252))
+  Terrain:SetMaterialColor(Enum.Material.Ice, Color3.fromRGB(178, 220, 242))
+  Terrain:SetMaterialColor(Enum.Material.Rock, Color3.fromRGB(150, 158, 164))
+  Terrain:FillBlock(CFrame.new(0, -3, 0), Vector3.new(280, 6, 280), Enum.Material.Snow)
+end)
+
+local ground = part(root, "Visible_Snow_Ground", Vector3.new(280, 1.2, 280), CFrame.new(0, 0.6, 0), Color3.fromRGB(242, 248, 255), Enum.Material.Snow)
+
+local hills = Instance.new("Folder")
+hills.Name = "Snow_Hills"
+hills.Parent = root
+for i, data in ipairs({{-85,-68,34},{-48,72,24},{82,58,30},{96,-44,22},{8,98,18}}) do
+  pcall(function() Terrain:FillBall(Vector3.new(data[1], data[3] / 2 - 2, data[2]), data[3], Enum.Material.Snow) end)
+  part(hills, "Snow_Hill_" .. i, Vector3.new(data[3] * 1.55, data[3] * 0.48, data[3] * 1.55), CFrame.new(data[1], data[3] * 0.28, data[2]), Color3.fromRGB(228, 238, 248), Enum.Material.Snow, Enum.PartType.Ball)
+end
+
+local trees = Instance.new("Folder")
+trees.Name = "Snow_Pines"
+trees.Parent = root
+for i, pos in ipairs({{-74,-28},{-34,46},{28,-58},{62,32},{-92,78},{88,-82},{8,70}}) do
+  local m = model(trees, "Snow_Pine_" .. i)
+  local trunk = part(m, "Trunk", Vector3.new(1.7, 10, 1.7), CFrame.new(pos[1], 5.5, pos[2]), Color3.fromRGB(84, 55, 34), Enum.Material.Wood)
+  for k, dy in ipairs({0, 3.1, 6.1}) do
+    local radius = 9 - k * 1.7
+    part(m, "Snowy_Branches_" .. k, Vector3.new(radius, 4.2, radius), CFrame.new(pos[1], 9 + dy, pos[2]), Color3.fromRGB(214, 228, 236), Enum.Material.Snow, Enum.PartType.Ball)
+  end
+  m.PrimaryPart = trunk
+end
+
+local ice = Instance.new("Folder")
+ice.Name = "Ice_Features"
+ice.Parent = root
+part(ice, "Frozen_Pond", Vector3.new(58, 0.35, 38), CFrame.new(42, 0.95, -24) * CFrame.Angles(0, math.rad(-12), 0), Color3.fromRGB(156, 216, 242), Enum.Material.Ice)
+for i, pos in ipairs({{72,-64,16},{-58,18,12},{18,-92,10}}) do
+  part(ice, "Ice_Rock_" .. i, Vector3.new(pos[3], pos[3] * 0.75, pos[3]), CFrame.new(pos[1], pos[3] * 0.38, pos[2]) * CFrame.Angles(0, math.rad(i * 23), 0), Color3.fromRGB(184, 224, 244), Enum.Material.Ice, Enum.PartType.Ball)
+end
+
+local spawn = Instance.new("SpawnLocation")
+spawn.Name = "Snow_Terrain_Spawn"
+spawn.Anchored = true
+spawn.Neutral = true
+spawn.Size = Vector3.new(8, 1, 8)
+spawn.Position = Vector3.new(0, 2.2, -72)
+spawn.Color = Color3.fromRGB(110, 215, 255)
+spawn.Material = Enum.Material.Ice
+spawn.Parent = root
+remember(spawn)
+
+local marker = part(root, "BloxSmith_Snow_Built_Marker", Vector3.new(18, 10, 1), CFrame.new(0, 7, -88), Color3.fromRGB(32, 45, 62), Enum.Material.Metal)
+local gui = Instance.new("SurfaceGui")
+gui.Face = Enum.NormalId.Front
+gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+gui.PixelsPerStud = 24
+gui.Parent = marker
+local label = Instance.new("TextLabel")
+label.BackgroundTransparency = 1
+label.Size = UDim2.fromScale(1, 1)
+label.Font = Enum.Font.GothamBold
+label.TextScaled = true
+label.TextWrapped = true
+label.TextColor3 = Color3.fromRGB(244, 250, 255)
+label.Text = "Snow terrain built"
+label.Parent = gui
+
+pcall(function()
+  Lighting.ClockTime = 9.5
+  Lighting.Brightness = 2.2
+  Lighting.OutdoorAmbient = Color3.fromRGB(178, 194, 216)
+  Lighting.FogColor = Color3.fromRGB(218, 230, 244)
+  Lighting.FogEnd = 360
+end)
+
+root:SetAttribute("BloxSmithRequest", request)
+root:SetAttribute("VisibleSnowTerrain", true)
+root:SetAttribute("CreatedCount", #created)
+
+return {
+  instance = root,
+  path = root:GetFullName(),
+  created = created,
+  visible = true,
+  summary = "Created visible snow terrain with ground, hills, pines, ice, spawn, and marker"
+}
+`;
+
+  return [
+    {
+      kind: "run_lua",
+      parent_path: "Workspace",
+      name: "BloxSmith_Create_Visible_Snow_Terrain",
+      payload: { source, request: safePrompt, visible_output_required: true },
+    },
+    {
+      kind: "scan_project",
+      parent_path: "Workspace",
+      name: "BloxSmith_Scan_After_Snow_Terrain",
+      payload: { reason: "verify_visible_snow_terrain_was_created" },
     },
   ];
 }
@@ -3976,6 +4128,73 @@ export const Route = createFileRoute("/api/chat")({
             });
             console.info("[chat/fastpath] queued clear project keep baseplate", { projectId, userId, actionCount: actions.length });
             return streamPlainAssistantText(replyText, "clear-text-1");
+          }
+
+          // ── INSTANT VISIBLE SNOW TERRAIN FAST-PATH ──────────────────────
+          // Snow/terrain requests must always make visible geometry immediately,
+          // even when Toolbox-only mode would otherwise search for a vague model.
+          if (mode === "build" && projectId && userText && isSnowTerrainRequest(userText) && !imageGenerationRequested) {
+            const actions = visibleSnowTerrainStudioActions(userText)
+              .map(normalizePluginAction)
+              .filter((action) => finalScriptIssues(action).length === 0)
+              .map((action: any) => ({
+                ...action,
+                payload: {
+                  ...(action.payload ?? {}),
+                  _bloxsmith: {
+                    execution_mode: "fast",
+                    structured: true,
+                    exact_scope: true,
+                    visible_output_required: true,
+                    terrain_fast_path: true,
+                    no_empty_folders: true,
+                    no_fake_assets: true,
+                  },
+                },
+              }));
+            if (actions.length > 0) {
+              const replyText = "Sent visible snow terrain to Studio — it should build now and focus the camera on it.";
+              const { data: msgRow } = await supabase
+                .from("chat_messages")
+                .insert({
+                  project_id: projectId,
+                  user_id: userId,
+                  role: "assistant",
+                  content: replyText,
+                  status: "sending",
+                  model: "deterministic-snow-terrain-fastpath",
+                  actions,
+                })
+                .select("id")
+                .single();
+              await supabase.from("plugin_actions").insert(
+                actions.map((action, i) => ({
+                  project_id: projectId,
+                  user_id: userId,
+                  message_id: msgRow?.id ?? null,
+                  kind: action.kind,
+                  parent_path: action.parent_path,
+                  name: action.name,
+                  payload: action.payload,
+                  position: i,
+                })),
+              );
+              await supabase.from("build_history").insert({
+                project_id: projectId,
+                user_id: userId,
+                prompt: userText,
+                model: "deterministic-snow-terrain-fastpath",
+                files_count: actions.length,
+                plugin_status: "Queued",
+                applied: false,
+              });
+              await supabase
+                .from("projects")
+                .update({ updated_at: new Date().toISOString() })
+                .eq("id", projectId);
+              console.info("[chat/fastpath] queued visible snow terrain instantly", { projectId, userId, actionCount: actions.length });
+              return streamPlainAssistantText(replyText, "snow-terrain-fastpath-text");
+            }
           }
 
           // ── INSTANT NARROW FEATURE FAST-PATH ───────────────────────────

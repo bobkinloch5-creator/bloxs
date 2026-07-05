@@ -155,7 +155,7 @@ function compareVersions(current?: string | null, required?: string | null) {
   return 0;
 }
 
-const MIN_FAST_POLL_PLUGIN_VERSION = "2.1.19";
+const MIN_FAST_POLL_PLUGIN_VERSION = "2.1.20";
 
 export const getBuildExecutionStatus = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])

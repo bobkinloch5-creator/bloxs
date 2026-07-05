@@ -20,7 +20,7 @@ local Selection             = game:GetService("Selection")
 
 local API_BASE       = "https://bloxsmith.pro"
 local POLL_INTERVAL  = 0.05
-local PLUGIN_VERSION = "2.1.19"
+local PLUGIN_VERSION = "2.1.20"
 
 ------------------------------------------------------------------- token helpers
 local TOKEN_KEY = "token"
@@ -1374,10 +1374,36 @@ end
     end
 
     local beforeScripts = collectScriptSet()
-    local ok, runErr = pcall(builder, p, plugin, safeSet, safeSetProps)
-    if not ok then error("runtime error: " .. tostring(runErr)) end
+    local ok, builderResult = pcall(builder, p, plugin, safeSet, safeSetProps)
+    if not ok then error("runtime error: " .. tostring(builderResult)) end
     local verifiedScripts = verifyNewScriptsCreatedByRunLua(beforeScripts)
-    return { ran = a.name, scripts_verified = verifiedScripts }
+    local result = { ran = a.name, scripts_verified = verifiedScripts }
+    if typeof(builderResult) == "Instance" then
+        result.path = fullPath(builderResult)
+        result.class = builderResult.ClassName
+        result.name = builderResult.Name
+    elseif type(builderResult) == "table" then
+        if typeof(builderResult.instance) == "Instance" then
+            result.path = fullPath(builderResult.instance)
+            result.class = builderResult.instance.ClassName
+            result.name = builderResult.instance.Name
+        elseif type(builderResult.path) == "string" then
+            result.path = builderResult.path
+        end
+        if type(builderResult.summary) == "string" then result.summary = builderResult.summary end
+        if type(builderResult.visible) == "boolean" then result.visible = builderResult.visible end
+        if type(builderResult.created) == "table" then
+            result.created = {}
+            for _, entry in ipairs(builderResult.created) do
+                if typeof(entry) == "Instance" then
+                    table.insert(result.created, { path = fullPath(entry), class = entry.ClassName, name = entry.Name })
+                elseif type(entry) == "table" and type(entry.path) == "string" then
+                    table.insert(result.created, entry)
+                end
+            end
+        end
+    end
+    return result
 end
 
 local function describeAction(a)
