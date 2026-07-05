@@ -128,6 +128,100 @@ function hasJsonStyleTableSyntax(source: string): boolean {
     || /[{,]\s*[A-Za-z_][A-Za-z0-9_]*\s*:(?!\s*[A-Za-z_][A-Za-z0-9_]*\s*\()/.test(src);
 }
 
+function previousNonWhitespace(source: string, index: number): string {
+  for (let i = index - 1; i >= 0; i--) {
+    if (!/\s/.test(source[i])) return source[i];
+  }
+  return "";
+}
+
+function nextNonWhitespaceIndex(source: string, index: number): number {
+  let i = index;
+  while (i < source.length && /\s/.test(source[i])) i += 1;
+  return i;
+}
+
+function readQuotedString(source: string, index: number): { end: number; value: string } | null {
+  const quote = source[index];
+  if (quote !== "\"" && quote !== "'") return null;
+  let value = "";
+  for (let i = index + 1; i < source.length; i++) {
+    const ch = source[i];
+    if (ch === "\\") {
+      value += source.slice(i, Math.min(i + 2, source.length));
+      i += 1;
+      continue;
+    }
+    if (ch === quote) return { end: i + 1, value };
+    value += ch;
+  }
+  return null;
+}
+
+function convertJsonStyleTableKeys(source: string): { source: string; changed: boolean } {
+  let out = "";
+  let i = 0;
+  let changed = false;
+
+  while (i < source.length) {
+    if (source.startsWith("--[[", i)) {
+      const end = source.indexOf("]]", i + 4);
+      const stop = end === -1 ? source.length : end + 2;
+      out += source.slice(i, stop);
+      i = stop;
+      continue;
+    }
+    if (source.startsWith("--", i)) {
+      const end = source.indexOf("\n", i + 2);
+      const stop = end === -1 ? source.length : end;
+      out += source.slice(i, stop);
+      i = stop;
+      continue;
+    }
+
+    const ch = source[i];
+    if (ch === "\"" || ch === "'") {
+      const quoted = readQuotedString(source, i);
+      if (!quoted) {
+        out += ch;
+        i += 1;
+        continue;
+      }
+      const next = nextNonWhitespaceIndex(source, quoted.end);
+      const prev = previousNonWhitespace(out, out.length);
+      if ((prev === "{" || prev === ",") && source[next] === ":") {
+        const key = quoted.value;
+        out += /^[A-Za-z_][A-Za-z0-9_]*$/.test(key) ? `${key} = ` : `[${JSON.stringify(key)}] = `;
+        i = next + 1;
+        changed = true;
+        continue;
+      }
+      out += source.slice(i, quoted.end);
+      i = quoted.end;
+      continue;
+    }
+
+    if (/[A-Za-z_]/.test(ch) && (previousNonWhitespace(out, out.length) === "{" || previousNonWhitespace(out, out.length) === ",")) {
+      const match = source.slice(i).match(/^[A-Za-z_][A-Za-z0-9_]*/);
+      if (match) {
+        const key = match[0];
+        const next = nextNonWhitespaceIndex(source, i + key.length);
+        if (source[next] === ":") {
+          out += `${key} = `;
+          i = next + 1;
+          changed = true;
+          continue;
+        }
+      }
+    }
+
+    out += ch;
+    i += 1;
+  }
+
+  return { source: out, changed };
+}
+
 export function stripCodeFences(src: string): string {
   if (typeof src !== "string") return src;
   return src
@@ -151,14 +245,9 @@ export function autoFixLuau(rawSource: string): { source: string; fixes: string[
   // and we'd never see it. Restricted to keys that immediately follow `{` or
   // `,` (with optional whitespace/newline) so we don't touch method calls or
   // string contents like `"http://…"`.
-  const jsonKeyPre = src;
-  src = src.replace(/([{,]\s*)"([A-Za-z_][A-Za-z0-9_]*)"\s*:/g, "$1$2 = ");
-  src = src.replace(/([{,]\s*)"([^"\n]+)"\s*:/g, '$1["$2"] = ');
-  // Bare unquoted JSON-ish keys: `{ key: value, other: value }` → `{ key = value, other = value }`
-  // Guard against `obj:method(` (colon followed by an identifier + `(`) by requiring the colon
-  // is NOT immediately followed by an identifier that starts a call.
-  src = src.replace(/([{,]\s*)([A-Za-z_][A-Za-z0-9_]*)\s*:(?!\s*[A-Za-z_][A-Za-z0-9_]*\s*\()/g, "$1$2 = ");
-  if (src !== jsonKeyPre) fixes.push("converted JSON-style table keys to Luau assignment");
+  const jsonRepair = convertJsonStyleTableKeys(src);
+  src = jsonRepair.source;
+  if (jsonRepair.changed) fixes.push("converted JSON-style table keys to Luau assignment");
 
   // Preserve string literals and comments — protect them from replacements
   // by swapping in unique tokens, applying fixes, then restoring.
