@@ -7,7 +7,23 @@ import { stripCodeFences, validateLuau } from "@/lib/luau-validator";
 
 const SCRIPT_ACTION_KINDS = new Set(["script", "localscript", "modulescript", "run_lua"]);
 
-function pickPreparedActionKind(action: { kind?: string; action?: string; type?: string; payload?: unknown }) {
+function preparedActionPayload(action: {
+  payload?: unknown;
+  source?: unknown;
+  code?: unknown;
+  lua?: unknown;
+  luau?: unknown;
+  script?: unknown;
+}) {
+  const payload = action.payload && typeof action.payload === "object" ? { ...(action.payload as Record<string, unknown>) } : {};
+  if (!(typeof payload.source === "string" && payload.source.trim())) {
+    const alt = action.source ?? action.code ?? action.lua ?? action.luau ?? action.script ?? payload.code ?? payload.lua ?? payload.luau ?? payload.script;
+    if (typeof alt === "string" && alt.trim()) payload.source = alt;
+  }
+  return payload;
+}
+
+function pickPreparedActionKind(action: { kind?: string; action?: string; type?: string; payload?: unknown; source?: unknown; code?: unknown; lua?: unknown; luau?: unknown; script?: unknown }) {
   const explicitKind = typeof action.kind === "string" && action.kind.trim() ? action.kind.trim() : undefined;
   if (explicitKind) return explicitKind;
   const actionValue = typeof action.action === "string" && action.action.trim() ? action.action.trim() : undefined;
@@ -16,7 +32,7 @@ function pickPreparedActionKind(action: { kind?: string; action?: string; type?:
   if (typeValue && (!actionValue || actionIsVerb)) return typeValue;
   if (actionValue) return actionValue;
   if (typeValue) return typeValue;
-  const payload = action.payload && typeof action.payload === "object" ? action.payload as Record<string, unknown> : {};
+  const payload = preparedActionPayload(action);
   return typeof payload.source === "string" && payload.source.trim() ? "script" : "";
 }
 
@@ -306,11 +322,16 @@ export const queuePreparedStudioActions = createServerFn({ method: "POST" })
         z.string().trim().min(1).max(160),
       ).default("BloxSmithAction"),
       payload: z.any().optional(),
+      source: z.string().optional(),
+      code: z.string().optional(),
+      lua: z.string().optional(),
+      luau: z.string().optional(),
+      script: z.string().optional(),
     })).min(1).max(80),
   }).parse(input))
   .handler(async ({ data, context }) => {
     const normalizedInputActions = data.actions
-      .map((action) => ({ ...action, kind: pickPreparedActionKind(action) }))
+      .map((action) => ({ ...action, kind: pickPreparedActionKind(action), payload: preparedActionPayload(action) }))
       .filter((action) => action.kind);
     const normalizedActions = await repairPreparedScriptActions(normalizedInputActions.map(normalizePluginAction));
     if (normalizedActions.length === 0) {
