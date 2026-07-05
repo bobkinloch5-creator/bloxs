@@ -212,18 +212,22 @@ function trimMessagesForModel(messages: UIMessage[], mode: "chat" | "build"): UI
 }
 
 function capOutputTokens(modelSettings: { maxOutputTokens?: number } | undefined, mode: "chat" | "build", buildQuality?: "basic" | "better" | "premium" | "full_game") {
-  const requested = modelSettings?.maxOutputTokens ?? (mode === "chat" ? 900 : 4096);
+  // FAST PATH: cap output tokens aggressively so responses finish quickly.
+  // The prior version used Math.max, which forced tokens UP to a huge ceiling
+  // and made every reply slow. We now cap DOWN so models return promptly.
+  const requested = modelSettings?.maxOutputTokens ?? (mode === "chat" ? 700 : 2400);
   const cap = mode === "chat"
-    ? 1200
+    ? 900
     : buildQuality === "full_game"
-      ? 6000
+      ? 4500
       : buildQuality === "premium"
-        ? 5000
+        ? 3500
         : buildQuality === "basic"
-          ? 3000
-          : 4096;
-  return Math.max(requested, cap);
+          ? 1600
+          : 2400;
+  return Math.min(requested, cap);
 }
+
 
 
 function wantsGeneratedImage(userText: string) {
