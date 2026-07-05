@@ -1223,8 +1223,12 @@ export function parseActions(content: string): { cleanContent: string; actions: 
         }
         const topSource = typeof a.source === "string" && a.source.trim().length > 0 ? a.source : undefined;
         const payloadSource = typeof payload.source === "string" && payload.source.trim().length > 0 ? payload.source : undefined;
+        const rawKind = a.kind ?? a.action ?? a.type;
+        const inferredKind = topSource ?? payloadSource ? "script" : "";
+        const kind = String(rawKind ?? inferredKind).trim();
+        if (!kind) return null;
         return {
-          kind: String(a.kind ?? "script"),
+          kind,
           parent_path: String(a.parent_path ?? a.parent ?? a.target ?? "ServerScriptService"),
           name: String(a.name ?? "BloxSmithItem"),
           payload,
@@ -1234,7 +1238,8 @@ export function parseActions(content: string): { cleanContent: string; actions: 
           asset_id: (a.asset_id ?? a.assetId) as string | number | undefined,
           fallback_ids: a.fallback_ids ?? a.fallbackIds,
         };
-      });
+      })
+      .filter((a): a is ParsedAction => !!a);
     return { cleanContent: cleaned, actions };
   } catch {
     return { cleanContent: content, actions: [] };
