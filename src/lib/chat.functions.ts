@@ -3,6 +3,60 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { normalizePluginAction } from "@/lib/plugin-actions";
 import { sanitizeInsertAssetActions } from "@/lib/roblox-toolbox.server";
+import { stripCodeFences, validateLuau } from "@/lib/luau-validator";
+
+const SCRIPT_ACTION_KINDS = new Set(["script", "localscript", "modulescript", "run_lua"]);
+
+function scriptValidationErrors(action: { kind?: string; name?: string; payload?: Record<string, unknown> }) {
+  if (!SCRIPT_ACTION_KINDS.has(String(action.kind ?? ""))) return [];
+  const source = stripCodeFences(String(action.payload?.source ?? ""));
+  const errors = validateLuau(source).filter((issue) => issue.severity === "error").map((issue) => issue.message);
+  const executable = source
+    .replace(/--\[\[[\s\S]*?\]\]/g, "")
+    .replace(/--[^\n]*/g, "")
+    .trim();
+  if (executable.length < 25 || /TODO|placeholder|add your code here|simple server script is running/i.test(source)) {
+    errors.unshift("Script source is empty, placeholder, comment-only, or too small to be executable.");
+  }
+  return errors;
+}
+
+async function repairPreparedScriptActions<T extends { kind?: string; name?: string; parent_path?: string; payload?: Record<string, unknown> }>(actions: T[]) {
+  const invalid = actions
+    .map((action) => ({ action, errors: scriptValidationErrors(action) }))
+    .filter((entry) => entry.errors.length > 0)
+    .slice(0, 12);
+  if (invalid.length === 0) return actions;
+
+  try {
+    const { generateLuauReplacementWithNvidia } = await import("@/lib/nvidia-critique.server");
+    const repaired = await Promise.allSettled(invalid.map(({ action, errors }) =>
+      generateLuauReplacementWithNvidia({
+        issues: errors.map((message) => ({ severity: "error", message })),
+        actionName: action.name,
+        actionKind: action.kind,
+        parentPath: action.parent_path,
+        userRequest: String(action.payload?.request ?? action.payload?.userRequest ?? action.name ?? "Roblox Studio script"),
+      })
+    ));
+    repaired.forEach((result, index) => {
+      if (result.status === "fulfilled" && result.value) {
+        invalid[index].action.payload = { ...(invalid[index].action.payload ?? {}), source: result.value };
+      }
+    });
+  } catch (error) {
+    console.warn("[chat.functions] prepared script repair failed", error);
+  }
+
+  return actions.filter((action) => {
+    const errors = scriptValidationErrors(action);
+    if (errors.length > 0) {
+      console.error("[chat.functions] blocked invalid prepared script before Studio queue", { kind: action.kind, name: action.name, errors });
+      return false;
+    }
+    return true;
+  });
+}
 
 export const listMessages = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -243,7 +297,10 @@ export const queuePreparedStudioActions = createServerFn({ method: "POST" })
     })).min(1).max(80),
   }).parse(input))
   .handler(async ({ data, context }) => {
-    const normalizedActions = data.actions.map(normalizePluginAction);
+    const normalizedActions = await repairPreparedScriptActions(data.actions.map(normalizePluginAction));
+    if (normalizedActions.length === 0) {
+      throw new Error("No valid Studio actions were generated. Please resend the build request so BloxSmith can regenerate it instead of sending empty scripts.");
+    }
     const { data: recent } = await context.supabase
       .from("plugin_actions")
       .select("id, created_at")
