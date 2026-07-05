@@ -4722,9 +4722,61 @@ export const Route = createFileRoute("/api/chat")({
                   }
                 }
 
-                // Log Luau validator hits but DO NOT drop actions — the balance
-                // heuristic false-fires on plenty of valid generated scripts,
-                // and dropping actions here silently empties the Studio queue.
+                // Self-critique repair pass. When the local Luau validator
+                // reports ERROR-severity issues that the deterministic autofix
+                // in plugin-actions.ts could not resolve, send that one script
+                // to NVIDIA meta/llama-3.3-70b-instruct with the error list and
+                // swap in the repaired source. Runs in parallel across flagged
+                // actions with a hard cap so cost stays bounded on bad turns.
+                const REPAIR_CAP = 4;
+                const repairable = (actions as any[]).filter((a) =>
+                  a?.payload?._needs_retry &&
+                  typeof a?.payload?.source === "string" &&
+                  ["script", "localscript", "modulescript", "run_lua"].includes(String(a?.kind))
+                ).slice(0, REPAIR_CAP);
+
+                if (repairable.length > 0) {
+                  try {
+                    const { repairLuauWithNvidia } = await import("@/lib/nvidia-critique.server");
+                    const repairs = await Promise.allSettled(repairable.map((a: any) =>
+                      repairLuauWithNvidia({
+                        source: String(a.payload.source),
+                        issues: a.payload._luau_issues || [],
+                        actionName: a?.name,
+                        actionKind: a?.kind,
+                        parentPath: a?.parent_path,
+                        userRequest: userText,
+                      })
+                    ));
+                    let repairedCount = 0;
+                    repairs.forEach((r, i) => {
+                      if (r.status === "fulfilled" && r.value) {
+                        // Re-run autofix + validator on the repaired source by
+                        // reassigning through normalizePluginAction so the
+                        // xpcall wrapper and deprecated-API pass stay intact.
+                        repairable[i].payload.source = r.value;
+                        const renorm = normalizePluginAction({
+                          kind: repairable[i].kind,
+                          name: repairable[i].name,
+                          parent_path: repairable[i].parent_path,
+                          payload: { ...repairable[i].payload, _needs_retry: undefined, _luau_issues: undefined, source: r.value },
+                        });
+                        repairable[i].payload = renorm.payload;
+                        repairedCount += 1;
+                      }
+                    });
+                    if (repairedCount > 0) {
+                      console.info("[chat] nvidia self-critique repaired", { repaired: repairedCount, of: repairable.length });
+                    }
+                  } catch (repairErr) {
+                    console.warn("[chat] nvidia self-critique failed", repairErr);
+                  }
+                }
+
+                // Log any remaining validator hits, then strip internal fields
+                // so the plugin never sees them. We keep flagged actions in the
+                // queue because the balance heuristic false-fires on valid code
+                // and dropping them silently empties the Studio queue.
                 for (const a of actions as any[]) {
                   if (a?.payload?._luau_issues?.length) {
                     console.warn("[chat] Luau validator flagged action (kept)", {
@@ -4736,6 +4788,7 @@ export const Route = createFileRoute("/api/chat")({
                     delete a.payload._luau_issues;
                   }
                 }
+
 
                 actions = actions.map(withExecutionMetadata);
                 console.info("[chat] actions generated", {
