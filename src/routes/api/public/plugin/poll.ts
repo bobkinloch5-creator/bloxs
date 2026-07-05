@@ -68,7 +68,7 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
           async function fetchPending(): Promise<PluginActionRow[] | { error: string }> {
             const lp = await sb.from("plugin_actions")
               .select("project_id, message_id, created_at")
-              .eq("user_id", profile.id)
+              .eq("user_id", profileId)
               .eq("status", "pending")
               .order("created_at", { ascending: false })
               .limit(1)
@@ -79,7 +79,7 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
             const recentBuildWindow = new Date(newestAt - 10 * 60_000).toISOString();
             const pending = await sb.from("plugin_actions")
               .select(actionSelect)
-              .eq("user_id", profile.id)
+              .eq("user_id", profileId)
               .eq("status", "pending")
               .gte("created_at", recentBuildWindow)
               .order("created_at", { ascending: true })
@@ -111,7 +111,7 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
             const staleSentCutoff = new Date(Date.now() - 45_000).toISOString();
             const latestStaleSent = await sb.from("plugin_actions")
               .select("project_id, message_id, sent_at")
-              .eq("user_id", profile.id)
+              .eq("user_id", profileId)
               .eq("status", "sent")
               .lt("sent_at", staleSentCutoff)
               .order("sent_at", { ascending: false })
@@ -122,7 +122,7 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
             if (latestStaleSent.data) {
               let retryQ = sb.from("plugin_actions")
                 .select(actionSelect)
-                .eq("user_id", profile.id)
+                .eq("user_id", profileId)
                 .eq("status", "sent")
                 .lt("sent_at", staleSentCutoff)
                 .order("sent_at", { ascending: true })
@@ -179,13 +179,13 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
                 const { data: rows } = await sb.from("plugin_actions")
                   .select("status")
                   .eq("message_id", messageId)
-                  .eq("user_id", profile.id);
+                  .eq("user_id", profileId);
                 const remaining = rows?.some((row) => row.status !== "done" && row.status !== "failed") ?? false;
                 if (!remaining) {
                   await sb.from("chat_messages")
                     .update({ status: "failed", error: "No authorized ginsert/GetObjects-compatible Toolbox asset was found for that request." })
                     .eq("id", messageId)
-                    .eq("user_id", profile.id);
+                    .eq("user_id", profileId);
                 }
               }));
             }
