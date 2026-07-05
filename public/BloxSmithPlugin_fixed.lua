@@ -1738,20 +1738,23 @@ local function pollOnce(force)
             results[#results+1] = { action_id = a.id, status = "failed", error = tostring(errOrInst) }
         end
     end
-    local fixOk, fixResult = pcall(autoFixProject)
-    if fixOk and fixResult then
-        local moved = fixResult.moved_count or 0
-        local fixed = fixResult.fixed_count or 0
-        if moved > 0 or fixed > 0 then
-            log(("Auto-cleanup after batch ??? %d moved, %d fixed."):format(moved, fixed), "success")
+    -- Confirm completion immediately; cleanup must never delay the website from
+    -- showing that a one-action build finished.
+    task.spawn(reportBatch, results)
+    if #actions > 1 then
+        local fixOk, fixResult = pcall(autoFixProject)
+        if fixOk and fixResult then
+            local moved = fixResult.moved_count or 0
+            local fixed = fixResult.fixed_count or 0
+            if moved > 0 or fixed > 0 then
+                log(("Auto-cleanup after batch ??? %d moved, %d fixed."):format(moved, fixed), "success")
+            end
+        elseif not fixOk then
+            log("Auto-cleanup skipped: " .. tostring(fixResult), "warn")
         end
-    elseif not fixOk then
-        log("Auto-cleanup skipped: " .. tostring(fixResult), "warn")
     end
     queueLen = 0; refreshInfo()
     ChangeHistoryService:SetWaypoint("BloxSmith batch done")
-    -- Report all results in a single HTTP call, off the hot path.
-    task.spawn(reportBatch, results)
     -- Auto-focus Studio's camera on whatever just got built so the user
     -- immediately sees the new geometry without hunting for it.
     if #focusTargets > 0 and failN == 0 then
