@@ -99,6 +99,7 @@ export const Route = createFileRoute("/api/public/plugin/execution/report")({
           // created and can modify existing instances instead of rebuilding.
           if (body.project_id && Array.isArray(stepsClamped) && stepsClamped.length > 0) {
             const done = stepsClamped.filter((s) => s?.status === "done");
+            const failed = stepsClamped.filter((s) => s?.status === "failed" || s?.status === "error");
             const byKind: Record<string, number> = {};
             const paths: string[] = [];
             for (const s of done) {
@@ -110,10 +111,27 @@ export const Route = createFileRoute("/api/public/plugin/execution/report")({
               .sort((a, b) => b[1] - a[1])
               .map(([k, n]) => `${k}×${n}`)
               .join(", ");
+
+            // Keybind registry — scan created script paths + names for common
+            // key mentions so the AI can avoid stomping the same key on next turn.
+            const keyMentions = new Set<string>();
+            const KEY_RE = /\bEnum\.KeyCode\.([A-Za-z0-9]+)|\bKeyCode\.([A-Za-z0-9]+)\b/g;
+            for (const s of done) {
+              const hay = `${s?.name ?? ""} ${s?.path ?? ""}`;
+              let m: RegExpExecArray | null;
+              while ((m = KEY_RE.exec(hay)) !== null) {
+                const k = m[1] || m[2]; if (k) keyMentions.add(k);
+              }
+            }
+            const keyLine = keyMentions.size
+              ? `Keys already bound this build: ${[...keyMentions].join(", ")} — pick a different key next time unless the user explicitly reuses one.`
+              : "";
+
             const value = [
               `${new Date().toISOString()} — ${done.length} action(s) applied (${kindSummary || "none"}).`,
               paths.length ? `Created paths:\n${paths.map((p) => `  - ${p}`).join("\n")}` : "",
               `Full report: ${clampInt(body.ok_count)} ok · ${clampInt(body.fail_count)} failed · ${clampInt(body.skip_count)} skipped.`,
+              keyLine,
               `IMPORTANT: modify these existing instances on future edits — do not rebuild them.`,
             ].filter(Boolean).join("\n").slice(0, 1900);
 
@@ -129,7 +147,43 @@ export const Route = createFileRoute("/api/public/plugin/execution/report")({
               },
               { onConflict: "project_id,key" },
             );
+
+            // Failure surface — if any step failed, stash the last failures so
+            // the AI sees them on the next turn and can self-heal instead of
+            // waiting for the user to re-prompt.
+            if (failed.length > 0) {
+              const failLines = failed.slice(0, 12).map((s: any) => {
+                const err = typeof s?.error === "string" ? s.error.slice(0, 200) : "";
+                return `  - [${s?.kind || "?"}] ${s?.name || s?.path || "unnamed"}${err ? ` — ${err}` : ""}`;
+              });
+              const failValue = [
+                `${new Date().toISOString()} — ${failed.length} action(s) failed in the last build.`,
+                failLines.join("\n"),
+                `IMPORTANT: On the next user turn, acknowledge these failures briefly and offer a fix. Do not silently ignore them.`,
+              ].join("\n").slice(0, 1900);
+
+              await sb.from("project_memory").upsert(
+                {
+                  project_id: body.project_id,
+                  user_id: profile.id,
+                  key: "last_build_failures",
+                  value: failValue,
+                  kind: "decision",
+                  importance: 10,
+                  updated_at: new Date().toISOString(),
+                },
+                { onConflict: "project_id,key" },
+              );
+            } else {
+              // Clean up stale failure memory once a clean build ships.
+              await sb.from("project_memory")
+                .delete()
+                .eq("project_id", body.project_id)
+                .eq("user_id", profile.id)
+                .eq("key", "last_build_failures");
+            }
           }
+
 
           return json({ ok: true });
         } catch (e) {
