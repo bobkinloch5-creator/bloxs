@@ -18,8 +18,8 @@ local InsertService         = game:GetService("InsertService")
 local CollectionService     = game:GetService("CollectionService")
 
 local API_BASE       = "https://bloxsmith.pro"
-local POLL_INTERVAL  = 0.25
-local PLUGIN_VERSION = "2.1.15"
+local POLL_INTERVAL  = 0.1
+local PLUGIN_VERSION = "2.1.16"
 
 ------------------------------------------------------------------- token helpers
 local TOKEN_KEY = "token"
@@ -1474,11 +1474,13 @@ end
 local function reportBatch(results)
     local token = validToken()
     if not token or #results == 0 then return end
-    local ok = pcall(function()
-        post("/api/public/plugin/complete", { token = token, results = results }, { verbose = false })
+    local ok, err = pcall(function()
+        local _, postErr = post("/api/public/plugin/complete", { token = token, results = results }, { verbose = false })
+        if postErr then error(postErr) end
     end)
     if not ok then
         -- Fallback: per-action (older server)
+        log("Batch completion report failed; retrying per action: " .. tostring(err), "warn")
         for _, r in ipairs(results) do
             reportComplete(r.action_id, r.status, r.error, r.result)
         end
@@ -1989,7 +1991,7 @@ task.spawn(function()
         task.wait(POLL_INTERVAL)
         if connected then
             -- Drain: keep polling immediately while the server has work queued.
-            for _ = 1, 8 do
+            for _ = 1, 20 do
                 local ok, errOrCount = pcall(pollOnce)
                 if not ok then
                     log("Poll loop crashed: " .. tostring(errOrCount), "error")
