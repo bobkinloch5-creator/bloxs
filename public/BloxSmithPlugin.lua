@@ -16,6 +16,7 @@ local Workspace             = game:GetService("Workspace")
 local ChangeHistoryService  = game:GetService("ChangeHistoryService")
 local InsertService         = game:GetService("InsertService")
 local CollectionService     = game:GetService("CollectionService")
+local Selection             = game:GetService("Selection")
 
 local API_BASE       = "https://bloxsmith.pro"
 local POLL_INTERVAL  = 0.05
