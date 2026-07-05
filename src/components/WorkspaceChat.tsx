@@ -706,22 +706,10 @@ export function WorkspaceChat({
               {friendlyError(error, { fallback: "The AI request failed." })}
             </div>
           )}
-          {isBuild && executionStatus && executionStatus.state !== "idle" && (
-            <div className={`mt-2 rounded-lg border px-3 py-2 text-xs ${
-              executionStatus.state === "done"
-                ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-100"
-                : executionStatus.state === "failed" || executionStatus.state === "stalled"
-                  ? "border-rose-500/40 bg-rose-500/15 text-rose-100"
-                  : "border-sky-500/40 bg-sky-500/10 text-sky-100"
-            }`}>
-              <div className="font-bold">
-                {executionStatus.state === "done" ? "Build verified" : executionStatus.state === "failed" || executionStatus.state === "stalled" ? "Build not verified" : "Waiting for Studio confirmation"}
-              </div>
+          {isBuild && executionStatus && (executionStatus.state === "failed" || executionStatus.state === "stalled") && (
+            <div className="mt-2 rounded-lg border border-rose-500/40 bg-rose-500/15 px-3 py-2 text-xs text-rose-100">
+              <div className="font-bold">Build not verified</div>
               <div>{executionStatus.message}</div>
-              <div className="mt-1 text-[11px] opacity-80">
-                queued {executionStatus.total ?? 0} · sent {executionStatus.sent ?? 0} · done {executionStatus.done ?? 0} · failed {executionStatus.failed ?? 0}
-                {executionStatus.durationMs ? ` · ${Math.round(executionStatus.durationMs / 100) / 10}s` : ""}
-              </div>
               {executionStatus.errors?.length ? (
                 <ul className="mt-1 list-disc pl-4 text-[11px]">
                   {executionStatus.errors.map((err: string, i: number) => <li key={i}>{err}</li>)}
