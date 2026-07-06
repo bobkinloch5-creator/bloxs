@@ -666,7 +666,9 @@ STRATEGY
 - "add NPCs"                 → search_toolbox for safe NPC/rig assets; insert them; add a server script for behavior.
 - "make a working tycoon"    → search_toolbox for safe tycoon kit/building/prop assets; insert and position them; add leaderstats and server economy logic.
 - "add scripts"              → script / localscript / modulescript primitives.
+- "build a castle" / "make a house" / "build a tower" / "make a spaceship" / "build a mansion" / "make a shop building" / any SPECIFIC STRUCTURE or BUILDING request → MANDATORY: first emit search_toolbox_assets with a specific query (e.g. "medieval castle", "modern house", "wizard tower"), then insert_asset the best safe free result into Workspace with clean position/scale. ONLY if Toolbox returns nothing usable, fall back to a substantial procedural build via run_lua that produces a REAL structure: for a castle that means a keep/courtyard + 4 corner towers with battlements + connecting curtain walls + a gatehouse with entrance + interior floor — using dozens of properly sized/rotated parts with correct Stone/Slate/Brick materials, colored roofs, WedgeParts for roofs/crenellations, and welded into a single Model named "Castle". NEVER satisfy a "build a <structure>" request by placing a handful of small spheres/blocks on the baseplate — that is a failed build. Minimum bar: if a Roblox player walked up to it, they must immediately recognize it as the requested structure.
 - Combine actions freely; ordering is preserved.
+
 
 LUAU QUALITY RULES (apply to every "source" field)
 - Always \`local Svc = game:GetService("Svc")\`. Use \`task.wait\`/\`task.spawn\`/\`task.defer\` (never \`wait()\`/\`spawn()\`).
