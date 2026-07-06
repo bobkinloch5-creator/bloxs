@@ -343,7 +343,7 @@ export function looksLikePack(name: string): boolean {
 }
 
 // Single-asset intent: user asked for ONE specific object, not a pack.
-const SINGLE_ASSET_NOUNS = /\b(house|car|truck|vehicle|tree|rock|chair|table|couch|sofa|bed|lamp|sword|pistol|gun|rifle|bow|weapon|npc|zombie|dog|cat|pet|door|sign|chest|barrel|crate|building|shop|tower|boat|plane|bench|fence|wall|window|flower|bush|statue|fountain|cannon|hat|coin|gem|part|brick|block|sphere|cube|wedge|ball|spawn|checkpoint|portal|ladder|stair|stairs|bridge|road|path|torch|banner|flag|key|potion|shield|helmet|armor|mask|backpack|bag|box|rocket|missile|bomb|mine|trap|platform|switch|lever)\b/i;
+const SINGLE_ASSET_NOUNS = /\b(house|cabin|hut|mansion|cottage|farmhouse|castle|fortress|keep|citadel|palace|throne|temple|church|windmill|lighthouse|hospital|school|bank|cafe|store|car|truck|vehicle|motorcycle|bike|kart|helicopter|spaceship|hoverboard|tree|rock|boulder|chair|table|couch|sofa|bed|lamp|sword|katana|pistol|gun|rifle|shotgun|bow|weapon|npc|zombie|skeleton|dragon|robot|alien|knight|wizard|guard|dog|cat|pet|door|sign|chest|barrel|crate|building|shop|tower|boat|plane|bench|fence|wall|window|flower|bush|statue|fountain|cannon|hat|coin|gem|part|brick|block|sphere|cube|wedge|ball|spawn|checkpoint|portal|ladder|stair|stairs|bridge|road|path|torch|banner|flag|key|potion|shield|helmet|armor|mask|backpack|bag|box|rocket|missile|bomb|mine|trap|platform|switch|lever)\b/i;
 const SINGLE_SCRIPT_NOUNS = /\b(script|serverscript|localscript|modulescript|remote|remoteevent|remotefunction|handler)\b/i;
 const SINGLE_UI_NOUNS = /\b(button|label|textlabel|textbox|frame|screengui|gui|panel|hud|menu|popup|notification|dialog|icon|imagelabel|imagebutton|slider|toggle|checkbox|dropdown)\b/i;
 const PACK_KEYWORDS = /\b(pack|kit|bundle|collection|set|props?|library|showcase|demo|mega|template|full\s*map|full\s*game|full\s*system|map|world|entire\s+game|whole\s+game|tycoon|obby|simulator|neighborhood|village|city|town|arena|dungeon)\b/i;
@@ -374,7 +374,10 @@ export function detectNarrowScopeIntent(prompt: string): NarrowScope {
   const p = prompt.toLowerCase().trim();
   if (hasPositivePackIntent(p)) return null;
   const tokens = p.split(/\s+/);
-  const short = tokens.length <= 14;
+  // Explicit Toolbox / free-model wording is a strong signal even in longer
+  // sentences ("Add one castle from Roblox Toolbox (safe, free, public model)…").
+  const explicitToolbox = /\b(toolbox|free\s+model|public\s+model|creator\s+store|from\s+roblox)\b/i.test(p);
+  const short = tokens.length <= 14 || explicitToolbox;
   const hasOne = QUANTITY_ONE.test(p) || ARTICLE_A.test(p);
   // UI takes precedence — "one gui button" is UI, not a physical asset.
   if (SINGLE_UI_NOUNS.test(p) && (hasOne || short)) return "single_ui";
