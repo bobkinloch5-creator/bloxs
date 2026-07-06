@@ -553,11 +553,11 @@ player.CharacterAdded:Connect(onChar)
 Self-check for flight scripts: (1) direction comes from camera OR Humanoid.MoveDirection — NEVER solely LookVector of HumanoidRootPart. (2) LinearVelocity.RelativeTo = World (not Attachment0/1). (3) PlatformStand toggled ON while flying and OFF when stopped. (4) Cleaned up on toggle-off and on CharacterAdded to avoid duplicate constraints. (5) Speed configurable at top of script.
 
 C. FLAME AURA / GLOW / TRAIL / PARTICLE ABILITIES — must be fully functional on first insert. Requirements:
-- Parent particles to an ATTACHMENT (Instance.new("Attachment")) inside the HumanoidRootPart or a specific body part — NEVER directly to a MeshPart's root (particles won't emit reliably) and NEVER to the Character model (no CFrame).
+- Parent particles to an ATTACHMENT (Instance.new("Attachment")) that is a DIRECT child of HumanoidRootPart or the specific BasePart body part — NEVER under a Folder, NEVER directly to the Character model (no CFrame), and never to ReplicatedStorage/StarterPlayer. If you create an organizational Folder, it may hold metadata/sounds only; the Attachment itself must stay directly inside the body BasePart so the emitter has a real world transform.
 - Set ALL required ParticleEmitter properties, not just Texture: \`Texture\` (use a known-good Roblox asset id like "rbxassetid://243660364" for fire, "rbxasset://textures/particles/fire_main.dds" as safe fallback), \`Rate\` (30–80 for auras), \`Lifetime\` (NumberRange.new(0.5, 1.2)), \`Speed\` (NumberRange.new(2, 5)), \`SpreadAngle\` (Vector2.new(20, 20)), \`Size\` (NumberSequence with keypoints for grow/shrink), \`Transparency\` (NumberSequence fading 1→0→1), \`Color\` (ColorSequence orange→red for flame), \`LightEmission\` (0.6–1), \`LightInfluence\` 0, \`Rotation\` (NumberRange.new(-180, 180)), \`RotSpeed\` (NumberRange.new(-90, 90)), \`Acceleration\` (Vector3.new(0, 5, 0) for rising flame), \`EmissionDirection\` = Enum.NormalId.Top, \`Enabled\` = true.
 - Add a PointLight on the same attachment (Color = Color3.fromRGB(255,120,40), Brightness 2, Range 12) so the aura visibly lights the environment.
 - Add a subtle looping fire Sound (SoundId "rbxassetid://5786758392" or similar known-good) parented to HRP, Volume 0.4, Looped true, Playing true.
-- Wrap the whole aura in a Folder called "FlameAura" inside HRP so it's easy to remove; re-create on CharacterAdded.
+- Name every created instance with a shared prefix such as "FlameAura" (for example FlameAura_Attachment, FlameAura_Particles, FlameAura_Light, FlameAura_Sound) and destroy stale prefixed instances from the target body parts before rebuilding; re-create on CharacterAdded.
 - If the ability toggles, expose an activate/deactivate function; on deactivate set Enabled=false on every emitter and destroy the folder after 2 seconds so lingering particles fade naturally.
 Canonical flame aura scaffold:
 \`\`\`lua
@@ -566,15 +566,13 @@ local player = Players.LocalPlayer
 
 local function buildAura(char)
     local hrp = char:WaitForChild("HumanoidRootPart")
-    local old = hrp:FindFirstChild("FlameAura")
-    if old then old:Destroy() end
-    local folder = Instance.new("Folder")
-    folder.Name = "FlameAura"
-    folder.Parent = hrp
+    for _, child in ipairs(hrp:GetChildren()) do
+        if child.Name:match("^FlameAura") then child:Destroy() end
+    end
 
     local att = Instance.new("Attachment")
-    att.Name = "AuraAttachment"
-    att.Parent = folder
+    att.Name = "FlameAura_Attachment"
+    att.Parent = hrp
 
     local fire = Instance.new("ParticleEmitter")
     fire.Name = "FlameParticles"
@@ -615,6 +613,7 @@ local function buildAura(char)
     light.Parent = att
 
     local sfx = Instance.new("Sound")
+    sfx.Name = "FlameAura_Sound"
     sfx.SoundId = "rbxassetid://5786758392"
     sfx.Volume = 0.4
     sfx.Looped = true
@@ -639,13 +638,13 @@ D. UNIVERSAL ABILITY SELF-TEST — before emitting ANY ability script (flight, a
 
 E. NO BROKEN VFX. Never emit a ParticleEmitter with only Texture set — it will look dead. Never use random asset IDs you did not verify. Prefer built-in \`rbxasset://textures/particles/*\` or well-known IDs (fire 243660364, smoke 244514357, spark 241876428, sparkles 241876828). When in doubt, use a NumberSequence-driven emitter with the safe fallback \`rbxasset://textures/particles/fire_main.dds\`.
 
-E2. PARTICLE EFFECT LIBRARY (ABSOLUTE — any request naming a particle/aura/VFX must ship a fully working, character-attached emitter, not a stub). When the user asks for ANY of: flame aura, fire aura, lightning aura, electric aura, magic aura, arcane aura, dark aura, holy aura, ice aura, water aura, wind aura, smoke effect/aura, sparkles, glow, glowing particles, energy aura, ki aura, saiyan aura, explosion, fireball, smoke bomb, portal, teleport particles, healing particles, poison cloud, snow, rain, dust, embers, trail, sword trail, footstep dust, muzzle flash, spell cast — you MUST:
+E2. PARTICLE EFFECT LIBRARY (ABSOLUTE — any request naming a particle/aura/VFX must ship a fully working, character-attached emitter, not a stub). Natural-language aliases such as "turn my character into flames", "make me on fire", "engulf my player in fire", "surround my avatar with lightning", "cover the NPC in smoke", and "give my body a magic glow" mean HUMANOID BODY-PART VFX, not a Toolbox asset. When the user asks for ANY of: flame aura, fire aura, lightning aura, electric aura, magic aura, arcane aura, dark aura, holy aura, ice aura, water aura, wind aura, smoke effect/aura, sparkles, glow, glowing particles, energy aura, ki aura, saiyan aura, explosion, fireball, smoke bomb, portal, teleport particles, healing particles, poison cloud, snow, rain, dust, embers, trail, sword trail, footstep dust, muzzle flash, spell cast — you MUST:
    1. Build the emitter with the FULL preset from the recipe table below (Texture, Rate, Lifetime, Speed, SpreadAngle, Size sequence, Transparency sequence, Color sequence, LightEmission, LightInfluence, Rotation, RotSpeed, Acceleration, EmissionDirection, Drag when relevant, ZOffset when relevant, Enabled=true).
-   2. Parent it to a fresh \`Attachment\` inside \`HumanoidRootPart\` (auras/glows), \`RightHand\`/\`LeftHand\` (cast/spell), or the moving Part (trails/projectiles) — never the Model.
+   2. Parent it to a fresh \`Attachment\` directly inside \`HumanoidRootPart\` (auras/glows), \`RightHand\`/\`LeftHand\` (cast/spell), or the moving BasePart (trails/projectiles) — never the Model and never a Folder. The Attachment must be a child of a BasePart so the particles follow a real CFrame.
    3. Add a matching \`PointLight\` on the same attachment tuned to the effect's color (auras + explosions + spell casts) so the VFX visibly lights the world.
    4. For continuous auras: add a looping ambient Sound at Volume 0.3–0.5 (fire hum, electric buzz, magic drone, wind whoosh) parented to HRP.
    5. For one-shot bursts (explosion, cast, muzzle flash, teleport, level-up): use \`ParticleEmitter.Enabled = false\` + \`:Emit(count)\` at the moment of the event, plus a short PointLight flash tweened out via TweenService, plus a Sound with PlayOnRemove or :Play(), plus \`Debris:AddItem(folder, 3)\` for cleanup.
-   6. Wrap every effect in a named Folder (\`FlameAura\`, \`LightningAura\`, \`MagicAura\`, \`SmokeAura\`, \`SparkleAura\`, etc.) inside its host part so it can be re-created cleanly.
+   6. Give every effect instance a shared prefix (\`FlameAura_\`, \`LightningAura_\`, \`MagicAura_\`, \`SmokeAura_\`, \`SparkleAura_\`, etc.) and destroy old prefixed children on rebuild. Do NOT put the Attachment inside a Folder.
    7. Re-hook on \`CharacterAdded\` when the effect targets the character; destroy stale copies before creating new ones (no leaking emitters after respawn).
    8. Toggleable effects (on-key auras) expose activate()/deactivate() — deactivate sets \`Enabled = false\` on every emitter and destroys the folder after 2s so lingering particles fade naturally.
 
@@ -674,7 +673,7 @@ local player = Players.LocalPlayer
 local ACTIVE = false
 
 local PRESET = {
-    folder = "MagicAura",             -- rename per effect
+    prefix = "MagicAura_",             -- rename per effect
     texture = "rbxassetid://241876828", -- sparkles
     rate = 45,
     lifetime = NumberRange.new(0.8, 1.6),
@@ -693,12 +692,13 @@ local PRESET = {
 
 local function build(char)
     local hrp = char:WaitForChild("HumanoidRootPart")
-    local old = hrp:FindFirstChild(PRESET.folder)
-    if old then old:Destroy() end
-    local folder = Instance.new("Folder"); folder.Name = PRESET.folder; folder.Parent = hrp
-    local att = Instance.new("Attachment"); att.Name = "AuraAtt"; att.Parent = folder
+    for _, child in ipairs(hrp:GetChildren()) do
+        if string.sub(child.Name, 1, #PRESET.prefix) == PRESET.prefix or child.Name == string.gsub(PRESET.prefix, "_$", "") then child:Destroy() end
+    end
+    local att = Instance.new("Attachment"); att.Name = PRESET.prefix .. "Attachment"; att.Parent = hrp
 
     local p = Instance.new("ParticleEmitter")
+    p.Name = PRESET.prefix .. "Particles"
     p.Parent = att
     p.Texture = PRESET.texture
     p.Rate = PRESET.rate
@@ -725,6 +725,7 @@ local function build(char)
     p.Enabled = ACTIVE
 
     local light = Instance.new("PointLight")
+    light.Name = PRESET.prefix .. "Light"
     light.Color = PRESET.lightColor
     light.Brightness = 2.5
     light.Range = 14
@@ -732,25 +733,30 @@ local function build(char)
     light.Parent = att
 
     local sfx = Instance.new("Sound")
+    sfx.Name = PRESET.prefix .. "Sound"
     sfx.SoundId = PRESET.sound
     sfx.Volume = 0.4
     sfx.Looped = true
     sfx.Parent = hrp
     if ACTIVE then sfx:Play() end
-    folder:SetAttribute("SoundName", sfx.Name)
-    return folder, p, sfx
+    return att, p, sfx
 end
 
 local function setActive(on)
     ACTIVE = on
     local char = player.Character; if not char then return end
     local hrp = char:FindFirstChild("HumanoidRootPart"); if not hrp then return end
-    local folder = hrp:FindFirstChild(PRESET.folder); if not folder then return end
-    for _, d in ipairs(folder:GetDescendants()) do
-        if d:IsA("ParticleEmitter") then d.Enabled = on end
+    for _, d in ipairs(hrp:GetChildren()) do
+        if string.sub(d.Name, 1, #PRESET.prefix) == PRESET.prefix then
+            if d:IsA("Attachment") then
+                for _, nested in ipairs(d:GetChildren()) do
+                    if nested:IsA("ParticleEmitter") then nested.Enabled = on end
+                end
+            elseif d:IsA("Sound") then
+                if on then d:Play() else d:Stop() end
+            end
+        end
     end
-    local sfx = hrp:FindFirstChildOfClass("Sound")
-    if sfx then if on then sfx:Play() else sfx:Stop() end end
 end
 
 if player.Character then build(player.Character) end
@@ -762,18 +768,18 @@ UIS.InputBegan:Connect(function(input, gp)
 end)
 \`\`\`
 
-E3. PARTICLE SELF-TEST — before emitting ANY particle/VFX action, verify: (a) Texture is a real asset id or rbxasset:// path from the verified list, never "" or a made-up id; (b) Size AND Transparency AND Color are ALL set as NumberSequence/ColorSequence with at least 2 keypoints — never a single flat value that renders as an invisible dot; (c) Lifetime, Speed, SpreadAngle, Rate, LightEmission, Rotation, RotSpeed, Acceleration, EmissionDirection are all set explicitly; (d) Emitter is parented to an Attachment inside a Part (not a Model, not the ScreenGui, not ReplicatedStorage); (e) Enabled = true for continuous effects OR the code calls :Emit(n) for bursts; (f) A PointLight of matching color exists for auras/bursts/spells; (g) Continuous auras have a looping Sound, one-shots have a PlayOnRemove or :Play() Sound; (h) On CharacterAdded the effect is re-created and stale copies destroyed; (i) The effect is wrapped in a named Folder for easy toggle/remove. If any check fails, FIX before emitting.
+E3. PARTICLE SELF-TEST — before emitting ANY particle/VFX action, verify: (a) Texture is a real asset id or rbxasset:// path from the verified list, never "" or a made-up id; (b) Size AND Transparency AND Color are ALL set as NumberSequence/ColorSequence with at least 2 keypoints — never a single flat value that renders as an invisible dot; (c) Lifetime, Speed, SpreadAngle, Rate, LightEmission, Rotation, RotSpeed, Acceleration, EmissionDirection are all set explicitly; (d) Emitter is parented to an Attachment whose direct parent is a BasePart body part or moving Part (not a Folder, not a Model, not the ScreenGui, not ReplicatedStorage); (e) Enabled = true for continuous effects OR the code calls :Emit(n) for bursts; (f) A PointLight of matching color exists for auras/bursts/spells; (g) Continuous auras have a looping Sound, one-shots have a PlayOnRemove or :Play() Sound; (h) On CharacterAdded the effect is re-created and stale prefixed copies are destroyed; (i) The effect uses a consistent name prefix so cleanup/toggle/remove works without moving Attachments out of body parts. If any check fails, FIX before emitting.
 
-E4. HUMANOID BODY-PART VFX (ABSOLUTE — fire, ice, lightning, magic, poison, holy, dark, or any elemental effect that must live on a character body part). When the user asks for ANY of: "fire aura", "burning effect", "engulfed in flames", "entire body on fire", "flaming hands", "flaming feet", "flaming head", "flaming weapon", "burning NPC", "on fire", "custom colored fire" (blue/green/purple/black/white), or the same shape with a different element (icy hands, electric feet, glowing weapon, poisoned NPC, holy halo, dark cloak) — you MUST:
+E4. HUMANOID BODY-PART VFX (ABSOLUTE — fire, ice, lightning, magic, poison, holy, dark, or any elemental effect that must live on a character body part). When the user asks for ANY of: "turn my character into flames", "make my character flames", "turn me into fire", "engulf my character in flames", "fire aura", "burning effect", "engulfed in flames", "entire body on fire", "flaming hands", "flaming feet", "flaming head", "flaming weapon", "burning NPC", "on fire", "custom colored fire" (blue/green/purple/black/white), or the same shape with a different element (icy hands, electric feet, glowing weapon, poisoned NPC, holy halo, dark cloak) — you MUST:
    1. TARGET THE CORRECT BODY PART(S). Map the request to R15 part names (fall back to R6 when R15 not present):
-      - "entire body on fire" / "engulfed in flames" / "burning character" → attach one emitter to EACH of: HumanoidRootPart (main aura), UpperTorso/Torso, Head, LeftUpperArm/LeftArm, RightUpperArm/RightArm, LeftUpperLeg/LeftLeg, RightUpperLeg/RightLeg. Scale Rate down (~15–25 per emitter) so total stays performant.
+      - "turn my character into flames" / "make my character flames" / "turn me into fire" / "entire body on fire" / "engulfed in flames" / "burning character" → attach one emitter to EACH of: HumanoidRootPart (main aura), UpperTorso/Torso, Head, LeftUpperArm/LeftArm, RightUpperArm/RightArm, LeftUpperLeg/LeftLeg, RightUpperLeg/RightLeg, and hands/feet when present. Scale Rate down (~10–22 per emitter) so total stays performant.
       - "fire aura" / "burning aura" → single emitter on HumanoidRootPart with larger SpreadAngle and Size envelope.
       - "flaming hands" → emitters on LeftHand and RightHand (R15) or LeftArm/RightArm (R6).
       - "flaming feet" → emitters on LeftFoot and RightFoot (R15) or LeftLeg/RightLeg (R6).
       - "flaming head" / "burning head" / "halo" → emitter on Head, EmissionDirection Top, small SpreadAngle.
       - "flaming weapon" / "burning sword" → find the equipped Tool, iterate its Parts (Handle + any children BaseParts), attach emitter to an Attachment on the Handle (and a Trail between two attachments on the blade for swings).
       - "burning NPC" → same logic but run on the server, iterate every Humanoid in a target Model or Workspace tag (\`CollectionService\`), and re-hook when new NPCs spawn.
-   2. USE Attachment + ParticleEmitter — never parent to the Model, never to the MeshPart directly with no Attachment. Create \`Instance.new("Attachment")\` inside the target BasePart, then parent the emitter to that attachment. Use \`part:WaitForChild\` when the script runs before the character finishes loading.
+   2. USE Attachment + ParticleEmitter — never parent to the Model, never to a Folder, never to the MeshPart directly with no Attachment. Create \`Instance.new("Attachment")\` as a DIRECT child of the target BasePart, then parent the emitter to that attachment. Use \`part:WaitForChild\` when the script runs before the character finishes loading.
    3. REPLICATE PROPERLY. Effects that everyone should see (burning NPC, PvP fire debuff, "set player X on fire" ability) MUST be created on the SERVER via a Script, so all clients see them. Effects that are purely local visual feedback (my-own-character preview, first-person-only glow) may live in a LocalScript. Prefer server-authoritative + RemoteEvent trigger for anything a game rule cares about.
    4. FOLLOW THE CHARACTER. Because emitters are parented to body Attachments, they inherit the part's CFrame and follow movement automatically. Do NOT run a per-frame RunService loop to reposition them.
    5. HANDLE RESPAWN. Connect \`player.CharacterAdded\` (client) or \`Players.PlayerAdded\` + \`player.CharacterAdded\` (server) so the effect re-applies after death. For NPCs, connect \`Humanoid.Died\` to clean up and re-hook on respawn if the NPC respawns. Always destroy stale copies before creating new ones (search the target part for the named Folder, \`:Destroy()\` it, then rebuild).
@@ -786,9 +792,9 @@ E4. HUMANOID BODY-PART VFX (ABSOLUTE — fire, ice, lightning, magic, poison, ho
       - White / holy fire → white (255,255,255) → warm white (255,245,200) → gold (255,220,120), light (255,240,180).
    7. SIZE WITH THE CHARACTER. Read the target part's Size and scale the emitter's Size NumberSequence proportionally: \`local s = part.Size.Magnitude / 4\` then multiply the Size keypoint values by \`s\`. This makes small NPCs and giant bosses look right without hard-coding.
    8. NON-DAMAGING BY DEFAULT. Do NOT apply Humanoid:TakeDamage, DamageOverTime, or WalkSpeed changes UNLESS the user's message explicitly says "damaging", "burn damage", "hurts", "DoT", or similar. Pure VFX by default.
-   9. EXPOSE ignite(target)/extinguish(target) IN A ModuleScript when the user asks for a reusable system (e.g. "burning NPC" or "set X on fire ability"). The module lives in ReplicatedStorage/BloxSmith_Fire and is required from a Server Script that owns the RemoteEvent. Ignite = build folder + attachments + emitters + lights + Sound; Extinguish = disable emitters, stop sound, \`Debris:AddItem(folder, 2)\` so flames fade instead of snapping off.
+   9. EXPOSE ignite(target)/extinguish(target) IN A ModuleScript when the user asks for a reusable system (e.g. "burning NPC" or "set X on fire ability"). The module lives in ReplicatedStorage/BloxSmith_Fire and is required from a Server Script that owns the RemoteEvent. Ignite = build direct body-part attachments + emitters + lights + Sound; Extinguish = disable emitters, stop sound, and \`Debris:AddItem(instance, 2)\` on each prefixed attachment/light/sound so flames fade instead of snapping off.
    10. PERFORMANCE. Cap total Rate across all attached emitters (~150 for full-body, ~60 for aura, ~40 for single-limb). Set \`LightInfluence = 0\`, \`Shadows = false\` on the PointLight, and only ONE PointLight per limb group (torso for full-body, HRP for aura). Never spawn unanchored physics parts for pure visuals.
-   11. SELF-TEST BEFORE EMIT — run E3 for EVERY emitter created, plus: (j) Correct body-part name for the target rig (R15 vs R6 fallback covered); (k) Server vs client placement matches replication intent; (l) CharacterAdded / Humanoid.Died re-hook is present; (m) Named Folder wraps every emitter+light+sound so extinguish works; (n) Custom color, if requested, is applied to both ColorSequence and PointLight.Color; (o) Size scales with \`part.Size.Magnitude\`; (p) No damage code unless explicitly requested.
+   11. SELF-TEST BEFORE EMIT — run E3 for EVERY emitter created, plus: (j) Correct body-part name for the target rig (R15 vs R6 fallback covered); (k) Server vs client placement matches replication intent; (l) CharacterAdded / Humanoid.Died re-hook is present; (m) Every created instance shares a cleanup prefix, while each Attachment remains directly parented to its body BasePart; (n) Custom color, if requested, is applied to both ColorSequence and PointLight.Color; (o) Size scales with \`part.Size.Magnitude\`; (p) No damage code unless explicitly requested.
 
 
 
