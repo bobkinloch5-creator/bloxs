@@ -959,7 +959,8 @@ PRESETS.Holy = PRESETS.Magic
 PRESETS.Dark = PRESETS.Magic
 PRESETS.Energy = PRESETS.Magic
 
-local preset = PRESETS[ELEMENT] or PRESETS.Fire
+local builtin = BUILTIN[ELEMENT]
+local preset = PRESETS[ELEMENT] or PRESETS.Magic
 
 local function startsWith(value, prefix)
   return string.sub(value, 1, #prefix) == prefix
