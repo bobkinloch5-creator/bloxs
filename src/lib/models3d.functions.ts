@@ -573,9 +573,12 @@ export const pollModelGeneration = createServerFn({ method: "POST" })
         return chained ?? gen;
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
+        const friendly = /pose\s*estimation|valid\s*model|not\s*humanoid|humanoid/i.test(msg)
+          ? "Meshy rigging is humanoid-only — it couldn't detect a two-arm/two-leg pose in this model (common for animals, quadrupeds, vehicles, or objects). Generate a humanoid character (e.g. \"stylized human warrior standing, arms out, T-pose\") and rig that instead."
+          : `Could not start rigging after remesh: ${msg}`;
         const { data: failed } = await supabase.from("model_generations").update({
           status: "FAILED",
-          error: `Could not start rigging after remesh: ${msg}`,
+          error: friendly,
           completed_at: new Date().toISOString(),
         } as any).eq("id", gen.id).select().single();
         return failed ?? gen;
