@@ -206,8 +206,8 @@ async function generatePlan(goal: string, contextSummary: string, intent: Intent
   return text.trim();
 }
 
-async function runSpecialist(task: AutoTask, goal: string, plan: string, digestText: string): Promise<Specialist> {
-  const pick = pickModelForTask(task);
+async function runSpecialist(task: AutoTask, goal: string, plan: string, digestText: string, difficulty: "easy" | "normal" | "hard" = "normal"): Promise<Specialist> {
+  const pick = pickModelForTask(task, difficulty);
   const { model, meta, extraBody, modelSettings } = getProviderModel(pick.modelId);
   let notes = "";
   try {
