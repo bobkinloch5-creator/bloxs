@@ -3448,7 +3448,7 @@ Workspace.StreamingEnabled = true
 }
 
 function isRobloxSystemRequest(userText: string) {
-  return /\b(script|scripting|code|system|gui|ui|screen|loading|load\s*screen|main\s*menu|menu|hud|button|shop|inventory|settings|gamepass|quest|health|cash|coins|leaderstats|remote|event|datastore|save|checkpoint|timer|round|notification|mobile\s*controls?|speed\s*boost|sprint|dash|double\s*jump|high\s*jump|super\s*jump|jump\s*boost|space\s*bar|keybind|key\s*bind|ability|power)\b/i.test(userText);
+  return isBroadPlayableGameRequest(userText) || /\b(script|scripting|code|game|experience|mechanic|system|gui|ui|screen|loading|load\s*screen|main\s*menu|menu|hud|button|shop|inventory|settings|gamepass|quest|health|cash|coins|leaderstats|remote|event|datastore|save|checkpoint|timer|round|notification|mobile\s*controls?|speed\s*boost|sprint|dash|double\s*jump|high\s*jump|super\s*jump|jump\s*boost|space\s*bar|keybind|key\s*bind|ability|power|obby|parkour|tycoon|simulator|rpg|dungeon|combat|fighting|weapon|gun|sword|shooter|arena|battle|zombie|survival|horror|tower\s*defen[cs]e|role\s*play|roleplay|racing|pet\s*(simulator|game|system)|trading|farming|fishing|minigame)\b/i.test(userText);
 }
 
 function robloxSystemStudioActions(userText: string, languageName: string) {
@@ -3881,6 +3881,461 @@ gui:SetAttribute("Language", ${JSON.stringify(languageName)})
       parent_path: "Workspace",
       name: "BloxSmith_Scan_UI_And_Systems",
       payload: { reason: "verify_ui_scripts_remotes_and_server_systems" },
+    },
+  ];
+}
+
+function broadPlayableGameStudioActions(userText: string, languageName: string) {
+  if (!isBroadPlayableGameRequest(userText)) return [];
+  const safePrompt = userText.trim().slice(0, 260) || "Roblox playable game system";
+  const text = userText.toLowerCase();
+  const genre = /\b(obby|parkour)\b/.test(text) ? "obby" :
+    /\b(tycoon)\b/.test(text) ? "tycoon" :
+    /\b(racing|race\s*track|race\s*course)\b/.test(text) ? "racing" :
+    /\b(zombie|survival|horror)\b/.test(text) ? "survival" :
+    /\b(combat|fighting|weapon|gun|sword|shooter|arena|battle)\b/.test(text) ? "combat" :
+    /\b(pet\s*(simulator|game|system)|simulator)\b/.test(text) ? "simulator" :
+    "adventure";
+  const source = `
+local Workspace = game:GetService("Workspace")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
+local StarterGui = game:GetService("StarterGui")
+local Lighting = game:GetService("Lighting")
+
+local request = ${JSON.stringify(safePrompt)}
+local languageName = ${JSON.stringify(languageName)}
+local genre = ${JSON.stringify(genre)}
+
+local root = Workspace:FindFirstChild("BloxSmith_Playable_Game")
+if root then root:Destroy() end
+root = Instance.new("Folder")
+root.Name = "BloxSmith_Playable_Game"
+root.Parent = Workspace
+
+local function folder(parent, name)
+  local f = parent:FindFirstChild(name)
+  if not f then
+    f = Instance.new("Folder")
+    f.Name = name
+    f.Parent = parent
+  end
+  return f
+end
+
+local function part(parent, name, size, cf, color, material)
+  local p = Instance.new("Part")
+  p.Name = name
+  p.Anchored = true
+  p.CanCollide = true
+  p.Size = size
+  p.CFrame = cf
+  p.Color = color
+  p.Material = material or Enum.Material.SmoothPlastic
+  p.TopSurface = Enum.SurfaceType.Smooth
+  p.BottomSurface = Enum.SurfaceType.Smooth
+  p.Parent = parent
+  return p
+end
+
+local map = folder(root, "Map")
+local systems = folder(root, "Gameplay_Objects")
+local spawns = folder(root, "Spawns")
+
+local base = part(map, "Main_Play_Area", Vector3.new(260, 1, 260), CFrame.new(0, 0, 0), Color3.fromRGB(72, 142, 78), Enum.Material.Grass)
+base:SetAttribute("BloxSmithRole", "play_area")
+
+local spawn = Instance.new("SpawnLocation")
+spawn.Name = "Start_Spawn"
+spawn.Anchored = true
+spawn.Neutral = true
+spawn.Size = Vector3.new(10, 1, 10)
+spawn.Position = Vector3.new(0, 2, -104)
+spawn.Color = Color3.fromRGB(78, 255, 170)
+spawn.Material = Enum.Material.Neon
+spawn.Parent = spawns
+
+if genre == "obby" then
+  local obby = folder(systems, "Obby_Course")
+  part(obby, "Start_Platform", Vector3.new(20, 2, 20), CFrame.new(0, 3, -92), Color3.fromRGB(64, 205, 120), Enum.Material.Neon)
+  for i = 1, 14 do
+    local x = ((i % 2 == 0) and 14 or -14) + math.sin(i) * 8
+    local y = 5 + i * 2.2
+    local z = -82 + i * 14
+    local platform = part(obby, "Stage_" .. i .. "_Platform", Vector3.new(13, 1.4, 13), CFrame.new(x, y, z), Color3.fromHSV(i / 14, 0.7, 1), Enum.Material.Neon)
+    platform:SetAttribute("Stage", i)
+    if i % 3 == 0 then
+      local checkpoint = part(obby, "Checkpoint_" .. i, Vector3.new(9, 0.8, 9), CFrame.new(x, y + 1.2, z), Color3.fromRGB(255, 225, 76), Enum.Material.Neon)
+      checkpoint:SetAttribute("BloxSmithCheckpoint", true)
+      checkpoint:SetAttribute("Stage", i)
+    end
+    if i % 4 == 2 then
+      local kill = part(obby, "Kill_Brick_" .. i, Vector3.new(15, 1, 4), CFrame.new(x, y + 1.2, z + 5.5), Color3.fromRGB(255, 72, 72), Enum.Material.Neon)
+      kill:SetAttribute("BloxSmithKillBrick", true)
+    end
+  end
+  local finish = part(obby, "Finish_Reward_Pad", Vector3.new(24, 2, 24), CFrame.new(0, 40, 122), Color3.fromRGB(255, 210, 70), Enum.Material.Neon)
+  finish:SetAttribute("BloxSmithFinish", true)
+  finish:SetAttribute("Stage", 15)
+elseif genre == "tycoon" then
+  local tycoon = folder(systems, "Tycoon_Core")
+  part(tycoon, "Collector", Vector3.new(18, 2, 18), CFrame.new(0, 2, -20), Color3.fromRGB(66, 220, 135), Enum.Material.Neon):SetAttribute("BloxSmithCollector", true)
+  for i = 1, 5 do
+    local dropper = part(tycoon, "Dropper_" .. i, Vector3.new(10, 10, 10), CFrame.new(-48 + i * 18, 6, 18), Color3.fromRGB(82, 92, 125), Enum.Material.Metal)
+    dropper:SetAttribute("BloxSmithDropper", true)
+    part(tycoon, "Upgrade_Pad_" .. i, Vector3.new(12, 1, 12), CFrame.new(-48 + i * 18, 1.4, 48), Color3.fromRGB(255, 185, 70), Enum.Material.Neon):SetAttribute("BloxSmithUpgradePad", true)
+  end
+elseif genre == "racing" then
+  local race = folder(systems, "Race_Course")
+  for i = 1, 8 do
+    local angle = (math.pi * 2) * (i / 8)
+    local x, z = math.cos(angle) * 78, math.sin(angle) * 78
+    part(race, "Track_Section_" .. i, Vector3.new(42, 1, 18), CFrame.new(x, 1.2, z) * CFrame.Angles(0, -angle, 0), Color3.fromRGB(42, 45, 50), Enum.Material.Asphalt)
+    local cp = part(race, "Checkpoint_" .. i, Vector3.new(4, 18, 30), CFrame.new(x, 10, z) * CFrame.Angles(0, -angle, 0), Color3.fromRGB(80, 210, 255), Enum.Material.Neon)
+    cp.Transparency = 0.35
+    cp.CanCollide = false
+    cp:SetAttribute("BloxSmithCheckpoint", true)
+    cp:SetAttribute("Stage", i)
+  end
+else
+  local goals = folder(systems, "Objectives")
+  for i, data in ipairs({{-58, -28, "Collect_Zone"}, {58, -24, "Reward_Zone"}, {0, 58, "Final_Objective"}}) do
+    local zone = part(goals, data[3], Vector3.new(22, 1.2, 22), CFrame.new(data[1], 1.6, data[2]), i == 3 and Color3.fromRGB(255, 210, 78) or Color3.fromRGB(82, 145, 255), Enum.Material.Neon)
+    zone:SetAttribute(i == 3 and "BloxSmithFinish" or "BloxSmithCheckpoint", true)
+    zone:SetAttribute("Stage", i)
+  end
+  if genre == "combat" or genre == "survival" then
+    local hazards = folder(systems, "Hazards")
+    for i, pos in ipairs({Vector3.new(-42, 2, 32), Vector3.new(42, 2, 32), Vector3.new(0, 2, 86)}) do
+      local h = part(hazards, "Hazard_" .. i, Vector3.new(16, 2, 16), CFrame.new(pos), Color3.fromRGB(255, 74, 74), Enum.Material.Neon)
+      h:SetAttribute("BloxSmithKillBrick", true)
+    end
+  end
+end
+
+local sign = part(map, "Objective_Sign", Vector3.new(58, 18, 1), CFrame.new(0, 13, -124), Color3.fromRGB(24, 29, 42), Enum.Material.Metal)
+local signGui = Instance.new("SurfaceGui")
+signGui.Face = Enum.NormalId.Front
+signGui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+signGui.PixelsPerStud = 24
+signGui.Parent = sign
+local signText = Instance.new("TextLabel")
+signText.BackgroundTransparency = 1
+signText.Size = UDim2.fromScale(1, 1)
+signText.Font = Enum.Font.GothamBold
+signText.TextScaled = true
+signText.TextWrapped = true
+signText.TextColor3 = Color3.fromRGB(245, 248, 255)
+signText.Text = "BloxSmith playable " .. genre .. " build\\n" .. request
+signText.Parent = signGui
+
+local remotes = ReplicatedStorage:FindFirstChild("BloxSmith_Remotes") or Instance.new("Folder")
+remotes.Name = "BloxSmith_Remotes"
+remotes.Parent = ReplicatedStorage
+local notify = remotes:FindFirstChild("BloxSmith_Notify") or Instance.new("RemoteEvent")
+notify.Name = "BloxSmith_Notify"
+notify.Parent = remotes
+
+local gui = StarterGui:FindFirstChild("BloxSmith_Playable_Game_UI")
+if gui then gui:Destroy() end
+gui = Instance.new("ScreenGui")
+gui.Name = "BloxSmith_Playable_Game_UI"
+gui.ResetOnSpawn = false
+gui.IgnoreGuiInset = true
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+gui.Parent = StarterGui
+
+local hud = Instance.new("Frame")
+hud.Name = "HUD"
+hud.BackgroundColor3 = Color3.fromRGB(14, 18, 31)
+hud.BackgroundTransparency = 0.05
+hud.Position = UDim2.fromOffset(18, 18)
+hud.Size = UDim2.fromOffset(430, 84)
+hud.Parent = gui
+Instance.new("UICorner", hud).CornerRadius = UDim.new(0, 12)
+local stroke = Instance.new("UIStroke")
+stroke.Color = Color3.fromRGB(82, 96, 148)
+stroke.Thickness = 1
+stroke.Transparency = 0.2
+stroke.Parent = hud
+
+local title = Instance.new("TextLabel")
+title.Name = "Title"
+title.BackgroundTransparency = 1
+title.Position = UDim2.fromOffset(14, 8)
+title.Size = UDim2.new(1, -28, 0, 26)
+title.Font = Enum.Font.GothamBold
+title.TextScaled = true
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.Text = string.upper(genre) .. " SYSTEM"
+title.Parent = hud
+
+local statsLabel = Instance.new("TextLabel")
+statsLabel.Name = "Stats"
+statsLabel.BackgroundTransparency = 1
+statsLabel.Position = UDim2.fromOffset(14, 42)
+statsLabel.Size = UDim2.new(1, -28, 0, 30)
+statsLabel.Font = Enum.Font.GothamSemibold
+statsLabel.TextScaled = true
+statsLabel.TextXAlignment = Enum.TextXAlignment.Left
+statsLabel.TextColor3 = Color3.fromRGB(190, 205, 235)
+statsLabel.Text = "Stage: 1   Coins: 0   Wins: 0"
+statsLabel.Parent = hud
+
+local toast = Instance.new("TextLabel")
+toast.Name = "Toast"
+toast.BackgroundColor3 = Color3.fromRGB(76, 92, 255)
+toast.Position = UDim2.new(0.5, -180, 0, 118)
+toast.Size = UDim2.fromOffset(360, 44)
+toast.Font = Enum.Font.GothamBold
+toast.TextScaled = true
+toast.TextColor3 = Color3.fromRGB(255, 255, 255)
+toast.Visible = false
+toast.Parent = gui
+Instance.new("UICorner", toast).CornerRadius = UDim.new(0, 10)
+
+local localScript = Instance.new("LocalScript")
+localScript.Name = "BloxSmith_Playable_UI_Controller"
+localScript.Source = [==[
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+local player = Players.LocalPlayer
+local gui = script.Parent
+local statsLabel = gui.HUD.Stats
+local toast = gui.Toast
+
+local function sync()
+  local ls = player:FindFirstChild("leaderstats")
+  if not ls then return end
+  local stage = ls:FindFirstChild("Stage")
+  local coins = ls:FindFirstChild("Coins")
+  local wins = ls:FindFirstChild("Wins")
+  statsLabel.Text = string.format("Stage: %d   Coins: %d   Wins: %d", stage and stage.Value or 1, coins and coins.Value or 0, wins and wins.Value or 0)
+end
+
+local function bindStats(ls)
+  for _, child in ipairs(ls:GetChildren()) do
+    if child:IsA("ValueBase") then child.Changed:Connect(sync) end
+  end
+  ls.ChildAdded:Connect(function(child)
+    if child:IsA("ValueBase") then child.Changed:Connect(sync) end
+    sync()
+  end)
+  sync()
+end
+
+local existing = player:FindFirstChild("leaderstats")
+if existing then bindStats(existing) end
+player.ChildAdded:Connect(function(child)
+  if child.Name == "leaderstats" then bindStats(child) end
+end)
+
+local remotes = ReplicatedStorage:WaitForChild("BloxSmith_Remotes", 10)
+local notify = remotes and remotes:WaitForChild("BloxSmith_Notify", 10)
+if notify then
+  notify.OnClientEvent:Connect(function(message)
+    toast.Text = tostring(message)
+    toast.Visible = true
+    toast.TextTransparency = 0
+    toast.BackgroundTransparency = 0
+    TweenService:Create(toast, TweenInfo.new(0.18), { Position = UDim2.new(0.5, -180, 0, 112) }):Play()
+    task.delay(2.2, function()
+      TweenService:Create(toast, TweenInfo.new(0.35), { TextTransparency = 1, BackgroundTransparency = 1 }):Play()
+      task.wait(0.38)
+      toast.Visible = false
+      toast.Position = UDim2.new(0.5, -180, 0, 118)
+    end)
+  end)
+end
+
+task.spawn(function()
+  while gui.Parent do
+    sync()
+    task.wait(1)
+  end
+end)
+]==]
+localScript.Parent = gui
+
+local manager = ServerScriptService:FindFirstChild("BloxSmith_Playable_Game_Manager")
+if manager then manager:Destroy() end
+manager = Instance.new("Script")
+manager.Name = "BloxSmith_Playable_Game_Manager"
+manager.Source = [==[
+local Players = game:GetService("Players")
+local DataStoreService = game:GetService("DataStoreService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+
+local root = Workspace:WaitForChild("BloxSmith_Playable_Game", 15)
+local remotes = ReplicatedStorage:FindFirstChild("BloxSmith_Remotes") or Instance.new("Folder")
+remotes.Name = "BloxSmith_Remotes"
+remotes.Parent = ReplicatedStorage
+local notify = remotes:FindFirstChild("BloxSmith_Notify") or Instance.new("RemoteEvent")
+notify.Name = "BloxSmith_Notify"
+notify.Parent = remotes
+
+local store
+pcall(function() store = DataStoreService:GetDataStore("BloxSmith_Playable_Game_v1") end)
+local cache = {}
+local debounce = {}
+
+local function ensureStats(player)
+  local ls = player:FindFirstChild("leaderstats") or Instance.new("Folder")
+  ls.Name = "leaderstats"
+  ls.Parent = player
+  local function int(name, default)
+    local v = ls:FindFirstChild(name) or Instance.new("IntValue")
+    v.Name = name
+    if v.Value == 0 and default and default > 0 then v.Value = default end
+    v.Parent = ls
+    return v
+  end
+  return int("Stage", 1), int("Coins", 0), int("Wins", 0)
+end
+
+local function key(player) return "u_" .. player.UserId end
+local function load(player)
+  local stage, coins, wins = ensureStats(player)
+  local data = { stage = 1, coins = 0, wins = 0 }
+  if store then
+    local ok, saved = pcall(function() return store:GetAsync(key(player)) end)
+    if ok and type(saved) == "table" then data = saved end
+  end
+  stage.Value = math.max(1, tonumber(data.stage) or 1)
+  coins.Value = math.max(0, tonumber(data.coins) or 0)
+  wins.Value = math.max(0, tonumber(data.wins) or 0)
+  cache[player] = data
+end
+
+local function save(player)
+  if not store then return end
+  local stage, coins, wins = ensureStats(player)
+  local data = { stage = stage.Value, coins = coins.Value, wins = wins.Value }
+  pcall(function()
+    store:UpdateAsync(key(player), function() return data end)
+  end)
+end
+
+local function award(player, stageAmount, coinAmount, winAmount, message)
+  local stage, coins, wins = ensureStats(player)
+  if stageAmount and stageAmount > stage.Value then stage.Value = stageAmount end
+  if coinAmount and coinAmount > 0 then coins.Value += coinAmount end
+  if winAmount and winAmount > 0 then wins.Value += winAmount end
+  if message then notify:FireClient(player, message) end
+end
+
+local function onTouched(part, hit)
+  local character = hit and hit.Parent
+  local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+  if not humanoid then return end
+  local player = Players:GetPlayerFromCharacter(character)
+  if not player then return end
+  local now = os.clock()
+  local token = player.UserId .. ":" .. part:GetDebugId()
+  if debounce[token] and now - debounce[token] < 0.8 then return end
+  debounce[token] = now
+
+  if part:GetAttribute("BloxSmithKillBrick") then
+    humanoid.Health = 0
+    return
+  end
+  if part:GetAttribute("BloxSmithFinish") then
+    award(player, tonumber(part:GetAttribute("Stage")) or 1, 100, 1, "Finished! +100 coins")
+    save(player)
+    return
+  end
+  if part:GetAttribute("BloxSmithCheckpoint") then
+    local nextStage = tonumber(part:GetAttribute("Stage")) or 1
+    award(player, nextStage, 10, 0, "Checkpoint " .. tostring(nextStage) .. " reached")
+  end
+end
+
+local function wirePart(part)
+  if part:IsA("BasePart") and (part:GetAttribute("BloxSmithCheckpoint") or part:GetAttribute("BloxSmithFinish") or part:GetAttribute("BloxSmithKillBrick")) then
+    part.Touched:Connect(function(hit) onTouched(part, hit) end)
+  end
+end
+
+if root then
+  for _, inst in ipairs(root:GetDescendants()) do wirePart(inst) end
+  root.DescendantAdded:Connect(wirePart)
+end
+
+Players.PlayerAdded:Connect(function(player)
+  load(player)
+  player.CharacterAdded:Connect(function(character)
+    local stage = player:FindFirstChild("leaderstats") and player.leaderstats:FindFirstChild("Stage")
+    local rootPart = character:WaitForChild("HumanoidRootPart", 8)
+    if rootPart and stage and root then
+      local best
+      for _, inst in ipairs(root:GetDescendants()) do
+        if inst:IsA("BasePart") and inst:GetAttribute("BloxSmithCheckpoint") and tonumber(inst:GetAttribute("Stage")) == stage.Value then
+          best = inst
+          break
+        end
+      end
+      if best then rootPart.CFrame = best.CFrame + Vector3.new(0, 5, 0) end
+    end
+  end)
+end)
+for _, player in ipairs(Players:GetPlayers()) do task.spawn(load, player) end
+Players.PlayerRemoving:Connect(function(player) save(player); cache[player] = nil end)
+game:BindToClose(function()
+  if RunService:IsStudio() then return end
+  for _, player in ipairs(Players:GetPlayers()) do task.spawn(save, player) end
+  task.wait(2)
+end)
+]==]
+manager.Parent = ServerScriptService
+
+pcall(function()
+  Lighting.ClockTime = genre == "survival" and 0 or 14
+  Lighting.Brightness = genre == "survival" and 1.1 or 2.4
+  Lighting.Ambient = genre == "survival" and Color3.fromRGB(30, 32, 44) or Color3.fromRGB(100, 115, 135)
+  Lighting.OutdoorAmbient = genre == "survival" and Color3.fromRGB(20, 22, 35) or Color3.fromRGB(135, 150, 170)
+  local atmosphere = Lighting:FindFirstChildOfClass("Atmosphere") or Instance.new("Atmosphere")
+  atmosphere.Name = "BloxSmith_Playable_Atmosphere"
+  atmosphere.Density = genre == "survival" and 0.52 or 0.24
+  atmosphere.Haze = genre == "survival" and 2.1 or 0.7
+  atmosphere.Color = genre == "survival" and Color3.fromRGB(95, 100, 125) or Color3.fromRGB(206, 228, 255)
+  atmosphere.Parent = Lighting
+end)
+
+root:SetAttribute("BloxSmithPrompt", request)
+root:SetAttribute("BloxSmithGenre", genre)
+root:SetAttribute("BloxSmithPlayable", true)
+root:SetAttribute("BloxSmithLanguage", languageName)
+print("[BloxSmith] Built playable " .. genre .. " game framework for: " .. request)
+`;
+
+  return [
+    {
+      kind: "run_lua",
+      parent_path: "Workspace",
+      name: "BloxSmith_Build_Playable_Game_Framework",
+      payload: { source, request: safePrompt, genre, visible_output_required: true },
+    },
+    {
+      kind: "organize_project",
+      parent_path: "Workspace",
+      name: "BloxSmith_Organize_Playable_Game",
+      payload: { reason: "organize_playable_game_framework" },
+    },
+    {
+      kind: "autofix_project",
+      parent_path: "Workspace",
+      name: "BloxSmith_Autofix_Playable_Game",
+      payload: { reason: "fix_common_issues_in_playable_game_framework" },
+    },
+    {
+      kind: "scan_project",
+      parent_path: "Workspace",
+      name: "BloxSmith_Scan_Playable_Game",
+      payload: { reason: "verify_playable_game_framework_scripts_ui_and_map" },
     },
   ];
 }
