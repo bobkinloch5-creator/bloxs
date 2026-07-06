@@ -3829,26 +3829,26 @@ task.wait(0.35)
 loading.Visible = false
 menu.Visible = true
 
-menu.PlayButton.MouseButton1Click:Connect(function()
-  menu.Visible = false
-  hud.Visible = true
-  if menuAction then menuAction:FireServer("Play") end
-end)
-
-menu.ShopButton.MouseButton1Click:Connect(function()
-  showModal("Shop", "Add products, boosts, gamepasses, and upgrades here.")
-  if menuAction then menuAction:FireServer("Shop") end
-end)
-
-menu.InventoryButton.MouseButton1Click:Connect(function()
-  showModal("Inventory", "Player items and rewards can appear here.")
-  if menuAction then menuAction:FireServer("Inventory") end
-end)
-
-menu.SettingsButton.MouseButton1Click:Connect(function()
-  showModal("Settings", "Volume, graphics, and gameplay options are ready to wire.")
-  if menuAction then menuAction:FireServer("Settings") end
-end)
+-- Wire every TextButton under the menu dynamically so varied menu layouts still work.
+for _, child in ipairs(menu:GetChildren()) do
+  if child:IsA("TextButton") then
+    local label = child.Text
+    local nameKey = child.Name:gsub("Button$", "")
+    child.MouseButton1Click:Connect(function()
+      local lower = label:lower()
+      if lower:find("play") or lower:find("start") or lower:find("begin") or lower:find("launch") or lower:find("enter") or lower:find("deploy") or lower:find("fight") or lower:find("race") or lower:find("adventure") then
+        menu.Visible = false
+        hud.Visible = true
+        if menuAction then menuAction:FireServer(nameKey) end
+      elseif lower:find("quit") or lower:find("exit") then
+        menu.Visible = false
+      else
+        showModal(label, "This panel is wired and ready for your game logic.")
+        if menuAction then menuAction:FireServer(nameKey) end
+      end
+    end)
+  end
+end
 
 modal.CloseButton.MouseButton1Click:Connect(function()
   modal.Visible = false
