@@ -673,7 +673,7 @@ local player = Players.LocalPlayer
 local ACTIVE = false
 
 local PRESET = {
-    folder = "MagicAura",             -- rename per effect
+    prefix = "MagicAura_",             -- rename per effect
     texture = "rbxassetid://241876828", -- sparkles
     rate = 45,
     lifetime = NumberRange.new(0.8, 1.6),
@@ -692,12 +692,13 @@ local PRESET = {
 
 local function build(char)
     local hrp = char:WaitForChild("HumanoidRootPart")
-    local old = hrp:FindFirstChild(PRESET.folder)
-    if old then old:Destroy() end
-    local folder = Instance.new("Folder"); folder.Name = PRESET.folder; folder.Parent = hrp
-    local att = Instance.new("Attachment"); att.Name = "AuraAtt"; att.Parent = folder
+    for _, child in ipairs(hrp:GetChildren()) do
+        if string.sub(child.Name, 1, #PRESET.prefix) == PRESET.prefix then child:Destroy() end
+    end
+    local att = Instance.new("Attachment"); att.Name = PRESET.prefix .. "Attachment"; att.Parent = hrp
 
     local p = Instance.new("ParticleEmitter")
+    p.Name = PRESET.prefix .. "Particles"
     p.Parent = att
     p.Texture = PRESET.texture
     p.Rate = PRESET.rate
@@ -724,6 +725,7 @@ local function build(char)
     p.Enabled = ACTIVE
 
     local light = Instance.new("PointLight")
+    light.Name = PRESET.prefix .. "Light"
     light.Color = PRESET.lightColor
     light.Brightness = 2.5
     light.Range = 14
@@ -731,25 +733,30 @@ local function build(char)
     light.Parent = att
 
     local sfx = Instance.new("Sound")
+    sfx.Name = PRESET.prefix .. "Sound"
     sfx.SoundId = PRESET.sound
     sfx.Volume = 0.4
     sfx.Looped = true
     sfx.Parent = hrp
     if ACTIVE then sfx:Play() end
-    folder:SetAttribute("SoundName", sfx.Name)
-    return folder, p, sfx
+    return att, p, sfx
 end
 
 local function setActive(on)
     ACTIVE = on
     local char = player.Character; if not char then return end
     local hrp = char:FindFirstChild("HumanoidRootPart"); if not hrp then return end
-    local folder = hrp:FindFirstChild(PRESET.folder); if not folder then return end
-    for _, d in ipairs(folder:GetDescendants()) do
-        if d:IsA("ParticleEmitter") then d.Enabled = on end
+    for _, d in ipairs(hrp:GetChildren()) do
+        if string.sub(d.Name, 1, #PRESET.prefix) == PRESET.prefix then
+            if d:IsA("Attachment") then
+                for _, nested in ipairs(d:GetChildren()) do
+                    if nested:IsA("ParticleEmitter") then nested.Enabled = on end
+                end
+            elseif d:IsA("Sound") then
+                if on then d:Play() else d:Stop() end
+            end
+        end
     end
-    local sfx = hrp:FindFirstChildOfClass("Sound")
-    if sfx then if on then sfx:Play() else sfx:Stop() end end
 end
 
 if player.Character then build(player.Character) end
