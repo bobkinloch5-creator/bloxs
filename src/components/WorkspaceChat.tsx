@@ -191,7 +191,7 @@ export function WorkspaceChat({
   const pluginOnline = !!(
     pluginSession?.online &&
     pluginSession?.last_seen &&
-    Date.now() - new Date(pluginSession.last_seen).getTime() < 30_000
+    Date.now() - new Date(pluginSession.last_seen).getTime() < 90_000
   );
 
   const [prompt, setPrompt] = useState("");
