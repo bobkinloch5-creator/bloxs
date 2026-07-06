@@ -31,8 +31,8 @@ const TASK_PREF: Record<AutoTask, { ids: string[]; reason: string }> = {
     reason: "Auto: very fast model for responsive Roblox planning.",
   },
   scripting: {
-    ids: ["nvidia/qwen-2.5-coder-32b", "nvidia/gemma-3-27b", "nvidia/deepseek-v4-flash", DEFAULT_MODEL_ID],
-    reason: "Auto: Qwen coder-class model for complete runnable Luau.",
+    ids: ["nvidia/deepseek-v4-flash", "nvidia/qwen-2.5-coder-32b", "nvidia/gemma-3-27b", DEFAULT_MODEL_ID],
+    reason: "Auto: fastest NVIDIA coder-class model for runnable Luau.",
   },
   ui: {
     ids: ["nvidia/gemma-3-27b", "nvidia/nemotron-nano-9b-v2", "nvidia/qwen-2.5-coder-32b", DEFAULT_MODEL_ID],

@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
-import { convertToModelMessages, generateText, streamText, stepCountIs, tool, type UIMessage } from "ai";
+import { convertToModelMessages, generateText, streamText, stepCountIs, tool, type ToolSet, type UIMessage } from "ai";
 import { z } from "zod";
 import { getProviderModel, getFallbackModel, getFallbackChain } from "@/lib/ai-gateway.server";
 import { parseActions } from "@/lib/bloxsmith-prompt";
@@ -265,7 +265,7 @@ function capOutputTokens(modelSettings: { maxOutputTokens?: number } | undefined
       : buildQuality === "premium"
         ? 2400
         : buildQuality === "basic"
-          ? 1200
+          ? 950
           : 1800;
   return Math.min(requested, cap);
 }
@@ -5254,7 +5254,7 @@ export const Route = createFileRoute("/api/chat")({
                 supabase.from("plugin_actions").select("kind, name, parent_path, status").eq("project_id", projectId).order("created_at", { ascending: false }).limit(buildQuality === "basic" ? 8 : 20),
                 supabase.from("project_memory").select("key, value, kind, importance").eq("project_id", projectId).order("importance", { ascending: false }).order("updated_at", { ascending: false }).limit(buildQuality === "basic" ? 8 : 20),
               ]),
-              imageParts.length > 0
+              imageParts.length > 0 && buildQuality !== "basic"
                 ? withTimeout(describeImageWithNvidiaPaliGemma(imageParts), 2500, "NVIDIA PaliGemma vision")
                 : Promise.resolve(null),
               uiConceptRequested && buildQuality !== "basic"
@@ -5385,9 +5385,11 @@ export const Route = createFileRoute("/api/chat")({
               }
             }
 
-            parts.push(
-              `MEMORY WRITE PROTOCOL (be PROACTIVE — this is how the AI remembers everything about the project across sessions).\n\nAppend ONE fenced block at the END of your reply whenever the user mentions ANY of the following for the first time OR changes a previous answer:\n• Game genre / sub-genre (e.g. "medieval RPG", "tower-defense tycoon")\n• Core gameplay mechanics ("combat is melee only", "players earn XP by mining")\n• Art / visual style ("stylized low-poly", "dark horror", "cartoon pastel")\n• Named characters / NPCs / bosses (name + role)\n• Currency name and how it's earned\n• World/lore rules ("night is always dangerous", "PvP disabled in town")\n• Folder / organization conventions ("all NPCs live under ServerStorage.NPCs")\n• Systems already decided ("uses ProfileService for saving", "mobile-first UI")\n• Design decisions the user explicitly makes ("no gambling mechanics", "keep it kid-friendly")\n• Progress milestones the user calls out ("shop system is done")\n\nFormat (JSON array, up to 10 items per turn):\n\`\`\`bloxsmith-memory\n[\n  { "key": "genre", "value": "medieval fantasy RPG", "kind": "lore", "importance": 9 },\n  { "key": "art_style", "value": "stylized low-poly, warm palette", "kind": "style", "importance": 8 },\n  { "key": "hero_name", "value": "Kael the wandering swordsman", "kind": "character", "importance": 8 },\n  { "key": "currency", "value": "Gold — earned from quests & monster drops", "kind": "system", "importance": 7 },\n  { "key": "npc_folder", "value": "ServerStorage/NPCs", "kind": "decision", "importance": 6 }\n]\n\`\`\`\nRules:\n• Allowed kinds: lore, rule, decision, character, system, style\n• Keys: short snake_case, ≤ 80 chars, stable (reuse same key to overwrite an updated fact)\n• Values: ≤ 280 chars, self-contained (no "see above")\n• importance 1–10 (8+ for genre / hero / core mechanics)\n• Skip the block entirely if the user said nothing memorable this turn — don't invent facts\n• Never contradict existing PROJECT LORE above; if the user overrides one, re-emit the SAME key with the new value.`,
-            );
+            if (buildQuality !== "basic") {
+              parts.push(
+                `MEMORY WRITE PROTOCOL (be PROACTIVE — this is how the AI remembers everything about the project across sessions).\n\nAppend ONE fenced block at the END of your reply whenever the user mentions ANY of the following for the first time OR changes a previous answer:\n• Game genre / sub-genre (e.g. "medieval RPG", "tower-defense tycoon")\n• Core gameplay mechanics ("combat is melee only", "players earn XP by mining")\n• Art / visual style ("stylized low-poly", "dark horror", "cartoon pastel")\n• Named characters / NPCs / bosses (name + role)\n• Currency name and how it's earned\n• World/lore rules ("night is always dangerous", "PvP disabled in town")\n• Folder / organization conventions ("all NPCs live under ServerStorage.NPCs")\n• Systems already decided ("uses ProfileService for saving", "mobile-first UI")\n• Design decisions the user explicitly makes ("no gambling mechanics", "keep it kid-friendly")\n• Progress milestones the user calls out ("shop system is done")\n\nFormat (JSON array, up to 10 items per turn):\n\`\`\`bloxsmith-memory\n[\n  { "key": "genre", "value": "medieval fantasy RPG", "kind": "lore", "importance": 9 },\n  { "key": "art_style", "value": "stylized low-poly, warm palette", "kind": "style", "importance": 8 },\n  { "key": "hero_name", "value": "Kael the wandering swordsman", "kind": "character", "importance": 8 },\n  { "key": "currency", "value": "Gold — earned from quests & monster drops", "kind": "system", "importance": 7 },\n  { "key": "npc_folder", "value": "ServerStorage/NPCs", "kind": "decision", "importance": 6 }\n]\n\`\`\`\nRules:\n• Allowed kinds: lore, rule, decision, character, system, style\n• Keys: short snake_case, ≤ 80 chars, stable (reuse same key to overwrite an updated fact)\n• Values: ≤ 280 chars, self-contained (no "see above")\n• importance 1–10 (8+ for genre / hero / core mechanics)\n• Skip the block entirely if the user said nothing memorable this turn — don't invent facts\n• Never contradict existing PROJECT LORE above; if the user overrides one, re-emit the SAME key with the new value.`,
+              );
+            }
 
             contextBlock = "\n\n---\nLIVE CONTEXT (auto-injected memory + Studio state):\n\n" + parts.join("\n\n---\n");
 
@@ -5447,6 +5449,11 @@ export const Route = createFileRoute("/api/chat")({
                 }
 
                 if (mode === "build" && actions.length === 0) {
+                  // Fast Build must not run a second AI request after the main
+                  // generation. If the selected model forgot the action block,
+                  // jump straight to deterministic Studio recovery/templates so
+                  // the plugin gets work immediately.
+                  if (buildQuality !== "basic") {
                   try {
                     const compiled = await compileMissingStudioActions({
                       userText,
@@ -5463,6 +5470,7 @@ export const Route = createFileRoute("/api/chat")({
                     }
                   } catch (compileErr) {
                     console.warn("[chat] action compiler failed; using recovery Studio actions", compileErr);
+                  }
                   }
 
 
@@ -6395,6 +6403,21 @@ export const Route = createFileRoute("/api/chat")({
                 console.error(`[chat] partial persist (${reason}) failed`, e);
               }
             };
+            const fastBuild = mode === "build" && buildQuality === "basic";
+            const buildTools = (fastBuild
+              ? (assetMode === "procedural" && !userExplicitlyRequestedToolbox(userText)
+                ? { insert_asset: insertAssetTool }
+                : { insert_asset: insertAssetTool, search_toolbox: toolboxTool, search_toolbox_set: toolboxSetTool })
+              : assetMode === "procedural" && !userExplicitlyRequestedToolbox(userText)
+                ? (imageGenerationRequested
+                  ? { insert_asset: insertAssetTool, generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool }
+                  : { insert_asset: insertAssetTool, roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch })
+                : (imageGenerationRequested
+                  ? { insert_asset: insertAssetTool, search_toolbox: toolboxTool, search_toolbox_set: toolboxSetTool, generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool }
+                  : { insert_asset: insertAssetTool, search_toolbox: toolboxTool, search_toolbox_set: toolboxSetTool, roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch })) as ToolSet;
+            const chatTools = (imageGenerationRequested
+              ? { generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool }
+              : { roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch }) as ToolSet;
             return streamText({
               model,
               system: (mode === "chat" ? FAST_CHAT_SYSTEM_PROMPT : FAST_BUILD_SYSTEM_PROMPT) + modeHeader + languageHeader + qualityHeader + assetModeRule + contextBlock,
@@ -6404,18 +6427,8 @@ export const Route = createFileRoute("/api/chat")({
               ...(modelSettings?.temperature !== undefined ? { temperature: modelSettings.temperature } : {}),
               ...(modelSettings?.topP !== undefined ? { topP: modelSettings.topP } : {}),
               maxOutputTokens: capOutputTokens(modelSettings, mode, buildQuality),
-              tools: mode === "chat"
-                ? (imageGenerationRequested
-                  ? { generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool }
-                  : { roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch })
-                : assetMode === "procedural" && !userExplicitlyRequestedToolbox(userText)
-                  ? (imageGenerationRequested
-                    ? { insert_asset: insertAssetTool, generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool }
-                    : { insert_asset: insertAssetTool, roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch })
-                  : (imageGenerationRequested
-                    ? { insert_asset: insertAssetTool, search_toolbox: toolboxTool, search_toolbox_set: toolboxSetTool, generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool }
-                    : { insert_asset: insertAssetTool, search_toolbox: toolboxTool, search_toolbox_set: toolboxSetTool, roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch }),
-              stopWhen: stepCountIs(mode === "chat" ? 6 : 14),
+              tools: mode === "chat" ? chatTools : buildTools,
+              stopWhen: stepCountIs(mode === "chat" ? 6 : fastBuild ? 6 : 14),
               onChunk: ({ chunk }) => {
                 if (chunk.type === "text-delta") {
                   const delta = (chunk as { text?: string; delta?: string }).text
