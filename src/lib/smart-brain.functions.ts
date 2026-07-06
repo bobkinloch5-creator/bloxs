@@ -79,6 +79,8 @@ Rules:
 - "needs" MUST be a subset of the exact strings listed above.
 - Trivial edits use ["shortedit"]. Bug reports use ["bugfix","testing"].
 - Full games or multi-system builds use ["planning","scripting","ui","assets","performance","testing"].
+- Visual-effect requests such as "turn my character into flames", fire/lightning/magic/smoke/ice aura, glowing particles, trails, explosions, or humanoid elemental effects are scripting/polish work, NOT asset_search. Use category "scripting" or "polish", complexity "small" or "medium", systems containing "humanoid_vfx" and the element, needs including ["scripting","performance","testing"].
+- For humanoid VFX, risks MUST mention body-part Attachment parenting, R15/R6 fallback, ParticleEmitter visibility, respawn re-apply, and server replication when everyone should see it.
 - Never invent categories.`;
 
 const PLAN_SYSTEM = `You are the BloxSmith Architect.
@@ -97,6 +99,7 @@ DONE-WHEN: 3-6 bullet lines describing observable success criteria in Studio.
 Rules:
 - Reference real instance paths from the scene digest whenever possible.
 - Never propose duplicating a system that already exists — extend it instead.
+- If the goal is humanoid VFX (for example "turn my character into flames"), plan a complete scripted effect: ModuleScript/Script or LocalScript as appropriate, Attachments inside the correct body BaseParts, ParticleEmitters with full Size/Transparency/Color/Lifetime/Rate/Speed/Acceleration values, PointLight/Sound for visibility, R15/R6 body-part fallback, CharacterAdded respawn handling, stale-effect cleanup, and performance caps. Do not plan a Toolbox model for this.
 - Keep total output under 900 words.`;
 
 const SPECIALIST_SYSTEM = `You are a BloxSmith specialist model. Produce a short, high-signal
