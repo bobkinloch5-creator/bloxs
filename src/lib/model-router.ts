@@ -127,7 +127,7 @@ export const AUTO_TASKS: AutoTask[] = [
 ];
 
 export function pickAllTaskModels(): ModelPick[] {
-  return AUTO_TASKS.map(pickModelForTask);
+  return AUTO_TASKS.map((t) => pickModelForTask(t));
 }
 
 export const TASK_LABELS: Record<AutoTask, string> = {
