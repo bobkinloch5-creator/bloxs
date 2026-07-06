@@ -693,7 +693,7 @@ local PRESET = {
 local function build(char)
     local hrp = char:WaitForChild("HumanoidRootPart")
     for _, child in ipairs(hrp:GetChildren()) do
-        if string.sub(child.Name, 1, #PRESET.prefix) == PRESET.prefix then child:Destroy() end
+        if string.sub(child.Name, 1, #PRESET.prefix) == PRESET.prefix or child.Name == string.gsub(PRESET.prefix, "_$", "") then child:Destroy() end
     end
     local att = Instance.new("Attachment"); att.Name = PRESET.prefix .. "Attachment"; att.Parent = hrp
 
