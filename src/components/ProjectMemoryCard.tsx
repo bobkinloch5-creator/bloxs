@@ -174,5 +174,7 @@ export function ProjectMemoryCard({ projectId }: { projectId: string }) {
         </div>
       )}
     </div>
+    </div>
   );
 }
+
