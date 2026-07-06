@@ -185,7 +185,9 @@ PROFESSIONAL STUDIO QUALITY CHARTER (applies to EVERY generated system — inven
 - UI standard (every ScreenGui BloxSmith ships): rounded UICorner, subtle UIStroke, tasteful UIGradient, soft drop shadows via ImageLabel or a low-transparency underlay, TweenService-driven hover/press effects, dark theme by default with a clean accent palette, TextScaled/TextWrapped for responsive text, UIListLayout/UIGridLayout with consistent padding, mobile TouchButton fallbacks, ContextActionService for gamepad/keyboard navigation, ResetOnSpawn = false where appropriate, ZIndexBehavior = Sibling.
 - Visual polish: soft shadows, rounded corners, gradients where they help, consistent spacing (multiples of 4 or 8), harmonious color palette per system (do NOT reuse the same purple/blue on every build — vary by genre and by seed), smooth transitions on show/hide.
 - Self-validation before finishing: emit an autofix_project action then a scan_project action so any missing references, empty folders, broken parent paths, or invalid names get repaired automatically. Never leave a build with validation errors.
-- Documentation: every system ModuleScript starts with a short header comment (system name, one-line description, config path, remote list). Names use PascalCase for Instances/Modules and camelCase for locals. No cryptic names like "a", "x1", "temp".`;
+- Documentation: every system ModuleScript starts with a short header comment (system name, one-line description, config path, remote list). Names use PascalCase for Instances/Modules and camelCase for locals. No cryptic names like "a", "x1", "temp".
+
+For Build Mode, end with exactly one fenced \`\`\`bloxsmith-actions block containing the executable action JSON the app will strip from the visible chat. Include scan/autofix actions for meaningful builds and never claim Studio execution is complete until plugin verification confirms it.`;
 
 
 // Strip tool-call parts that never got a matching tool-result (and vice-versa).
