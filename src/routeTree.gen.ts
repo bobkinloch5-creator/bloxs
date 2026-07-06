@@ -12,9 +12,11 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as TemplatesMarketRouteImport } from './routes/templates-market'
 import { Route as SupportRouteImport } from './routes/support'
+import { Route as StatusRouteImport } from './routes/status'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as ShowcaseRouteImport } from './routes/showcase'
 import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as LeaderboardRouteImport } from './routes/leaderboard'
 import { Route as DonateRouteImport } from './routes/donate'
 import { Route as DocsRouteImport } from './routes/docs'
 import { Route as ContactRouteImport } from './routes/contact'
@@ -40,9 +42,11 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as AuthenticatedCollaboratorsRouteImport } from './routes/_authenticated/collaborators'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as ApiVisualsGenerateRouteImport } from './routes/api/visuals/generate'
+import { Route as ApiPublicStatusRouteImport } from './routes/api/public/status'
 import { Route as ApiPublicModelProxyRouteImport } from './routes/api/public/model-proxy'
 import { Route as ApiPublicMcpRouteImport } from './routes/api/public/mcp'
 import { Route as ApiPublicMaintenanceRouteImport } from './routes/api/public/maintenance'
+import { Route as ApiPublicLeaderboardRouteImport } from './routes/api/public/leaderboard'
 import { Route as AuthenticatedSettingsAdvancedRouteImport } from './routes/_authenticated/settings.advanced'
 import { Route as AuthenticatedProjectProjectIdRouteImport } from './routes/_authenticated/project.$projectId'
 import { Route as AuthenticatedModelsProjectIdRouteImport } from './routes/_authenticated/models.$projectId'
@@ -74,6 +78,11 @@ const SupportRoute = SupportRouteImport.update({
   path: '/support',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StatusRoute = StatusRouteImport.update({
+  id: '/status',
+  path: '/status',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
@@ -87,6 +96,11 @@ const ShowcaseRoute = ShowcaseRouteImport.update({
 const PrivacyRoute = PrivacyRouteImport.update({
   id: '/privacy',
   path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LeaderboardRoute = LeaderboardRouteImport.update({
+  id: '/leaderboard',
+  path: '/leaderboard',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DonateRoute = DonateRouteImport.update({
@@ -215,6 +229,11 @@ const ApiVisualsGenerateRoute = ApiVisualsGenerateRouteImport.update({
   path: '/api/visuals/generate',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicStatusRoute = ApiPublicStatusRouteImport.update({
+  id: '/api/public/status',
+  path: '/api/public/status',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicModelProxyRoute = ApiPublicModelProxyRouteImport.update({
   id: '/api/public/model-proxy',
   path: '/api/public/model-proxy',
@@ -228,6 +247,11 @@ const ApiPublicMcpRoute = ApiPublicMcpRouteImport.update({
 const ApiPublicMaintenanceRoute = ApiPublicMaintenanceRouteImport.update({
   id: '/api/public/maintenance',
   path: '/api/public/maintenance',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicLeaderboardRoute = ApiPublicLeaderboardRouteImport.update({
+  id: '/api/public/leaderboard',
+  path: '/api/public/leaderboard',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedSettingsAdvancedRoute =
@@ -321,9 +345,11 @@ export interface FileRoutesByFullPath {
   '/contact': typeof ContactRoute
   '/docs': typeof DocsRoute
   '/donate': typeof DonateRoute
+  '/leaderboard': typeof LeaderboardRoute
   '/privacy': typeof PrivacyRoute
   '/showcase': typeof ShowcaseRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/status': typeof StatusRoute
   '/support': typeof SupportRoute
   '/templates-market': typeof TemplatesMarketRoute
   '/terms': typeof TermsRoute
@@ -348,9 +374,11 @@ export interface FileRoutesByFullPath {
   '/models/$projectId': typeof AuthenticatedModelsProjectIdRoute
   '/project/$projectId': typeof AuthenticatedProjectProjectIdRoute
   '/settings/advanced': typeof AuthenticatedSettingsAdvancedRoute
+  '/api/public/leaderboard': typeof ApiPublicLeaderboardRoute
   '/api/public/maintenance': typeof ApiPublicMaintenanceRoute
   '/api/public/mcp': typeof ApiPublicMcpRoute
   '/api/public/model-proxy': typeof ApiPublicModelProxyRoute
+  '/api/public/status': typeof ApiPublicStatusRoute
   '/api/visuals/generate': typeof ApiVisualsGenerateRoute
   '/api/public/plugin/clear': typeof ApiPublicPluginClearRoute
   '/api/public/plugin/complete': typeof ApiPublicPluginCompleteRoute
@@ -371,9 +399,11 @@ export interface FileRoutesByTo {
   '/contact': typeof ContactRoute
   '/docs': typeof DocsRoute
   '/donate': typeof DonateRoute
+  '/leaderboard': typeof LeaderboardRoute
   '/privacy': typeof PrivacyRoute
   '/showcase': typeof ShowcaseRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/status': typeof StatusRoute
   '/support': typeof SupportRoute
   '/templates-market': typeof TemplatesMarketRoute
   '/terms': typeof TermsRoute
@@ -398,9 +428,11 @@ export interface FileRoutesByTo {
   '/models/$projectId': typeof AuthenticatedModelsProjectIdRoute
   '/project/$projectId': typeof AuthenticatedProjectProjectIdRoute
   '/settings/advanced': typeof AuthenticatedSettingsAdvancedRoute
+  '/api/public/leaderboard': typeof ApiPublicLeaderboardRoute
   '/api/public/maintenance': typeof ApiPublicMaintenanceRoute
   '/api/public/mcp': typeof ApiPublicMcpRoute
   '/api/public/model-proxy': typeof ApiPublicModelProxyRoute
+  '/api/public/status': typeof ApiPublicStatusRoute
   '/api/visuals/generate': typeof ApiVisualsGenerateRoute
   '/api/public/plugin/clear': typeof ApiPublicPluginClearRoute
   '/api/public/plugin/complete': typeof ApiPublicPluginCompleteRoute
@@ -423,9 +455,11 @@ export interface FileRoutesById {
   '/contact': typeof ContactRoute
   '/docs': typeof DocsRoute
   '/donate': typeof DonateRoute
+  '/leaderboard': typeof LeaderboardRoute
   '/privacy': typeof PrivacyRoute
   '/showcase': typeof ShowcaseRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/status': typeof StatusRoute
   '/support': typeof SupportRoute
   '/templates-market': typeof TemplatesMarketRoute
   '/terms': typeof TermsRoute
@@ -450,9 +484,11 @@ export interface FileRoutesById {
   '/_authenticated/models/$projectId': typeof AuthenticatedModelsProjectIdRoute
   '/_authenticated/project/$projectId': typeof AuthenticatedProjectProjectIdRoute
   '/_authenticated/settings/advanced': typeof AuthenticatedSettingsAdvancedRoute
+  '/api/public/leaderboard': typeof ApiPublicLeaderboardRoute
   '/api/public/maintenance': typeof ApiPublicMaintenanceRoute
   '/api/public/mcp': typeof ApiPublicMcpRoute
   '/api/public/model-proxy': typeof ApiPublicModelProxyRoute
+  '/api/public/status': typeof ApiPublicStatusRoute
   '/api/visuals/generate': typeof ApiVisualsGenerateRoute
   '/api/public/plugin/clear': typeof ApiPublicPluginClearRoute
   '/api/public/plugin/complete': typeof ApiPublicPluginCompleteRoute
@@ -475,9 +511,11 @@ export interface FileRouteTypes {
     | '/contact'
     | '/docs'
     | '/donate'
+    | '/leaderboard'
     | '/privacy'
     | '/showcase'
     | '/sitemap.xml'
+    | '/status'
     | '/support'
     | '/templates-market'
     | '/terms'
@@ -502,9 +540,11 @@ export interface FileRouteTypes {
     | '/models/$projectId'
     | '/project/$projectId'
     | '/settings/advanced'
+    | '/api/public/leaderboard'
     | '/api/public/maintenance'
     | '/api/public/mcp'
     | '/api/public/model-proxy'
+    | '/api/public/status'
     | '/api/visuals/generate'
     | '/api/public/plugin/clear'
     | '/api/public/plugin/complete'
@@ -525,9 +565,11 @@ export interface FileRouteTypes {
     | '/contact'
     | '/docs'
     | '/donate'
+    | '/leaderboard'
     | '/privacy'
     | '/showcase'
     | '/sitemap.xml'
+    | '/status'
     | '/support'
     | '/templates-market'
     | '/terms'
@@ -552,9 +594,11 @@ export interface FileRouteTypes {
     | '/models/$projectId'
     | '/project/$projectId'
     | '/settings/advanced'
+    | '/api/public/leaderboard'
     | '/api/public/maintenance'
     | '/api/public/mcp'
     | '/api/public/model-proxy'
+    | '/api/public/status'
     | '/api/visuals/generate'
     | '/api/public/plugin/clear'
     | '/api/public/plugin/complete'
@@ -576,9 +620,11 @@ export interface FileRouteTypes {
     | '/contact'
     | '/docs'
     | '/donate'
+    | '/leaderboard'
     | '/privacy'
     | '/showcase'
     | '/sitemap.xml'
+    | '/status'
     | '/support'
     | '/templates-market'
     | '/terms'
@@ -603,9 +649,11 @@ export interface FileRouteTypes {
     | '/_authenticated/models/$projectId'
     | '/_authenticated/project/$projectId'
     | '/_authenticated/settings/advanced'
+    | '/api/public/leaderboard'
     | '/api/public/maintenance'
     | '/api/public/mcp'
     | '/api/public/model-proxy'
+    | '/api/public/status'
     | '/api/visuals/generate'
     | '/api/public/plugin/clear'
     | '/api/public/plugin/complete'
@@ -628,9 +676,11 @@ export interface RootRouteChildren {
   ContactRoute: typeof ContactRoute
   DocsRoute: typeof DocsRoute
   DonateRoute: typeof DonateRoute
+  LeaderboardRoute: typeof LeaderboardRoute
   PrivacyRoute: typeof PrivacyRoute
   ShowcaseRoute: typeof ShowcaseRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  StatusRoute: typeof StatusRoute
   SupportRoute: typeof SupportRoute
   TemplatesMarketRoute: typeof TemplatesMarketRoute
   TermsRoute: typeof TermsRoute
@@ -639,9 +689,11 @@ export interface RootRouteChildren {
   ApiVoiceRoute: typeof ApiVoiceRoute
   TemplatesUiRoute: typeof TemplatesUiRoute
   UUsernameRoute: typeof UUsernameRoute
+  ApiPublicLeaderboardRoute: typeof ApiPublicLeaderboardRoute
   ApiPublicMaintenanceRoute: typeof ApiPublicMaintenanceRoute
   ApiPublicMcpRoute: typeof ApiPublicMcpRoute
   ApiPublicModelProxyRoute: typeof ApiPublicModelProxyRoute
+  ApiPublicStatusRoute: typeof ApiPublicStatusRoute
   ApiVisualsGenerateRoute: typeof ApiVisualsGenerateRoute
   ApiPublicPluginClearRoute: typeof ApiPublicPluginClearRoute
   ApiPublicPluginCompleteRoute: typeof ApiPublicPluginCompleteRoute
@@ -680,6 +732,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SupportRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/status': {
+      id: '/status'
+      path: '/status'
+      fullPath: '/status'
+      preLoaderRoute: typeof StatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sitemap.xml': {
       id: '/sitemap.xml'
       path: '/sitemap.xml'
@@ -699,6 +758,13 @@ declare module '@tanstack/react-router' {
       path: '/privacy'
       fullPath: '/privacy'
       preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/leaderboard': {
+      id: '/leaderboard'
+      path: '/leaderboard'
+      fullPath: '/leaderboard'
+      preLoaderRoute: typeof LeaderboardRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/donate': {
@@ -876,6 +942,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiVisualsGenerateRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/status': {
+      id: '/api/public/status'
+      path: '/api/public/status'
+      fullPath: '/api/public/status'
+      preLoaderRoute: typeof ApiPublicStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/model-proxy': {
       id: '/api/public/model-proxy'
       path: '/api/public/model-proxy'
@@ -895,6 +968,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/maintenance'
       fullPath: '/api/public/maintenance'
       preLoaderRoute: typeof ApiPublicMaintenanceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/leaderboard': {
+      id: '/api/public/leaderboard'
+      path: '/api/public/leaderboard'
+      fullPath: '/api/public/leaderboard'
+      preLoaderRoute: typeof ApiPublicLeaderboardRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/settings/advanced': {
@@ -1073,9 +1153,11 @@ const rootRouteChildren: RootRouteChildren = {
   ContactRoute: ContactRoute,
   DocsRoute: DocsRoute,
   DonateRoute: DonateRoute,
+  LeaderboardRoute: LeaderboardRoute,
   PrivacyRoute: PrivacyRoute,
   ShowcaseRoute: ShowcaseRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  StatusRoute: StatusRoute,
   SupportRoute: SupportRoute,
   TemplatesMarketRoute: TemplatesMarketRoute,
   TermsRoute: TermsRoute,
@@ -1084,9 +1166,11 @@ const rootRouteChildren: RootRouteChildren = {
   ApiVoiceRoute: ApiVoiceRoute,
   TemplatesUiRoute: TemplatesUiRoute,
   UUsernameRoute: UUsernameRoute,
+  ApiPublicLeaderboardRoute: ApiPublicLeaderboardRoute,
   ApiPublicMaintenanceRoute: ApiPublicMaintenanceRoute,
   ApiPublicMcpRoute: ApiPublicMcpRoute,
   ApiPublicModelProxyRoute: ApiPublicModelProxyRoute,
+  ApiPublicStatusRoute: ApiPublicStatusRoute,
   ApiVisualsGenerateRoute: ApiVisualsGenerateRoute,
   ApiPublicPluginClearRoute: ApiPublicPluginClearRoute,
   ApiPublicPluginCompleteRoute: ApiPublicPluginCompleteRoute,

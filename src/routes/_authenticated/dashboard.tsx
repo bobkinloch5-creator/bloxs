@@ -28,6 +28,7 @@ import { ProjectMenu } from "@/components/ProjectMenu";
 import { WorkspaceChat } from "@/components/WorkspaceChat";
 import { NewProjectModal } from "@/components/NewProjectModal";
 import { ProjectMemoryCard } from "@/components/ProjectMemoryCard";
+import { OnboardingChallenges } from "@/components/OnboardingChallenges";
 import robloxBg from "@/assets/backgrounds/roblox-dashboard.jpg";
 
 
@@ -393,6 +394,13 @@ function Dashboard() {
                 </div>
               </div>
             </section>
+
+            {/* Onboarding challenges */}
+            <OnboardingChallenges
+              projectCount={projects.length}
+              hasPluginSession={pluginOnline}
+              hasBuild={projects.some((p: any) => (p.build_count ?? 0) > 0)}
+            />
 
             {/* Inspiration banner */}
             <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/8 bg-gradient-to-r from-indigo-500/10 via-white/[0.02] to-fuchsia-500/10 p-5">
