@@ -19,7 +19,7 @@ import { generateText } from "ai";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { getProviderModel, getPlannerModel, getFallbackModel } from "./ai-gateway.server";
 import { summarizeSceneScan } from "./scene-digest.server";
-import { pickModelForTask, TASK_LABELS, type AutoTask } from "./model-router";
+import { pickModelForTask, estimateDifficulty, TASK_LABELS, type AutoTask } from "./model-router";
 import { safeJsonParse } from "./safe-json";
 
 const Input = z.object({
