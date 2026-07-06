@@ -5449,6 +5449,11 @@ export const Route = createFileRoute("/api/chat")({
                 }
 
                 if (mode === "build" && actions.length === 0) {
+                  // Fast Build must not run a second AI request after the main
+                  // generation. If the selected model forgot the action block,
+                  // jump straight to deterministic Studio recovery/templates so
+                  // the plugin gets work immediately.
+                  if (buildQuality !== "basic") {
                   try {
                     const compiled = await compileMissingStudioActions({
                       userText,
@@ -5465,6 +5470,7 @@ export const Route = createFileRoute("/api/chat")({
                     }
                   } catch (compileErr) {
                     console.warn("[chat] action compiler failed; using recovery Studio actions", compileErr);
+                  }
                   }
 
 
