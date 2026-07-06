@@ -14,6 +14,8 @@ import { stripCodeFences, validateLuau, type LuauIssue } from "@/lib/luau-valida
 import { summarizeSceneScan } from "@/lib/scene-digest.server";
 import { searchRoblox, fetchDocPage } from "@/lib/roblox-research.server";
 import { productionSystemsStudioActions, detectLuaTemplates } from "@/lib/lua-templates";
+import { classifyIntent, renderIntentBlock } from "@/lib/intent-classifier.server";
+import { rerankMemories } from "@/lib/semantic-memory";
 
 function jsonError(message: string, status: number, code?: string) {
   return new Response(JSON.stringify({ error: message, code }), {
@@ -5337,13 +5339,17 @@ export const Route = createFileRoute("/api/chat")({
               ctxResult,
               visionResult,
               uiConceptResult,
+              intent,
             ] = await Promise.all([
               Promise.all([
                 supabase.from("plugin_sessions").select("last_scan, last_scan_at, online").eq("user_id", userId).maybeSingle(),
                 supabase.from("studio_errors").select("level, source, message, created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(buildQuality === "basic" ? 3 : 8),
                 supabase.from("build_history").select("prompt, files_count, created_at").eq("project_id", projectId).order("created_at", { ascending: false }).limit(buildQuality === "basic" ? 2 : 5),
                 supabase.from("plugin_actions").select("kind, name, parent_path, status").eq("project_id", projectId).order("created_at", { ascending: false }).limit(buildQuality === "basic" ? 8 : 20),
-                supabase.from("project_memory").select("key, value, kind, importance").eq("project_id", projectId).order("importance", { ascending: false }).order("updated_at", { ascending: false }).limit(buildQuality === "basic" ? 8 : 20),
+                // Pull a wider set so the semantic reranker can pick the most
+                // relevant memories for THIS turn, not just the most important
+                // overall. Reranker trims back down to top 10.
+                supabase.from("project_memory").select("key, value, kind, importance").eq("project_id", projectId).order("importance", { ascending: false }).order("updated_at", { ascending: false }).limit(60),
               ]),
               imageParts.length > 0 && buildQuality !== "basic"
                 ? withTimeout(describeImageWithNvidiaPaliGemma(imageParts), 2500, "NVIDIA PaliGemma vision")
@@ -5351,10 +5357,16 @@ export const Route = createFileRoute("/api/chat")({
               uiConceptRequested && buildQuality !== "basic"
                 ? withTimeout(generateUiConceptImage({ prompt: userText, style: "Premium Roblox UI" }), 8000, "UI concept image")
                 : Promise.resolve(null),
+              // Fast intent classifier — runs in parallel with the DB reads so
+              // it costs zero extra latency. Fails open on error/timeout.
+              userText ? withTimeout(classifyIntent(userText), 1600, "intent classifier").catch(() => null) : Promise.resolve(null),
             ]);
-            const [{ data: session }, { data: recentErrors }, { data: recentBuilds }, { data: existingActions }, { data: memories }] = ctxResult;
+            const [{ data: session }, { data: recentErrors }, { data: recentBuilds }, { data: existingActions }, { data: memoriesRaw }] = ctxResult;
+            const memories = rerankMemories(memoriesRaw ?? [], userText, buildQuality === "basic" ? 8 : 20);
 
             const parts: string[] = [];
+            const intentBlock = renderIntentBlock(intent);
+            if (intentBlock) parts.push(intentBlock);
             parts.push(
               `PROJECT MEMORY:\n- Name: ${project.name ?? "(unnamed)"}\n- Type: ${project.game_type ?? "(unspecified)"}\n- Description: ${project.description ?? "(none)"}\n- Total builds so far: ${project.build_count ?? 0}`,
             );
