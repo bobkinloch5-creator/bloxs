@@ -65,11 +65,30 @@ const TASK_PREF: Record<AutoTask, { ids: string[]; reason: string }> = {
 };
 
 
-export function pickModelForTask(task: AutoTask): ModelPick {
+export type Difficulty = "easy" | "normal" | "hard";
+
+// Rough word/char heuristic — no model call, ~0ms.
+export function estimateDifficulty(text: string): Difficulty {
+  const t = (text || "").toLowerCase();
+  const words = t.split(/\s+/).filter(Boolean).length;
+  const systemHits = (t.match(/\b(system|tycoon|simulator|rpg|battle royale|combat|inventory|shop|quest|save|datastore|multiplayer|round|match|team|leaderboard|economy)\b/g) || []).length;
+  const featureAnds = (t.match(/\band\b/g) || []).length;
+  if (words <= 8 && systemHits === 0) return "easy";
+  if (words >= 40 || systemHits >= 2 || featureAnds >= 3) return "hard";
+  return "normal";
+}
+
+export function pickModelForTask(task: AutoTask, difficulty: Difficulty = "normal"): ModelPick {
   const pref = TASK_PREF[task];
+  // For hard tasks, prefer the strongest (last) candidate; for easy, the fastest (first).
+  const ids = difficulty === "hard"
+    ? [...pref.ids].reverse()
+    : difficulty === "easy"
+      ? pref.ids
+      : pref.ids;
   let chosen: ModelOption | null = null;
   let fellBack = false;
-  for (const id of pref.ids) {
+  for (const id of ids) {
     const m = MODELS.find((x) => x.id === id);
     if (m && isSelectable(m)) {
       chosen = m;
@@ -80,9 +99,9 @@ export function pickModelForTask(task: AutoTask): ModelPick {
     chosen = MODELS.find((m) => m.id === DEFAULT_MODEL_ID) ?? MODELS[0];
     fellBack = true;
   } else {
-    // If the top preferred wasn't selectable, mark fallback.
-    fellBack = chosen.id !== pref.ids[0];
+    fellBack = chosen.id !== ids[0];
   }
+  const diffTag = difficulty === "hard" ? " [hard→strong]" : difficulty === "easy" ? " [easy→fast]" : "";
   return {
     task,
     modelId: chosen.id,
@@ -90,8 +109,8 @@ export function pickModelForTask(task: AutoTask): ModelPick {
     provider: chosen.provider,
     via: chosen.via,
     reason: fellBack
-      ? `${pref.reason} (Using ${chosen.label}.)`
-      : pref.reason,
+      ? `${pref.reason}${diffTag} (Using ${chosen.label}.)`
+      : `${pref.reason}${diffTag}`,
     fellBack,
   };
 }
@@ -108,7 +127,7 @@ export const AUTO_TASKS: AutoTask[] = [
 ];
 
 export function pickAllTaskModels(): ModelPick[] {
-  return AUTO_TASKS.map(pickModelForTask);
+  return AUTO_TASKS.map((t) => pickModelForTask(t));
 }
 
 export const TASK_LABELS: Record<AutoTask, string> = {

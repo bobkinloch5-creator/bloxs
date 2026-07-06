@@ -19,7 +19,7 @@ import { generateText } from "ai";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { getProviderModel, getPlannerModel, getFallbackModel } from "./ai-gateway.server";
 import { summarizeSceneScan } from "./scene-digest.server";
-import { pickModelForTask, TASK_LABELS, type AutoTask } from "./model-router";
+import { pickModelForTask, estimateDifficulty, TASK_LABELS, type AutoTask } from "./model-router";
 import { safeJsonParse } from "./safe-json";
 
 const Input = z.object({
@@ -206,8 +206,32 @@ async function generatePlan(goal: string, contextSummary: string, intent: Intent
   return text.trim();
 }
 
-async function runSpecialist(task: AutoTask, goal: string, plan: string, digestText: string): Promise<Specialist> {
-  const pick = pickModelForTask(task);
+// Critique the plan and re-plan once if the score is low. Cheap: one small call.
+async function critiquePlan(goal: string, plan: string): Promise<{ score: number; gaps: string[]; note: string }> {
+  const fb = getFallbackModel();
+  try {
+    const { text } = await generateText({
+      model: fb.model,
+      system: `You are a senior Roblox tech lead reviewing a build plan. Return ONLY JSON: {"score": 1-10, "gaps": ["short gap phrases"], "note": "one sentence verdict"}. Score reflects: coverage of the goal, correct folder/service placement, security (server-authoritative), completeness (config, remotes, UI). No prose outside JSON.`,
+      prompt: `GOAL:\n${goal.slice(0, 800)}\n\nPLAN:\n${plan.slice(0, 4000)}`,
+      temperature: 0,
+      maxOutputTokens: 260,
+    });
+    const parsed = safeJsonParse<{ score?: number; gaps?: string[]; note?: string }>(text, {});
+    const rawScore = Number(parsed.score ?? 7);
+    const score = Number.isFinite(rawScore) ? Math.max(1, Math.min(10, rawScore)) : 7;
+    return {
+      score,
+      gaps: Array.isArray(parsed.gaps) ? parsed.gaps.slice(0, 5).map(String) : [],
+      note: String(parsed.note ?? "").slice(0, 240),
+    };
+  } catch {
+    return { score: 7, gaps: [], note: "(critique unavailable)" };
+  }
+}
+
+async function runSpecialist(task: AutoTask, goal: string, plan: string, digestText: string, difficulty: "easy" | "normal" | "hard" = "normal"): Promise<Specialist> {
+  const pick = pickModelForTask(task, difficulty);
   const { model, meta, extraBody, modelSettings } = getProviderModel(pick.modelId);
   let notes = "";
   try {
@@ -305,17 +329,32 @@ export const runSmartBrain = createServerFn({ method: "POST" })
 
     // Stage 1: intent
     const intent = await analyzeIntent(data.goal);
+    const difficulty = intent.complexity === "large"
+      ? "hard"
+      : intent.complexity === "trivial"
+        ? "easy"
+        : estimateDifficulty(data.goal);
 
     // Stage 2: context
     const { digest, contextSummary } = await retrieveContext(sb, data.projectId);
 
-    // Stage 3: plan
-    const plan = await generatePlan(data.goal, contextSummary, intent);
+    // Stage 3: plan (+ critique + one re-plan if score < 7)
+    let plan = await generatePlan(data.goal, contextSummary, intent);
+    let critique = await critiquePlan(data.goal, plan);
+    if (critique.score < 7 && critique.gaps.length) {
+      const revisedGoal = `${data.goal}\n\n[BRAIN CRITIQUE — address these gaps in the revised plan:]\n- ${critique.gaps.join("\n- ")}`;
+      const revised = await generatePlan(revisedGoal, contextSummary, intent);
+      const revisedCritique = await critiquePlan(data.goal, revised);
+      if (revisedCritique.score >= critique.score) {
+        plan = revised;
+        critique = revisedCritique;
+      }
+    }
 
     // Stage 4: specialists (parallel, only those the intent flagged, cap at 4)
     const wantedTasks = Array.from(new Set(intent.needs)).slice(0, 4);
     const specialists = await Promise.all(
-      wantedTasks.map((task) => runSpecialist(task, data.goal, plan, digest.text)),
+      wantedTasks.map((task) => runSpecialist(task, data.goal, plan, digest.text, difficulty)),
     );
 
     // Stage 5+6: merge → directive
@@ -327,7 +366,10 @@ export const runSmartBrain = createServerFn({ method: "POST" })
       digestEmpty: digest.isEmpty,
     });
 
-    const confidence = scoreConfidence(intent, digest.isEmpty, specialists);
+    const confidence = Math.min(
+      0.98,
+      scoreConfidence(intent, digest.isEmpty, specialists) * (critique.score / 10),
+    );
 
     // Log the brain run into project_memory as a low-importance decision so
     // future turns can see what the brain decided.
