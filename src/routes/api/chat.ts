@@ -2073,6 +2073,7 @@ const TOOLBOX_ASSET_FINDER_CATEGORIES = [
 ];
 
 function isSinglePhysicalAssetRequest(userText: string) {
+  if (isHumanoidVfxRequest(userText)) return false;
   if (!detectSingleAssetIntent(userText)) return false;
   if (isToolboxMapRequest(userText)) return false;
   return true;
