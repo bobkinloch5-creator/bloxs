@@ -5066,6 +5066,86 @@ export const Route = createFileRoute("/api/chat")({
             }
           }
 
+          // ── INSTANT FAST BUILD TEMPLATE PATH ───────────────────────────
+          // Fast Build means no planner/tool loop for common Studio asks. Queue a
+          // deterministic, real Studio build immediately; Deep/Premium still use AI.
+          if (
+            mode === "build" &&
+            buildQuality === "basic" &&
+            projectId &&
+            userText &&
+            !imageGenerationRequested &&
+            !userExplicitlyRequestedToolbox(userText) &&
+            assetMode !== "toolbox_only" &&
+            isInstantFastBuildTemplateRequest(userText)
+          ) {
+            const generated = (
+              isBroadPlayableGameRequest(userText)
+                ? broadPlayableGameStudioActions(userText, languageName)
+                : proceduralEnvironmentStudioActions(userText, languageName)
+            )
+              .map(normalizePluginAction)
+              .filter((action) => finalScriptIssues(action).length === 0)
+              .map((action: any) => ({
+                ...action,
+                payload: {
+                  ...(action.payload ?? {}),
+                  _bloxsmith: {
+                    execution_mode: "fast",
+                    structured: true,
+                    instant_fast_build: true,
+                    no_empty_folders: true,
+                    no_fake_assets: true,
+                    retry_failed_insertions: true,
+                    scan_inserted_scripts: true,
+                  },
+                },
+              }));
+            if (generated.length > 0) {
+              const replyText = `Fast Build queued ${generated.length} Studio command${generated.length === 1 ? "" : "s"} instantly — executing now.`;
+              const { data: msgRow } = await supabase
+                .from("chat_messages")
+                .insert({
+                  project_id: projectId,
+                  user_id: userId,
+                  role: "assistant",
+                  content: replyText,
+                  status: "sending",
+                  model: "deterministic-instant-fast-build",
+                  actions: generated,
+                })
+                .select("id")
+                .single();
+              await supabase.from("plugin_actions").insert(
+                generated.map((action, i) => ({
+                  project_id: projectId,
+                  user_id: userId,
+                  message_id: msgRow?.id ?? null,
+                  kind: action.kind,
+                  parent_path: action.parent_path,
+                  name: action.name,
+                  payload: action.payload,
+                  position: i,
+                })),
+              );
+              await supabase.from("build_history").insert({
+                project_id: projectId,
+                user_id: userId,
+                prompt: userText,
+                model: "deterministic-instant-fast-build",
+                files_count: generated.length,
+                plugin_status: "Queued",
+                applied: false,
+              });
+              await supabase
+                .from("projects")
+                .update({ updated_at: new Date().toISOString() })
+                .eq("id", projectId);
+              console.info("[chat/fastpath] queued instant Fast Build template", { projectId, userId, actionCount: generated.length });
+              return streamPlainAssistantText(replyText, "instant-fast-build-text");
+            }
+          }
+
           // ── INSTANT TOOLBOX FAST-PATH ──
           // "add a house / insert a car / spawn a zombie / give me a tree from
           // toolbox" — skip the full AI turn entirely. Live-search Roblox
