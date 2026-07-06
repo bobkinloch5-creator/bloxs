@@ -5254,7 +5254,7 @@ export const Route = createFileRoute("/api/chat")({
                 supabase.from("plugin_actions").select("kind, name, parent_path, status").eq("project_id", projectId).order("created_at", { ascending: false }).limit(buildQuality === "basic" ? 8 : 20),
                 supabase.from("project_memory").select("key, value, kind, importance").eq("project_id", projectId).order("importance", { ascending: false }).order("updated_at", { ascending: false }).limit(buildQuality === "basic" ? 8 : 20),
               ]),
-              imageParts.length > 0
+              imageParts.length > 0 && buildQuality !== "basic"
                 ? withTimeout(describeImageWithNvidiaPaliGemma(imageParts), 2500, "NVIDIA PaliGemma vision")
                 : Promise.resolve(null),
               uiConceptRequested && buildQuality !== "basic"
