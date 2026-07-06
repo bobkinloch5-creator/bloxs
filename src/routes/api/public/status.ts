@@ -35,7 +35,7 @@ export const Route = createFileRoute("/api/public/status")({
             const { count } = await supabaseAdmin
               .from("plugin_sessions")
               .select("id", { count: "exact", head: true })
-              .gte("last_seen_at", since);
+              .gte("last_seen", since);
             pluginActive24h = count ?? 0;
           } catch (e: any) { errors.push(`plugin: ${e?.message ?? e}`); }
 
