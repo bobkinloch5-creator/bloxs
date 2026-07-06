@@ -1891,10 +1891,12 @@ server.Name = "BloxSmith_DashServer"
 server.Source = [==[
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Debris = game:GetService("Debris")
 local request = ReplicatedStorage:WaitForChild("BloxSmith_Remotes"):WaitForChild("RequestDash")
 
-local DASH_POWER = 90
-local COOLDOWN = 1.25
+local DASH_SPEED = 80        -- horizontal studs/sec (safe, non-lethal)
+local DASH_TIME = 0.22       -- how long the impulse lasts
+local COOLDOWN = 1.1
 local last = {}
 
 request.OnServerEvent:Connect(function(player, direction)
@@ -1907,19 +1909,54 @@ request.OnServerEvent:Connect(function(player, direction)
   if not hrp or not hum or hum.Health <= 0 then return end
   last[player] = now
 
+  -- Horizontal-only direction (never pushes into the floor or launches upward)
   local dir = Vector3.new(direction.X, 0, direction.Z)
   if dir.Magnitude < 0.1 then dir = hrp.CFrame.LookVector end
+  dir = Vector3.new(dir.X, 0, dir.Z)
+  if dir.Magnitude < 0.1 then return end
   dir = dir.Unit
 
-  local bv = Instance.new("BodyVelocity")
-  bv.MaxForce = Vector3.new(1, 0, 1) * math.huge
-  bv.Velocity = dir * DASH_POWER
-  bv.Parent = hrp
-  game:GetService("Debris"):AddItem(bv, 0.22)
+  -- Save states we'll disable so the dash can't kill the player
+  local originalStates = {
+    [Enum.HumanoidStateType.FallingDown] = hum:GetStateEnabled(Enum.HumanoidStateType.FallingDown),
+    [Enum.HumanoidStateType.Ragdoll] = hum:GetStateEnabled(Enum.HumanoidStateType.Ragdoll),
+  }
+  hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+  hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
+
+  -- Modern LinearVelocity constraint. Y is left to gravity by using a
+  -- plane-locked vector velocity so the character never flies up or clips
+  -- through the ground, and never takes fall damage from a huge downward spike.
+  local attachment = Instance.new("Attachment")
+  attachment.Name = "BloxSmith_DashAttachment"
+  attachment.Parent = hrp
+
+  local lv = Instance.new("LinearVelocity")
+  lv.Name = "BloxSmith_DashVelocity"
+  lv.Attachment0 = attachment
+  lv.RelativeTo = Enum.ActuatorRelativeTo.World
+  lv.ForceLimitMode = Enum.ForceLimitMode.PerAxis
+  lv.MaxAxesForce = Vector3.new(1e6, 0, 1e6) -- horizontal only, no vertical push
+  lv.VectorVelocity = Vector3.new(dir.X * DASH_SPEED, 0, dir.Z * DASH_SPEED)
+  lv.Enabled = true
+  lv.Parent = hrp
+
+  Debris:AddItem(lv, DASH_TIME)
+  Debris:AddItem(attachment, DASH_TIME + 0.1)
+
+  -- Restore humanoid states after the dash so normal falling/ragdoll works again
+  task.delay(DASH_TIME + 0.05, function()
+    if hum and hum.Parent then
+      for state, enabled in pairs(originalStates) do
+        hum:SetStateEnabled(state, enabled)
+      end
+    end
+  end)
 end)
 
 Players.PlayerRemoving:Connect(function(p) last[p] = nil end)
 ]==]
+
 server.Parent = ServerScriptService
 
 local scripts = StarterPlayer:FindFirstChild("StarterPlayerScripts")
