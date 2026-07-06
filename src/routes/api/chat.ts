@@ -1020,8 +1020,8 @@ end
 
 local function attachEffect(part, partCount, lightHost)
   cleanup(part)
-  local scale = math.clamp(part.Size.Magnitude / 4, 0.65, 2.4)
-  local rateScale = partCount > 4 and 0.72 or 1
+  local scale = math.clamp(part.Size.Magnitude / 4, 0.7, 2.6)
+  local rateScale = partCount > 6 and 0.85 or 1
 
   local attachment = Instance.new("Attachment")
   attachment.Name = PREFIX .. "Attachment"
