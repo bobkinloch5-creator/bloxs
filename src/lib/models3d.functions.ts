@@ -658,6 +658,14 @@ export const rigModel = createServerFn({ method: "POST" })
     if (source.status !== "SUCCEEDED" || !source.task_id) throw new Error("Source model must finish generating before it can be rigged.");
     if (source.mode === "animation" || source.mode === "rig") throw new Error("Pick an original 3D model to rig, not an animation or existing rig.");
 
+    // Meshy rigging is humanoid-only. Reject obviously non-humanoid prompts up-front
+    // so the user doesn't wait 2 minutes for "Pose estimation failed".
+    const promptText = String(source.prompt ?? "").toLowerCase();
+    const nonHumanoid = /\b(dog|cat|wolf|fox|bear|lion|tiger|horse|cow|pig|sheep|goat|deer|rabbit|bunny|mouse|rat|snake|lizard|dragon|dinosaur|t[-\s]?rex|raptor|fish|shark|whale|dolphin|octopus|crab|spider|bee|bird|eagle|owl|chicken|duck|penguin|turtle|frog|quadruped|animal|creature|beast|monster|car|truck|vehicle|plane|boat|ship|tank|robot\s*dog|mech(?!\s*warrior)|weapon|sword|gun|rifle|axe|shield|hammer|bow|staff|wand|building|house|castle|tree|rock|stone|chair|table|furniture|food|fruit|hat|helmet)\b/;
+    if (nonHumanoid.test(promptText)) {
+      throw new Error(`Meshy rigging is humanoid-only and can't rig "${source.prompt}". It needs a two-arm/two-leg character with clear limbs facing forward. Generate a humanoid character (e.g. "stylized human warrior standing, arms out, T-pose") and rig that instead.`);
+    }
+
     let taskId: string;
     let stage: "remesh" | "rigging" = "rigging";
     // Rigging needs textured humanoid meshes ≤ 300k faces. If the initial rig call
