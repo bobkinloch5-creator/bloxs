@@ -14,6 +14,8 @@ import { stripCodeFences, validateLuau, type LuauIssue } from "@/lib/luau-valida
 import { summarizeSceneScan } from "@/lib/scene-digest.server";
 import { searchRoblox, fetchDocPage } from "@/lib/roblox-research.server";
 import { productionSystemsStudioActions, detectLuaTemplates } from "@/lib/lua-templates";
+import { classifyIntent, renderIntentBlock } from "@/lib/intent-classifier.server";
+import { rerankMemories } from "@/lib/semantic-memory";
 
 function jsonError(message: string, status: number, code?: string) {
   return new Response(JSON.stringify({ error: message, code }), {
