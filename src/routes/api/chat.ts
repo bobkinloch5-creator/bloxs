@@ -772,9 +772,13 @@ function needsGameplayRemoteWiring(userText: string) {
 function shouldUseGenericRobloxSystemGuard(userText: string, buildQuality?: "basic" | "better" | "premium" | "full_game") {
   if (isNarrowFeatureRequest(userText)) return false;
   if (isExplicitFullSystemRequest(userText) || isBroadPlayableGameRequest(userText)) return true;
+  // Any explicit UI-surface ask (main menu, loading screen, HUD, shop UI, inventory UI, settings menu, GUI system)
+  // must always run the deterministic UI builder so the menu actually gets created.
+  if (/\b(main\s*menu|title\s*screen|splash\s*screen|start\s*screen|loading\s*screen|load\s*screen|menu\s*system|gui\s*system|ui\s*system|hud\s*system|settings\s*menu|pause\s*menu|shop\s*(ui|gui|menu|panel|screen|system)|inventory\s*(ui|gui|menu|panel|screen|system)|play\s*button|start\s*button)\b/i.test(userText)) return true;
   if (!isRobloxSystemRequest(userText)) return false;
   return buildQuality === "full_game";
 }
+
 
 function actionLooksLikeUnrequestedUiShell(action: any, userText: string) {
   const text = userText.toLowerCase();
