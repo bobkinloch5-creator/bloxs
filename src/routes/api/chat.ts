@@ -1751,26 +1751,44 @@ if old then old:Destroy() end
 local client = Instance.new("LocalScript")
 client.Name = "BloxSmith_FlyToggle"
 client.Source = [==[
+-- BloxSmith Fly Toggle (modern constraints — LinearVelocity + AlignOrientation, camera-relative)
 local Players = game:GetService("Players")
 local ContextActionService = game:GetService("ContextActionService")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
-local SPEED = 60
+local SPEED = 70
 local ACTION = "BloxSmithFly"
 local flying = false
-local bg, bv
+local lv, ao, att
 local heartbeat
+
+local function cleanupOn(char)
+  if not char then return end
+  local hrp = char:FindFirstChild("HumanoidRootPart")
+  if not hrp then return end
+  for _, child in ipairs(hrp:GetChildren()) do
+    if child.Name == "BloxSmith_FlyAttachment"
+       or child.Name == "BloxSmith_FlyLV"
+       or child.Name == "BloxSmith_FlyAO" then
+      child:Destroy()
+    end
+  end
+end
 
 local function stop()
   flying = false
-  if bg then bg:Destroy(); bg = nil end
-  if bv then bv:Destroy(); bv = nil end
   if heartbeat then heartbeat:Disconnect(); heartbeat = nil end
+  if lv then lv:Destroy(); lv = nil end
+  if ao then ao:Destroy(); ao = nil end
+  if att then att:Destroy(); att = nil end
   local char = player.Character
   local hum = char and char:FindFirstChildOfClass("Humanoid")
-  if hum then hum.PlatformStand = false end
+  if hum then
+    hum.PlatformStand = false
+    pcall(function() hum:ChangeState(Enum.HumanoidStateType.GettingUp) end)
+  end
 end
 
 local function start()
@@ -1778,11 +1796,29 @@ local function start()
   local hrp = char:WaitForChild("HumanoidRootPart", 5)
   local hum = char:FindFirstChildOfClass("Humanoid")
   if not hrp or not hum then return end
+  cleanupOn(char)
   flying = true
   hum.PlatformStand = true
 
-  bg = Instance.new("BodyGyro"); bg.MaxTorque = Vector3.new(1,1,1)*math.huge; bg.P = 9000; bg.CFrame = hrp.CFrame; bg.Parent = hrp
-  bv = Instance.new("BodyVelocity"); bv.MaxForce = Vector3.new(1,1,1)*math.huge; bv.Velocity = Vector3.zero; bv.Parent = hrp
+  att = Instance.new("Attachment")
+  att.Name = "BloxSmith_FlyAttachment"
+  att.Parent = hrp
+
+  lv = Instance.new("LinearVelocity")
+  lv.Name = "BloxSmith_FlyLV"
+  lv.Attachment0 = att
+  lv.RelativeTo = Enum.ActuatorRelativeTo.World
+  lv.MaxForce = math.huge
+  lv.VectorVelocity = Vector3.zero
+  lv.Parent = hrp
+
+  ao = Instance.new("AlignOrientation")
+  ao.Name = "BloxSmith_FlyAO"
+  ao.Attachment0 = att
+  ao.Mode = Enum.OrientationAlignmentMode.OneAttachment
+  ao.RigidityEnabled = true
+  ao.CFrame = hrp.CFrame
+  ao.Parent = hrp
 
   local camera = workspace.CurrentCamera
   heartbeat = RunService.RenderStepped:Connect(function()
@@ -1790,12 +1826,20 @@ local function start()
     local move = hum.MoveDirection
     local look = camera.CFrame.LookVector
     local right = camera.CFrame.RightVector
+    -- Project move (which is already camera-relative on the ground) onto camera basis
+    -- so W = camera-forward including pitch, giving proper fly-up-when-looking-up behavior.
+    local forward = Vector3.new(look.X, look.Y, look.Z)
+    local rightV = Vector3.new(right.X, right.Y, right.Z)
     local up = 0
-    if UserInputService:IsKeyDown(Enum.KeyCode.Space) then up = 1 end
-    if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then up = up - 1 end
-    local dir = (right * move.X) + (look * -move.Z) + Vector3.new(0, up, 0)
-    bv.Velocity = dir.Magnitude > 0 and dir.Unit * SPEED or Vector3.zero
-    bg.CFrame = camera.CFrame
+    if UserInputService:IsKeyDown(Enum.KeyCode.Space) then up = up + 1 end
+    if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) or UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then up = up - 1 end
+    local dir = (rightV * move.X) + (forward * -move.Z) + Vector3.new(0, up, 0)
+    if dir.Magnitude > 0.05 then
+      lv.VectorVelocity = dir.Unit * SPEED
+    else
+      lv.VectorVelocity = Vector3.zero
+    end
+    ao.CFrame = camera.CFrame
   end)
 end
 
@@ -1805,8 +1849,8 @@ ContextActionService:BindActionAtPriority(ACTION, function(_, state)
     if flying then stop() else start() end
   end
   return Enum.ContextActionResult.Pass
-end, true, Enum.ContextActionPriority.High.Value, Enum.KeyCode.F)
-ContextActionService:SetTitle(ACTION, "Toggle Fly")
+end, true, Enum.ContextActionPriority.High.Value, Enum.KeyCode.F, Enum.KeyCode.ButtonY)
+ContextActionService:SetTitle(ACTION, "Toggle Fly (F)")
 
 player.CharacterAdded:Connect(function() stop() end)
 ]==]
