@@ -45,6 +45,7 @@ import { Route as ApiPublicStatusRouteImport } from './routes/api/public/status'
 import { Route as ApiPublicModelProxyRouteImport } from './routes/api/public/model-proxy'
 import { Route as ApiPublicMcpRouteImport } from './routes/api/public/mcp'
 import { Route as ApiPublicMaintenanceRouteImport } from './routes/api/public/maintenance'
+import { Route as ApiPublicLeaderboardRouteImport } from './routes/api/public/leaderboard'
 import { Route as AuthenticatedSettingsAdvancedRouteImport } from './routes/_authenticated/settings.advanced'
 import { Route as AuthenticatedProjectProjectIdRouteImport } from './routes/_authenticated/project.$projectId'
 import { Route as AuthenticatedModelsProjectIdRouteImport } from './routes/_authenticated/models.$projectId'
@@ -242,6 +243,11 @@ const ApiPublicMaintenanceRoute = ApiPublicMaintenanceRouteImport.update({
   path: '/api/public/maintenance',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicLeaderboardRoute = ApiPublicLeaderboardRouteImport.update({
+  id: '/api/public/leaderboard',
+  path: '/api/public/leaderboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedSettingsAdvancedRoute =
   AuthenticatedSettingsAdvancedRouteImport.update({
     id: '/advanced',
@@ -361,6 +367,7 @@ export interface FileRoutesByFullPath {
   '/models/$projectId': typeof AuthenticatedModelsProjectIdRoute
   '/project/$projectId': typeof AuthenticatedProjectProjectIdRoute
   '/settings/advanced': typeof AuthenticatedSettingsAdvancedRoute
+  '/api/public/leaderboard': typeof ApiPublicLeaderboardRoute
   '/api/public/maintenance': typeof ApiPublicMaintenanceRoute
   '/api/public/mcp': typeof ApiPublicMcpRoute
   '/api/public/model-proxy': typeof ApiPublicModelProxyRoute
@@ -413,6 +420,7 @@ export interface FileRoutesByTo {
   '/models/$projectId': typeof AuthenticatedModelsProjectIdRoute
   '/project/$projectId': typeof AuthenticatedProjectProjectIdRoute
   '/settings/advanced': typeof AuthenticatedSettingsAdvancedRoute
+  '/api/public/leaderboard': typeof ApiPublicLeaderboardRoute
   '/api/public/maintenance': typeof ApiPublicMaintenanceRoute
   '/api/public/mcp': typeof ApiPublicMcpRoute
   '/api/public/model-proxy': typeof ApiPublicModelProxyRoute
@@ -467,6 +475,7 @@ export interface FileRoutesById {
   '/_authenticated/models/$projectId': typeof AuthenticatedModelsProjectIdRoute
   '/_authenticated/project/$projectId': typeof AuthenticatedProjectProjectIdRoute
   '/_authenticated/settings/advanced': typeof AuthenticatedSettingsAdvancedRoute
+  '/api/public/leaderboard': typeof ApiPublicLeaderboardRoute
   '/api/public/maintenance': typeof ApiPublicMaintenanceRoute
   '/api/public/mcp': typeof ApiPublicMcpRoute
   '/api/public/model-proxy': typeof ApiPublicModelProxyRoute
@@ -521,6 +530,7 @@ export interface FileRouteTypes {
     | '/models/$projectId'
     | '/project/$projectId'
     | '/settings/advanced'
+    | '/api/public/leaderboard'
     | '/api/public/maintenance'
     | '/api/public/mcp'
     | '/api/public/model-proxy'
@@ -573,6 +583,7 @@ export interface FileRouteTypes {
     | '/models/$projectId'
     | '/project/$projectId'
     | '/settings/advanced'
+    | '/api/public/leaderboard'
     | '/api/public/maintenance'
     | '/api/public/mcp'
     | '/api/public/model-proxy'
@@ -626,6 +637,7 @@ export interface FileRouteTypes {
     | '/_authenticated/models/$projectId'
     | '/_authenticated/project/$projectId'
     | '/_authenticated/settings/advanced'
+    | '/api/public/leaderboard'
     | '/api/public/maintenance'
     | '/api/public/mcp'
     | '/api/public/model-proxy'
@@ -664,6 +676,7 @@ export interface RootRouteChildren {
   ApiVoiceRoute: typeof ApiVoiceRoute
   TemplatesUiRoute: typeof TemplatesUiRoute
   UUsernameRoute: typeof UUsernameRoute
+  ApiPublicLeaderboardRoute: typeof ApiPublicLeaderboardRoute
   ApiPublicMaintenanceRoute: typeof ApiPublicMaintenanceRoute
   ApiPublicMcpRoute: typeof ApiPublicMcpRoute
   ApiPublicModelProxyRoute: typeof ApiPublicModelProxyRoute
@@ -937,6 +950,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicMaintenanceRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/leaderboard': {
+      id: '/api/public/leaderboard'
+      path: '/api/public/leaderboard'
+      fullPath: '/api/public/leaderboard'
+      preLoaderRoute: typeof ApiPublicLeaderboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/settings/advanced': {
       id: '/_authenticated/settings/advanced'
       path: '/advanced'
@@ -1125,6 +1145,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiVoiceRoute: ApiVoiceRoute,
   TemplatesUiRoute: TemplatesUiRoute,
   UUsernameRoute: UUsernameRoute,
+  ApiPublicLeaderboardRoute: ApiPublicLeaderboardRoute,
   ApiPublicMaintenanceRoute: ApiPublicMaintenanceRoute,
   ApiPublicMcpRoute: ApiPublicMcpRoute,
   ApiPublicModelProxyRoute: ApiPublicModelProxyRoute,
