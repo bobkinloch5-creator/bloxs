@@ -45,3 +45,46 @@ export const improvePrompt = createServerFn({ method: "POST" })
       return { ok: false as const, error: e?.message || "improve_failed" };
     }
   });
+
+// ── ENHANCE: aggressive expander ────────────────────────────────────────────
+// Rewrites a short/vague build ask into a rich, specification-grade prompt
+// the build pipeline can plan against — genre, mechanics, systems, UI, polish,
+// and constraints — WITHOUT changing the user's core intent.
+const ENHANCE_SYSTEM = `You are a Roblox game design brief writer. Take a short or vague build request and rewrite it as a rich, developer-ready build brief the BloxSmith AI builder can plan against.
+
+Expand ONLY along dimensions the user already implied:
+- Genre / theme (if implied): name it explicitly.
+- Core mechanics: 3-6 concrete gameplay verbs (collect, fight, race, build, trade, survive, craft, explore).
+- Systems needed: name each (inventory, shop, combat, save/load, leaderboard, spawns, rounds) — only ones the mechanics require.
+- UI needs: main menu style, HUD elements, panels — only if the mechanics need them.
+- World scope: baseplate / arena / open map / obby lanes — pick sensible defaults for the genre.
+- Polish targets: mobile-friendly UI, dark theme accent color, sound cues.
+- Constraints: server-authoritative, no placeholders, no invented asset IDs, Toolbox assets allowed.
+
+Rules:
+- Preserve the user's exact intent. Do NOT add a totally unrelated genre or feature.
+- If the user asked for a single small thing (one part, one script, one icon), DO NOT expand — return the original plus one clarifying constraint line.
+- Keep the brief under 220 words. Use short labeled lines (Goal:, Genre:, Core loop:, Systems:, UI:, World:, Polish:, Constraints:).
+- Output the brief only. No preamble, no markdown headers, no quotes.`;
+
+export const enhancePrompt = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => Input.parse(input))
+  .handler(async ({ data }) => {
+    try {
+      const { model } = getProviderModel(FALLBACK_MODEL_ID);
+      const { text } = await generateText({
+        model,
+        system: ENHANCE_SYSTEM,
+        prompt: data.text,
+        temperature: 0.4,
+        maxOutputTokens: 500,
+      });
+      const cleaned = (text || "").trim().replace(/^["'`]+|["'`]+$/g, "");
+      if (!cleaned) return { ok: false as const, error: "empty" };
+      return { ok: true as const, text: cleaned };
+    } catch (e: any) {
+      return { ok: false as const, error: e?.message || "enhance_failed" };
+    }
+  });
+
