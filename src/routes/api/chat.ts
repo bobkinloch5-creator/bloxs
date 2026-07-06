@@ -216,18 +216,17 @@ function trimMessagesForModel(messages: UIMessage[], mode: "chat" | "build"): UI
 
 function capOutputTokens(modelSettings: { maxOutputTokens?: number } | undefined, mode: "chat" | "build", buildQuality?: "basic" | "better" | "premium" | "full_game") {
   // FAST PATH: cap output tokens aggressively so responses finish quickly.
-  // The prior version used Math.max, which forced tokens UP to a huge ceiling
-  // and made every reply slow. We now cap DOWN so models return promptly.
-  const requested = modelSettings?.maxOutputTokens ?? (mode === "chat" ? 700 : 2400);
+  // Lowered further to reduce end-to-end generation latency.
+  const requested = modelSettings?.maxOutputTokens ?? (mode === "chat" ? 500 : 1600);
   const cap = mode === "chat"
-    ? 900
+    ? 700
     : buildQuality === "full_game"
-      ? 4500
+      ? 3000
       : buildQuality === "premium"
-        ? 3500
+        ? 2400
         : buildQuality === "basic"
-          ? 1600
-          : 2400;
+          ? 1200
+          : 1800;
   return Math.min(requested, cap);
 }
 
