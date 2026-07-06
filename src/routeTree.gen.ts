@@ -16,6 +16,7 @@ import { Route as StatusRouteImport } from './routes/status'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as ShowcaseRouteImport } from './routes/showcase'
 import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as LeaderboardRouteImport } from './routes/leaderboard'
 import { Route as DonateRouteImport } from './routes/donate'
 import { Route as DocsRouteImport } from './routes/docs'
 import { Route as ContactRouteImport } from './routes/contact'
@@ -95,6 +96,11 @@ const ShowcaseRoute = ShowcaseRouteImport.update({
 const PrivacyRoute = PrivacyRouteImport.update({
   id: '/privacy',
   path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LeaderboardRoute = LeaderboardRouteImport.update({
+  id: '/leaderboard',
+  path: '/leaderboard',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DonateRoute = DonateRouteImport.update({
@@ -339,6 +345,7 @@ export interface FileRoutesByFullPath {
   '/contact': typeof ContactRoute
   '/docs': typeof DocsRoute
   '/donate': typeof DonateRoute
+  '/leaderboard': typeof LeaderboardRoute
   '/privacy': typeof PrivacyRoute
   '/showcase': typeof ShowcaseRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -392,6 +399,7 @@ export interface FileRoutesByTo {
   '/contact': typeof ContactRoute
   '/docs': typeof DocsRoute
   '/donate': typeof DonateRoute
+  '/leaderboard': typeof LeaderboardRoute
   '/privacy': typeof PrivacyRoute
   '/showcase': typeof ShowcaseRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -447,6 +455,7 @@ export interface FileRoutesById {
   '/contact': typeof ContactRoute
   '/docs': typeof DocsRoute
   '/donate': typeof DonateRoute
+  '/leaderboard': typeof LeaderboardRoute
   '/privacy': typeof PrivacyRoute
   '/showcase': typeof ShowcaseRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -502,6 +511,7 @@ export interface FileRouteTypes {
     | '/contact'
     | '/docs'
     | '/donate'
+    | '/leaderboard'
     | '/privacy'
     | '/showcase'
     | '/sitemap.xml'
@@ -555,6 +565,7 @@ export interface FileRouteTypes {
     | '/contact'
     | '/docs'
     | '/donate'
+    | '/leaderboard'
     | '/privacy'
     | '/showcase'
     | '/sitemap.xml'
@@ -609,6 +620,7 @@ export interface FileRouteTypes {
     | '/contact'
     | '/docs'
     | '/donate'
+    | '/leaderboard'
     | '/privacy'
     | '/showcase'
     | '/sitemap.xml'
@@ -664,6 +676,7 @@ export interface RootRouteChildren {
   ContactRoute: typeof ContactRoute
   DocsRoute: typeof DocsRoute
   DonateRoute: typeof DonateRoute
+  LeaderboardRoute: typeof LeaderboardRoute
   PrivacyRoute: typeof PrivacyRoute
   ShowcaseRoute: typeof ShowcaseRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
@@ -745,6 +758,13 @@ declare module '@tanstack/react-router' {
       path: '/privacy'
       fullPath: '/privacy'
       preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/leaderboard': {
+      id: '/leaderboard'
+      path: '/leaderboard'
+      fullPath: '/leaderboard'
+      preLoaderRoute: typeof LeaderboardRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/donate': {
@@ -1133,6 +1153,7 @@ const rootRouteChildren: RootRouteChildren = {
   ContactRoute: ContactRoute,
   DocsRoute: DocsRoute,
   DonateRoute: DonateRoute,
+  LeaderboardRoute: LeaderboardRoute,
   PrivacyRoute: PrivacyRoute,
   ShowcaseRoute: ShowcaseRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
