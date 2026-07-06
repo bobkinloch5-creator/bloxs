@@ -265,9 +265,16 @@ function capOutputTokens(modelSettings: { maxOutputTokens?: number } | undefined
       : buildQuality === "premium"
         ? 2400
         : buildQuality === "basic"
-          ? 950
+          ? 650
           : 1800;
   return Math.min(requested, cap);
+}
+
+function isInstantFastBuildTemplateRequest(userText: string) {
+  const text = userText.toLowerCase().trim();
+  if (!text) return false;
+  if (isBroadPlayableGameRequest(text) || isExplicitFullSystemRequest(text)) return true;
+  return /\b(castle|fortress|keep|citadel|palace|throne|house|houses|home|cabin|hut|building|buildings|tower|shop|store|base|map|world|environment|terrain|scene|village|city|town|forest|woods|tree|trees|road|roads|street|path|mountain|mountains|river|lake|waterfall|snow|desert|beach|volcano|dungeon|space\s*station|spaceship|sci[-\s]?fi\s*base)\b/i.test(text);
 }
 
 
@@ -5055,6 +5062,86 @@ export const Route = createFileRoute("/api/chat")({
                 .eq("id", projectId);
               console.info("[chat/fastpath] queued narrow feature instantly", { projectId, userId, actionCount: generated.length });
               return streamPlainAssistantText(replyText, "narrow-fastpath-text");
+            }
+          }
+
+          // ── INSTANT FAST BUILD TEMPLATE PATH ───────────────────────────
+          // Fast Build means no planner/tool loop for common Studio asks. Queue a
+          // deterministic, real Studio build immediately; Deep/Premium still use AI.
+          if (
+            mode === "build" &&
+            buildQuality === "basic" &&
+            projectId &&
+            userText &&
+            !imageGenerationRequested &&
+            !userExplicitlyRequestedToolbox(userText) &&
+            assetMode !== "toolbox_only" &&
+            isInstantFastBuildTemplateRequest(userText)
+          ) {
+            const generated = (
+              isBroadPlayableGameRequest(userText)
+                ? broadPlayableGameStudioActions(userText, languageName)
+                : proceduralEnvironmentStudioActions(userText, languageName)
+            )
+              .map(normalizePluginAction)
+              .filter((action) => finalScriptIssues(action).length === 0)
+              .map((action: any) => ({
+                ...action,
+                payload: {
+                  ...(action.payload ?? {}),
+                  _bloxsmith: {
+                    execution_mode: "fast",
+                    structured: true,
+                    instant_fast_build: true,
+                    no_empty_folders: true,
+                    no_fake_assets: true,
+                    retry_failed_insertions: true,
+                    scan_inserted_scripts: true,
+                  },
+                },
+              }));
+            if (generated.length > 0) {
+              const replyText = `Fast Build queued ${generated.length} Studio command${generated.length === 1 ? "" : "s"} instantly — executing now.`;
+              const { data: msgRow } = await supabase
+                .from("chat_messages")
+                .insert({
+                  project_id: projectId,
+                  user_id: userId,
+                  role: "assistant",
+                  content: replyText,
+                  status: "sending",
+                  model: "deterministic-instant-fast-build",
+                  actions: generated,
+                })
+                .select("id")
+                .single();
+              await supabase.from("plugin_actions").insert(
+                generated.map((action, i) => ({
+                  project_id: projectId,
+                  user_id: userId,
+                  message_id: msgRow?.id ?? null,
+                  kind: action.kind,
+                  parent_path: action.parent_path,
+                  name: action.name,
+                  payload: action.payload,
+                  position: i,
+                })),
+              );
+              await supabase.from("build_history").insert({
+                project_id: projectId,
+                user_id: userId,
+                prompt: userText,
+                model: "deterministic-instant-fast-build",
+                files_count: generated.length,
+                plugin_status: "Queued",
+                applied: false,
+              });
+              await supabase
+                .from("projects")
+                .update({ updated_at: new Date().toISOString() })
+                .eq("id", projectId);
+              console.info("[chat/fastpath] queued instant Fast Build template", { projectId, userId, actionCount: generated.length });
+              return streamPlainAssistantText(replyText, "instant-fast-build-text");
             }
           }
 
