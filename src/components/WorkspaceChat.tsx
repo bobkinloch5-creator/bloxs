@@ -62,12 +62,6 @@ function extractGeneratedImages(parts: any[]): Array<{ url: string; prompt: stri
   return imgs;
 }
 
-function wantsImageGeneration(text: string) {
-  return /\b(generate|create|make|draw|design)\b.*\b(image|picture|thumbnail|icon|logo|badge|banner|concept art|promo|ui mockup|loading screen|menu mockup|art)\b/i.test(text)
-    || /\b(image|thumbnail|icon|logo|badge|banner|concept art|promo art|ui mockup)\b/i.test(text);
-}
-
-
 type Attachment = { url: string; mediaType: string; name: string };
 type Mode = "chat" | "build";
 
@@ -482,10 +476,8 @@ export function WorkspaceChat({
 
     // Use the live mode ref (or an explicit override from the caller) so a
     // synchronous mode flip in the same click cycle is honored on this send.
-    const autoImageMode = !overrideMode && wantsImageGeneration(text);
-    const effectiveMode: Mode = overrideMode ?? (autoImageMode ? "chat" : liveModeRef.current);
+    const effectiveMode: Mode = overrideMode ?? liveModeRef.current;
     liveModeRef.current = effectiveMode;
-    if (autoImageMode && mode !== "chat") setComposerMode("chat");
 
     // Build mode is a no-op if the Studio plugin isn't connected — actions
     // would just pile up in the queue with nothing polling for them. Block
