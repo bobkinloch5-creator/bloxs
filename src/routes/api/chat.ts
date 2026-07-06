@@ -873,30 +873,98 @@ local TARGET_MODE = ${JSON.stringify(targetMode)}
 local APPLY_NPCS = ${appliesToNpcs ? "true" : "false"}
 local PREFIX = "BloxSmith_" .. ELEMENT .. "VFX_"
 
--- Built-in element renderers: Fire/Smoke/Sparkles use Roblox's native Instance types,
--- which render reliably regardless of asset availability. Other elements use engine
--- particle textures shipped with Studio (rbxasset://textures/particles/*_main.dds).
+-- Premium element renderers: layered emitters (core + glow + embers/sparks + smoke haze)
+-- give particle effects a AAA, cinematic look. Built-in Fire/Smoke/Sparkles are combined
+-- with custom ParticleEmitter layers for depth, light bloom, and readability.
+local SPARK_TEX = "rbxasset://textures/particles/sparkles_main.dds"
+local SMOKE_TEX = "rbxasset://textures/particles/smoke_main.dds"
+
 local BUILTIN = {
   Fire = {
     class = "Fire",
     props = {
-      Size = 8,
-      Heat = 12,
-      Color = Color3.fromRGB(255, 150, 40),
-      SecondaryColor = Color3.fromRGB(255, 60, 0),
+      Size = 9,
+      Heat = 18,
+      Color = Color3.fromRGB(255, 170, 55),
+      SecondaryColor = Color3.fromRGB(255, 45, 0),
     },
-    light = Color3.fromRGB(255, 140, 55),
-    lightBrightness = 3,
-    lightRange = 12,
+    light = Color3.fromRGB(255, 150, 60),
+    lightBrightness = 4.5,
+    lightRange = 16,
     sound = "rbxassetid://5786758392",
+    -- extra premium layers stacked on top of the built-in Fire
+    extraLayers = {
+      {
+        name = "Embers",
+        texture = SPARK_TEX,
+        rate = 26,
+        lifetime = NumberRange.new(0.6, 1.4),
+        speed = NumberRange.new(3, 7),
+        spread = Vector2.new(40, 40),
+        accel = Vector3.new(0, 9, 0),
+        size = {0.05, 0.35, 0},
+        color = ColorSequence.new({
+          ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 230, 140)),
+          ColorSequenceKeypoint.new(0.6, Color3.fromRGB(255, 120, 30)),
+          ColorSequenceKeypoint.new(1, Color3.fromRGB(120, 20, 0)),
+        }),
+        transparency = NumberSequence.new({
+          NumberSequenceKeypoint.new(0, 1),
+          NumberSequenceKeypoint.new(0.15, 0),
+          NumberSequenceKeypoint.new(1, 1),
+        }),
+        lightEmission = 1,
+        rotSpeed = NumberRange.new(-180, 180),
+      },
+      {
+        name = "Glow",
+        texture = SPARK_TEX,
+        rate = 14,
+        lifetime = NumberRange.new(0.35, 0.7),
+        speed = NumberRange.new(0.2, 0.8),
+        spread = Vector2.new(180, 180),
+        accel = Vector3.new(0, 2, 0),
+        size = {1.5, 3.2, 0.5},
+        color = ColorSequence.new({
+          ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 200, 120)),
+          ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 80, 0)),
+        }),
+        transparency = NumberSequence.new({
+          NumberSequenceKeypoint.new(0, 1),
+          NumberSequenceKeypoint.new(0.5, 0.55),
+          NumberSequenceKeypoint.new(1, 1),
+        }),
+        lightEmission = 1,
+      },
+      {
+        name = "Smoke",
+        texture = SMOKE_TEX,
+        rate = 6,
+        lifetime = NumberRange.new(1.6, 2.6),
+        speed = NumberRange.new(1, 2.5),
+        spread = Vector2.new(30, 30),
+        accel = Vector3.new(0, 3, 0),
+        size = {0.4, 2.4, 3.2},
+        color = ColorSequence.new({
+          ColorSequenceKeypoint.new(0, Color3.fromRGB(40, 30, 25)),
+          ColorSequenceKeypoint.new(1, Color3.fromRGB(20, 20, 20)),
+        }),
+        transparency = NumberSequence.new({
+          NumberSequenceKeypoint.new(0, 1),
+          NumberSequenceKeypoint.new(0.25, 0.7),
+          NumberSequenceKeypoint.new(1, 1),
+        }),
+        lightEmission = 0,
+      },
+    },
   },
   Smoke = {
     class = "Smoke",
     props = {
-      Size = 4,
-      RiseVelocity = 3,
-      Opacity = 0.55,
-      Color = Color3.fromRGB(70, 70, 70),
+      Size = 5,
+      RiseVelocity = 4,
+      Opacity = 0.6,
+      Color = Color3.fromRGB(60, 60, 60),
     },
     light = Color3.fromRGB(80, 80, 80),
     lightBrightness = 0.8,
@@ -909,47 +977,142 @@ local BUILTIN = {
       SparkleColor = Color3.fromRGB(255, 240, 180),
     },
     light = Color3.fromRGB(255, 240, 180),
-    lightBrightness = 2,
-    lightRange = 10,
+    lightBrightness = 2.5,
+    lightRange = 12,
     sound = "",
   },
 }
 
+-- Multi-layer presets: each preset is a list of emitter layers (core + accents)
+-- so effects feel volumetric and premium instead of a single flat sprite stream.
 local PRESETS = {
   Lightning = {
-    texture = "rbxasset://textures/particles/sparkles_main.dds",
-    rate = 22,
-    lifetime = NumberRange.new(0.15, 0.35),
-    speed = NumberRange.new(6, 12),
-    spread = Vector2.new(180, 180),
-    accel = Vector3.zero,
-    size = {0.15, 0.8, 0},
-    color = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromRGB(120, 220, 255)), ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)), ColorSequenceKeypoint.new(1, Color3.fromRGB(60, 120, 255))}),
-    light = Color3.fromRGB(120, 180, 255),
+    layers = {
+      {
+        texture = SPARK_TEX,
+        rate = 28,
+        lifetime = NumberRange.new(0.12, 0.28),
+        speed = NumberRange.new(8, 16),
+        spread = Vector2.new(180, 180),
+        accel = Vector3.zero,
+        size = {0.1, 0.7, 0},
+        color = ColorSequence.new({
+          ColorSequenceKeypoint.new(0, Color3.fromRGB(180, 240, 255)),
+          ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)),
+          ColorSequenceKeypoint.new(1, Color3.fromRGB(80, 140, 255)),
+        }),
+        lightEmission = 1,
+        rotSpeed = NumberRange.new(-360, 360),
+      },
+      {
+        texture = SPARK_TEX,
+        rate = 10,
+        lifetime = NumberRange.new(0.25, 0.5),
+        speed = NumberRange.new(0.2, 1),
+        spread = Vector2.new(180, 180),
+        accel = Vector3.zero,
+        size = {1.2, 2.6, 0},
+        color = ColorSequence.new({
+          ColorSequenceKeypoint.new(0, Color3.fromRGB(140, 200, 255)),
+          ColorSequenceKeypoint.new(1, Color3.fromRGB(60, 100, 255)),
+        }),
+        transparency = NumberSequence.new({
+          NumberSequenceKeypoint.new(0, 1),
+          NumberSequenceKeypoint.new(0.4, 0.55),
+          NumberSequenceKeypoint.new(1, 1),
+        }),
+        lightEmission = 1,
+      },
+    },
+    light = Color3.fromRGB(140, 200, 255),
+    lightBrightness = 4,
+    lightRange = 14,
     sound = "",
   },
   Magic = {
-    texture = "rbxasset://textures/particles/sparkles_main.dds",
-    rate = 18,
-    lifetime = NumberRange.new(0.8, 1.6),
-    speed = NumberRange.new(1, 3),
-    spread = Vector2.new(38, 38),
-    accel = Vector3.new(0, 3, 0),
-    size = {0, 1.25, 0},
-    color = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromRGB(180, 120, 255)), ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 120, 220)), ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 255, 255))}),
+    layers = {
+      {
+        texture = SPARK_TEX,
+        rate = 22,
+        lifetime = NumberRange.new(0.9, 1.8),
+        speed = NumberRange.new(1, 3),
+        spread = Vector2.new(35, 35),
+        accel = Vector3.new(0, 3, 0),
+        size = {0.1, 1.2, 0},
+        color = ColorSequence.new({
+          ColorSequenceKeypoint.new(0, Color3.fromRGB(200, 140, 255)),
+          ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 140, 230)),
+          ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 255, 255)),
+        }),
+        lightEmission = 1,
+        rotSpeed = NumberRange.new(-140, 140),
+      },
+      {
+        texture = SPARK_TEX,
+        rate = 10,
+        lifetime = NumberRange.new(0.6, 1.2),
+        speed = NumberRange.new(0.4, 1.2),
+        spread = Vector2.new(180, 180),
+        accel = Vector3.new(0, 1, 0),
+        size = {1, 2.2, 0.5},
+        color = ColorSequence.new({
+          ColorSequenceKeypoint.new(0, Color3.fromRGB(180, 100, 255)),
+          ColorSequenceKeypoint.new(1, Color3.fromRGB(120, 60, 220)),
+        }),
+        transparency = NumberSequence.new({
+          NumberSequenceKeypoint.new(0, 1),
+          NumberSequenceKeypoint.new(0.4, 0.55),
+          NumberSequenceKeypoint.new(1, 1),
+        }),
+        lightEmission = 1,
+      },
+    },
     light = Color3.fromRGB(200, 120, 255),
+    lightBrightness = 3.2,
+    lightRange = 13,
     sound = "",
   },
   Ice = {
-    texture = "rbxasset://textures/particles/sparkles_main.dds",
-    rate = 14,
-    lifetime = NumberRange.new(1, 2),
-    speed = NumberRange.new(0.5, 2),
-    spread = Vector2.new(25, 25),
-    accel = Vector3.new(0, -1, 0),
-    size = {0, 1.05, 0},
-    color = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromRGB(200, 240, 255)), ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)), ColorSequenceKeypoint.new(1, Color3.fromRGB(180, 220, 255))}),
+    layers = {
+      {
+        texture = SPARK_TEX,
+        rate = 18,
+        lifetime = NumberRange.new(1, 2.2),
+        speed = NumberRange.new(0.4, 1.6),
+        spread = Vector2.new(25, 25),
+        accel = Vector3.new(0, -1, 0),
+        size = {0.05, 0.9, 0},
+        color = ColorSequence.new({
+          ColorSequenceKeypoint.new(0, Color3.fromRGB(220, 245, 255)),
+          ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)),
+          ColorSequenceKeypoint.new(1, Color3.fromRGB(170, 210, 255)),
+        }),
+        lightEmission = 0.9,
+        rotSpeed = NumberRange.new(-60, 60),
+      },
+      {
+        texture = SPARK_TEX,
+        rate = 8,
+        lifetime = NumberRange.new(0.8, 1.6),
+        speed = NumberRange.new(0.2, 0.8),
+        spread = Vector2.new(180, 180),
+        accel = Vector3.zero,
+        size = {0.9, 2, 0.4},
+        color = ColorSequence.new({
+          ColorSequenceKeypoint.new(0, Color3.fromRGB(200, 235, 255)),
+          ColorSequenceKeypoint.new(1, Color3.fromRGB(150, 200, 255)),
+        }),
+        transparency = NumberSequence.new({
+          NumberSequenceKeypoint.new(0, 1),
+          NumberSequenceKeypoint.new(0.45, 0.6),
+          NumberSequenceKeypoint.new(1, 1),
+        }),
+        lightEmission = 0.9,
+      },
+    },
     light = Color3.fromRGB(180, 220, 255),
+    lightBrightness = 2.8,
+    lightRange = 12,
     sound = "",
   },
 }
@@ -1032,9 +1195,40 @@ local function targetParts(character)
   return parts
 end
 
-local function attachBuiltin(part, lightHost)
+local function buildLayer(attachment, layer, scale, rateScale)
+  local emitter = Instance.new("ParticleEmitter")
+  emitter.Name = PREFIX .. (layer.name or "Layer")
+  emitter.Texture = layer.texture
+  emitter.Rate = math.max(2, math.floor((layer.rate or 12) * rateScale))
+  emitter.Lifetime = layer.lifetime
+  emitter.Speed = layer.speed
+  emitter.SpreadAngle = layer.spread
+  emitter.Size = NumberSequence.new({
+    NumberSequenceKeypoint.new(0, (layer.size[1] or 0) * scale),
+    NumberSequenceKeypoint.new(0.5, (layer.size[2] or 1) * scale),
+    NumberSequenceKeypoint.new(1, (layer.size[3] or 0) * scale),
+  })
+  emitter.Transparency = layer.transparency or NumberSequence.new({
+    NumberSequenceKeypoint.new(0, 1),
+    NumberSequenceKeypoint.new(0.15, 0.15),
+    NumberSequenceKeypoint.new(1, 1),
+  })
+  emitter.Color = layer.color
+  emitter.LightEmission = layer.lightEmission or 0.9
+  emitter.LightInfluence = 0
+  emitter.Rotation = NumberRange.new(-180, 180)
+  emitter.RotSpeed = layer.rotSpeed or NumberRange.new(-90, 90)
+  emitter.Acceleration = layer.accel or Vector3.zero
+  emitter.EmissionDirection = Enum.NormalId.Top
+  emitter.Enabled = true
+  emitter.Parent = attachment
+end
+
+local function attachBuiltin(part, lightHost, partCount)
   cleanup(part)
   local scale = math.clamp(part.Size.Magnitude / 4, 0.7, 2.6)
+  local rateScale = partCount > 6 and 0.85 or 1
+
   local fx = Instance.new(builtin.class)
   fx.Name = PREFIX .. builtin.class
   for prop, value in pairs(builtin.props) do
@@ -1045,6 +1239,15 @@ local function attachBuiltin(part, lightHost)
     end
   end
   fx.Parent = part
+
+  if builtin.extraLayers then
+    local attachment = Instance.new("Attachment")
+    attachment.Name = PREFIX .. "Attachment"
+    attachment.Parent = part
+    for _, layer in ipairs(builtin.extraLayers) do
+      buildLayer(attachment, layer, scale, rateScale)
+    end
+  end
 
   if lightHost then
     local light = Instance.new("PointLight")
@@ -1059,7 +1262,7 @@ end
 
 local function attachEffect(part, partCount, lightHost)
   if builtin then
-    attachBuiltin(part, lightHost)
+    attachBuiltin(part, lightHost, partCount)
     return
   end
   cleanup(part)
@@ -1070,43 +1273,22 @@ local function attachEffect(part, partCount, lightHost)
   attachment.Name = PREFIX .. "Attachment"
   attachment.Parent = part
 
-  local emitter = Instance.new("ParticleEmitter")
-  emitter.Name = PREFIX .. "Particles"
-  emitter.Texture = preset.texture
-  emitter.Rate = math.max(4, math.floor(preset.rate * rateScale))
-  emitter.Lifetime = preset.lifetime
-  emitter.Speed = preset.speed
-  emitter.SpreadAngle = preset.spread
-  emitter.Size = NumberSequence.new({
-    NumberSequenceKeypoint.new(0, preset.size[1] * scale),
-    NumberSequenceKeypoint.new(0.5, preset.size[2] * scale),
-    NumberSequenceKeypoint.new(1, preset.size[3] * scale),
-  })
-  emitter.Transparency = NumberSequence.new({
-    NumberSequenceKeypoint.new(0, 1),
-    NumberSequenceKeypoint.new(0.12, 0.18),
-    NumberSequenceKeypoint.new(1, 1),
-  })
-  emitter.Color = preset.color
-  emitter.LightEmission = 0.9
-  emitter.LightInfluence = 0
-  emitter.Rotation = NumberRange.new(-180, 180)
-  emitter.RotSpeed = NumberRange.new(-90, 90)
-  emitter.Acceleration = preset.accel
-  emitter.EmissionDirection = Enum.NormalId.Top
-  emitter.Enabled = true
-  emitter.Parent = attachment
+  for _, layer in ipairs(preset.layers) do
+    buildLayer(attachment, layer, scale, rateScale)
+  end
 
   if lightHost then
     local light = Instance.new("PointLight")
     light.Name = PREFIX .. "Light"
     light.Color = preset.light
-    light.Brightness = 2.5
-    light.Range = TARGET_MODE == "aura" and 14 or 10
+    light.Brightness = preset.lightBrightness or 2.5
+    light.Range = TARGET_MODE == "aura" and ((preset.lightRange or 10) + 4) or (preset.lightRange or 10)
     light.Shadows = false
     light.Parent = attachment
   end
 end
+
+
 
 local function applyToCharacter(character)
   local humanoid = character:FindFirstChildOfClass("Humanoid") or character:WaitForChild("Humanoid", 8)
