@@ -5457,6 +5457,25 @@ export const Route = createFileRoute("/api/chat")({
                   }
                 }
 
+                if (mode === "build" && isBroadPlayableGameRequest(userText)) {
+                  const playableActions = broadPlayableGameStudioActions(userText, languageName).map(normalizePluginAction);
+                  if (playableActions.length > 0) {
+                    actions = [
+                      ...actions.filter((a) => ![
+                        "BloxSmith_AutoExecute_Recovery",
+                        "BloxSmith_Build_Playable_Game_Framework",
+                        "BloxSmith_Organize_Playable_Game",
+                        "BloxSmith_Autofix_Playable_Game",
+                        "BloxSmith_Scan_Playable_Game",
+                      ].includes(a.name)),
+                      ...playableActions,
+                    ];
+                    if (!/playable game framework/i.test(cleanContent)) {
+                      cleanContent = `${cleanContent.trim()}\n\n_Playable game framework sent: BloxSmith added the map/play area, spawns, checkpoints/objectives, HUD, leaderstats, save path, server validation, rewards, polish, and scan/autofix for this prompt._`;
+                    }
+                  }
+                }
+
                 if (mode === "build" && shouldUseGenericRobloxSystemGuard(userText, buildQuality)) {
                   const systemActions = (
                     isNarrowFeatureRequest(userText)
