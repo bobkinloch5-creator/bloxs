@@ -833,10 +833,304 @@ function scriptIssueLabel(action: any, issues: LuauIssue[]) {
   return `${kind} ${name}: ${first}`;
 }
 
+function detectVfxElement(userText: string) {
+  const text = userText.toLowerCase();
+  if (/\b(lightning|electric|zap)\b/.test(text)) return "Lightning";
+  if (/\b(smoke|fog)\b/.test(text)) return "Smoke";
+  if (/\b(magic|arcane)\b/.test(text)) return "Magic";
+  if (/\b(ice|frost|snow)\b/.test(text)) return "Ice";
+  if (/\b(poison|toxic)\b/.test(text)) return "Poison";
+  if (/\b(holy|divine)\b/.test(text)) return "Holy";
+  if (/\b(dark|shadow)\b/.test(text)) return "Dark";
+  if (/\b(sparkle|sparkles)\b/.test(text)) return "Sparkle";
+  if (/\b(glow|energy|ki)\b/.test(text)) return "Energy";
+  return "Fire";
+}
+
+function detectVfxTargetMode(userText: string) {
+  const text = userText.toLowerCase();
+  if (/\b(weapon|sword|tool|blade)\b/.test(text)) return "weapon";
+  if (/\b(npc|enemy|boss)\b/.test(text)) return "npc";
+  if (/\b(hand|hands|fist|fists)\b/.test(text)) return "hands";
+  if (/\b(foot|feet)\b/.test(text)) return "feet";
+  if (/\b(head|face|halo)\b/.test(text)) return "head";
+  if (/\baura\b/.test(text) && !/\b(turn|engulf|entire|full|body|character|avatar|player|me|on\s*fire|flames?)\b/.test(text)) return "aura";
+  return "full";
+}
+
+function humanoidVfxFallbackStudioActions(userText: string, languageName: string) {
+  if (!isHumanoidVfxRequest(userText)) return [];
+  const safePrompt = userText.trim().slice(0, 220) || "humanoid VFX";
+  const element = detectVfxElement(userText);
+  const targetMode = detectVfxTargetMode(userText);
+  const appliesToNpcs = targetMode === "npc";
+  const source = `
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+
+local ELEMENT = ${JSON.stringify(element)}
+local TARGET_MODE = ${JSON.stringify(targetMode)}
+local APPLY_NPCS = ${appliesToNpcs ? "true" : "false"}
+local PREFIX = "BloxSmith_" .. ELEMENT .. "VFX_"
+
+local PRESETS = {
+  Fire = {
+    texture = "rbxassetid://243660364",
+    rate = 18,
+    lifetime = NumberRange.new(0.6, 1.2),
+    speed = NumberRange.new(2, 5),
+    spread = Vector2.new(28, 28),
+    accel = Vector3.new(0, 6, 0),
+    size = {0.45, 1.85, 0.18},
+    color = ColorSequence.new({
+      ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 230, 120)),
+      ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 125, 28)),
+      ColorSequenceKeypoint.new(1, Color3.fromRGB(130, 24, 0)),
+    }),
+    light = Color3.fromRGB(255, 120, 40),
+    sound = "rbxassetid://5786758392",
+  },
+  Lightning = {
+    texture = "rbxasset://textures/particles/sparkles_main.dds",
+    rate = 14,
+    lifetime = NumberRange.new(0.15, 0.35),
+    speed = NumberRange.new(6, 12),
+    spread = Vector2.new(180, 180),
+    accel = Vector3.zero,
+    size = {0.12, 0.72, 0},
+    color = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromRGB(120, 220, 255)), ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)), ColorSequenceKeypoint.new(1, Color3.fromRGB(60, 120, 255))}),
+    light = Color3.fromRGB(120, 180, 255),
+    sound = "",
+  },
+  Smoke = {
+    texture = "rbxassetid://244514357",
+    rate = 12,
+    lifetime = NumberRange.new(1.2, 2.2),
+    speed = NumberRange.new(0.5, 2),
+    spread = Vector2.new(35, 35),
+    accel = Vector3.new(0, 2, 0),
+    size = {0.7, 2.2, 0.25},
+    color = ColorSequence.new(Color3.fromRGB(95, 95, 95), Color3.fromRGB(35, 35, 35)),
+    light = Color3.fromRGB(95, 95, 95),
+    sound = "",
+  },
+  Magic = {
+    texture = "rbxassetid://241876828",
+    rate = 14,
+    lifetime = NumberRange.new(0.8, 1.6),
+    speed = NumberRange.new(1, 3),
+    spread = Vector2.new(38, 38),
+    accel = Vector3.new(0, 3, 0),
+    size = {0, 1.25, 0},
+    color = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromRGB(180, 120, 255)), ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 120, 220)), ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 255, 255))}),
+    light = Color3.fromRGB(200, 120, 255),
+    sound = "",
+  },
+  Ice = {
+    texture = "rbxassetid://241876828",
+    rate = 12,
+    lifetime = NumberRange.new(1, 2),
+    speed = NumberRange.new(0.5, 2),
+    spread = Vector2.new(25, 25),
+    accel = Vector3.new(0, -1, 0),
+    size = {0, 1.05, 0},
+    color = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromRGB(200, 240, 255)), ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)), ColorSequenceKeypoint.new(1, Color3.fromRGB(180, 220, 255))}),
+    light = Color3.fromRGB(180, 220, 255),
+    sound = "",
+  },
+}
+
+PRESETS.Poison = PRESETS.Magic
+PRESETS.Holy = PRESETS.Magic
+PRESETS.Dark = PRESETS.Smoke
+PRESETS.Sparkle = PRESETS.Magic
+PRESETS.Energy = PRESETS.Magic
+
+local preset = PRESETS[ELEMENT] or PRESETS.Fire
+
+local function startsWith(value, prefix)
+  return string.sub(value, 1, #prefix) == prefix
+end
+
+local function cleanup(part)
+  for _, child in ipairs(part:GetChildren()) do
+    if startsWith(child.Name, PREFIX) then
+      child:Destroy()
+    end
+  end
+end
+
+local function firstPart(character, names)
+  for _, name in ipairs(names) do
+    local part = character:FindFirstChild(name)
+    if part and part:IsA("BasePart") then
+      return part
+    end
+  end
+  return nil
+end
+
+local function addUnique(list, part)
+  if not part then return end
+  for _, existing in ipairs(list) do
+    if existing == part then return end
+  end
+  table.insert(list, part)
+end
+
+local function targetParts(character)
+  local parts = {}
+  if TARGET_MODE == "hands" then
+    addUnique(parts, firstPart(character, {"LeftHand", "LeftLowerArm", "LeftUpperArm", "Left Arm"}))
+    addUnique(parts, firstPart(character, {"RightHand", "RightLowerArm", "RightUpperArm", "Right Arm"}))
+  elseif TARGET_MODE == "feet" then
+    addUnique(parts, firstPart(character, {"LeftFoot", "LeftLowerLeg", "LeftUpperLeg", "Left Leg"}))
+    addUnique(parts, firstPart(character, {"RightFoot", "RightLowerLeg", "RightUpperLeg", "Right Leg"}))
+  elseif TARGET_MODE == "head" then
+    addUnique(parts, firstPart(character, {"Head"}))
+  elseif TARGET_MODE == "weapon" then
+    local tool = character:FindFirstChildOfClass("Tool")
+    if tool then
+      for _, descendant in ipairs(tool:GetDescendants()) do
+        if descendant:IsA("BasePart") then
+          addUnique(parts, descendant)
+        end
+      end
+    end
+  elseif TARGET_MODE == "aura" then
+    addUnique(parts, firstPart(character, {"HumanoidRootPart", "UpperTorso", "Torso"}))
+  else
+    addUnique(parts, firstPart(character, {"HumanoidRootPart"}))
+    addUnique(parts, firstPart(character, {"UpperTorso", "Torso"}))
+    addUnique(parts, firstPart(character, {"Head"}))
+    addUnique(parts, firstPart(character, {"LeftUpperArm", "Left Arm"}))
+    addUnique(parts, firstPart(character, {"RightUpperArm", "Right Arm"}))
+    addUnique(parts, firstPart(character, {"LeftHand", "LeftLowerArm"}))
+    addUnique(parts, firstPart(character, {"RightHand", "RightLowerArm"}))
+    addUnique(parts, firstPart(character, {"LeftUpperLeg", "Left Leg"}))
+    addUnique(parts, firstPart(character, {"RightUpperLeg", "Right Leg"}))
+    addUnique(parts, firstPart(character, {"LeftFoot", "LeftLowerLeg"}))
+    addUnique(parts, firstPart(character, {"RightFoot", "RightLowerLeg"}))
+  end
+  if #parts == 0 then
+    addUnique(parts, firstPart(character, {"HumanoidRootPart", "Torso", "UpperTorso", "Head"}))
+  end
+  return parts
+end
+
+local function attachEffect(part, partCount, lightHost)
+  cleanup(part)
+  local scale = math.clamp(part.Size.Magnitude / 4, 0.65, 2.4)
+  local rateScale = partCount > 4 and 0.72 or 1
+
+  local attachment = Instance.new("Attachment")
+  attachment.Name = PREFIX .. "Attachment"
+  attachment.Parent = part
+
+  local emitter = Instance.new("ParticleEmitter")
+  emitter.Name = PREFIX .. "Particles"
+  emitter.Texture = preset.texture
+  emitter.Rate = math.max(4, math.floor(preset.rate * rateScale))
+  emitter.Lifetime = preset.lifetime
+  emitter.Speed = preset.speed
+  emitter.SpreadAngle = preset.spread
+  emitter.Size = NumberSequence.new({
+    NumberSequenceKeypoint.new(0, preset.size[1] * scale),
+    NumberSequenceKeypoint.new(0.5, preset.size[2] * scale),
+    NumberSequenceKeypoint.new(1, preset.size[3] * scale),
+  })
+  emitter.Transparency = NumberSequence.new({
+    NumberSequenceKeypoint.new(0, 1),
+    NumberSequenceKeypoint.new(0.12, 0.18),
+    NumberSequenceKeypoint.new(1, 1),
+  })
+  emitter.Color = preset.color
+  emitter.LightEmission = ELEMENT == "Smoke" and 0.15 or 0.9
+  emitter.LightInfluence = 0
+  emitter.Rotation = NumberRange.new(-180, 180)
+  emitter.RotSpeed = NumberRange.new(-90, 90)
+  emitter.Acceleration = preset.accel
+  emitter.EmissionDirection = Enum.NormalId.Top
+  emitter.Enabled = true
+  emitter.Parent = attachment
+
+  if lightHost then
+    local light = Instance.new("PointLight")
+    light.Name = PREFIX .. "Light"
+    light.Color = preset.light
+    light.Brightness = ELEMENT == "Smoke" and 1 or 2.5
+    light.Range = TARGET_MODE == "aura" and 14 or 10
+    light.Shadows = false
+    light.Parent = attachment
+  end
+end
+
+local function applyToCharacter(character)
+  local humanoid = character:FindFirstChildOfClass("Humanoid") or character:WaitForChild("Humanoid", 8)
+  if not humanoid then return end
+  local parts = targetParts(character)
+  for index, part in ipairs(parts) do
+    attachEffect(part, #parts, index == 1)
+  end
+  local root = firstPart(character, {"HumanoidRootPart", "UpperTorso", "Torso"})
+  if root and preset.sound ~= "" then
+    local oldSound = root:FindFirstChild(PREFIX .. "Sound")
+    if oldSound then oldSound:Destroy() end
+    local sound = Instance.new("Sound")
+    sound.Name = PREFIX .. "Sound"
+    sound.SoundId = preset.sound
+    sound.Volume = 0.32
+    sound.Looped = true
+    sound.Parent = root
+    sound:Play()
+  end
+end
+
+local function hookPlayer(player)
+  if player.Character then
+    task.defer(applyToCharacter, player.Character)
+  end
+  player.CharacterAdded:Connect(function(character)
+    task.defer(applyToCharacter, character)
+  end)
+end
+
+Players.PlayerAdded:Connect(hookPlayer)
+for _, player in ipairs(Players:GetPlayers()) do
+  hookPlayer(player)
+end
+
+if APPLY_NPCS then
+  local function maybeNpc(model)
+    if not model:IsA("Model") or Players:GetPlayerFromCharacter(model) then return end
+    if model:FindFirstChildOfClass("Humanoid") then
+      applyToCharacter(model)
+    end
+  end
+  for _, descendant in ipairs(Workspace:GetDescendants()) do
+    if descendant:IsA("Model") then maybeNpc(descendant) end
+  end
+  Workspace.DescendantAdded:Connect(function(descendant)
+    if descendant:IsA("Model") then task.defer(maybeNpc, descendant) end
+  end)
+end
+`;
+  return [{
+    kind: "script",
+    parent_path: "ServerScriptService",
+    name: `BloxSmith_${element}_HumanoidVFX_Server`,
+    payload: { source, request: safePrompt, language: languageName, vfx: true, element, target_mode: targetMode },
+  }];
+}
+
 function narrowFeatureFallbackStudioActions(userText: string, languageName: string) {
   if (!isNarrowFeatureRequest(userText)) return [];
   const text = userText.toLowerCase();
   const safePrompt = userText.trim().slice(0, 220) || "single Roblox feature";
+
+  if (isHumanoidVfxRequest(userText)) {
+    return humanoidVfxFallbackStudioActions(userText, languageName);
+  }
 
   if (/\b(speed\s*boost|speed\s*button|sprint|run\s*faster)\b/i.test(text)) {
     const source = `
