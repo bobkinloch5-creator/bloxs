@@ -265,7 +265,7 @@ function capOutputTokens(modelSettings: { maxOutputTokens?: number } | undefined
       : buildQuality === "premium"
         ? 2400
         : buildQuality === "basic"
-          ? 1200
+          ? 950
           : 1800;
   return Math.min(requested, cap);
 }
