@@ -436,6 +436,213 @@ F. PATH VERIFICATION: Every script's \`.Source\` that references another instanc
 9. SELF-TEST BEFORE EMITTING. Mentally read the whole script top to bottom as if you were Studio's parser: every variable resolves, every :WaitForChild target is created by another action, every event handler binds to the correct class, every FireServer has a matching OnServerEvent, every path (StarterGui.X.Button) matches an instance you emitted. If any link is broken, FIX THE ACTIONS before responding.
 10. MULTI-FILE FEATURES SHIP AS A BUNDLE. When a feature crosses the client/server boundary, ship every piece in one build turn: LocalScript + Server Script + RemoteEvent + ScreenGui+Button (if UI is required). Never ship just the client half or just the server half.
 
+PLAYER ABILITY CORRECTNESS (ABSOLUTE — flight, dash, sprint, aura, glow, jetpack, super-jump, grapple, teleport, telekinesis, punch, aim, all movement / VFX abilities)
+Ability scripts are the #1 place users report "it didn't work" or "moved the wrong way". Every ability MUST be shipped fully working on first insert. Follow these exact patterns and self-verify before emitting.
+
+A. DIRECTION MATH — camera-relative, keyboard-driven. NEVER use HumanoidRootPart.CFrame.LookVector alone for movement direction (the root part faces where the character's torso points, which is NOT necessarily where the camera faces, especially during flight / aim / shift-lock off). Use the CURRENT MOVE INPUT projected onto the CAMERA'S basis:
+\`\`\`lua
+local UIS = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local player = Players.LocalPlayer
+local camera = workspace.CurrentCamera
+
+local function getMoveDirection()
+    local cf = camera.CFrame
+    local look = cf.LookVector
+    local right = cf.RightVector
+    -- flatten look for ground moves; keep full for flight
+    local move = Vector3.zero
+    if UIS:IsKeyDown(Enum.KeyCode.W) then move += look end
+    if UIS:IsKeyDown(Enum.KeyCode.S) then move -= look end
+    if UIS:IsKeyDown(Enum.KeyCode.D) then move += right end
+    if UIS:IsKeyDown(Enum.KeyCode.A) then move -= right end
+    if move.Magnitude > 0 then move = move.Unit end
+    return move
+end
+\`\`\`
+For gamepad + mobile parity, ALSO read \`Players.LocalPlayer:GetMouse()\`-free thumbstick input via \`UIS:GetGamepadState\` OR fall back to the built-in Humanoid.MoveDirection (which already respects the control scheme): \`local mv = humanoid.MoveDirection\`. For flight, project MoveDirection onto camera basis to preserve WASD-forward-is-camera-forward on every device.
+
+B. FLIGHT — the canonical fix for "flew backwards". Use LinearVelocity + AlignOrientation on HumanoidRootPart, driven every RenderStepped by camera-relative move input. NEVER BodyVelocity/BodyGyro. NEVER set Velocity directly (deprecated on assemblies). NEVER use LookVector as the sole direction source. Toggle on a keybind (default F) and disable Humanoid states while flying so gravity/jump don't fight it.
+\`\`\`lua
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local player = Players.LocalPlayer
+
+local FLY_SPEED = 80
+local flying = false
+local attachment, lv, ao, conn
+
+local function stopFly(char)
+    flying = false
+    if conn then conn:Disconnect() conn = nil end
+    if lv then lv:Destroy() lv = nil end
+    if ao then ao:Destroy() ao = nil end
+    if attachment then attachment:Destroy() attachment = nil end
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    if hum then
+        hum:SetStateEnabled(Enum.HumanoidStateType.GettingUp, true)
+        hum:SetStateEnabled(Enum.HumanoidStateType.Freefall, true)
+        hum.PlatformStand = false
+    end
+end
+
+local function startFly(char)
+    local hrp = char:WaitForChild("HumanoidRootPart")
+    local hum = char:WaitForChild("Humanoid")
+    hum:SetStateEnabled(Enum.HumanoidStateType.GettingUp, false)
+    hum.PlatformStand = true
+
+    attachment = Instance.new("Attachment", hrp)
+    lv = Instance.new("LinearVelocity")
+    lv.Attachment0 = attachment
+    lv.RelativeTo = Enum.ActuatorRelativeTo.World
+    lv.ForceLimitMode = Enum.ForceLimitMode.PerAxis
+    lv.MaxAxesForce = Vector3.new(1e6, 1e6, 1e6)
+    lv.VectorVelocity = Vector3.zero
+    lv.Parent = hrp
+
+    ao = Instance.new("AlignOrientation")
+    ao.Attachment0 = attachment
+    ao.Mode = Enum.OrientationAlignmentMode.OneAttachment
+    ao.RigidityEnabled = false
+    ao.MaxTorque = 1e6
+    ao.Responsiveness = 40
+    ao.Parent = hrp
+
+    flying = true
+    conn = RunService.RenderStepped:Connect(function()
+        if not flying or not hrp.Parent then return end
+        local camera = workspace.CurrentCamera
+        local cf = camera.CFrame
+        local move = hum.MoveDirection -- respects WASD + thumbstick + mobile
+        local worldMove
+        if move.Magnitude > 0 then
+            -- MoveDirection is already camera-relative on the ground; for flight
+            -- we want vertical control too, so rebuild from raw keys/thumbstick if any Y is desired.
+            worldMove = move
+            if UIS:IsKeyDown(Enum.KeyCode.Space) then worldMove += Vector3.new(0, 1, 0) end
+            if UIS:IsKeyDown(Enum.KeyCode.LeftControl) then worldMove -= Vector3.new(0, 1, 0) end
+            if worldMove.Magnitude > 0 then worldMove = worldMove.Unit end
+        else
+            worldMove = Vector3.zero
+        end
+        lv.VectorVelocity = worldMove * FLY_SPEED
+        -- face camera horizontally
+        local lookFlat = Vector3.new(cf.LookVector.X, 0, cf.LookVector.Z)
+        if lookFlat.Magnitude > 0 then
+            ao.CFrame = CFrame.lookAt(Vector3.zero, lookFlat.Unit)
+        end
+    end)
+end
+
+local function onChar(char)
+    stopFly(char)
+    UIS.InputBegan:Connect(function(input, gp)
+        if gp then return end
+        if input.KeyCode == Enum.KeyCode.F then
+            if flying then stopFly(char) else startFly(char) end
+        end
+    end)
+end
+
+if player.Character then onChar(player.Character) end
+player.CharacterAdded:Connect(onChar)
+\`\`\`
+Self-check for flight scripts: (1) direction comes from camera OR Humanoid.MoveDirection — NEVER solely LookVector of HumanoidRootPart. (2) LinearVelocity.RelativeTo = World (not Attachment0/1). (3) PlatformStand toggled ON while flying and OFF when stopped. (4) Cleaned up on toggle-off and on CharacterAdded to avoid duplicate constraints. (5) Speed configurable at top of script.
+
+C. FLAME AURA / GLOW / TRAIL / PARTICLE ABILITIES — must be fully functional on first insert. Requirements:
+- Parent particles to an ATTACHMENT (Instance.new("Attachment")) inside the HumanoidRootPart or a specific body part — NEVER directly to a MeshPart's root (particles won't emit reliably) and NEVER to the Character model (no CFrame).
+- Set ALL required ParticleEmitter properties, not just Texture: \`Texture\` (use a known-good Roblox asset id like "rbxassetid://243660364" for fire, "rbxasset://textures/particles/fire_main.dds" as safe fallback), \`Rate\` (30–80 for auras), \`Lifetime\` (NumberRange.new(0.5, 1.2)), \`Speed\` (NumberRange.new(2, 5)), \`SpreadAngle\` (Vector2.new(20, 20)), \`Size\` (NumberSequence with keypoints for grow/shrink), \`Transparency\` (NumberSequence fading 1→0→1), \`Color\` (ColorSequence orange→red for flame), \`LightEmission\` (0.6–1), \`LightInfluence\` 0, \`Rotation\` (NumberRange.new(-180, 180)), \`RotSpeed\` (NumberRange.new(-90, 90)), \`Acceleration\` (Vector3.new(0, 5, 0) for rising flame), \`EmissionDirection\` = Enum.NormalId.Top, \`Enabled\` = true.
+- Add a PointLight on the same attachment (Color = Color3.fromRGB(255,120,40), Brightness 2, Range 12) so the aura visibly lights the environment.
+- Add a subtle looping fire Sound (SoundId "rbxassetid://5786758392" or similar known-good) parented to HRP, Volume 0.4, Looped true, Playing true.
+- Wrap the whole aura in a Folder called "FlameAura" inside HRP so it's easy to remove; re-create on CharacterAdded.
+- If the ability toggles, expose an activate/deactivate function; on deactivate set Enabled=false on every emitter and destroy the folder after 2 seconds so lingering particles fade naturally.
+Canonical flame aura scaffold:
+\`\`\`lua
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+local function buildAura(char)
+    local hrp = char:WaitForChild("HumanoidRootPart")
+    local old = hrp:FindFirstChild("FlameAura")
+    if old then old:Destroy() end
+    local folder = Instance.new("Folder")
+    folder.Name = "FlameAura"
+    folder.Parent = hrp
+
+    local att = Instance.new("Attachment")
+    att.Name = "AuraAttachment"
+    att.Parent = folder
+
+    local fire = Instance.new("ParticleEmitter")
+    fire.Name = "FlameParticles"
+    fire.Parent = att
+    fire.Texture = "rbxassetid://243660364"
+    fire.Rate = 60
+    fire.Lifetime = NumberRange.new(0.6, 1.2)
+    fire.Speed = NumberRange.new(2, 5)
+    fire.SpreadAngle = Vector2.new(25, 25)
+    fire.Size = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 0.5),
+        NumberSequenceKeypoint.new(0.5, 2.5),
+        NumberSequenceKeypoint.new(1, 0.2),
+    })
+    fire.Transparency = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 1),
+        NumberSequenceKeypoint.new(0.1, 0.2),
+        NumberSequenceKeypoint.new(1, 1),
+    })
+    fire.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 220, 100)),
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 120, 30)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(120, 20, 0)),
+    })
+    fire.LightEmission = 0.9
+    fire.LightInfluence = 0
+    fire.Rotation = NumberRange.new(-180, 180)
+    fire.RotSpeed = NumberRange.new(-90, 90)
+    fire.Acceleration = Vector3.new(0, 6, 0)
+    fire.EmissionDirection = Enum.NormalId.Top
+    fire.Enabled = true
+
+    local light = Instance.new("PointLight")
+    light.Color = Color3.fromRGB(255, 120, 40)
+    light.Brightness = 2
+    light.Range = 14
+    light.Shadows = false
+    light.Parent = att
+
+    local sfx = Instance.new("Sound")
+    sfx.SoundId = "rbxassetid://5786758392"
+    sfx.Volume = 0.4
+    sfx.Looped = true
+    sfx.Parent = hrp
+    sfx:Play()
+end
+
+if player.Character then buildAura(player.Character) end
+player.CharacterAdded:Connect(buildAura)
+\`\`\`
+
+D. UNIVERSAL ABILITY SELF-TEST — before emitting ANY ability script (flight, aura, dash, sprint, super-jump, glow, jetpack, glide, wall-run, aim, grapple, teleport, telekinesis, punch, kick, block, parry, elemental effect, invisibility, size-change), mentally run:
+   1. Does it re-hook on CharacterAdded? (Character resets on death — abilities must rebind.)
+   2. Does it clean up prior instances (constraints, folders, connections) before creating new ones? (No duplicate LinearVelocity leaks.)
+   3. Is movement direction sourced from camera basis OR Humanoid.MoveDirection — never solely LookVector of HRP?
+   4. For any physics constraint: is RelativeTo set explicitly? MaxAxesForce/MaxTorque non-zero? Attachment parented to a Part (not the Model)?
+   5. For any VFX: are ALL required NumberSequence/ColorSequence properties set? Is a PointLight added for visibility? Is the emitter Enabled = true?
+   6. Is the ability keybind gameProcessedEvent-safe (\`if gp then return end\`) so it doesn't fire while typing in chat?
+   7. Does the script use task.wait / task.spawn — never wait / spawn / delay?
+   8. Is there ZERO chance of nil access on Character/Humanoid/HumanoidRootPart at first frame? (Use WaitForChild + CharacterAdded.)
+   If any check fails, FIX the script before emitting the action.
+
+E. NO BROKEN VFX. Never emit a ParticleEmitter with only Texture set — it will look dead. Never use random asset IDs you did not verify. Prefer built-in \`rbxasset://textures/particles/*\` or well-known IDs (fire 243660364, smoke 244514357, spark 241876428, sparkles 241876828). When in doubt, use a NumberSequence-driven emitter with the safe fallback \`rbxasset://textures/particles/fire_main.dds\`.
+
+F. NO "IT KIND OF WORKS". Every ability must be fully playable on insert: keybind bound, activates on press, moves/renders correctly, deactivates cleanly, survives death/respawn, works on desktop AND mobile (Humanoid.MoveDirection covers thumbstick), and does not spam the output with warnings.
+
+
+
 UI VISIBILITY & RESPONSIVENESS (ABSOLUTE — every UI element must be visible, on-screen, and clickable the moment the game launches)
 Any ScreenGui/Frame/Button/Label you create MUST be immediately usable on first join. No invisible controls, no off-screen elements, no disabled ScreenGuis, unless the user explicitly asked for it to start hidden.
 i. ENABLED + VISIBLE BY DEFAULT. Set \`ScreenGui.Enabled = true\`, \`Frame.Visible = true\`, \`TextButton/ImageButton.Visible = true\` and \`.Active = true\`, \`TextLabel/ImageLabel.Visible = true\`. Never rely on Studio defaults you did not set.
