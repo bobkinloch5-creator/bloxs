@@ -745,17 +745,27 @@ function isBroadPlayableGameRequest(userText: string) {
     /\b(add|make|create|build|generate|give|setup|set\s*up|need|want|course|game|system|mechanic|mode|map|world|experience)\b/i.test(text);
 }
 
+function isHumanoidVfxRequest(userText: string) {
+  const text = userText.toLowerCase().trim();
+  if (!text) return false;
+  const hasVfx = /\b(vfx|visual\s*effects?|particles?|particle\s*effects?|aura|glow(?:ing)?|sparkles?|trail|beam|explosion|fire|flames?|flaming|burn(?:ing)?|ignite|engulf(?:ed)?|on\s*fire|lightning|electric(?:al)?|zap|smoke|magic|arcane|ice|frost|snow|poison|toxic|holy|divine|dark|shadow|energy|ki)\b/i.test(text);
+  if (!hasVfx) return false;
+  return /\b(character|humanoid|player|avatar|me|my\s+body|body|hands?|arms?|feet|legs?|head|torso|humanoidrootpart|weapon|sword|tool|npc|enemy|boss)\b/i.test(text) ||
+    /\b(turn\s+(?:my\s+)?character\s+into|turn\s+(?:me|my\s+avatar|my\s+player)\s+into|engulf|surround|cover|wrap|attach|follow|full[-\s]*body|entire\s+body|aura|flaming|burning|on\s*fire)\b/i.test(text);
+}
+
 function isNarrowFeatureRequest(userText: string) {
   const text = userText.toLowerCase().trim();
   if (!text || isExplicitFullSystemRequest(text)) return false;
   if (/\b(map|world|city|town|lobby|level|multiple|several|bunch|pack)\b/.test(text)) return false;
   if (/\b(main\s*menu|loading\s*screen|load\s*screen|splash|title\s*screen|hud|shop\s*system|inventory\s*system|settings\s*menu)\b/.test(text)) return false;
+  if (isHumanoidVfxRequest(text)) return true;
   if (/\b(button|script|local\s*script|server\s*script|module\s*script|remote\s*event|remoteevent|speed\s*boost|sprint|dash|double\s*jump|high\s*jump|super\s*jump|jump\s*boost|fly|flying|flight|tool|door|checkpoint|save\s*point|timer|kill\s*brick|teleport)\b/.test(text)) return true;
   return isSimpleSingleThingRequest(text);
 }
 
 function needsGameplayRemoteWiring(userText: string) {
-  return /\b(button|keybind|key\s*bind|space\s*bar|keyboard|hotkey|speed\s*boost|sprint|dash|double\s*jump|high\s*jump|super\s*jump|jump\s*boost|fly|flying|flight|ability|power|tool|door|checkpoint|save\s*point|timer|kill\s*brick|teleport|multiplayer|replicated|server[-\s]*authoritative)\b/i.test(userText);
+  return isHumanoidVfxRequest(userText) || /\b(button|keybind|key\s*bind|space\s*bar|keyboard|hotkey|speed\s*boost|sprint|dash|double\s*jump|high\s*jump|super\s*jump|jump\s*boost|fly|flying|flight|ability|power|tool|door|checkpoint|save\s*point|timer|kill\s*brick|teleport|multiplayer|replicated|server[-\s]*authoritative)\b/i.test(userText);
 }
 
 function shouldUseGenericRobloxSystemGuard(userText: string, buildQuality?: "basic" | "better" | "premium" | "full_game") {
