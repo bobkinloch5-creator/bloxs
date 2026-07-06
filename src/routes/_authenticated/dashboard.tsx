@@ -395,6 +395,13 @@ function Dashboard() {
               </div>
             </section>
 
+            {/* Onboarding challenges */}
+            <OnboardingChallenges
+              projectCount={projects.length}
+              hasPluginSession={pluginOnline}
+              hasBuild={projects.some((p: any) => (p.build_count ?? 0) > 0)}
+            />
+
             {/* Inspiration banner */}
             <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/8 bg-gradient-to-r from-indigo-500/10 via-white/[0.02] to-fuchsia-500/10 p-5">
               <div className="flex items-center gap-4">
