@@ -216,18 +216,17 @@ function trimMessagesForModel(messages: UIMessage[], mode: "chat" | "build"): UI
 
 function capOutputTokens(modelSettings: { maxOutputTokens?: number } | undefined, mode: "chat" | "build", buildQuality?: "basic" | "better" | "premium" | "full_game") {
   // FAST PATH: cap output tokens aggressively so responses finish quickly.
-  // The prior version used Math.max, which forced tokens UP to a huge ceiling
-  // and made every reply slow. We now cap DOWN so models return promptly.
-  const requested = modelSettings?.maxOutputTokens ?? (mode === "chat" ? 700 : 2400);
+  // Lowered further to reduce end-to-end generation latency.
+  const requested = modelSettings?.maxOutputTokens ?? (mode === "chat" ? 500 : 1600);
   const cap = mode === "chat"
-    ? 900
+    ? 700
     : buildQuality === "full_game"
-      ? 4500
+      ? 3000
       : buildQuality === "premium"
-        ? 3500
+        ? 2400
         : buildQuality === "basic"
-          ? 1600
-          : 2400;
+          ? 1200
+          : 1800;
   return Math.min(requested, cap);
 }
 
@@ -4570,7 +4569,7 @@ export const Route = createFileRoute("/api/chat")({
               ...(modelChoiceLite.modelSettings?.temperature !== undefined ? { temperature: modelChoiceLite.modelSettings.temperature } : {}),
               ...(modelChoiceLite.modelSettings?.topP !== undefined ? { topP: modelChoiceLite.modelSettings.topP } : {}),
               maxOutputTokens: capOutputTokens(modelChoiceLite.modelSettings, "chat"),
-              stopWhen: stepCountIs(50),
+              stopWhen: stepCountIs(6),
               onError: ({ error }) => console.error("[chat/lite] upstream error", error),
             });
             try {
@@ -6315,7 +6314,7 @@ export const Route = createFileRoute("/api/chat")({
                   : (imageGenerationRequested
                     ? { insert_asset: insertAssetTool, search_toolbox: toolboxTool, search_toolbox_set: toolboxSetTool, generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool }
                     : { insert_asset: insertAssetTool, search_toolbox: toolboxTool, search_toolbox_set: toolboxSetTool, roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch }),
-              stopWhen: stepCountIs(50),
+              stopWhen: stepCountIs(mode === "chat" ? 6 : 14),
               onChunk: ({ chunk }) => {
                 if (chunk.type === "text-delta") {
                   const delta = (chunk as { text?: string; delta?: string }).text
