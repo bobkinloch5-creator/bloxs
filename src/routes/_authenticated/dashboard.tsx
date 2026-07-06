@@ -109,11 +109,27 @@ function Dashboard() {
   });
   const [newProjectOpen, setNewProjectOpen] = useState(false);
   // If localStorage's active id no longer exists, clear it once projects load.
+  // Also auto-select the most recent project when none is active so clicking
+  // Build doesn't force the user through the "Create a project" modal every
+  // time — an existing project is almost always what they want to continue.
   useEffect(() => {
-    if (!activeProjectId || isLoading) return;
-    if (!projects.find((p: any) => p.id === activeProjectId)) {
+    if (isLoading) return;
+    if (activeProjectId && !projects.find((p: any) => p.id === activeProjectId)) {
       try { localStorage.removeItem("bs:activeProjectId"); } catch {}
       setActiveProjectId(null);
+      return;
+    }
+    if (!activeProjectId && projects.length > 0) {
+      const sorted = [...projects].sort((a: any, b: any) => {
+        const at = new Date(a.updated_at ?? a.created_at ?? 0).getTime();
+        const bt = new Date(b.updated_at ?? b.created_at ?? 0).getTime();
+        return bt - at;
+      });
+      const pick = sorted[0]?.id;
+      if (pick) {
+        try { localStorage.setItem("bs:activeProjectId", pick); } catch {}
+        setActiveProjectId(pick);
+      }
     }
   }, [activeProjectId, projects, isLoading]);
 
