@@ -3603,35 +3603,73 @@ local barFill = make("Frame", {
 corner(barFill, 999)
 gradient(barFill, Color3.fromRGB(80, 255, 180), Color3.fromRGB(100, 95, 255))
 
+-- Menu variety: pick palette / layout / title / buttons per turn so the main menu
+-- doesn't look identical every build. Seed mixes prompt content + time.
+local menuSeed = 0
+for i = 1, #loadingPrompt do menuSeed = (menuSeed * 31 + loadingPrompt:byte(i)) % 1048576 end
+menuSeed = (menuSeed + math.floor(tick() * 1000)) % 1048576
+local menuVariant = (menuSeed % 5) + 1
+local menuPalettes = {
+  { bg = Color3.fromRGB(13, 17, 31), gA = Color3.fromRGB(18, 22, 42), gB = Color3.fromRGB(36, 28, 80), accent = Color3.fromRGB(86, 96, 255), edge = Color3.fromRGB(128, 255, 210) },
+  { bg = Color3.fromRGB(28, 10, 18), gA = Color3.fromRGB(52, 14, 28), gB = Color3.fromRGB(120, 34, 46), accent = Color3.fromRGB(255, 96, 96), edge = Color3.fromRGB(255, 200, 120) },
+  { bg = Color3.fromRGB(8, 24, 20), gA = Color3.fromRGB(10, 40, 32), gB = Color3.fromRGB(20, 90, 60), accent = Color3.fromRGB(70, 220, 140), edge = Color3.fromRGB(255, 240, 130) },
+  { bg = Color3.fromRGB(24, 18, 6), gA = Color3.fromRGB(48, 32, 8), gB = Color3.fromRGB(120, 78, 20), accent = Color3.fromRGB(255, 190, 60), edge = Color3.fromRGB(255, 240, 200) },
+  { bg = Color3.fromRGB(10, 12, 22), gA = Color3.fromRGB(14, 20, 46), gB = Color3.fromRGB(22, 96, 128), accent = Color3.fromRGB(80, 200, 255), edge = Color3.fromRGB(200, 240, 255) },
+}
+local pal = menuPalettes[menuVariant]
+
+local lower = loadingPrompt:lower()
+local menuTitleText = lower:find("obby") and "OBBY CHALLENGE"
+  or lower:find("tycoon") and "TYCOON"
+  or lower:find("race") and "SPEEDWAY"
+  or lower:find("horror") and "NIGHTFALL"
+  or lower:find("zombie") and "OUTBREAK"
+  or lower:find("sword") and "BLADES"
+  or lower:find("city") and "CITY LIFE"
+  or lower:find("simulator") and "SIMULATOR"
+  or lower:find("shop") and "MARKET"
+  or lower:find("quest") and "QUESTLINE"
+  or ({ "READY", "BEGIN", "START GAME", "LAUNCH", "PLAY" })[menuVariant]
+
+local menuLayouts = {
+  { size = Vector2.new(460, 430), pos = UDim2.fromScale(0.5, 0.5), align = "center" },
+  { size = Vector2.new(380, 500), pos = UDim2.fromScale(0.25, 0.5), align = "left" },
+  { size = Vector2.new(560, 360), pos = UDim2.fromScale(0.5, 0.55), align = "center" },
+  { size = Vector2.new(420, 460), pos = UDim2.fromScale(0.75, 0.5), align = "right" },
+  { size = Vector2.new(500, 420), pos = UDim2.fromScale(0.5, 0.48), align = "center" },
+}
+local layout = menuLayouts[menuVariant]
+
 local menu = make("Frame", {
   Name = "MainMenu",
   AnchorPoint = Vector2.new(0.5, 0.5),
-  BackgroundColor3 = Color3.fromRGB(13, 17, 31),
-  Position = UDim2.fromScale(0.5, 0.5),
-  Size = UDim2.fromOffset(460, 430),
+  BackgroundColor3 = pal.bg,
+  Position = layout.pos,
+  Size = UDim2.fromOffset(layout.size.X, layout.size.Y),
   Visible = false,
 }, gui)
-corner(menu, 14)
-stroke(menu, Color3.fromRGB(92, 100, 155), 1)
-gradient(menu, Color3.fromRGB(18, 22, 42), Color3.fromRGB(36, 28, 80))
+corner(menu, menuVariant == 3 and 6 or menuVariant == 4 and 20 or 14)
+stroke(menu, pal.edge, 1)
+gradient(menu, pal.gA, pal.gB)
 
 make("TextLabel", {
   Name = "GameTitle",
   BackgroundTransparency = 1,
   Position = UDim2.fromOffset(28, 24),
   Size = UDim2.new(1, -56, 0, 78),
-  Font = Enum.Font.GothamBlack,
-  Text = "MAIN MENU",
-  TextColor3 = Color3.fromRGB(255, 255, 255),
+  Font = menuVariant == 2 and Enum.Font.Bangers or menuVariant == 3 and Enum.Font.Michroma or menuVariant == 4 and Enum.Font.FredokaOne or Enum.Font.GothamBlack,
+  Text = menuTitleText,
+  TextColor3 = pal.edge,
   TextScaled = true,
   TextWrapped = true,
+  TextXAlignment = layout.align == "left" and Enum.TextXAlignment.Left or layout.align == "right" and Enum.TextXAlignment.Right or Enum.TextXAlignment.Center,
 }, menu)
 
 make("TextLabel", {
   Name = "RequestNote",
   BackgroundTransparency = 1,
-  Position = UDim2.fromOffset(40, 100),
-  Size = UDim2.new(1, -80, 0, 42),
+  Position = UDim2.fromOffset(40, 108),
+  Size = UDim2.new(1, -80, 0, 36),
   Font = Enum.Font.Gotham,
   Text = ${JSON.stringify(safePrompt)},
   TextColor3 = Color3.fromRGB(185, 195, 225),
@@ -3639,21 +3677,44 @@ make("TextLabel", {
   TextWrapped = true,
 }, menu)
 
-local buttonNames = { "Play", "Shop", "Inventory", "Settings" }
+-- Button set varies by prompt genre so we don't always ship Play/Shop/Inventory/Settings.
+local buttonNames
+if lower:find("obby") or lower:find("parkour") then buttonNames = { "Play", "Stages", "Skins", "Settings" }
+elseif lower:find("tycoon") or lower:find("simulator") then buttonNames = { "Play", "Upgrades", "Rebirth", "Settings" }
+elseif lower:find("race") or lower:find("car") then buttonNames = { "Race", "Garage", "Tracks", "Settings" }
+elseif lower:find("horror") then buttonNames = { "Enter", "Lore", "Options", "Quit" }
+elseif lower:find("zombie") or lower:find("survival") then buttonNames = { "Deploy", "Loadout", "Perks", "Settings" }
+elseif lower:find("sword") or lower:find("combat") or lower:find("fight") then buttonNames = { "Fight", "Weapons", "Ranks", "Settings" }
+elseif lower:find("rpg") or lower:find("quest") then buttonNames = { "Adventure", "Quests", "Party", "Settings" }
+elseif lower:find("shop") or lower:find("trade") then buttonNames = { "Enter", "Market", "Trades", "Settings" }
+else
+  local sets = {
+    { "Play", "Shop", "Inventory", "Settings" },
+    { "Start", "Store", "Codes", "Settings" },
+    { "Begin", "Rewards", "Friends", "Options" },
+    { "Launch", "Progress", "Cosmetics", "Settings" },
+    { "Play", "Missions", "Leaderboard", "Options" },
+  }
+  buttonNames = sets[menuVariant]
+end
+
+local buttonStartY = 156
+local buttonHeight = 46
+local buttonGap = 12
 for i, label in ipairs(buttonNames) do
   local btn = make("TextButton", {
-    Name = label .. "Button",
-    BackgroundColor3 = i == 1 and Color3.fromRGB(86, 96, 255) or Color3.fromRGB(32, 38, 62),
-    Position = UDim2.fromOffset(54, 152 + (i - 1) * 62),
-    Size = UDim2.new(1, -108, 0, 48),
+    Name = label:gsub("%s+", "") .. "Button",
+    BackgroundColor3 = i == 1 and pal.accent or Color3.fromRGB(32, 38, 62),
+    Position = UDim2.fromOffset(54, buttonStartY + (i - 1) * (buttonHeight + buttonGap)),
+    Size = UDim2.new(1, -108, 0, buttonHeight),
     Font = Enum.Font.GothamBold,
     Text = label,
     TextColor3 = Color3.fromRGB(255, 255, 255),
     TextScaled = true,
     AutoButtonColor = true,
   }, menu)
-  corner(btn, 10)
-  stroke(btn, i == 1 and Color3.fromRGB(128, 255, 210) or Color3.fromRGB(80, 88, 132), 1)
+  corner(btn, menuVariant == 3 and 4 or 10)
+  stroke(btn, i == 1 and pal.edge or Color3.fromRGB(80, 88, 132), 1)
 end
 
 local hud = make("Frame", {
@@ -3768,26 +3829,26 @@ task.wait(0.35)
 loading.Visible = false
 menu.Visible = true
 
-menu.PlayButton.MouseButton1Click:Connect(function()
-  menu.Visible = false
-  hud.Visible = true
-  if menuAction then menuAction:FireServer("Play") end
-end)
-
-menu.ShopButton.MouseButton1Click:Connect(function()
-  showModal("Shop", "Add products, boosts, gamepasses, and upgrades here.")
-  if menuAction then menuAction:FireServer("Shop") end
-end)
-
-menu.InventoryButton.MouseButton1Click:Connect(function()
-  showModal("Inventory", "Player items and rewards can appear here.")
-  if menuAction then menuAction:FireServer("Inventory") end
-end)
-
-menu.SettingsButton.MouseButton1Click:Connect(function()
-  showModal("Settings", "Volume, graphics, and gameplay options are ready to wire.")
-  if menuAction then menuAction:FireServer("Settings") end
-end)
+-- Wire every TextButton under the menu dynamically so varied menu layouts still work.
+for _, child in ipairs(menu:GetChildren()) do
+  if child:IsA("TextButton") then
+    local label = child.Text
+    local nameKey = child.Name:gsub("Button$", "")
+    child.MouseButton1Click:Connect(function()
+      local lower = label:lower()
+      if lower:find("play") or lower:find("start") or lower:find("begin") or lower:find("launch") or lower:find("enter") or lower:find("deploy") or lower:find("fight") or lower:find("race") or lower:find("adventure") then
+        menu.Visible = false
+        hud.Visible = true
+        if menuAction then menuAction:FireServer(nameKey) end
+      elseif lower:find("quit") or lower:find("exit") then
+        menu.Visible = false
+      else
+        showModal(label, "This panel is wired and ready for your game logic.")
+        if menuAction then menuAction:FireServer(nameKey) end
+      end
+    end)
+  end
+end
 
 modal.CloseButton.MouseButton1Click:Connect(function()
   modal.Visible = false
