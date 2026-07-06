@@ -110,7 +110,7 @@ function safeParse(s: string): unknown {
 function normalize(x: unknown): Intent | null {
   if (!x || typeof x !== "object") return null;
   const o = x as Record<string, unknown>;
-  const category = (["ability","vfx","system","map","ui","asset","fix","chat","other"] as const)
+  const category = (["ability","vfx","system","map","ui","asset","fix","remove","chat","other"] as const)
     .find(c => c === o.category) ?? "other";
   const scope = (["single","feature","game"] as const).find(s => s === o.scope) ?? "single";
   const arr = (v: unknown): string[] =>
