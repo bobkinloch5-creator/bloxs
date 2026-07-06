@@ -1304,8 +1304,22 @@ function ToolboxLibrary({ projectId }: { projectId?: string }) {
 
 
   const quick = [
-    "house", "tree", "car", "sword", "npc", "chest", "castle", "spaceship", "hoverboard",
-    "map", "obby map", "city map", "island map", "dungeon map", "battle arena", "lobby", "tycoon map", "racing track", "parkour map",
+    // Buildings & structures
+    "house", "modern house", "medieval castle", "fortress", "tower", "wizard tower", "shop", "cafe", "hospital", "police station", "school", "church", "temple", "mansion", "cabin", "farmhouse", "windmill", "lighthouse", "bank", "gas station",
+    // Nature
+    "pine tree", "oak tree", "palm tree", "low poly tree", "bush", "flower", "rock", "boulder", "mountain", "waterfall", "grass patch",
+    // Characters / NPCs
+    "npc", "zombie", "skeleton", "dragon", "shopkeeper", "guard", "knight", "wizard", "robot", "alien",
+    // Weapons
+    "sword", "katana", "shield", "bow", "pistol", "rifle", "shotgun", "laser gun", "grenade", "magic staff",
+    // Vehicles
+    "car", "sports car", "police car", "truck", "motorcycle", "bike", "plane", "helicopter", "boat", "spaceship", "hoverboard", "kart",
+    // Props / gameplay
+    "chest", "treasure chest", "coin", "gem", "potion", "door", "portal", "checkpoint", "trampoline", "cannon", "trap", "campfire", "torch", "lamp post", "street light", "fence", "bench", "crate", "barrel", "sign", "furniture set",
+    // Effects
+    "fire effect", "explosion effect", "smoke effect", "magic particle",
+    // Maps / kits
+    "map", "obby map", "city map", "island map", "dungeon map", "battle arena", "lobby", "tycoon map", "racing track", "parkour map", "spawn area", "training map", "showdown arena", "roleplay town",
   ];
 
   return (
