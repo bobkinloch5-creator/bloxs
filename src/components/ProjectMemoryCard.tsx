@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Brain, Plus, Trash2, Loader2 } from "lucide-react";
 import { listProjectMemory, setProjectMemory, deleteProjectMemory } from "@/lib/project-memory.functions";
+import { WhyDidItPanel } from "@/components/WhyDidItPanel";
 
 type Memory = {
   id: string;
