@@ -677,7 +677,14 @@ function isSimpleSingleThingRequest(userText: string) {
 }
 
 function isExplicitFullSystemRequest(userText: string) {
-  return /\b(full\s*(game|system|ui|gui|experience)|complete\s*(game|system|ui|gui|experience)|entire\s*(game|system|ui|gui|experience)|all[-\s]*in[-\s]*one|game\s*framework|core\s*systems|production\s*systems|round[-\s]*based\s*game|tycoon|simulator|rpg)\b/i.test(userText);
+  return /\b(full\s*(game|system|ui|gui|experience)|complete\s*(game|system|ui|gui|experience)|entire\s*(game|system|ui|gui|experience)|all[-\s]*in[-\s]*one|game\s*framework|core\s*systems|production\s*systems|round[-\s]*based\s*game|tycoon|simulator|rpg|obby|parkour|tower\s*defen[cs]e|battle\s*royale|zombie\s*(survival|game)?|survival\s*game|horror\s*game|pet\s*(simulator|game|system)|role\s*play|roleplay|city\s*rp|racing\s*(game|system)?|race\s*(course|track|system)|combat\s*system|fighting\s*(game|system)?|gun\s*system|sword\s*(fighting|system)|quest\s*system|inventory\s*system|shop\s*system|round\s*system|minigame|farming\s*(game|system)?|fishing\s*(game|system)?|trading\s*system)\b/i.test(userText);
+}
+
+function isBroadPlayableGameRequest(userText: string) {
+  const text = userText.toLowerCase().trim();
+  if (!text || isNarrowFeatureRequest(text)) return false;
+  return /\b(game|experience|course|level|map|world|mode|mechanic|system|framework|obby|parkour|tycoon|simulator|rpg|dungeon|quest|combat|fighting|weapon|gun|sword|shooter|arena|battle|zombie|survival|horror|tower\s*defen[cs]e|role\s*play|roleplay|city\s*rp|racing|race\s*track|pet\s*(simulator|game|system)|inventory|shop|trading|farming|fishing|minigame|round[-\s]*based|police\s*chase|cooking|restaurant|puzzle|escape)\b/i.test(text) &&
+    /\b(add|make|create|build|generate|give|setup|set\s*up|need|want|course|game|system|mechanic|mode|map|world|experience)\b/i.test(text);
 }
 
 function isNarrowFeatureRequest(userText: string) {
@@ -694,10 +701,10 @@ function needsGameplayRemoteWiring(userText: string) {
 }
 
 function shouldUseGenericRobloxSystemGuard(userText: string, buildQuality?: "basic" | "better" | "premium" | "full_game") {
-  if (!isRobloxSystemRequest(userText)) return false;
   if (isNarrowFeatureRequest(userText)) return false;
-  if (isExplicitFullSystemRequest(userText)) return true;
-  return buildQuality === "full_game" && isExplicitFullSystemRequest(userText);
+  if (isExplicitFullSystemRequest(userText) || isBroadPlayableGameRequest(userText)) return true;
+  if (!isRobloxSystemRequest(userText)) return false;
+  return buildQuality === "full_game";
 }
 
 function actionLooksLikeUnrequestedUiShell(action: any, userText: string) {
