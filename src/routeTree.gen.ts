@@ -40,6 +40,7 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as AuthenticatedCollaboratorsRouteImport } from './routes/_authenticated/collaborators'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as ApiVisualsGenerateRouteImport } from './routes/api/visuals/generate'
+import { Route as ApiPublicStatusRouteImport } from './routes/api/public/status'
 import { Route as ApiPublicModelProxyRouteImport } from './routes/api/public/model-proxy'
 import { Route as ApiPublicMcpRouteImport } from './routes/api/public/mcp'
 import { Route as ApiPublicMaintenanceRouteImport } from './routes/api/public/maintenance'
@@ -215,6 +216,11 @@ const ApiVisualsGenerateRoute = ApiVisualsGenerateRouteImport.update({
   path: '/api/visuals/generate',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicStatusRoute = ApiPublicStatusRouteImport.update({
+  id: '/api/public/status',
+  path: '/api/public/status',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicModelProxyRoute = ApiPublicModelProxyRouteImport.update({
   id: '/api/public/model-proxy',
   path: '/api/public/model-proxy',
@@ -351,6 +357,7 @@ export interface FileRoutesByFullPath {
   '/api/public/maintenance': typeof ApiPublicMaintenanceRoute
   '/api/public/mcp': typeof ApiPublicMcpRoute
   '/api/public/model-proxy': typeof ApiPublicModelProxyRoute
+  '/api/public/status': typeof ApiPublicStatusRoute
   '/api/visuals/generate': typeof ApiVisualsGenerateRoute
   '/api/public/plugin/clear': typeof ApiPublicPluginClearRoute
   '/api/public/plugin/complete': typeof ApiPublicPluginCompleteRoute
@@ -401,6 +408,7 @@ export interface FileRoutesByTo {
   '/api/public/maintenance': typeof ApiPublicMaintenanceRoute
   '/api/public/mcp': typeof ApiPublicMcpRoute
   '/api/public/model-proxy': typeof ApiPublicModelProxyRoute
+  '/api/public/status': typeof ApiPublicStatusRoute
   '/api/visuals/generate': typeof ApiVisualsGenerateRoute
   '/api/public/plugin/clear': typeof ApiPublicPluginClearRoute
   '/api/public/plugin/complete': typeof ApiPublicPluginCompleteRoute
@@ -453,6 +461,7 @@ export interface FileRoutesById {
   '/api/public/maintenance': typeof ApiPublicMaintenanceRoute
   '/api/public/mcp': typeof ApiPublicMcpRoute
   '/api/public/model-proxy': typeof ApiPublicModelProxyRoute
+  '/api/public/status': typeof ApiPublicStatusRoute
   '/api/visuals/generate': typeof ApiVisualsGenerateRoute
   '/api/public/plugin/clear': typeof ApiPublicPluginClearRoute
   '/api/public/plugin/complete': typeof ApiPublicPluginCompleteRoute
@@ -505,6 +514,7 @@ export interface FileRouteTypes {
     | '/api/public/maintenance'
     | '/api/public/mcp'
     | '/api/public/model-proxy'
+    | '/api/public/status'
     | '/api/visuals/generate'
     | '/api/public/plugin/clear'
     | '/api/public/plugin/complete'
@@ -555,6 +565,7 @@ export interface FileRouteTypes {
     | '/api/public/maintenance'
     | '/api/public/mcp'
     | '/api/public/model-proxy'
+    | '/api/public/status'
     | '/api/visuals/generate'
     | '/api/public/plugin/clear'
     | '/api/public/plugin/complete'
@@ -606,6 +617,7 @@ export interface FileRouteTypes {
     | '/api/public/maintenance'
     | '/api/public/mcp'
     | '/api/public/model-proxy'
+    | '/api/public/status'
     | '/api/visuals/generate'
     | '/api/public/plugin/clear'
     | '/api/public/plugin/complete'
@@ -642,6 +654,7 @@ export interface RootRouteChildren {
   ApiPublicMaintenanceRoute: typeof ApiPublicMaintenanceRoute
   ApiPublicMcpRoute: typeof ApiPublicMcpRoute
   ApiPublicModelProxyRoute: typeof ApiPublicModelProxyRoute
+  ApiPublicStatusRoute: typeof ApiPublicStatusRoute
   ApiVisualsGenerateRoute: typeof ApiVisualsGenerateRoute
   ApiPublicPluginClearRoute: typeof ApiPublicPluginClearRoute
   ApiPublicPluginCompleteRoute: typeof ApiPublicPluginCompleteRoute
@@ -876,6 +889,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiVisualsGenerateRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/status': {
+      id: '/api/public/status'
+      path: '/api/public/status'
+      fullPath: '/api/public/status'
+      preLoaderRoute: typeof ApiPublicStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/model-proxy': {
       id: '/api/public/model-proxy'
       path: '/api/public/model-proxy'
@@ -1087,6 +1107,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicMaintenanceRoute: ApiPublicMaintenanceRoute,
   ApiPublicMcpRoute: ApiPublicMcpRoute,
   ApiPublicModelProxyRoute: ApiPublicModelProxyRoute,
+  ApiPublicStatusRoute: ApiPublicStatusRoute,
   ApiVisualsGenerateRoute: ApiVisualsGenerateRoute,
   ApiPublicPluginClearRoute: ApiPublicPluginClearRoute,
   ApiPublicPluginCompleteRoute: ApiPublicPluginCompleteRoute,
