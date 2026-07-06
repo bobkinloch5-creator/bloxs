@@ -5714,36 +5714,67 @@ export const Route = createFileRoute("/api/chat")({
             notice: string | null,
             extraBody?: Record<string, unknown>,
             modelSettings?: { temperature?: number; topP?: number; maxOutputTokens?: number },
-          ) => streamText({
-            model,
-            system: (mode === "chat" ? FAST_CHAT_SYSTEM_PROMPT : FAST_BUILD_SYSTEM_PROMPT) + modeHeader + languageHeader + qualityHeader + assetModeRule + contextBlock,
-            messages: convertedMessages,
-            abortSignal: request.signal,
-            ...(extraBody ? { providerOptions: { nvidia: extraBody as Record<string, never> } as never } : {}),
-            ...(modelSettings?.temperature !== undefined ? { temperature: modelSettings.temperature } : {}),
-            ...(modelSettings?.topP !== undefined ? { topP: modelSettings.topP } : {}),
-            maxOutputTokens: capOutputTokens(modelSettings, mode, buildQuality),
-            // Research tools (roblox_docs_*) are available in BOTH chat and build mode so the AI can verify facts.
-            // In Procedural Generation mode, remove Toolbox tools entirely unless the user explicitly asked for Toolbox.
-            tools: mode === "chat"
-              ? (imageGenerationRequested
-                ? { generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool }
-                : { roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch })
-              : assetMode === "procedural" && !userExplicitlyRequestedToolbox(userText)
+          ) => {
+            // Accumulate streamed text so we can persist plugin_actions even when
+            // the stream is aborted (client disconnect, Worker time-limit, or
+            // upstream error). Without this, an interrupted /api/chat leaves
+            // zero actions queued for Studio even after a lot of code streamed.
+            let accumulated = "";
+            let persisted = false;
+            const safePersist = async (reason: string) => {
+              if (persisted) return;
+              persisted = true;
+              try {
+                await persistFinish(usedModelId, notice)({ text: accumulated });
+              } catch (e) {
+                console.error(`[chat] partial persist (${reason}) failed`, e);
+              }
+            };
+            return streamText({
+              model,
+              system: (mode === "chat" ? FAST_CHAT_SYSTEM_PROMPT : FAST_BUILD_SYSTEM_PROMPT) + modeHeader + languageHeader + qualityHeader + assetModeRule + contextBlock,
+              messages: convertedMessages,
+              abortSignal: request.signal,
+              ...(extraBody ? { providerOptions: { nvidia: extraBody as Record<string, never> } as never } : {}),
+              ...(modelSettings?.temperature !== undefined ? { temperature: modelSettings.temperature } : {}),
+              ...(modelSettings?.topP !== undefined ? { topP: modelSettings.topP } : {}),
+              maxOutputTokens: capOutputTokens(modelSettings, mode, buildQuality),
+              tools: mode === "chat"
                 ? (imageGenerationRequested
                   ? { generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool }
                   : { roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch })
-                : (imageGenerationRequested
-                  ? { search_toolbox: toolboxTool, search_toolbox_set: toolboxSetTool, generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool }
-                  : { search_toolbox: toolboxTool, search_toolbox_set: toolboxSetTool, roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch }),
-            stopWhen: stepCountIs(50),
-            onFinish: async ({ text }) => {
-              await persistFinish(usedModelId, notice)({ text });
-            },
-            onError: ({ error }) => {
-              console.error(`[chat] upstream error on ${usedModelId}`, error);
-            },
-          });
+                : assetMode === "procedural" && !userExplicitlyRequestedToolbox(userText)
+                  ? (imageGenerationRequested
+                    ? { generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool }
+                    : { roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch })
+                  : (imageGenerationRequested
+                    ? { search_toolbox: toolboxTool, search_toolbox_set: toolboxSetTool, generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool }
+                    : { search_toolbox: toolboxTool, search_toolbox_set: toolboxSetTool, roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch }),
+              stopWhen: stepCountIs(50),
+              onChunk: ({ chunk }) => {
+                if (chunk.type === "text-delta") {
+                  const delta = (chunk as { text?: string; delta?: string }).text
+                    ?? (chunk as { text?: string; delta?: string }).delta
+                    ?? "";
+                  if (delta) accumulated += delta;
+                }
+              },
+              onFinish: async ({ text }) => {
+                if (text && text.length > accumulated.length) accumulated = text;
+                persisted = true;
+                await persistFinish(usedModelId, notice)({ text: accumulated });
+              },
+              onAbort: () => {
+                console.warn(`[chat] stream aborted on ${usedModelId} — persisting ${accumulated.length} chars`);
+                void safePersist("abort");
+              },
+              onError: ({ error }) => {
+                console.error(`[chat] upstream error on ${usedModelId}`, error);
+                void safePersist("error");
+              },
+            });
+          };
+
 
           // Stream the primary model immediately so the user sees progress as soon
           // as tokens arrive. Only fall back if stream creation itself fails before
