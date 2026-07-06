@@ -442,11 +442,14 @@ function rejectionReason(r: ToolboxResult, opts: { strict?: boolean } = {}): str
   // include helper scripts. The plugin-side no_scripts/strip_scripts flags handle them.
   if (opts.strict) {
     if (!isRoblox && (r.scriptCount ?? 0) > 5) return "too_many_scripts";
+    // Structural asks (house/castle/school/…): reject obvious fragments.
+    if (opts.wantsStructure && FRAGMENT_PATTERNS.some((re) => re.test(r.name))) return "fragment_not_complete_model";
   }
   // Non-strict: block only clearly script-heavy third-party assets.
   if (!isRoblox && (r.scriptCount ?? 0) > 8) return "script_heavy";
   return null;
 }
+
 
 function relevanceScore(query: string, name: string): number {
   const q = query.toLowerCase().trim();
