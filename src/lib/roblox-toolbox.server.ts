@@ -988,7 +988,23 @@ export async function searchRobloxToolbox(
     // Cross-term consensus: assets that match multiple expanded queries are nearly always on-topic.
     const hits = termHitCount.get(r.id) ?? 0;
     const multiHitBoost = hits >= 3 ? 0.12 : hits === 2 ? 0.07 : 0;
-    const score = Math.max(0, Math.min(1, relevance * 0.5 + safety * 0.36 + trustedBoost + classicInsertBoost + multiHitBoost - reusePenalty));
+    // Completeness: penalize fragment names (Wall/Piece/Scaffold), boost complete-model names.
+    const completeness = completenessScore(r.name, keyword, singleAssetOnly);
+    // Popularity: upVotePercent is 0..100 — reward well-reviewed assets.
+    const popularity = typeof r.upVotePercent === "number"
+      ? Math.max(-0.08, Math.min(0.12, (r.upVotePercent - 70) / 250))
+      : 0;
+    const score = Math.max(0, Math.min(1,
+      relevance * 0.45
+      + safety * 0.30
+      + trustedBoost
+      + classicInsertBoost
+      + multiHitBoost
+      + completeness
+      + popularity
+      - reusePenalty
+    ));
+
     const profile = libraryProfileFor(keyword, r.name);
     const row = {
       ...r,
