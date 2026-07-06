@@ -9,7 +9,7 @@ const NVIDIA_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
 const MODEL = "meta/llama-3.1-8b-instruct";
 
 export type Intent = {
-  category: "ability" | "vfx" | "system" | "map" | "ui" | "asset" | "fix" | "chat" | "other";
+  category: "ability" | "vfx" | "system" | "map" | "ui" | "asset" | "fix" | "remove" | "chat" | "other";
   scope: "single" | "feature" | "game";
   targets: string[];       // named nouns: "castle", "sword", "shop UI"
   keybinds: string[];      // ["F", "E"] if user named any
