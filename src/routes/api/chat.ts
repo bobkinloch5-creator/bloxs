@@ -1095,9 +1095,11 @@ local function hookPlayer(player)
   end)
 end
 
-Players.PlayerAdded:Connect(hookPlayer)
-for _, player in ipairs(Players:GetPlayers()) do
-  hookPlayer(player)
+if not APPLY_NPCS then
+  Players.PlayerAdded:Connect(hookPlayer)
+  for _, player in ipairs(Players:GetPlayers()) do
+    hookPlayer(player)
+  end
 end
 
 if APPLY_NPCS then
