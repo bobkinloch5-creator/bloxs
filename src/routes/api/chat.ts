@@ -873,50 +873,64 @@ local TARGET_MODE = ${JSON.stringify(targetMode)}
 local APPLY_NPCS = ${appliesToNpcs ? "true" : "false"}
 local PREFIX = "BloxSmith_" .. ELEMENT .. "VFX_"
 
-local PRESETS = {
+-- Built-in element renderers: Fire/Smoke/Sparkles use Roblox's native Instance types,
+-- which render reliably regardless of asset availability. Other elements use engine
+-- particle textures shipped with Studio (rbxasset://textures/particles/*_main.dds).
+local BUILTIN = {
   Fire = {
-    texture = "rbxassetid://243660364",
-    rate = 55,
-    lifetime = NumberRange.new(0.55, 1.1),
-    speed = NumberRange.new(3, 7),
-    spread = Vector2.new(35, 35),
-    accel = Vector3.new(0, 9, 0),
-    size = {0.6, 2.6, 0.2},
-    color = ColorSequence.new({
-      ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 235, 130)),
-      ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 120, 25)),
-      ColorSequenceKeypoint.new(1, Color3.fromRGB(120, 20, 0)),
-    }),
+    class = "Fire",
+    props = {
+      Size = 8,
+      Heat = 12,
+      Color = Color3.fromRGB(255, 150, 40),
+      SecondaryColor = Color3.fromRGB(255, 60, 0),
+    },
     light = Color3.fromRGB(255, 140, 55),
+    lightBrightness = 3,
+    lightRange = 12,
     sound = "rbxassetid://5786758392",
   },
+  Smoke = {
+    class = "Smoke",
+    props = {
+      Size = 4,
+      RiseVelocity = 3,
+      Opacity = 0.55,
+      Color = Color3.fromRGB(70, 70, 70),
+    },
+    light = Color3.fromRGB(80, 80, 80),
+    lightBrightness = 0.8,
+    lightRange = 8,
+    sound = "",
+  },
+  Sparkle = {
+    class = "Sparkles",
+    props = {
+      SparkleColor = Color3.fromRGB(255, 240, 180),
+    },
+    light = Color3.fromRGB(255, 240, 180),
+    lightBrightness = 2,
+    lightRange = 10,
+    sound = "",
+  },
+}
+
+local PRESETS = {
   Lightning = {
     texture = "rbxasset://textures/particles/sparkles_main.dds",
-    rate = 14,
+    rate = 22,
     lifetime = NumberRange.new(0.15, 0.35),
     speed = NumberRange.new(6, 12),
     spread = Vector2.new(180, 180),
     accel = Vector3.zero,
-    size = {0.12, 0.72, 0},
+    size = {0.15, 0.8, 0},
     color = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromRGB(120, 220, 255)), ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)), ColorSequenceKeypoint.new(1, Color3.fromRGB(60, 120, 255))}),
     light = Color3.fromRGB(120, 180, 255),
     sound = "",
   },
-  Smoke = {
-    texture = "rbxassetid://244514357",
-    rate = 12,
-    lifetime = NumberRange.new(1.2, 2.2),
-    speed = NumberRange.new(0.5, 2),
-    spread = Vector2.new(35, 35),
-    accel = Vector3.new(0, 2, 0),
-    size = {0.7, 2.2, 0.25},
-    color = ColorSequence.new(Color3.fromRGB(95, 95, 95), Color3.fromRGB(35, 35, 35)),
-    light = Color3.fromRGB(95, 95, 95),
-    sound = "",
-  },
   Magic = {
-    texture = "rbxassetid://241876828",
-    rate = 14,
+    texture = "rbxasset://textures/particles/sparkles_main.dds",
+    rate = 18,
     lifetime = NumberRange.new(0.8, 1.6),
     speed = NumberRange.new(1, 3),
     spread = Vector2.new(38, 38),
@@ -927,8 +941,8 @@ local PRESETS = {
     sound = "",
   },
   Ice = {
-    texture = "rbxassetid://241876828",
-    rate = 12,
+    texture = "rbxasset://textures/particles/sparkles_main.dds",
+    rate = 14,
     lifetime = NumberRange.new(1, 2),
     speed = NumberRange.new(0.5, 2),
     spread = Vector2.new(25, 25),
@@ -942,11 +956,11 @@ local PRESETS = {
 
 PRESETS.Poison = PRESETS.Magic
 PRESETS.Holy = PRESETS.Magic
-PRESETS.Dark = PRESETS.Smoke
-PRESETS.Sparkle = PRESETS.Magic
+PRESETS.Dark = PRESETS.Magic
 PRESETS.Energy = PRESETS.Magic
 
-local preset = PRESETS[ELEMENT] or PRESETS.Fire
+local builtin = BUILTIN[ELEMENT]
+local preset = PRESETS[ELEMENT] or PRESETS.Magic
 
 local function startsWith(value, prefix)
   return string.sub(value, 1, #prefix) == prefix
@@ -1018,7 +1032,36 @@ local function targetParts(character)
   return parts
 end
 
+local function attachBuiltin(part, lightHost)
+  cleanup(part)
+  local scale = math.clamp(part.Size.Magnitude / 4, 0.7, 2.6)
+  local fx = Instance.new(builtin.class)
+  fx.Name = PREFIX .. builtin.class
+  for prop, value in pairs(builtin.props) do
+    if prop == "Size" and typeof(value) == "number" then
+      fx[prop] = value * scale
+    else
+      fx[prop] = value
+    end
+  end
+  fx.Parent = part
+
+  if lightHost then
+    local light = Instance.new("PointLight")
+    light.Name = PREFIX .. "Light"
+    light.Color = builtin.light
+    light.Brightness = builtin.lightBrightness
+    light.Range = TARGET_MODE == "aura" and (builtin.lightRange + 4) or builtin.lightRange
+    light.Shadows = false
+    light.Parent = part
+  end
+end
+
 local function attachEffect(part, partCount, lightHost)
+  if builtin then
+    attachBuiltin(part, lightHost)
+    return
+  end
   cleanup(part)
   local scale = math.clamp(part.Size.Magnitude / 4, 0.7, 2.6)
   local rateScale = partCount > 6 and 0.85 or 1
@@ -1045,7 +1088,7 @@ local function attachEffect(part, partCount, lightHost)
     NumberSequenceKeypoint.new(1, 1),
   })
   emitter.Color = preset.color
-  emitter.LightEmission = ELEMENT == "Smoke" and 0.15 or 0.9
+  emitter.LightEmission = 0.9
   emitter.LightInfluence = 0
   emitter.Rotation = NumberRange.new(-180, 180)
   emitter.RotSpeed = NumberRange.new(-90, 90)
@@ -1058,7 +1101,7 @@ local function attachEffect(part, partCount, lightHost)
     local light = Instance.new("PointLight")
     light.Name = PREFIX .. "Light"
     light.Color = preset.light
-    light.Brightness = ELEMENT == "Smoke" and 1 or 2.5
+    light.Brightness = 2.5
     light.Range = TARGET_MODE == "aura" and 14 or 10
     light.Shadows = false
     light.Parent = attachment
@@ -1073,12 +1116,13 @@ local function applyToCharacter(character)
     attachEffect(part, #parts, index == 1)
   end
   local root = firstPart(character, {"HumanoidRootPart", "UpperTorso", "Torso"})
-  if root and preset.sound ~= "" then
+  local soundId = (builtin and builtin.sound) or preset.sound
+  if root and soundId and soundId ~= "" then
     local oldSound = root:FindFirstChild(PREFIX .. "Sound")
     if oldSound then oldSound:Destroy() end
     local sound = Instance.new("Sound")
     sound.Name = PREFIX .. "Sound"
-    sound.SoundId = preset.sound
+    sound.SoundId = soundId
     sound.Volume = 0.32
     sound.Looped = true
     sound.Parent = root
