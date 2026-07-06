@@ -1,9 +1,27 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Bell, Bot, Box, Brain, Check, CheckCircle2, ChevronDown, Copy, Gauge, ImageIcon, Lightbulb, Link2, ListChecks, Palette, Rocket, ScrollText, Search, Share2, ShieldCheck, Sparkles, Users, Wrench, X, Zap } from "lucide-react";
 
-const CHANGELOG_VERSION = "2026-07-05-updates-panel-redesign";
+const CHANGELOG_VERSION = "2026-07-06-workflow-removal-responsive";
 
 const CHANGELOG_ITEMS = [
+  {
+    title: "🧠 Professional workflow law — interpret → expand → search → score → plan → build → validate → self-correct",
+    date: "Jul 6",
+    icon: Brain,
+    body: "BloxSmith now runs a permanent 12-step senior-developer pipeline before emitting any actions. Every prompt is silently interpreted beyond keywords (quantity, style, features, output shape), expanded into multiple related concepts, searched across Toolbox + saved assets + inventory + templates + procedural generation, and every candidate is scored on relevance/completeness/optimization/script quality/mesh + texture quality/ratings/performance — only the highest scorer is inserted. Complete worlds are preferred over isolated props (a 'medieval village' now implies houses + central structure + roads + terrain + trees + market + lighting + NPCs + spawns), missing assets are procedurally generated instead of infinite Toolbox looping, systems ship every layer (UI + data + save + hotbar + drag/drop + equip + anim + notifications + RemoteEvents), and every output is validated then self-corrected until it works. Users see clean results — the pipeline runs invisibly.",
+  },
+  {
+    title: "🗑️ Removal & modification law — no more partial deletes",
+    date: "Jul 6",
+    icon: Wrench,
+    body: "Say 'remove this', 'delete that', 'take out X', 'undo', 'revert', 'clear', 'wipe', 'uninstall', or 'disable' and BloxSmith now cleans up the entire dependency graph in one actions batch — never a partial removal. The intent classifier detects removal phrases deterministically (no model round-trip), extracts the named target from your words, resolves ambiguous 'this/that' against the live Studio scene digest + PROJECT MEMORY's last_build entry, and if it still can't tell which system you mean, asks ONE short clarifier or lists the detected candidates before touching anything. Deletion sweeps every related piece: LocalScripts, ServerScripts, ModuleScripts, RemoteEvents/Functions, BindableEvents, ScreenGuis, Folders, Attachments, ParticleEmitters, Lights, Sounds, Animations, CollectionService tags, StarterCharacterScripts/StarterPlayerScripts entries, and stale BloxSmith_* copies from earlier runs. Surviving scripts that referenced the removed system are patched so no dead WaitForChild or nil dereference remains, then scan_project + autofix_project runs so the plugin verifies the cleanup.",
+  },
+  {
+    title: "📱 Tablet & mobile-friendly workspace — three-pane IDE folds cleanly on small screens",
+    date: "Jul 6",
+    icon: Palette,
+    body: "The IDE-style workspace shell now adapts to phones and tablets instead of crushing three panels into one narrow column. Below 1024px the left and right rails fold into slide-in overlay drawers with a 60% dimmed backdrop, an 88vw-max panel width, and a dedicated close button — tap the existing left/right icons in the floating controls to open them. The center pane (chat, editor, whatever you're working in) now always has room to breathe, focus-mode is hidden where it isn't needed, the shell uses 100dvh so mobile browser chrome doesn't cover the composer, and desktop restores the full resizable three-pane layout automatically when the viewport widens. Keyboard shortcuts (⌘B / ⌘J / ⌘.) still work on both layouts.",
+  },
   {
     title: "🎨 BloxSmith Updates panel — full changelog redesign",
     date: "Jul 5",
