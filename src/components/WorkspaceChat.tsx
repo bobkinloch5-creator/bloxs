@@ -62,18 +62,6 @@ function extractGeneratedImages(parts: any[]): Array<{ url: string; prompt: stri
   return imgs;
 }
 
-function wantsImageGeneration(text: string) {
-  const t = text.trim();
-  if (!t) return false;
-  if (/^generate\s+an?\s+image\s*:/i.test(t)) return true;
-  if (/\b(?:generate|create|make|draw|design)\b.{0,80}\b(?:image|picture|concept\s+art|promo\s+art|ui\s+mockup|menu\s+mockup|loading\s+screen\s+mockup)\b/i.test(t)) return true;
-  if (/\b(?:generate|create|make|draw|design)\b.{0,80}\b(?:thumbnail|icon|logo|badge|banner)\b.{0,40}\b(?:image|picture|graphic|art|asset|for|of)\b/i.test(t)) {
-    return !/\b(?:system|script|leaderstats?|datastore|data\s*store|hud|startergui|screen\s*gui|roblox\s+studio|studio|in[-\s]?game)\b/i.test(t);
-  }
-  return false;
-}
-
-
 type Attachment = { url: string; mediaType: string; name: string };
 type Mode = "chat" | "build";
 
