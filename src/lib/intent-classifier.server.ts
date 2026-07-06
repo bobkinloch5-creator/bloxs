@@ -54,6 +54,9 @@ export async function classifyIntent(userText: string, timeoutMs = 1400): Promis
   if (!text) return null;
   if (text.length > 4000) return null;
 
+  const deterministicRemove = classifyKnownRemoveIntent(text);
+  if (deterministicRemove) return deterministicRemove;
+
   const deterministicVfx = classifyKnownVfxIntent(text);
   if (deterministicVfx) return deterministicVfx;
 
