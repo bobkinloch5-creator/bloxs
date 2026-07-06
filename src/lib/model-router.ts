@@ -31,8 +31,8 @@ const TASK_PREF: Record<AutoTask, { ids: string[]; reason: string }> = {
     reason: "Auto: very fast model for responsive Roblox planning.",
   },
   scripting: {
-    ids: ["nvidia/deepseek-v4-flash", "nvidia/qwen-2.5-coder-32b", "nvidia/gemma-3-27b", DEFAULT_MODEL_ID],
-    reason: "Auto: fastest NVIDIA coder-class model for runnable Luau.",
+    ids: ["nvidia/qwen-2.5-coder-32b", "nvidia/gemma-3-27b", "nvidia/ministral-14b", "nvidia/llama-3.1-8b", "nvidia/nemotron-nano-9b-v2"],
+    reason: "Auto: stable fast NVIDIA route for runnable Luau.",
   },
   ui: {
     ids: ["nvidia/gemma-3-27b", "nvidia/nemotron-nano-9b-v2", "nvidia/qwen-2.5-coder-32b", DEFAULT_MODEL_ID],
@@ -43,12 +43,12 @@ const TASK_PREF: Record<AutoTask, { ids: string[]; reason: string }> = {
     reason: "Auto: small fast model for Toolbox asset planning.",
   },
   bugfix: {
-    ids: ["nvidia/qwen-2.5-coder-32b", "nvidia/deepseek-v4-flash", DEFAULT_MODEL_ID],
+    ids: ["nvidia/qwen-2.5-coder-32b", "nvidia/gemma-3-27b", "nvidia/ministral-14b", DEFAULT_MODEL_ID],
     reason: "Auto: coder-tuned model for bug tracing and fixes.",
   },
   performance: {
-    ids: ["nvidia/qwen-2.5-coder-32b", "nvidia/gemma-3-27b", "nvidia/deepseek-v4-flash"],
-    reason: "Auto: fast coder model for performance fixes.",
+    ids: ["nvidia/qwen-2.5-coder-32b", "nvidia/gemma-3-27b", "nvidia/ministral-14b"],
+    reason: "Auto: stable fast coder model for performance fixes.",
   },
   testing: {
     ids: ["nvidia/nemotron-nano-9b-v2", "nvidia/gemma-3-27b", "nvidia/qwen-2.5-coder-32b"],
