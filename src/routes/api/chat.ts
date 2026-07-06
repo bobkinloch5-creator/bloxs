@@ -4490,7 +4490,7 @@ export const Route = createFileRoute("/api/chat")({
 
           const lastUser = [...messages].reverse().find((m) => m.role === "user");
           const userText = lastUser?.parts.map((p) => (p.type === "text" ? p.text : "")).join("") ?? "";
-          const imageGenerationRequested = wantsGeneratedImage(userText);
+          const imageGenerationRequested = mode === "chat" && wantsGeneratedImage(userText);
 
           const requestedId = body.modelId || DEFAULT_MODEL_ID;
           const requestedCandidate = findModel(requestedId);

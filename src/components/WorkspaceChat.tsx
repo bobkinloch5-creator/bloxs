@@ -488,7 +488,6 @@ export function WorkspaceChat({
 
     // Use the live mode ref (or an explicit override from the caller) so a
     // synchronous mode flip in the same click cycle is honored on this send.
-    const autoImageMode = !overrideMode && liveModeRef.current === "chat" && wantsImageGeneration(text);
     const effectiveMode: Mode = overrideMode ?? liveModeRef.current;
     liveModeRef.current = effectiveMode;
 
