@@ -6049,6 +6049,49 @@ export const Route = createFileRoute("/api/chat")({
                     .map((action) => ({ action, issues: finalScriptIssues(action) }))
                     .filter((x) => x.issues.length > 0);
 
+                  // Second autofix pass — targeted regeneration with the
+                  // exact validator messages from the FIRST retry attached,
+                  // so NVIDIA gets a clearer signal than the initial generic
+                  // "empty or invalid" nudge. Runs only for scripts still
+                  // failing after pass #1, and stays bounded by REPAIR_CAP.
+                  if (invalidScripts.length > 0) {
+                    try {
+                      const { generateLuauReplacementWithNvidia } = await import("@/lib/nvidia-critique.server");
+                      const retry2Targets = invalidScripts.slice(0, REPAIR_CAP);
+                      const retry2 = await Promise.allSettled(retry2Targets.map(({ action, issues }) =>
+                        generateLuauReplacementWithNvidia({
+                          issues,
+                          actionName: action?.name,
+                          actionKind: action?.kind,
+                          parentPath: action?.parent_path,
+                          userRequest: `${userText}\n\n(Second regeneration pass — the previous attempt still failed validation with the errors listed above. Return complete, executable Luau that satisfies every error.)`,
+                        })
+                      ));
+                      let repaired2 = 0;
+                      retry2.forEach((r, i) => {
+                        if (r.status === "fulfilled" && r.value) {
+                          const target = retry2Targets[i].action;
+                          const renorm = normalizePluginAction({
+                            kind: target.kind,
+                            name: target.name,
+                            parent_path: target.parent_path,
+                            payload: { ...(target.payload ?? {}), _needs_retry: undefined, _luau_issues: undefined, source: r.value },
+                          });
+                          target.payload = renorm.payload;
+                          repaired2 += 1;
+                        }
+                      });
+                      if (repaired2 > 0) {
+                        console.info("[chat] nvidia second-pass regeneration succeeded", { repaired: repaired2, of: retry2Targets.length });
+                        invalidScripts = (actions as any[])
+                          .map((action) => ({ action, issues: finalScriptIssues(action) }))
+                          .filter((x) => x.issues.length > 0);
+                      }
+                    } catch (retry2Err) {
+                      console.warn("[chat] nvidia second-pass regeneration failed", retry2Err);
+                    }
+                  }
+
                   if (invalidScripts.length > 0) {
                     const blocked = new Set(invalidScripts.map((x) => x.action));
                     blockedScriptMessages = invalidScripts.map((x) => scriptIssueLabel(x.action, x.issues)).slice(0, 5);
@@ -6058,6 +6101,7 @@ export const Route = createFileRoute("/api/chat")({
                     console.warn("[chat] blocked invalid scripts before Studio queue", { blocked: blockedScriptMessages });
                   }
                 }
+
 
                 if (mode === "build" && blockedScriptMessages.length > 0 && actions.length === 0) {
                   try {
