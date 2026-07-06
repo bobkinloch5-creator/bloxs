@@ -6519,7 +6519,7 @@ export const Route = createFileRoute("/api/chat")({
               ...(modelSettings?.topP !== undefined ? { topP: modelSettings.topP } : {}),
               maxOutputTokens: capOutputTokens(modelSettings, mode, buildQuality),
               tools: mode === "chat" ? chatTools : buildTools,
-              stopWhen: stepCountIs(mode === "chat" ? 6 : fastBuild ? 6 : 14),
+              stopWhen: stepCountIs(mode === "chat" ? 6 : fastBuild ? 6 : 8),
               onChunk: ({ chunk }) => {
                 if (chunk.type === "text-delta") {
                   const delta = (chunk as { text?: string; delta?: string }).text
@@ -6561,7 +6561,7 @@ export const Route = createFileRoute("/api/chat")({
                 const msg = err instanceof Error ? err.message : String(err);
                 console.error("[chat] mid-stream error on primary", modelChoice.meta.id, msg);
                 if (/402|credit/i.test(msg)) return "The selected AI model is unavailable right now. Try again in a moment.";
-                if (/429|rate|capacity|overloaded|503|502|timeout|Too Many/i.test(msg)) return `AI is busy (${modelChoice.meta.label}). Wait a few seconds and click Resend, or switch models in the picker.`;
+                if (/429|rate|capacity|overloaded|503|502|timeout|Too Many/i.test(msg)) return `That fast AI route is busy. Click Resend — BloxSmith will use the stable fallback route now.`;
                 if (/Tool result is missing/i.test(msg)) return "The previous turn was interrupted mid-tool-call. Please resend your request.";
                 if (/unavailable tool ['\"]?insert_asset/i.test(msg)) return "The model tried to insert an asset directly; BloxSmith kept the build alive and queued a safe Studio fallback. Please click Resend if you want another pass.";
                 return `AI request failed on ${modelChoice.meta.label}: ${msg}. Try Resend or pick a different model.`;
@@ -6586,7 +6586,7 @@ export const Route = createFileRoute("/api/chat")({
                   onError: (err) => {
                     const msg = err instanceof Error ? err.message : String(err);
                     if (/402|credit/i.test(msg)) return "The selected AI model is unavailable right now. Try again in a moment.";
-                    if (/429|rate|capacity|overloaded|503|502|timeout/i.test(msg)) return "AI is busy right now. Wait a few seconds and try again.";
+                    if (/429|rate|capacity|overloaded|503|502|timeout/i.test(msg)) return "That AI route is busy. Click Resend and BloxSmith will use the stable fallback route.";
                     if (/unavailable tool ['\"]?insert_asset/i.test(msg)) return "The model tried to insert an asset directly; BloxSmith kept the build alive and queued a safe Studio fallback. Please click Resend if you want another pass.";
                     return `AI request failed: ${msg}`;
                   },
