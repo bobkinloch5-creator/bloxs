@@ -1097,8 +1097,20 @@ end
 
 if not APPLY_NPCS then
   Players.PlayerAdded:Connect(hookPlayer)
+  -- Apply to everyone already in-game (Studio Solo, mid-session inserts) immediately.
   for _, player in ipairs(Players:GetPlayers()) do
     hookPlayer(player)
+  end
+end
+
+-- Studio Edit-mode preview: if there are no players yet (script inserted while not playing),
+-- attach the effect to any rigged Humanoid model already in Workspace so the builder can
+-- see the fire live in the viewport without hitting Play.
+for _, descendant in ipairs(Workspace:GetDescendants()) do
+  if descendant:IsA("Model")
+     and descendant:FindFirstChildOfClass("Humanoid")
+     and not Players:GetPlayerFromCharacter(descendant) then
+    task.defer(applyToCharacter, descendant)
   end
 end
 
@@ -1108,9 +1120,6 @@ if APPLY_NPCS then
     if model:FindFirstChildOfClass("Humanoid") then
       applyToCharacter(model)
     end
-  end
-  for _, descendant in ipairs(Workspace:GetDescendants()) do
-    if descendant:IsA("Model") then maybeNpc(descendant) end
   end
   Workspace.DescendantAdded:Connect(function(descendant)
     if descendant:IsA("Model") then task.defer(maybeNpc, descendant) end
