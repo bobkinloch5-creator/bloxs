@@ -2105,6 +2105,7 @@ function cleanedAssetPrompt(userText: string) {
 }
 
 function toolboxAssetFinderRequests(userText: string): Array<ToolboxSetRequest & { role?: string; folder?: string }> {
+  if (isHumanoidVfxRequest(userText)) return [];
   if (!isSinglePhysicalAssetRequest(userText) && (isToolboxMapRequest(userText) || isRobloxSystemRequest(userText))) return [];
   const matches: Array<ToolboxSetRequest & { role?: string; folder?: string }> = [];
   for (const category of TOOLBOX_ASSET_FINDER_CATEGORIES) {
@@ -3810,7 +3811,7 @@ Workspace.StreamingEnabled = true
 }
 
 function isRobloxSystemRequest(userText: string) {
-  return isBroadPlayableGameRequest(userText) || /\b(script|scripting|code|game|experience|mechanic|system|gui|ui|screen|loading|load\s*screen|main\s*menu|menu|hud|button|shop|inventory|settings|gamepass|quest|health|cash|coins|leaderstats|remote|event|datastore|save|checkpoint|timer|round|notification|mobile\s*controls?|speed\s*boost|sprint|dash|double\s*jump|high\s*jump|super\s*jump|jump\s*boost|space\s*bar|keybind|key\s*bind|ability|power|obby|parkour|tycoon|simulator|rpg|dungeon|combat|fighting|weapon|gun|sword|shooter|arena|battle|zombie|survival|horror|tower\s*defen[cs]e|role\s*play|roleplay|racing|pet\s*(simulator|game|system)|trading|farming|fishing|minigame)\b/i.test(userText);
+  return isHumanoidVfxRequest(userText) || isBroadPlayableGameRequest(userText) || /\b(script|scripting|code|game|experience|mechanic|system|gui|ui|screen|loading|load\s*screen|main\s*menu|menu|hud|button|shop|inventory|settings|gamepass|quest|health|cash|coins|leaderstats|remote|event|datastore|save|checkpoint|timer|round|notification|mobile\s*controls?|speed\s*boost|sprint|dash|double\s*jump|high\s*jump|super\s*jump|jump\s*boost|space\s*bar|keybind|key\s*bind|ability|power|aura|vfx|visual\s*effects?|particles?|fire|flames?|flaming|burning|on\s*fire|lightning|electric|smoke|magic|ice|frost|glow(?:ing)?|sparkles?|trail|obby|parkour|tycoon|simulator|rpg|dungeon|combat|fighting|weapon|gun|sword|shooter|arena|battle|zombie|survival|horror|tower\s*defen[cs]e|role\s*play|roleplay|racing|pet\s*(simulator|game|system)|trading|farming|fishing|minigame)\b/i.test(userText);
 }
 
 function robloxSystemStudioActions(userText: string, languageName: string) {
