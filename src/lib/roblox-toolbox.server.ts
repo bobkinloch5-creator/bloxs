@@ -496,6 +496,34 @@ function qualityTier(score: number): "excellent" | "good" | "usable" {
   return "usable";
 }
 
+// Name tokens that suggest a FRAGMENT of a build (single wall, piece of scaffolding,
+// lone tile) rather than a complete standalone model. When the user asks for a
+// whole thing ("house", "castle", "school") these should rank BELOW complete builds.
+const FRAGMENT_PATTERNS = [
+  /\b(wall|walls|walkway|scaffold(ing)?|fence\s*piece|piece|pieces|fragment|chunk|half|slab|tile|panel|beam|column|pillar|floor\s*tile|roof\s*tile|brick|blocks?|corner|edge|section|module|part\s*\d+|part[_ ]?[a-e]\b)\b/i,
+];
+// Name tokens that signal a COMPLETE build worth boosting for whole-structure asks.
+const COMPLETE_PATTERNS = [
+  /\b(complete|full|finished|detailed|realistic|modern|classic|premium|showcase|ready|prebuilt|entire|whole|standalone|single\s+family|two\s+story|three\s+story)\b/i,
+];
+// "Structure" nouns — when the user asks for one of these, punish fragments hard.
+const STRUCTURE_NOUNS = /\b(house|home|mansion|villa|cottage|cabin|castle|fortress|palace|citadel|keep|temple|church|school|hospital|bank|shop|store|cafe|restaurant|building|tower|windmill|lighthouse|barn|farmhouse|station|hotel|resort|museum|library|apartment|skyscraper|office)\b/i;
+
+function completenessScore(name: string, keyword: string, singleAsset: boolean): number {
+  const n = (name || "").toLowerCase();
+  if (!n) return 0;
+  const wantsStructure = STRUCTURE_NOUNS.test(keyword);
+  let s = 0;
+  if (COMPLETE_PATTERNS.some((re) => re.test(n))) s += 0.12;
+  if (FRAGMENT_PATTERNS.some((re) => re.test(n))) {
+    // Heavy penalty when the user wants a whole structure and this looks like a chunk.
+    s -= wantsStructure || singleAsset ? 0.35 : 0.15;
+  }
+  // Bare structural noun in the name = strong completeness signal ("Modern House", "Medieval Castle").
+  if (wantsStructure && STRUCTURE_NOUNS.test(n)) s += 0.08;
+  return s;
+}
+
 function stableHash(value: string): number {
   let hash = 2166136261;
   for (let i = 0; i < value.length; i += 1) {
@@ -504,6 +532,7 @@ function stableHash(value: string): number {
   }
   return hash >>> 0;
 }
+
 
 function isAllowedCreator(creatorName: string): boolean {
   const c = creatorName.trim();
