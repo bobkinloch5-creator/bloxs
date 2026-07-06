@@ -40,7 +40,7 @@ Schema:
 }
 
 Rules:
-- "ability" = player powers with mechanics (flight, dash, punch). "vfx" = particle/visual effects (fire aura, turn my character into flames, lightning aura, smoke, magic glow, ice effect, trails, explosions, glowing particles) even when phrased casually. "system" = gameplay loops (shop, quests, DataStore). "map" = world/scene/kit. "ui" = menus/HUD/screens. "asset" = insert toolbox model. "fix" = repair prior error. "chat" = pure Q&A / discussion.
+- "ability" = player powers with mechanics (flight, dash, punch). "vfx" = particle/visual effects (fire aura, turn my character into flames, lightning aura, smoke, magic glow, ice effect, trails, explosions, glowing particles) even when phrased casually. "system" = gameplay loops (shop, quests, DataStore). "map" = world/scene/kit. "ui" = menus/HUD/screens. "asset" = insert toolbox model. "fix" = repair prior error. "remove" = the user is asking to remove, delete, take out, get rid of, undo, revert, clear, wipe, erase, uninstall, disable, or replace something that was previously built. "chat" = pure Q&A / discussion.
 - "scope: single" = one thing (one script, one asset). "feature" = one complete feature. "game" = whole experience.
 - For humanoid VFX phrases such as "turn my character into flames", "engulf my character in fire", "flaming hands", "electric body", or "magic aura", classify as category "vfx", scope "feature", targets including the affected body parts/character and the element. Do NOT classify these as asset insertion.
 - "wants_ui" is true ONLY if the user named a UI element. Default false — do not add menus by default.
