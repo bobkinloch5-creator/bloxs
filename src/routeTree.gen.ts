@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as TemplatesMarketRouteImport } from './routes/templates-market'
 import { Route as SupportRouteImport } from './routes/support'
+import { Route as StatusRouteImport } from './routes/status'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as ShowcaseRouteImport } from './routes/showcase'
 import { Route as PrivacyRouteImport } from './routes/privacy'
@@ -73,6 +74,11 @@ const TemplatesMarketRoute = TemplatesMarketRouteImport.update({
 const SupportRoute = SupportRouteImport.update({
   id: '/support',
   path: '/support',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StatusRoute = StatusRouteImport.update({
+  id: '/status',
+  path: '/status',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
@@ -330,6 +336,7 @@ export interface FileRoutesByFullPath {
   '/privacy': typeof PrivacyRoute
   '/showcase': typeof ShowcaseRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/status': typeof StatusRoute
   '/support': typeof SupportRoute
   '/templates-market': typeof TemplatesMarketRoute
   '/terms': typeof TermsRoute
@@ -381,6 +388,7 @@ export interface FileRoutesByTo {
   '/privacy': typeof PrivacyRoute
   '/showcase': typeof ShowcaseRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/status': typeof StatusRoute
   '/support': typeof SupportRoute
   '/templates-market': typeof TemplatesMarketRoute
   '/terms': typeof TermsRoute
@@ -434,6 +442,7 @@ export interface FileRoutesById {
   '/privacy': typeof PrivacyRoute
   '/showcase': typeof ShowcaseRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/status': typeof StatusRoute
   '/support': typeof SupportRoute
   '/templates-market': typeof TemplatesMarketRoute
   '/terms': typeof TermsRoute
@@ -487,6 +496,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/showcase'
     | '/sitemap.xml'
+    | '/status'
     | '/support'
     | '/templates-market'
     | '/terms'
@@ -538,6 +548,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/showcase'
     | '/sitemap.xml'
+    | '/status'
     | '/support'
     | '/templates-market'
     | '/terms'
@@ -590,6 +601,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/showcase'
     | '/sitemap.xml'
+    | '/status'
     | '/support'
     | '/templates-market'
     | '/terms'
@@ -643,6 +655,7 @@ export interface RootRouteChildren {
   PrivacyRoute: typeof PrivacyRoute
   ShowcaseRoute: typeof ShowcaseRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  StatusRoute: typeof StatusRoute
   SupportRoute: typeof SupportRoute
   TemplatesMarketRoute: typeof TemplatesMarketRoute
   TermsRoute: typeof TermsRoute
@@ -691,6 +704,13 @@ declare module '@tanstack/react-router' {
       path: '/support'
       fullPath: '/support'
       preLoaderRoute: typeof SupportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/status': {
+      id: '/status'
+      path: '/status'
+      fullPath: '/status'
+      preLoaderRoute: typeof StatusRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sitemap.xml': {
@@ -1096,6 +1116,7 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacyRoute: PrivacyRoute,
   ShowcaseRoute: ShowcaseRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  StatusRoute: StatusRoute,
   SupportRoute: SupportRoute,
   TemplatesMarketRoute: TemplatesMarketRoute,
   TermsRoute: TermsRoute,
