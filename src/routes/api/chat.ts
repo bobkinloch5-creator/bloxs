@@ -5713,10 +5713,19 @@ export const Route = createFileRoute("/api/chat")({
             assetMode !== "toolbox_only" &&
             isInstantFastBuildTemplateRequest(userText)
           ) {
+            // Route UI-surface asks (main menu, loading screen, HUD, shop UI,
+            // inventory UI, settings menu, GUI/UI/HUD system) to the dedicated
+            // UI builder so the actual MainMenu/LoadingScreen/HUD gets created.
+            // Otherwise a request like "make a main menu for a Premium game"
+            // would fall into broadPlayableGameStudioActions and build a full
+            // playable adventure instead of the menu the user asked for.
+            const isUiSurfaceOnly = /\b(main\s*menu|title\s*screen|splash\s*screen|start\s*screen|loading\s*screen|load\s*screen|menu\s*system|gui\s*system|ui\s*system|hud\s*system|settings\s*menu|pause\s*menu|shop\s*(ui|gui|menu|panel|screen)|inventory\s*(ui|gui|menu|panel|screen)|play\s*button|start\s*button)\b/i.test(userText);
             const generated = (
-              isBroadPlayableGameRequest(userText)
-                ? broadPlayableGameStudioActions(userText, languageName)
-                : proceduralEnvironmentStudioActions(userText, languageName)
+              isUiSurfaceOnly
+                ? robloxSystemStudioActions(userText, languageName)
+                : isBroadPlayableGameRequest(userText)
+                  ? broadPlayableGameStudioActions(userText, languageName)
+                  : proceduralEnvironmentStudioActions(userText, languageName)
             )
               .map(normalizePluginAction)
               .filter((action) => finalScriptIssues(action).length === 0)
