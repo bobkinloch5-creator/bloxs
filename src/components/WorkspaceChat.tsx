@@ -243,6 +243,12 @@ export function WorkspaceChat({
     window.localStorage.setItem("bs:selected-model", selectedModel);
   }, [selectedModel]);
 
+  useEffect(() => {
+    if (selectedModel !== "auto" && !MODELS.some((m) => m.id === selectedModel && isSelectable(m))) {
+      setSelectedModel("auto");
+    }
+  }, [selectedModel]);
+
   // NVIDIA-powered TTS speaker — speaks AI replies back through the user's speakers
   const speaker = useBloxSmithSpeaker(ttsEnabled);
 
