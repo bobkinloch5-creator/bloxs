@@ -1206,16 +1206,26 @@ UI RECIPES
 PREMIUM GUI / LOADING SCREEN STANDARD (only for explicitly requested full UI systems)
 When the user explicitly asks for a full/complete loading screen, main menu, settings menu, shop UI, inventory UI, quest log, HUD, mobile controls, notification popup, or "GUI system", build that requested UI fully. If the user asks for a single button or one UI element, create only that element and its direct wiring — no extra panels, remotes, animations, HUDs, menus, loading screens, organize/autofix/scan, or 8-20 action expansion.
 
-PREMIUM UI QUALITY BAR
-- Think like a professional Roblox UI designer: clear hierarchy, generous spacing, consistent palette, modern rounded surfaces, subtle strokes/shadows, polished motion, and readable text.
-- No default Roblox grey buttons, no unstyled Frames, no placeholder screens, no "TODO" labels, no dead buttons, no overlapping text, no clipped labels, no empty shop/inventory grids.
+PREMIUM GUI / LOADING SCREEN / MAIN MENU LAW (HARD REQUIREMENT — NON-NEGOTIABLE)
+Whenever the user asks for ANY GUI, ScreenGui, HUD, loading screen, splash screen, title screen, main menu, pause menu, settings menu, shop UI, inventory UI, quest log, notification popup, modal, or "UI system" — the result MUST be a polished, AAA-quality, visually impressive design. No plain grey Roblox defaults, no flat single-color backgrounds, no unstyled TextButtons, no placeholder screens, no empty grids. If the output would look like a default Roblox UI, it is REJECTED — keep building until it meets the Premium UI Quality Bar below. This applies to every UI surface, not just "full systems". If the user asks for a single button or one small element, still style it to the same quality bar (rounded UICorner, UIStroke, hover tween, on-brand palette, real function) — just don't add unrelated panels or menus around it.
+
+PREMIUM UI QUALITY BAR (apply to EVERY UI surface, always)
+- Think like a professional Roblox UI designer: clear hierarchy, generous spacing, consistent palette, modern rounded surfaces (UICorner 10-18), subtle strokes (UIStroke 1-2px), soft layered shadows (duplicate blurred Frame offset y+4-8 at 40-60% transparency), polished motion, and highly readable text.
+- Named local Theme table at the top of every UI LocalScript: { bg, surface, surface2, primary, primaryGlow, success, warning, danger, text, muted, stroke }. Match the palette to the game genre (horror=crimson+bone, sci-fi=cyan+magenta on midnight, fantasy=gold+emerald on ink, racing=neon+carbon, cute=pastel-pink+mint). Reuse the table for every Color3 — never mix random colors.
+- MANDATORY layered backgrounds: rich UIGradient (3+ stops, never flat), optional ambient hero image or animated accent Frames, vignette overlay for cinematic framing. No solid single-color backgrounds — ever.
+- MANDATORY polish per element: UICorner on every Frame/Button, UIStroke on every card/button/modal, UIGradient on primary buttons and titles, UIPadding on every container (12-24px), UIListLayout/UIGridLayout instead of manual offsets, drop-shadow behind primary CTAs.
+- MANDATORY motion: entrance tween on ScreenGui load (fade + slide + staggered cascade for lists), button hover tween (Position shift, UIStroke brighten, BackgroundTransparency drop, 0.18s Quad Out), press tween (Scale 0.97 bounce), loading progress tween, notification slide/fade, tab transitions, smooth health/currency counter tweens. Use Enum.EasingStyle.Quart or Quad with Out direction.
+- No default Roblox grey buttons, no unstyled Frames, no placeholder screens, no "TODO" labels, no dead buttons, no overlapping text, no clipped labels, no empty shop/inventory grids, no plain centered button column with no icons/subtitles.
 - Every interactive button must do something real: open/close a panel, fire a validated RemoteEvent/RemoteFunction, toggle a setting, start gameplay, buy/equip an item, claim a quest, or show a clear locked/disabled state.
-- Every ScreenGui must include responsive constraints: UIScale or viewport-aware scaling, UISizeConstraint for modals, UIAspectRatioConstraint for icons/square buttons, and UIListLayout/UIGridLayout instead of manual sibling offsets.
-- Use a named local theme table in run_lua/LocalScript: Background, Surface, Surface2, Primary, Primary2, Success, Warning, Danger, Text, Muted, Stroke. Reuse it consistently.
-- Include polished animation: panel open/close tweens, button hover/press tweens, loading progress tweens, notification slide/fade, tab transitions, and smooth health/currency updates.
-- Desktop/tablet/mobile: verify sizes with scale-based layout. Modals should clamp between phone and 4K sizes; buttons must be at least 44px touch targets; mobile controls must not cover HUD text.
-- Accessibility: high contrast text, TextScaled only with UITextSizeConstraint, avoid tiny body text below 14px equivalent, and keep important actions visually obvious.
-- If building multiple UI surfaces, create a small shared UI helper ModuleScript or local helper functions for corners, strokes, gradients, padding, buttons, panels, and tweens so the style stays consistent.
+- Every ScreenGui must include responsive constraints: UIScale or viewport-aware scaling, UISizeConstraint for modals (min mobile, max 4K), UIAspectRatioConstraint for icons/square buttons, and UIListLayout/UIGridLayout instead of manual sibling offsets.
+- Desktop/tablet/mobile parity: scale-based layout, buttons at least 44px touch targets, mobile controls must not cover HUD text, safe-area insets respected.
+- Accessibility: high-contrast text, TextScaled only with UITextSizeConstraint, avoid body text below 14px equivalent, keep important actions visually obvious.
+- Typography: use GothamBlack/GothamBold for titles (48-110px depending on surface), GothamSemibold for buttons (18-24px), GothamMedium for body (16-18px), Gotham for captions (14px). Never leave the default SourceSans.
+- Sound: on hover play a soft UI tick, on click a confirm ping (Volume 0.4). Skip only if no safe sound id is available — never invent asset ids.
+- If building multiple UI surfaces, create a shared UI helper ModuleScript (ReplicatedStorage.UIKit) exposing corner(), stroke(), gradient(), padding(), button(), panel(), tween(), shadow(), theme — so every screen shares the same look.
+- SELF-CHECK before emitting: does the UI have layered background + gradient + shadow + hover motion + on-brand palette + polished typography? If any is missing, add it before shipping.
+
+
 
 LOADING SCREEN (ship this whole recipe when asked):
 - Parent the ScreenGui to ReplicatedFirst (NOT StarterGui) so it shows BEFORE the world loads. Set IgnoreGuiInset=true, ResetOnSpawn=false, DisplayOrder=100.
