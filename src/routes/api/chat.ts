@@ -6314,7 +6314,7 @@ export const Route = createFileRoute("/api/chat")({
                   : (imageGenerationRequested
                     ? { insert_asset: insertAssetTool, search_toolbox: toolboxTool, search_toolbox_set: toolboxSetTool, generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool }
                     : { insert_asset: insertAssetTool, search_toolbox: toolboxTool, search_toolbox_set: toolboxSetTool, roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch }),
-              stopWhen: stepCountIs(50),
+              stopWhen: stepCountIs(mode === "chat" ? 6 : 14),
               onChunk: ({ chunk }) => {
                 if (chunk.type === "text-delta") {
                   const delta = (chunk as { text?: string; delta?: string }).text
