@@ -329,17 +329,32 @@ export const runSmartBrain = createServerFn({ method: "POST" })
 
     // Stage 1: intent
     const intent = await analyzeIntent(data.goal);
+    const difficulty = intent.complexity === "large"
+      ? "hard"
+      : intent.complexity === "trivial"
+        ? "easy"
+        : estimateDifficulty(data.goal);
 
     // Stage 2: context
     const { digest, contextSummary } = await retrieveContext(sb, data.projectId);
 
-    // Stage 3: plan
-    const plan = await generatePlan(data.goal, contextSummary, intent);
+    // Stage 3: plan (+ critique + one re-plan if score < 7)
+    let plan = await generatePlan(data.goal, contextSummary, intent);
+    let critique = await critiquePlan(data.goal, plan);
+    if (critique.score < 7 && critique.gaps.length) {
+      const revisedGoal = `${data.goal}\n\n[BRAIN CRITIQUE — address these gaps in the revised plan:]\n- ${critique.gaps.join("\n- ")}`;
+      const revised = await generatePlan(revisedGoal, contextSummary, intent);
+      const revisedCritique = await critiquePlan(data.goal, revised);
+      if (revisedCritique.score >= critique.score) {
+        plan = revised;
+        critique = revisedCritique;
+      }
+    }
 
     // Stage 4: specialists (parallel, only those the intent flagged, cap at 4)
     const wantedTasks = Array.from(new Set(intent.needs)).slice(0, 4);
     const specialists = await Promise.all(
-      wantedTasks.map((task) => runSpecialist(task, data.goal, plan, digest.text)),
+      wantedTasks.map((task) => runSpecialist(task, data.goal, plan, digest.text, difficulty)),
     );
 
     // Stage 5+6: merge → directive
@@ -351,7 +366,10 @@ export const runSmartBrain = createServerFn({ method: "POST" })
       digestEmpty: digest.isEmpty,
     });
 
-    const confidence = scoreConfidence(intent, digest.isEmpty, specialists);
+    const confidence = Math.min(
+      0.98,
+      scoreConfidence(intent, digest.isEmpty, specialists) * (critique.score / 10),
+    );
 
     // Log the brain run into project_memory as a low-importance decision so
     // future turns can see what the brain decided.
