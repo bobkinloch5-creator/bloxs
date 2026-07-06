@@ -573,9 +573,12 @@ export const pollModelGeneration = createServerFn({ method: "POST" })
         return chained ?? gen;
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
+        const friendly = /pose\s*estimation|valid\s*model|not\s*humanoid|humanoid/i.test(msg)
+          ? "Meshy rigging is humanoid-only — it couldn't detect a two-arm/two-leg pose in this model (common for animals, quadrupeds, vehicles, or objects). Generate a humanoid character (e.g. \"stylized human warrior standing, arms out, T-pose\") and rig that instead."
+          : `Could not start rigging after remesh: ${msg}`;
         const { data: failed } = await supabase.from("model_generations").update({
           status: "FAILED",
-          error: `Could not start rigging after remesh: ${msg}`,
+          error: friendly,
           completed_at: new Date().toISOString(),
         } as any).eq("id", gen.id).select().single();
         return failed ?? gen;
@@ -587,7 +590,11 @@ export const pollModelGeneration = createServerFn({ method: "POST" })
     if (modelUrls) update.model_urls = modelUrls;
     if (textureUrls) update.texture_urls = textureUrls;
     if (thumb) update.thumbnail_url = thumb;
-    if (err) update.error = err;
+    if (err) {
+      update.error = /pose\s*estimation|valid\s*model/i.test(err) && gen.mode === "rig"
+        ? "Meshy rigging is humanoid-only — it couldn't detect a two-arm/two-leg pose in this model (common for animals, quadrupeds, vehicles, or objects). Generate a humanoid character (e.g. \"stylized human warrior standing, arms out, T-pose\") and rig that instead."
+        : err;
+    }
     if (status === "SUCCEEDED" || status === "FAILED") update.completed_at = new Date().toISOString();
 
     const { data: updated } = await supabase
@@ -650,6 +657,14 @@ export const rigModel = createServerFn({ method: "POST" })
     if (!source) throw new Error("Source 3D model not found.");
     if (source.status !== "SUCCEEDED" || !source.task_id) throw new Error("Source model must finish generating before it can be rigged.");
     if (source.mode === "animation" || source.mode === "rig") throw new Error("Pick an original 3D model to rig, not an animation or existing rig.");
+
+    // Meshy rigging is humanoid-only. Reject obviously non-humanoid prompts up-front
+    // so the user doesn't wait 2 minutes for "Pose estimation failed".
+    const promptText = String(source.prompt ?? "").toLowerCase();
+    const nonHumanoid = /\b(dog|cat|wolf|fox|bear|lion|tiger|horse|cow|pig|sheep|goat|deer|rabbit|bunny|mouse|rat|snake|lizard|dragon|dinosaur|t[-\s]?rex|raptor|fish|shark|whale|dolphin|octopus|crab|spider|bee|bird|eagle|owl|chicken|duck|penguin|turtle|frog|quadruped|animal|creature|beast|monster|car|truck|vehicle|plane|boat|ship|tank|robot\s*dog|mech(?!\s*warrior)|weapon|sword|gun|rifle|axe|shield|hammer|bow|staff|wand|building|house|castle|tree|rock|stone|chair|table|furniture|food|fruit|hat|helmet)\b/;
+    if (nonHumanoid.test(promptText)) {
+      throw new Error(`Meshy rigging is humanoid-only and can't rig "${source.prompt}". It needs a two-arm/two-leg character with clear limbs facing forward. Generate a humanoid character (e.g. "stylized human warrior standing, arms out, T-pose") and rig that instead.`);
+    }
 
     let taskId: string;
     let stage: "remesh" | "rigging" = "rigging";
