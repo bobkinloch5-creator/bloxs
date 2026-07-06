@@ -68,6 +68,8 @@ export function ProjectMemoryCard({ projectId }: { projectId: string }) {
   const memories = (data?.memories ?? []) as Memory[];
 
   return (
+    <div className="space-y-3">
+    <WhyDidItPanel projectId={projectId} />
     <div className="bs-card rounded-2xl p-4">
       <div className="flex items-center gap-2">
         <div className="grid h-9 w-9 place-items-center rounded-xl text-white" style={{ background: "var(--bs-grad)" }}>
