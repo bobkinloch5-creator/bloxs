@@ -6403,6 +6403,18 @@ export const Route = createFileRoute("/api/chat")({
                 console.error(`[chat] partial persist (${reason}) failed`, e);
               }
             };
+            const fastBuild = mode === "build" && buildQuality === "basic";
+            const buildTools = fastBuild
+              ? (assetMode === "procedural" && !userExplicitlyRequestedToolbox(userText)
+                ? { insert_asset: insertAssetTool }
+                : { insert_asset: insertAssetTool, search_toolbox: toolboxTool, search_toolbox_set: toolboxSetTool })
+              : assetMode === "procedural" && !userExplicitlyRequestedToolbox(userText)
+                ? (imageGenerationRequested
+                  ? { insert_asset: insertAssetTool, generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool }
+                  : { insert_asset: insertAssetTool, roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch })
+                : (imageGenerationRequested
+                  ? { insert_asset: insertAssetTool, search_toolbox: toolboxTool, search_toolbox_set: toolboxSetTool, generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool }
+                  : { insert_asset: insertAssetTool, search_toolbox: toolboxTool, search_toolbox_set: toolboxSetTool, roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch });
             return streamText({
               model,
               system: (mode === "chat" ? FAST_CHAT_SYSTEM_PROMPT : FAST_BUILD_SYSTEM_PROMPT) + modeHeader + languageHeader + qualityHeader + assetModeRule + contextBlock,
@@ -6416,14 +6428,8 @@ export const Route = createFileRoute("/api/chat")({
                 ? (imageGenerationRequested
                   ? { generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool }
                   : { roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch })
-                : assetMode === "procedural" && !userExplicitlyRequestedToolbox(userText)
-                  ? (imageGenerationRequested
-                    ? { insert_asset: insertAssetTool, generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool }
-                    : { insert_asset: insertAssetTool, roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch })
-                  : (imageGenerationRequested
-                    ? { insert_asset: insertAssetTool, search_toolbox: toolboxTool, search_toolbox_set: toolboxSetTool, generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool }
-                    : { insert_asset: insertAssetTool, search_toolbox: toolboxTool, search_toolbox_set: toolboxSetTool, roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch }),
-              stopWhen: stepCountIs(mode === "chat" ? 6 : 14),
+                : buildTools,
+              stopWhen: stepCountIs(mode === "chat" ? 6 : fastBuild ? 6 : 14),
               onChunk: ({ chunk }) => {
                 if (chunk.type === "text-delta") {
                   const delta = (chunk as { text?: string; delta?: string }).text
