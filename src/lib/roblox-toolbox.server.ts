@@ -374,7 +374,10 @@ export function detectNarrowScopeIntent(prompt: string): NarrowScope {
   const p = prompt.toLowerCase().trim();
   if (hasPositivePackIntent(p)) return null;
   const tokens = p.split(/\s+/);
-  const short = tokens.length <= 14;
+  // Explicit Toolbox / free-model wording is a strong signal even in longer
+  // sentences ("Add one castle from Roblox Toolbox (safe, free, public model)…").
+  const explicitToolbox = /\b(toolbox|free\s+model|public\s+model|creator\s+store|from\s+roblox)\b/i.test(p);
+  const short = tokens.length <= 14 || explicitToolbox;
   const hasOne = QUANTITY_ONE.test(p) || ARTICLE_A.test(p);
   // UI takes precedence — "one gui button" is UI, not a physical asset.
   if (SINGLE_UI_NOUNS.test(p) && (hasOne || short)) return "single_ui";
