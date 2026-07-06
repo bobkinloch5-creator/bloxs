@@ -63,8 +63,14 @@ function extractGeneratedImages(parts: any[]): Array<{ url: string; prompt: stri
 }
 
 function wantsImageGeneration(text: string) {
-  return /\b(generate|create|make|draw|design)\b.*\b(image|picture|thumbnail|icon|logo|badge|banner|concept art|promo|ui mockup|loading screen|menu mockup|art)\b/i.test(text)
-    || /\b(image|thumbnail|icon|logo|badge|banner|concept art|promo art|ui mockup)\b/i.test(text);
+  const t = text.trim();
+  if (!t) return false;
+  if (/^generate\s+an?\s+image\s*:/i.test(t)) return true;
+  if (/\b(?:generate|create|make|draw|design)\b.{0,80}\b(?:image|picture|concept\s+art|promo\s+art|ui\s+mockup|menu\s+mockup|loading\s+screen\s+mockup)\b/i.test(t)) return true;
+  if (/\b(?:generate|create|make|draw|design)\b.{0,80}\b(?:thumbnail|icon|logo|badge|banner)\b.{0,40}\b(?:image|picture|graphic|art|asset|for|of)\b/i.test(t)) {
+    return !/\b(?:system|script|leaderstats?|datastore|data\s*store|hud|startergui|screen\s*gui|roblox\s+studio|studio|in[-\s]?game)\b/i.test(t);
+  }
+  return false;
 }
 
 
@@ -482,10 +488,9 @@ export function WorkspaceChat({
 
     // Use the live mode ref (or an explicit override from the caller) so a
     // synchronous mode flip in the same click cycle is honored on this send.
-    const autoImageMode = !overrideMode && wantsImageGeneration(text);
-    const effectiveMode: Mode = overrideMode ?? (autoImageMode ? "chat" : liveModeRef.current);
+    const autoImageMode = !overrideMode && liveModeRef.current === "chat" && wantsImageGeneration(text);
+    const effectiveMode: Mode = overrideMode ?? liveModeRef.current;
     liveModeRef.current = effectiveMode;
-    if (autoImageMode && mode !== "chat") setComposerMode("chat");
 
     // Build mode is a no-op if the Studio plugin isn't connected — actions
     // would just pile up in the queue with nothing polling for them. Block

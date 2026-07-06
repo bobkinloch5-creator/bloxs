@@ -234,8 +234,14 @@ function capOutputTokens(modelSettings: { maxOutputTokens?: number } | undefined
 
 
 function wantsGeneratedImage(userText: string) {
-  return /\b(generate|create|make|draw|design)\b.*\b(image|picture|thumbnail|icon|logo|badge|banner|concept art|promo|ui mockup|loading screen|menu mockup)\b/i.test(userText)
-    || /\b(image|thumbnail|icon|logo|badge|banner|concept art|promo art|ui mockup)\b/i.test(userText);
+  const t = userText.trim();
+  if (!t) return false;
+  if (/^generate\s+an?\s+image\s*:/i.test(t)) return true;
+  if (/\b(?:generate|create|make|draw|design)\b.{0,80}\b(?:image|picture|concept\s+art|promo\s+art|ui\s+mockup|menu\s+mockup|loading\s+screen\s+mockup)\b/i.test(t)) return true;
+  if (/\b(?:generate|create|make|draw|design)\b.{0,80}\b(?:thumbnail|icon|logo|badge|banner)\b.{0,40}\b(?:image|picture|graphic|art|asset|for|of)\b/i.test(t)) {
+    return !/\b(?:system|script|leaderstats?|datastore|data\s*store|hud|startergui|screen\s*gui|roblox\s+studio|studio|in[-\s]?game)\b/i.test(t);
+  }
+  return false;
 }
 
 function imageKindFromPrompt(userText: string): "logo" | "thumbnail" | "icon" | "badge" | "shop_icon" | "item_icon" | "character_concept" | "map_concept" | "promo" | "banner" | "other" {
@@ -6189,6 +6195,84 @@ export const Route = createFileRoute("/api/chat")({
             },
           });
 
+          const insertAssetTool = tool({
+            description:
+              "Compatibility handler for direct insert_asset tool calls. Prefer search_toolbox/search_toolbox_set, then emit insert_asset objects in the final bloxsmith-actions JSON block. If this tool is called anyway, it returns an action template or a safe no-op instruction so the stream can continue instead of failing.",
+            inputSchema: z.object({
+              asset_id: z.union([z.number(), z.string()]).optional().describe("Roblox asset id to insert, if already known from search_toolbox."),
+              assetId: z.union([z.number(), z.string()]).optional().describe("Alias for asset_id."),
+              id: z.union([z.number(), z.string()]).optional().describe("Alias for asset_id."),
+              source_query: z.string().optional().describe("Toolbox search query used to find the asset."),
+              asset_name: z.string().optional().describe("Human-readable asset name."),
+              name: z.string().optional().describe("Action or instance name."),
+              parent_path: z.string().optional().describe("Roblox parent path, default Workspace."),
+              folder_name: z.string().optional().describe("Optional destination folder."),
+              position: z.array(z.number()).optional().describe("Optional [x,y,z] placement."),
+              rotation: z.array(z.number()).optional().describe("Optional [x,y,z] rotation."),
+              scale: z.number().optional().describe("Optional scale."),
+            }).passthrough(),
+            execute: async (input: Record<string, unknown>) => {
+              if (assetMode === "procedural" && !userExplicitlyRequestedToolbox(userText)) {
+                return {
+                  ok: false,
+                  skipped: true,
+                  reason: "Procedural mode is active, so insert_asset is intentionally a no-op. Continue with run_lua/terrain/part actions and include them in the final bloxsmith-actions block.",
+                };
+              }
+              const rawId = input.asset_id ?? input.assetId ?? input.id;
+              let assetId = Number(rawId);
+              let fallbackIds: number[] = [];
+              let assetName = typeof input.asset_name === "string" ? input.asset_name : typeof input.name === "string" ? input.name : "Toolbox_Asset";
+              const sourceQuery = typeof input.source_query === "string" ? input.source_query : assetName;
+
+              if (!Number.isFinite(assetId) && sourceQuery.trim()) {
+                try {
+                  const result = await searchRobloxToolbox(sourceQuery, "Model", 8, { singleAssetOnly: true });
+                  const picked = result.results[0];
+                  if (picked) {
+                    assetId = picked.id;
+                    fallbackIds = (picked.fallbackIds ?? result.results.slice(1, 4).map((r) => r.id)).slice(0, 6);
+                    assetName = picked.name || assetName;
+                  }
+                } catch (e) {
+                  console.warn("[chat] insert_asset compatibility search failed", e);
+                }
+              }
+
+              if (!Number.isFinite(assetId) || assetId <= 0) {
+                return {
+                  ok: false,
+                  skipped: true,
+                  reason: "No verified asset id was available. Use search_toolbox first, or create the requested result with run_lua/parts/terrain. Do not call insert_asset again without a verified id.",
+                };
+              }
+
+              return {
+                ok: true,
+                action: {
+                  kind: "insert_asset",
+                  parent_path: typeof input.parent_path === "string" ? input.parent_path : "Workspace",
+                  name: String(input.name ?? assetName).replace(/[^\w-]+/g, "_").slice(0, 80) || "Toolbox_Asset",
+                  payload: {
+                    asset_id: assetId,
+                    fallback_ids: fallbackIds,
+                    asset_name: assetName,
+                    source_query: sourceQuery,
+                    folder_name: input.folder_name,
+                    position: input.position,
+                    rotation: input.rotation,
+                    scale: input.scale,
+                    free_only: true,
+                    no_scripts: true,
+                    strip_scripts: true,
+                    allow_scripts: false,
+                  },
+                },
+                instruction: "Copy this action object into the final bloxsmith-actions JSON block. Do not rely on the tool call itself to queue Studio work.",
+              };
+            },
+          });
+
           const tryStream = (
             model: typeof modelChoice.model,
             usedModelId: string,
@@ -6226,11 +6310,11 @@ export const Route = createFileRoute("/api/chat")({
                   : { roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch })
                 : assetMode === "procedural" && !userExplicitlyRequestedToolbox(userText)
                   ? (imageGenerationRequested
-                    ? { generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool }
-                    : { roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch })
+                    ? { insert_asset: insertAssetTool, generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool }
+                    : { insert_asset: insertAssetTool, roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch })
                   : (imageGenerationRequested
-                    ? { search_toolbox: toolboxTool, search_toolbox_set: toolboxSetTool, generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool }
-                    : { search_toolbox: toolboxTool, search_toolbox_set: toolboxSetTool, roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch }),
+                    ? { insert_asset: insertAssetTool, search_toolbox: toolboxTool, search_toolbox_set: toolboxSetTool, generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool }
+                    : { insert_asset: insertAssetTool, search_toolbox: toolboxTool, search_toolbox_set: toolboxSetTool, roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch }),
               stopWhen: stepCountIs(50),
               onChunk: ({ chunk }) => {
                 if (chunk.type === "text-delta") {
@@ -6275,6 +6359,7 @@ export const Route = createFileRoute("/api/chat")({
                 if (/402|credit/i.test(msg)) return "The selected AI model is unavailable right now. Try again in a moment.";
                 if (/429|rate|capacity|overloaded|503|502|timeout|Too Many/i.test(msg)) return `AI is busy (${modelChoice.meta.label}). Wait a few seconds and click Resend, or switch models in the picker.`;
                 if (/Tool result is missing/i.test(msg)) return "The previous turn was interrupted mid-tool-call. Please resend your request.";
+                if (/unavailable tool ['\"]?insert_asset/i.test(msg)) return "The model tried to insert an asset directly; BloxSmith kept the build alive and queued a safe Studio fallback. Please click Resend if you want another pass.";
                 return `AI request failed on ${modelChoice.meta.label}: ${msg}. Try Resend or pick a different model.`;
               },
             });
@@ -6298,6 +6383,7 @@ export const Route = createFileRoute("/api/chat")({
                     const msg = err instanceof Error ? err.message : String(err);
                     if (/402|credit/i.test(msg)) return "The selected AI model is unavailable right now. Try again in a moment.";
                     if (/429|rate|capacity|overloaded|503|502|timeout/i.test(msg)) return "AI is busy right now. Wait a few seconds and try again.";
+                    if (/unavailable tool ['\"]?insert_asset/i.test(msg)) return "The model tried to insert an asset directly; BloxSmith kept the build alive and queued a safe Studio fallback. Please click Resend if you want another pass.";
                     return `AI request failed: ${msg}`;
                   },
                 });
