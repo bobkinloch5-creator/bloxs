@@ -876,18 +876,18 @@ local PREFIX = "BloxSmith_" .. ELEMENT .. "VFX_"
 local PRESETS = {
   Fire = {
     texture = "rbxassetid://243660364",
-    rate = 18,
-    lifetime = NumberRange.new(0.6, 1.2),
-    speed = NumberRange.new(2, 5),
-    spread = Vector2.new(28, 28),
-    accel = Vector3.new(0, 6, 0),
-    size = {0.45, 1.85, 0.18},
+    rate = 55,
+    lifetime = NumberRange.new(0.55, 1.1),
+    speed = NumberRange.new(3, 7),
+    spread = Vector2.new(35, 35),
+    accel = Vector3.new(0, 9, 0),
+    size = {0.6, 2.6, 0.2},
     color = ColorSequence.new({
-      ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 230, 120)),
-      ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 125, 28)),
-      ColorSequenceKeypoint.new(1, Color3.fromRGB(130, 24, 0)),
+      ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 235, 130)),
+      ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 120, 25)),
+      ColorSequenceKeypoint.new(1, Color3.fromRGB(120, 20, 0)),
     }),
-    light = Color3.fromRGB(255, 120, 40),
+    light = Color3.fromRGB(255, 140, 55),
     sound = "rbxassetid://5786758392",
   },
   Lightning = {
