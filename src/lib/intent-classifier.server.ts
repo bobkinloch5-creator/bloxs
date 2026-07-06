@@ -215,8 +215,47 @@ export function renderIntentBlock(intent: Intent | null): string | null {
     lines.push(`- For phrases like "turn my character into flames", "engulfed in fire", or "on fire", target the full humanoid body: HumanoidRootPart, torso, head, arms/hands, and legs/feet with R15/R6 fallbacks.`);
     lines.push(`- The effect must follow the character, survive respawn via CharacterAdded, clean stale copies, replicate from the server when other players should see it, and avoid damage unless explicitly requested.`);
   }
+  if (intent.category === "remove") {
+    lines.push(`- REMOVAL intent — do NOT build new features this turn. Identify the exact target from CURRENT STUDIO SCENE DIGEST and PROJECT MEMORY (especially the "last_build" entry). If ambiguous, ask ONE clarifying question or list detected candidates before touching anything.`);
+    lines.push(`- Remove EVERY related piece in the same actions batch: scripts, ModuleScripts, RemoteEvents/Functions, BindableEvents, ScreenGuis, Folders, Attachments, ParticleEmitters, Lights, Sounds, Animations, CollectionService tags, StarterCharacterScripts/StarterPlayerScripts entries, and stale prefixed copies (e.g. BloxSmith_*).`);
+    lines.push(`- Patch or update any surviving scripts that referenced the removed system so no dead WaitForChild / nil dereference remains, then end with scan_project + autofix_project.`);
+  }
   if (intent.clarify) {
     lines.push(`\n⚠️ LOW CONFIDENCE — before doing heavy work, ask this ONE question in your first sentence, then wait: "${intent.clarify}"`);
   }
   return lines.join("\n");
+}
+
+function classifyKnownRemoveIntent(text: string): Intent | null {
+  const lower = text.toLowerCase().trim();
+  const removalVerb = /\b(remove|delete|take\s+(?:out|off|away)|get\s+rid\s+of|undo|revert|clear|wipe|erase|uninstall|disable|kill\s+(?:the|this|that)|scrap|drop\s+(?:the|this|that))\b/i.test(lower);
+  if (!removalVerb) return null;
+  // Ignore requests where "remove" is embedded inside build phrasing ("build a system that can remove items")
+  if (/\b(build|create|make|add|generate|design|implement|code)\b/.test(lower) && !/^\s*(?:please\s+|can\s+you\s+|could\s+you\s+)?(?:remove|delete|take|get\s+rid|undo|revert|clear|wipe|erase|uninstall|disable|scrap)\b/.test(lower)) {
+    return null;
+  }
+
+  const targets: string[] = [];
+  const targetMatches = Array.from(lower.matchAll(/\b(?:remove|delete|take\s+out|take\s+off|get\s+rid\s+of|undo|revert|clear|wipe|erase|uninstall|disable|scrap|drop)\s+(?:the\s+|that\s+|this\s+|my\s+|all\s+)?([a-z0-9][a-z0-9 _\-]{1,60})/gi));
+  for (const m of targetMatches) {
+    const raw = m[1].trim().replace(/\s+(please|now|thanks?|thank\s+you|for\s+me)$/i, "");
+    if (raw) targets.push(raw.slice(0, 60));
+  }
+  const restated = targets.length
+    ? `Fully remove ${targets.join(", ")} and every dependency it created (scripts, RemoteEvents, UI, attachments, tags, stale copies).`
+    : `Fully remove the referenced item the user pointed at, along with every dependency it created.`;
+
+  return {
+    category: "remove",
+    scope: targets.length ? "feature" : "single",
+    targets: Array.from(new Set(targets)).slice(0, 8),
+    keybinds: [],
+    style_refs: [],
+    wants_ui: false,
+    wants_multiplayer: false,
+    wants_mobile: false,
+    restated,
+    confidence: targets.length ? 0.9 : 0.55,
+    clarify: targets.length ? null : "Which system or object should I remove? I want to be sure I clean up the right one.",
+  };
 }
