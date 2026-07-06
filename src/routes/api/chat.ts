@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
-import { convertToModelMessages, generateText, streamText, stepCountIs, tool, type UIMessage } from "ai";
+import { convertToModelMessages, generateText, streamText, stepCountIs, tool, type ToolSet, type UIMessage } from "ai";
 import { z } from "zod";
 import { getProviderModel, getFallbackModel, getFallbackChain } from "@/lib/ai-gateway.server";
 import { parseActions } from "@/lib/bloxsmith-prompt";
@@ -6404,7 +6404,7 @@ export const Route = createFileRoute("/api/chat")({
               }
             };
             const fastBuild = mode === "build" && buildQuality === "basic";
-            const buildTools = fastBuild
+            const buildTools = (fastBuild
               ? (assetMode === "procedural" && !userExplicitlyRequestedToolbox(userText)
                 ? { insert_asset: insertAssetTool }
                 : { insert_asset: insertAssetTool, search_toolbox: toolboxTool, search_toolbox_set: toolboxSetTool })
@@ -6414,7 +6414,10 @@ export const Route = createFileRoute("/api/chat")({
                   : { insert_asset: insertAssetTool, roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch })
                 : (imageGenerationRequested
                   ? { insert_asset: insertAssetTool, search_toolbox: toolboxTool, search_toolbox_set: toolboxSetTool, generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool }
-                  : { insert_asset: insertAssetTool, search_toolbox: toolboxTool, search_toolbox_set: toolboxSetTool, roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch });
+                  : { insert_asset: insertAssetTool, search_toolbox: toolboxTool, search_toolbox_set: toolboxSetTool, roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch })) as ToolSet;
+            const chatTools = (imageGenerationRequested
+              ? { generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool }
+              : { roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch }) as ToolSet;
             return streamText({
               model,
               system: (mode === "chat" ? FAST_CHAT_SYSTEM_PROMPT : FAST_BUILD_SYSTEM_PROMPT) + modeHeader + languageHeader + qualityHeader + assetModeRule + contextBlock,
@@ -6424,11 +6427,7 @@ export const Route = createFileRoute("/api/chat")({
               ...(modelSettings?.temperature !== undefined ? { temperature: modelSettings.temperature } : {}),
               ...(modelSettings?.topP !== undefined ? { topP: modelSettings.topP } : {}),
               maxOutputTokens: capOutputTokens(modelSettings, mode, buildQuality),
-              tools: mode === "chat"
-                ? (imageGenerationRequested
-                  ? { generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool }
-                  : { roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch })
-                : buildTools,
+              tools: mode === "chat" ? chatTools : buildTools,
               stopWhen: stepCountIs(mode === "chat" ? 6 : fastBuild ? 6 : 14),
               onChunk: ({ chunk }) => {
                 if (chunk.type === "text-delta") {
