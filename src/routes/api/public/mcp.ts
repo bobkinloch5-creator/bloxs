@@ -99,7 +99,7 @@ async function callTool(name: string, args: any, sb: ReturnType<typeof admin>, u
       const online =
         !!data?.online &&
         !!data?.last_seen &&
-        Date.now() - new Date(data.last_seen).getTime() < 30_000;
+        Date.now() - new Date(data.last_seen).getTime() < 90_000;
       return { online, session: data ?? null };
     }
     case "push_script": {
