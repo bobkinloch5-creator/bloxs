@@ -206,6 +206,30 @@ async function generatePlan(goal: string, contextSummary: string, intent: Intent
   return text.trim();
 }
 
+// Critique the plan and re-plan once if the score is low. Cheap: one small call.
+async function critiquePlan(goal: string, plan: string): Promise<{ score: number; gaps: string[]; note: string }> {
+  const fb = getFallbackModel();
+  try {
+    const { text } = await generateText({
+      model: fb.model,
+      system: `You are a senior Roblox tech lead reviewing a build plan. Return ONLY JSON: {"score": 1-10, "gaps": ["short gap phrases"], "note": "one sentence verdict"}. Score reflects: coverage of the goal, correct folder/service placement, security (server-authoritative), completeness (config, remotes, UI). No prose outside JSON.`,
+      prompt: `GOAL:\n${goal.slice(0, 800)}\n\nPLAN:\n${plan.slice(0, 4000)}`,
+      temperature: 0,
+      maxOutputTokens: 260,
+    });
+    const parsed = safeJsonParse<{ score?: number; gaps?: string[]; note?: string }>(text, {});
+    const rawScore = Number(parsed.score ?? 7);
+    const score = Number.isFinite(rawScore) ? Math.max(1, Math.min(10, rawScore)) : 7;
+    return {
+      score,
+      gaps: Array.isArray(parsed.gaps) ? parsed.gaps.slice(0, 5).map(String) : [],
+      note: String(parsed.note ?? "").slice(0, 240),
+    };
+  } catch {
+    return { score: 7, gaps: [], note: "(critique unavailable)" };
+  }
+}
+
 async function runSpecialist(task: AutoTask, goal: string, plan: string, digestText: string, difficulty: "easy" | "normal" | "hard" = "normal"): Promise<Specialist> {
   const pick = pickModelForTask(task, difficulty);
   const { model, meta, extraBody, modelSettings } = getProviderModel(pick.modelId);
