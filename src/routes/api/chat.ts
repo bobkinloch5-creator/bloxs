@@ -5365,6 +5365,8 @@ export const Route = createFileRoute("/api/chat")({
             const memories = rerankMemories(memoriesRaw ?? [], userText, buildQuality === "basic" ? 8 : 20);
 
             const parts: string[] = [];
+            const intentBlock = renderIntentBlock(intent);
+            if (intentBlock) parts.push(intentBlock);
             parts.push(
               `PROJECT MEMORY:\n- Name: ${project.name ?? "(unnamed)"}\n- Type: ${project.game_type ?? "(unspecified)"}\n- Description: ${project.description ?? "(none)"}\n- Total builds so far: ${project.build_count ?? 0}`,
             );
