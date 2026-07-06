@@ -82,26 +82,35 @@ const V2_SEARCH_CATEGORY: Record<ToolboxCategory, string> = {
 const QUERY_ALIASES: Array<{ test: RegExp; terms: string[] }> = [
   { test: /\b(obby|parkour)\b/i, terms: ["obby kit", "parkour kit", "obstacle course", "checkpoint obby"] },
   { test: /\b(tycoon)\b/i, terms: ["tycoon kit", "tycoon building", "conveyor", "dropper", "cash collector"] },
-  { test: /\b(city|town|roleplay|rp)\b/i, terms: ["city kit", "city building", "road", "street light", "sidewalk", "storefront", "traffic light"] },
-  { test: /\b(forest|woods|jungle)\b/i, terms: ["tree", "pine tree", "forest", "rock", "bush", "log cabin", "campfire"] },
-  { test: /\b(car|cars|vehicle|vehicles|racing|race)\b/i, terms: ["car", "vehicle", "race car", "sports car", "kart", "road"] },
-  { test: /\b(road|street|highway)\b/i, terms: ["road", "street", "city road", "asphalt road"] },
-  { test: /\b(house|building|shop|store|mall|lobby)\b/i, terms: ["building", "house", "shop", "storefront", "lobby", "low poly building"] },
+  { test: /\b(city|town|roleplay|rp|urban|downtown|metropolis)\b/i, terms: ["city kit", "modern city", "downtown", "skyscraper", "road", "sidewalk", "street light", "storefront", "traffic light", "parking lot", "office building", "apartment building"] },
+  { test: /\b(forest|woods|jungle|wilderness|nature)\b/i, terms: ["forest", "pine tree", "oak tree", "tree", "rock", "boulder", "bush", "flower", "grass patch", "log cabin", "fern", "mushroom", "campfire", "waterfall"] },
+  { test: /\b(car|cars|vehicle|vehicles|racing|race)\b/i, terms: ["car", "sports car", "race car", "kart", "sedan", "sports vehicle", "truck", "road"] },
+  { test: /\b(road|street|highway)\b/i, terms: ["road", "asphalt road", "city road", "highway", "street", "sidewalk"] },
+  { test: /\b(house|home|residential|suburban|villa|cottage|bungalow)\b/i, terms: ["modern house", "suburban house", "family home", "villa", "cottage", "bungalow", "two story house", "residential building", "low poly house"] },
+  { test: /\b(mansion|estate|manor|luxury\s+home)\b/i, terms: ["mansion", "luxury mansion", "estate", "manor house", "modern mansion"] },
+  { test: /\b(cabin|log\s+house|hut)\b/i, terms: ["log cabin", "wooden cabin", "hut", "forest cabin", "mountain cabin"] },
+  { test: /\b(shop|store|mall|lobby|storefront)\b/i, terms: ["shop", "storefront", "modern store", "retail building", "mall", "cafe", "lobby"] },
+  { test: /\b(building)\b/i, terms: ["modern building", "office building", "apartment building", "skyscraper", "low poly building"] },
   { test: /\b(pet|pets|egg|eggs)\b/i, terms: ["pet", "pet simulator", "egg", "dog", "cat", "pet egg"] },
-  { test: /\b(zombie|enemy|monster|npc|vendor|quest giver)\b/i, terms: ["npc", "zombie", "monster", "dummy", "vendor", "quest npc"] },
+  { test: /\b(zombie|enemy|monster|npc|vendor|quest\s*giver)\b/i, terms: ["npc", "zombie", "monster", "dummy", "vendor", "quest npc"] },
   { test: /\b(sword|weapon|gun|blaster|bow|staff)\b/i, terms: ["weapon", "sword", "gun", "blaster", "bow", "classic weapon"] },
   { test: /\b(lobby|spawn|hub)\b/i, terms: ["lobby", "spawn", "hub", "welcome center"] },
   { test: /\b(horror|escape|haunted)\b/i, terms: ["horror house", "haunted house", "dark corridor", "flashlight"] },
   { test: /\b(rpg|dungeon|quest|fantasy)\b/i, terms: ["dungeon", "fantasy house", "rpg npc", "treasure chest", "medieval props"] },
   { test: /\b(tower defense|td)\b/i, terms: ["tower defense", "enemy npc", "path", "turret", "tower"] },
   { test: /\b(cafe|restaurant|cooking|kitchen)\b/i, terms: ["cafe", "restaurant", "kitchen", "food"] },
-  { test: /\b(beach|island|survival)\b/i, terms: ["island", "beach", "palm tree", "campfire"] },
+  { test: /\b(beach|island|survival|resort|tropical)\b/i, terms: ["tropical island", "beach", "palm tree", "beach resort", "beach house", "sand", "cabana", "campfire"] },
   { test: /\b(furniture|chair|table|bed|sofa|couch)\b/i, terms: ["furniture pack", "chair", "table", "sofa", "bed"] },
-  { test: /\b(sci[-\s]?fi|space|alien|laser)\b/i, terms: ["sci fi kit", "space station", "laser gun", "alien"] },
-  { test: /\b(castle|medieval|village)\b/i, terms: ["castle", "medieval village", "medieval house", "stone wall"] },
-  { test: /\b(school|classroom)\b/i, terms: ["school", "classroom", "desk", "locker"] },
-  { test: /\b(police|jail|prison)\b/i, terms: ["police car", "police station", "jail", "prison"] },
+  { test: /\b(sci[-\s]?fi|space|alien|laser|futuristic|cyberpunk)\b/i, terms: ["sci fi kit", "futuristic building", "cyberpunk city", "space station", "neon city", "laser gun", "alien"] },
+  { test: /\b(castle|fortress|citadel|palace|kingdom|keep)\b/i, terms: ["medieval castle", "castle", "fortress", "stone castle", "royal palace", "citadel", "medieval keep"] },
+  { test: /\b(medieval|village|kingdom)\b/i, terms: ["medieval village", "medieval house", "stone wall", "thatched cottage", "blacksmith", "tavern", "wooden fence"] },
+  { test: /\b(school|classroom|campus|university|highschool|elementary)\b/i, terms: ["school building", "elementary school", "high school", "classroom", "campus", "desk", "locker", "school hallway"] },
+  { test: /\b(police|jail|prison|cop)\b/i, terms: ["police car", "police station", "jail", "prison", "sheriff office"] },
+  { test: /\b(hospital|clinic|medical)\b/i, terms: ["hospital building", "clinic", "medical center", "emergency room"] },
+  { test: /\b(farm|barn|ranch)\b/i, terms: ["farm", "barn", "silo", "windmill", "farmhouse", "tractor", "haystack"] },
+  { test: /\b(garden|park)\b/i, terms: ["park", "garden", "bench", "fountain", "flower bed", "pond"] },
 ];
+
 
 const ASSET_LIBRARY_PROFILES: Array<{ category: string; test: RegExp; tags: string[]; searchTerms: string[] }> = [
   { category: "Weapons", test: /\b(pistol|gun|rifle|sword|bow|weapon|blaster|laser|staff)\b/i, tags: ["weapon", "tool", "combat"], searchTerms: ["pistol", "rifle", "sword", "bow", "laser gun"] },
@@ -415,7 +424,7 @@ function looksLikeJunk(name: string): boolean {
   return JUNK_PATTERNS.some((re) => re.test(name));
 }
 
-function rejectionReason(r: ToolboxResult, opts: { strict?: boolean } = {}): string | null {
+function rejectionReason(r: ToolboxResult, opts: { strict?: boolean; wantsStructure?: boolean } = {}): string | null {
   if (isLikelyCloudAssetId(r.id)) return "cloud_asset_not_insertservice_compatible";
   if (r.free === false) return "not_free";
   if (looksLikeJunk(r.name)) return "suspicious_name";
@@ -433,11 +442,14 @@ function rejectionReason(r: ToolboxResult, opts: { strict?: boolean } = {}): str
   // include helper scripts. The plugin-side no_scripts/strip_scripts flags handle them.
   if (opts.strict) {
     if (!isRoblox && (r.scriptCount ?? 0) > 5) return "too_many_scripts";
+    // Structural asks (house/castle/school/…): reject obvious fragments.
+    if (opts.wantsStructure && FRAGMENT_PATTERNS.some((re) => re.test(r.name))) return "fragment_not_complete_model";
   }
   // Non-strict: block only clearly script-heavy third-party assets.
   if (!isRoblox && (r.scriptCount ?? 0) > 8) return "script_heavy";
   return null;
 }
+
 
 function relevanceScore(query: string, name: string): number {
   const q = query.toLowerCase().trim();
@@ -487,6 +499,34 @@ function qualityTier(score: number): "excellent" | "good" | "usable" {
   return "usable";
 }
 
+// Name tokens that suggest a FRAGMENT of a build (single wall, piece of scaffolding,
+// lone tile) rather than a complete standalone model. When the user asks for a
+// whole thing ("house", "castle", "school") these should rank BELOW complete builds.
+const FRAGMENT_PATTERNS = [
+  /\b(wall|walls|walkway|scaffold(ing)?|fence\s*piece|piece|pieces|fragment|chunk|half|slab|tile|panel|beam|column|pillar|floor\s*tile|roof\s*tile|brick|blocks?|corner|edge|section|module|part\s*\d+|part[_ ]?[a-e]\b)\b/i,
+];
+// Name tokens that signal a COMPLETE build worth boosting for whole-structure asks.
+const COMPLETE_PATTERNS = [
+  /\b(complete|full|finished|detailed|realistic|modern|classic|premium|showcase|ready|prebuilt|entire|whole|standalone|single\s+family|two\s+story|three\s+story)\b/i,
+];
+// "Structure" nouns — when the user asks for one of these, punish fragments hard.
+const STRUCTURE_NOUNS = /\b(house|home|mansion|villa|cottage|cabin|castle|fortress|palace|citadel|keep|temple|church|school|hospital|bank|shop|store|cafe|restaurant|building|tower|windmill|lighthouse|barn|farmhouse|station|hotel|resort|museum|library|apartment|skyscraper|office)\b/i;
+
+function completenessScore(name: string, keyword: string, singleAsset: boolean): number {
+  const n = (name || "").toLowerCase();
+  if (!n) return 0;
+  const wantsStructure = STRUCTURE_NOUNS.test(keyword);
+  let s = 0;
+  if (COMPLETE_PATTERNS.some((re) => re.test(n))) s += 0.12;
+  if (FRAGMENT_PATTERNS.some((re) => re.test(n))) {
+    // Heavy penalty when the user wants a whole structure and this looks like a chunk.
+    s -= wantsStructure || singleAsset ? 0.35 : 0.15;
+  }
+  // Bare structural noun in the name = strong completeness signal ("Modern House", "Medieval Castle").
+  if (wantsStructure && STRUCTURE_NOUNS.test(n)) s += 0.08;
+  return s;
+}
+
 function stableHash(value: string): number {
   let hash = 2166136261;
   for (let i = 0; i < value.length; i += 1) {
@@ -495,6 +535,7 @@ function stableHash(value: string): number {
   }
   return hash >>> 0;
 }
+
 
 function isAllowedCreator(creatorName: string): boolean {
   const c = creatorName.trim();
@@ -950,7 +991,23 @@ export async function searchRobloxToolbox(
     // Cross-term consensus: assets that match multiple expanded queries are nearly always on-topic.
     const hits = termHitCount.get(r.id) ?? 0;
     const multiHitBoost = hits >= 3 ? 0.12 : hits === 2 ? 0.07 : 0;
-    const score = Math.max(0, Math.min(1, relevance * 0.5 + safety * 0.36 + trustedBoost + classicInsertBoost + multiHitBoost - reusePenalty));
+    // Completeness: penalize fragment names (Wall/Piece/Scaffold), boost complete-model names.
+    const completeness = completenessScore(r.name, keyword, singleAssetOnly);
+    // Popularity: upVotePercent is 0..100 — reward well-reviewed assets.
+    const popularity = typeof r.upVotePercent === "number"
+      ? Math.max(-0.08, Math.min(0.12, (r.upVotePercent - 70) / 250))
+      : 0;
+    const score = Math.max(0, Math.min(1,
+      relevance * 0.45
+      + safety * 0.30
+      + trustedBoost
+      + classicInsertBoost
+      + multiHitBoost
+      + completeness
+      + popularity
+      - reusePenalty
+    ));
+
     const profile = libraryProfileFor(keyword, r.name);
     const row = {
       ...r,
@@ -973,7 +1030,7 @@ export async function searchRobloxToolbox(
     const ranked = rows
       .filter((r) => !isAssetBlacklisted(r.id))
       .map(enrich)
-      .filter((r) => rejectionReason(r, { strict: singleAssetOnly }) === null)
+      .filter((r) => rejectionReason(r, { strict: singleAssetOnly, wantsStructure: STRUCTURE_NOUNS.test(keyword) }) === null)
       .sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
     if (ranked.length === 0) return [];
 
