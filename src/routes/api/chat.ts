@@ -273,7 +273,6 @@ function capOutputTokens(modelSettings: { maxOutputTokens?: number } | undefined
 function isInstantFastBuildTemplateRequest(userText: string) {
   const text = userText.toLowerCase().trim();
   if (!text) return false;
-  if (isNarrowFeatureRequest(text)) return false;
   if (isBroadPlayableGameRequest(text) || isExplicitFullSystemRequest(text)) return true;
   return /\b(castle|fortress|keep|citadel|palace|throne|house|houses|home|cabin|hut|building|buildings|tower|shop|store|base|map|world|environment|terrain|scene|village|city|town|forest|woods|tree|trees|road|roads|street|path|mountain|mountains|river|lake|waterfall|snow|desert|beach|volcano|dungeon|space\s*station|spaceship|sci[-\s]?fi\s*base)\b/i.test(text);
 }
