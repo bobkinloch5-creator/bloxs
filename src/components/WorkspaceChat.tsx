@@ -205,6 +205,7 @@ export function WorkspaceChat({
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [token, setToken] = useState<string | null>(null);
   const [enhancing, setEnhancing] = useState(false);
+  const [enhancingPro, setEnhancingPro] = useState(false);
   // 🎙️ NVIDIA Voice — TTS enabled state persisted across sessions
   const [ttsEnabled, setTtsEnabled] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
