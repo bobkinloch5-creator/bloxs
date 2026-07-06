@@ -424,7 +424,7 @@ function looksLikeJunk(name: string): boolean {
   return JUNK_PATTERNS.some((re) => re.test(name));
 }
 
-function rejectionReason(r: ToolboxResult, opts: { strict?: boolean } = {}): string | null {
+function rejectionReason(r: ToolboxResult, opts: { strict?: boolean; wantsStructure?: boolean } = {}): string | null {
   if (isLikelyCloudAssetId(r.id)) return "cloud_asset_not_insertservice_compatible";
   if (r.free === false) return "not_free";
   if (looksLikeJunk(r.name)) return "suspicious_name";
