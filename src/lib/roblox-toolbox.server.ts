@@ -1030,7 +1030,7 @@ export async function searchRobloxToolbox(
     const ranked = rows
       .filter((r) => !isAssetBlacklisted(r.id))
       .map(enrich)
-      .filter((r) => rejectionReason(r, { strict: singleAssetOnly }) === null)
+      .filter((r) => rejectionReason(r, { strict: singleAssetOnly, wantsStructure: STRUCTURE_NOUNS.test(keyword) }) === null)
       .sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
     if (ranked.length === 0) return [];
 
