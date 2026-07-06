@@ -1032,7 +1032,36 @@ local function targetParts(character)
   return parts
 end
 
+local function attachBuiltin(part, lightHost)
+  cleanup(part)
+  local scale = math.clamp(part.Size.Magnitude / 4, 0.7, 2.6)
+  local fx = Instance.new(builtin.class)
+  fx.Name = PREFIX .. builtin.class
+  for prop, value in pairs(builtin.props) do
+    if prop == "Size" and typeof(value) == "number" then
+      fx[prop] = value * scale
+    else
+      fx[prop] = value
+    end
+  end
+  fx.Parent = part
+
+  if lightHost then
+    local light = Instance.new("PointLight")
+    light.Name = PREFIX .. "Light"
+    light.Color = builtin.light
+    light.Brightness = builtin.lightBrightness
+    light.Range = TARGET_MODE == "aura" and (builtin.lightRange + 4) or builtin.lightRange
+    light.Shadows = false
+    light.Parent = part
+  end
+end
+
 local function attachEffect(part, partCount, lightHost)
+  if builtin then
+    attachBuiltin(part, lightHost)
+    return
+  end
   cleanup(part)
   local scale = math.clamp(part.Size.Magnitude / 4, 0.7, 2.6)
   local rateScale = partCount > 6 and 0.85 or 1
@@ -1059,7 +1088,7 @@ local function attachEffect(part, partCount, lightHost)
     NumberSequenceKeypoint.new(1, 1),
   })
   emitter.Color = preset.color
-  emitter.LightEmission = ELEMENT == "Smoke" and 0.15 or 0.9
+  emitter.LightEmission = 0.9
   emitter.LightInfluence = 0
   emitter.Rotation = NumberRange.new(-180, 180)
   emitter.RotSpeed = NumberRange.new(-90, 90)
@@ -1072,7 +1101,7 @@ local function attachEffect(part, partCount, lightHost)
     local light = Instance.new("PointLight")
     light.Name = PREFIX .. "Light"
     light.Color = preset.light
-    light.Brightness = ELEMENT == "Smoke" and 1 or 2.5
+    light.Brightness = 2.5
     light.Range = TARGET_MODE == "aura" and 14 or 10
     light.Shadows = false
     light.Parent = attachment
@@ -1087,12 +1116,13 @@ local function applyToCharacter(character)
     attachEffect(part, #parts, index == 1)
   end
   local root = firstPart(character, {"HumanoidRootPart", "UpperTorso", "Torso"})
-  if root and preset.sound ~= "" then
+  local soundId = (builtin and builtin.sound) or preset.sound
+  if root and soundId and soundId ~= "" then
     local oldSound = root:FindFirstChild(PREFIX .. "Sound")
     if oldSound then oldSound:Destroy() end
     local sound = Instance.new("Sound")
     sound.Name = PREFIX .. "Sound"
-    sound.SoundId = preset.sound
+    sound.SoundId = soundId
     sound.Volume = 0.32
     sound.Looped = true
     sound.Parent = root
