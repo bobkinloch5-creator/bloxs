@@ -174,32 +174,41 @@ function ResizeBar() {
 }
 
 function FloatingControls({
-  layout, setLayout, hasLeft, hasRight,
-}: { layout: Layout; setLayout: (f: (l: Layout) => Layout) => void; hasLeft: boolean; hasRight: boolean }) {
+  layout, setLayout, hasLeft, hasRight, narrow, openDrawer,
+}: {
+  layout: Layout;
+  setLayout: (f: (l: Layout) => Layout) => void;
+  hasLeft: boolean;
+  hasRight: boolean;
+  narrow: boolean;
+  openDrawer: (d: "left" | "right") => void;
+}) {
   return (
-    <div className="pointer-events-none absolute right-3 top-2 z-30 flex gap-1.5">
+    <div className="pointer-events-none absolute right-2 top-2 z-30 flex gap-1.5 sm:right-3">
       {hasLeft && !layout.focus && (
         <CtrlBtn
-          onClick={() => setLayout((l) => ({ ...l, leftOpen: !l.leftOpen }))}
-          title={layout.leftOpen ? "Hide left sidebar (⌘B)" : "Show left sidebar (⌘B)"}
+          onClick={() => (narrow ? openDrawer("left") : setLayout((l) => ({ ...l, leftOpen: !l.leftOpen })))}
+          title={narrow ? "Open left panel" : (layout.leftOpen ? "Hide left sidebar (⌘B)" : "Show left sidebar (⌘B)")}
         >
           {layout.leftOpen ? <PanelLeftClose className="h-3.5 w-3.5" /> : <PanelLeftOpen className="h-3.5 w-3.5" />}
         </CtrlBtn>
       )}
       {hasRight && !layout.focus && (
         <CtrlBtn
-          onClick={() => setLayout((l) => ({ ...l, rightOpen: !l.rightOpen }))}
-          title={layout.rightOpen ? "Hide right sidebar (⌘J)" : "Show right sidebar (⌘J)"}
+          onClick={() => (narrow ? openDrawer("right") : setLayout((l) => ({ ...l, rightOpen: !l.rightOpen })))}
+          title={narrow ? "Open right panel" : (layout.rightOpen ? "Hide right sidebar (⌘J)" : "Show right sidebar (⌘J)")}
         >
           {layout.rightOpen ? <PanelRightClose className="h-3.5 w-3.5" /> : <PanelRightOpen className="h-3.5 w-3.5" />}
         </CtrlBtn>
       )}
-      <CtrlBtn
-        onClick={() => setLayout((l) => ({ ...l, focus: !l.focus }))}
-        title={layout.focus ? "Exit focus mode (⌘.)" : "Focus mode — chat only (⌘.)"}
-      >
-        {layout.focus ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
-      </CtrlBtn>
+      {!narrow && (
+        <CtrlBtn
+          onClick={() => setLayout((l) => ({ ...l, focus: !l.focus }))}
+          title={layout.focus ? "Exit focus mode (⌘.)" : "Focus mode — chat only (⌘.)"}
+        >
+          {layout.focus ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+        </CtrlBtn>
+      )}
     </div>
   );
 }
