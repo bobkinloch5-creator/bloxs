@@ -26,7 +26,7 @@ const SYSTEM_PROMPT = `You are BloxSmith's intent classifier for Roblox builds. 
 
 Schema:
 {
-  "category": "ability" | "vfx" | "system" | "map" | "ui" | "asset" | "fix" | "chat" | "other",
+  "category": "ability" | "vfx" | "system" | "map" | "ui" | "asset" | "fix" | "remove" | "chat" | "other",
   "scope":    "single" | "feature" | "game",
   "targets":  string[],
   "keybinds": string[],
