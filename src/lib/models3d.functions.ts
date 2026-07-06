@@ -590,7 +590,11 @@ export const pollModelGeneration = createServerFn({ method: "POST" })
     if (modelUrls) update.model_urls = modelUrls;
     if (textureUrls) update.texture_urls = textureUrls;
     if (thumb) update.thumbnail_url = thumb;
-    if (err) update.error = err;
+    if (err) {
+      update.error = /pose\s*estimation|valid\s*model/i.test(err) && gen.mode === "rig"
+        ? "Meshy rigging is humanoid-only — it couldn't detect a two-arm/two-leg pose in this model (common for animals, quadrupeds, vehicles, or objects). Generate a humanoid character (e.g. \"stylized human warrior standing, arms out, T-pose\") and rig that instead."
+        : err;
+    }
     if (status === "SUCCEEDED" || status === "FAILED") update.completed_at = new Date().toISOString();
 
     const { data: updated } = await supabase
