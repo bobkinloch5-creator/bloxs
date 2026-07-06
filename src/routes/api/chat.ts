@@ -735,8 +735,9 @@ function isSimpleSingleThingRequest(userText: string) {
 }
 
 function isExplicitFullSystemRequest(userText: string) {
-  return /\b(full\s*(game|system|ui|gui|experience)|complete\s*(game|system|ui|gui|experience)|entire\s*(game|system|ui|gui|experience)|all[-\s]*in[-\s]*one|game\s*framework|core\s*systems|production\s*systems|round[-\s]*based\s*game|tycoon|simulator|rpg|obby|parkour|tower\s*defen[cs]e|battle\s*royale|zombie\s*(survival|game)?|survival\s*game|horror\s*game|pet\s*(simulator|game|system)|role\s*play|roleplay|city\s*rp|racing\s*(game|system)?|race\s*(course|track|system)|combat\s*system|fighting\s*(game|system)?|gun\s*system|sword\s*(fighting|system)|quest\s*system|inventory\s*system|shop\s*system|round\s*system|minigame|farming\s*(game|system)?|fishing\s*(game|system)?|trading\s*system)\b/i.test(userText);
+  return /\b(full\s*(game|system|ui|gui|experience)|complete\s*(game|system|ui|gui|experience)|entire\s*(game|system|ui|gui|experience)|all[-\s]*in[-\s]*one|game\s*framework|core\s*systems|production\s*systems|round[-\s]*based\s*game|tycoon|simulator|rpg|obby|parkour|tower\s*defen[cs]e|battle\s*royale|zombie\s*(survival|game)?|survival\s*game|horror\s*game|pet\s*(simulator|game|system)|role\s*play|roleplay|city\s*rp|racing\s*(game|system)?|race\s*(course|track|system)|combat\s*system|fighting\s*(game|system)?|gun\s*system|sword\s*(fighting|system)|quest\s*system|inventory\s*system|shop\s*system|round\s*system|minigame|farming\s*(game|system)?|fishing\s*(game|system)?|trading\s*system|main\s*menu|title\s*screen|splash\s*screen|start\s*screen|loading\s*screen|load\s*screen|menu\s*system|gui\s*system|ui\s*system|hud\s*system|settings\s*menu|pause\s*menu)\b/i.test(userText);
 }
+
 
 function isBroadPlayableGameRequest(userText: string) {
   const text = userText.toLowerCase().trim();
@@ -771,9 +772,13 @@ function needsGameplayRemoteWiring(userText: string) {
 function shouldUseGenericRobloxSystemGuard(userText: string, buildQuality?: "basic" | "better" | "premium" | "full_game") {
   if (isNarrowFeatureRequest(userText)) return false;
   if (isExplicitFullSystemRequest(userText) || isBroadPlayableGameRequest(userText)) return true;
+  // Any explicit UI-surface ask (main menu, loading screen, HUD, shop UI, inventory UI, settings menu, GUI system)
+  // must always run the deterministic UI builder so the menu actually gets created.
+  if (/\b(main\s*menu|title\s*screen|splash\s*screen|start\s*screen|loading\s*screen|load\s*screen|menu\s*system|gui\s*system|ui\s*system|hud\s*system|settings\s*menu|pause\s*menu|shop\s*(ui|gui|menu|panel|screen|system)|inventory\s*(ui|gui|menu|panel|screen|system)|play\s*button|start\s*button)\b/i.test(userText)) return true;
   if (!isRobloxSystemRequest(userText)) return false;
   return buildQuality === "full_game";
 }
+
 
 function actionLooksLikeUnrequestedUiShell(action: any, userText: string) {
   const text = userText.toLowerCase();
