@@ -28,6 +28,7 @@ import { ProjectMenu } from "@/components/ProjectMenu";
 import { WorkspaceChat } from "@/components/WorkspaceChat";
 import { NewProjectModal } from "@/components/NewProjectModal";
 import { ProjectMemoryCard } from "@/components/ProjectMemoryCard";
+import { OnboardingChallenges } from "@/components/OnboardingChallenges";
 import robloxBg from "@/assets/backgrounds/roblox-dashboard.jpg";
 
 
