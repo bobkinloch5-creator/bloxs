@@ -458,6 +458,7 @@ export function WorkspaceChat({
       toast.error(friendlyError(e, { fallback: "Improve failed." }));
     } finally {
       setEnhancing(false);
+    }
   }
 
   async function enhancePro() {
@@ -478,7 +479,6 @@ export function WorkspaceChat({
     } finally {
       setEnhancingPro(false);
     }
-  }
   }
 
   const handleVoiceUtterance = useCallback((text: string) => {
