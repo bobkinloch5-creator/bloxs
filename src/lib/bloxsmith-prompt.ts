@@ -639,6 +639,131 @@ D. UNIVERSAL ABILITY SELF-TEST — before emitting ANY ability script (flight, a
 
 E. NO BROKEN VFX. Never emit a ParticleEmitter with only Texture set — it will look dead. Never use random asset IDs you did not verify. Prefer built-in \`rbxasset://textures/particles/*\` or well-known IDs (fire 243660364, smoke 244514357, spark 241876428, sparkles 241876828). When in doubt, use a NumberSequence-driven emitter with the safe fallback \`rbxasset://textures/particles/fire_main.dds\`.
 
+E2. PARTICLE EFFECT LIBRARY (ABSOLUTE — any request naming a particle/aura/VFX must ship a fully working, character-attached emitter, not a stub). When the user asks for ANY of: flame aura, fire aura, lightning aura, electric aura, magic aura, arcane aura, dark aura, holy aura, ice aura, water aura, wind aura, smoke effect/aura, sparkles, glow, glowing particles, energy aura, ki aura, saiyan aura, explosion, fireball, smoke bomb, portal, teleport particles, healing particles, poison cloud, snow, rain, dust, embers, trail, sword trail, footstep dust, muzzle flash, spell cast — you MUST:
+   1. Build the emitter with the FULL preset from the recipe table below (Texture, Rate, Lifetime, Speed, SpreadAngle, Size sequence, Transparency sequence, Color sequence, LightEmission, LightInfluence, Rotation, RotSpeed, Acceleration, EmissionDirection, Drag when relevant, ZOffset when relevant, Enabled=true).
+   2. Parent it to a fresh \`Attachment\` inside \`HumanoidRootPart\` (auras/glows), \`RightHand\`/\`LeftHand\` (cast/spell), or the moving Part (trails/projectiles) — never the Model.
+   3. Add a matching \`PointLight\` on the same attachment tuned to the effect's color (auras + explosions + spell casts) so the VFX visibly lights the world.
+   4. For continuous auras: add a looping ambient Sound at Volume 0.3–0.5 (fire hum, electric buzz, magic drone, wind whoosh) parented to HRP.
+   5. For one-shot bursts (explosion, cast, muzzle flash, teleport, level-up): use \`ParticleEmitter.Enabled = false\` + \`:Emit(count)\` at the moment of the event, plus a short PointLight flash tweened out via TweenService, plus a Sound with PlayOnRemove or :Play(), plus \`Debris:AddItem(folder, 3)\` for cleanup.
+   6. Wrap every effect in a named Folder (\`FlameAura\`, \`LightningAura\`, \`MagicAura\`, \`SmokeAura\`, \`SparkleAura\`, etc.) inside its host part so it can be re-created cleanly.
+   7. Re-hook on \`CharacterAdded\` when the effect targets the character; destroy stale copies before creating new ones (no leaking emitters after respawn).
+   8. Toggleable effects (on-key auras) expose activate()/deactivate() — deactivate sets \`Enabled = false\` on every emitter and destroys the folder after 2s so lingering particles fade naturally.
+
+Canonical VFX recipes (use these values verbatim as a starting point — tune Rate/Size/Color to the request, never leave defaults):
+- FLAME AURA — Texture 243660364, Rate 60, Lifetime (0.6,1.2), Speed (2,5), SpreadAngle (25,25), Size {0→0.5, 0.5→2.5, 1→0.2}, Transparency {0→1, 0.1→0.2, 1→1}, Color {yellow 255,220,100 → orange 255,120,30 → dark 120,20,0}, LightEmission 0.9, Acceleration (0,6,0), EmissionDirection Top, PointLight Color (255,120,40) Brightness 2 Range 14.
+- LIGHTNING / ELECTRIC AURA — Texture "rbxasset://textures/particles/sparkles_main.dds" OR rbxassetid://241876428 (spark), Rate 40, Lifetime (0.15,0.35), Speed (6,12), SpreadAngle (180,180), Size {0→0.1, 0.3→0.6, 1→0}, Transparency {0→0, 1→1}, Color {cyan 120,220,255 → white 255,255,255 → blue 60,120,255}, LightEmission 1, LightInfluence 0, Rotation (-180,180), RotSpeed (-360,360), Acceleration (0,0,0), EmissionDirection Top, PointLight Color (120,180,255) Brightness 3 Range 12. Add a second emitter with a short arc Beam between two attachments for zap flicker.
+- MAGIC / ARCANE AURA — Texture rbxassetid://241876828 (sparkles), Rate 45, Lifetime (0.8,1.6), Speed (1,3), SpreadAngle (35,35), Size {0→0, 0.4→1.2, 1→0}, Transparency {0→0.2, 1→1}, Color {purple 180,120,255 → pink 255,120,220 → white 255,255,255}, LightEmission 0.8, Rotation (-180,180), RotSpeed (-60,60), Acceleration (0,3,0), PointLight Color (200,120,255) Brightness 2.5 Range 12.
+- HOLY / DIVINE AURA — Texture rbxassetid://241876828, Rate 50, Lifetime (1,2), Speed (0.5,2), SpreadAngle (20,20), Size {0→0, 0.5→1.5, 1→0}, Transparency {0→0.1, 1→1}, Color {white 255,255,255 → gold 255,235,150 → white}, LightEmission 1, Acceleration (0,4,0), PointLight Color (255,240,180) Brightness 3 Range 16.
+- DARK / SHADOW AURA — Texture rbxassetid://244514357 (smoke), Rate 55, Lifetime (0.8,1.8), Speed (1,3), SpreadAngle (30,30), Size {0→1, 0.5→2.5, 1→0.5}, Transparency {0→0.4, 1→1}, Color {black 20,0,30 → purple 60,20,90 → black}, LightEmission 0.1, Acceleration (0,2,0), PointLight Color (120,60,200) Brightness 1.5 Range 10.
+- ICE / FROST AURA — Texture rbxassetid://241876828, Rate 40, Lifetime (1,2), Speed (0.5,2), SpreadAngle (25,25), Size {0→0, 0.4→1, 1→0}, Transparency {0→0.3, 1→1}, Color {cyan 200,240,255 → white 255,255,255 → light blue 180,220,255}, LightEmission 0.7, Drag 1, Acceleration (0,-1,0), PointLight Color (180,220,255) Brightness 2 Range 12.
+- WIND AURA — Texture "rbxasset://textures/particles/smoke_main.dds", Rate 30, Lifetime (0.6,1.2), Speed (5,10), SpreadAngle (60,60), Size {0→0.2, 0.5→1.5, 1→0}, Transparency {0→0.6, 1→1}, Color white throughout, LightEmission 0.2, Acceleration (0,2,0).
+- SMOKE AURA / CLOUD — Texture rbxassetid://244514357, Rate 25, Lifetime (1.5,3), Speed (1,3), SpreadAngle (30,30), Size {0→0.5, 0.5→3, 1→4}, Transparency {0→0.3, 1→1}, Color {150,150,150 → 90,90,90}, LightEmission 0, Acceleration (0,3,0).
+- SPARKLES / GLITTER — Texture rbxassetid://241876828, Rate 35, Lifetime (0.8,1.6), Speed (0.5,2), SpreadAngle (180,180), Size {0→0, 0.5→0.6, 1→0}, Transparency {0→0, 1→1}, Color {yellow 255,240,140 → white → pink 255,180,220}, LightEmission 1, Rotation (-180,180), RotSpeed (-90,90), Acceleration (0,1,0).
+- GLOWING PARTICLES / ENERGY — Texture "rbxasset://textures/particles/sparkles_main.dds", Rate 50, Lifetime (0.6,1.2), Speed (1,2), SpreadAngle (20,20), Size {0→0, 0.5→0.8, 1→0}, Transparency {0→0.1, 1→1}, Color use ability theme, LightEmission 1, Acceleration (0,2,0), plus PointLight matching color.
+- EXPLOSION BURST (one-shot) — Fire emitter :Emit(80) + smoke emitter :Emit(40) + spark emitter :Emit(30) + Explosion instance (BlastRadius 0 if visual only) + PointLight flash tweened from Brightness 8 → 0 over 0.4s + Sound "rbxassetid://5801257793" one-shot + camera shake if local player.
+- MUZZLE FLASH (one-shot) — Fire emitter :Emit(8) with Lifetime (0.05,0.12) + spark emitter :Emit(12) + PointLight 0.1s flash + short gunshot Sound.
+- PORTAL / TELEPORT — Beam ring between two attachments + swirling sparkles ParticleEmitter (Rate 80, Speed 4, SpreadAngle (180,180), Color purple→cyan) + hum Sound + ColorCorrection fade for local player.
+- TRAIL (sword swing / projectile) — Use \`Trail\` instance between two Attachments on the moving part, Lifetime 0.3, MinLength 0, MaxLength 20, Color ColorSequence matching effect, Transparency {0→0, 1→1}, LightEmission 0.6, FaceCamera true — NOT a ParticleEmitter.
+- FOOTSTEP DUST — Small smoke emitter parented to LeftFoot/RightFoot attachment, Rate 0, :Emit(6) on Humanoid.Running step via RunService heartbeat + last-position check.
+
+Canonical toggleable aura scaffold (adapt Color/Texture/Rate for the requested element — flame, lightning, magic, ice, dark, holy, wind):
+\`\`\`lua
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local player = Players.LocalPlayer
+local ACTIVE = false
+
+local PRESET = {
+    folder = "MagicAura",             -- rename per effect
+    texture = "rbxassetid://241876828", -- sparkles
+    rate = 45,
+    lifetime = NumberRange.new(0.8, 1.6),
+    speed = NumberRange.new(1, 3),
+    spread = Vector2.new(35, 35),
+    accel = Vector3.new(0, 3, 0),
+    lightEmission = 0.8,
+    color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0,   Color3.fromRGB(180, 120, 255)),
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 120, 220)),
+        ColorSequenceKeypoint.new(1,   Color3.fromRGB(255, 255, 255)),
+    }),
+    lightColor = Color3.fromRGB(200, 120, 255),
+    sound = "rbxassetid://9046932270", -- magic hum; swap per effect
+}
+
+local function build(char)
+    local hrp = char:WaitForChild("HumanoidRootPart")
+    local old = hrp:FindFirstChild(PRESET.folder)
+    if old then old:Destroy() end
+    local folder = Instance.new("Folder"); folder.Name = PRESET.folder; folder.Parent = hrp
+    local att = Instance.new("Attachment"); att.Name = "AuraAtt"; att.Parent = folder
+
+    local p = Instance.new("ParticleEmitter")
+    p.Parent = att
+    p.Texture = PRESET.texture
+    p.Rate = PRESET.rate
+    p.Lifetime = PRESET.lifetime
+    p.Speed = PRESET.speed
+    p.SpreadAngle = PRESET.spread
+    p.Acceleration = PRESET.accel
+    p.LightEmission = PRESET.lightEmission
+    p.LightInfluence = 0
+    p.Rotation = NumberRange.new(-180, 180)
+    p.RotSpeed = NumberRange.new(-90, 90)
+    p.EmissionDirection = Enum.NormalId.Top
+    p.Color = PRESET.color
+    p.Size = NumberSequence.new({
+        NumberSequenceKeypoint.new(0,   0.1),
+        NumberSequenceKeypoint.new(0.5, 1.4),
+        NumberSequenceKeypoint.new(1,   0),
+    })
+    p.Transparency = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 1),
+        NumberSequenceKeypoint.new(0.1, 0.2),
+        NumberSequenceKeypoint.new(1, 1),
+    })
+    p.Enabled = ACTIVE
+
+    local light = Instance.new("PointLight")
+    light.Color = PRESET.lightColor
+    light.Brightness = 2.5
+    light.Range = 14
+    light.Shadows = false
+    light.Parent = att
+
+    local sfx = Instance.new("Sound")
+    sfx.SoundId = PRESET.sound
+    sfx.Volume = 0.4
+    sfx.Looped = true
+    sfx.Parent = hrp
+    if ACTIVE then sfx:Play() end
+    folder:SetAttribute("SoundName", sfx.Name)
+    return folder, p, sfx
+end
+
+local function setActive(on)
+    ACTIVE = on
+    local char = player.Character; if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart"); if not hrp then return end
+    local folder = hrp:FindFirstChild(PRESET.folder); if not folder then return end
+    for _, d in ipairs(folder:GetDescendants()) do
+        if d:IsA("ParticleEmitter") then d.Enabled = on end
+    end
+    local sfx = hrp:FindFirstChildOfClass("Sound")
+    if sfx then if on then sfx:Play() else sfx:Stop() end end
+end
+
+if player.Character then build(player.Character) end
+player.CharacterAdded:Connect(build)
+
+UIS.InputBegan:Connect(function(input, gp)
+    if gp then return end
+    if input.KeyCode == Enum.KeyCode.G then setActive(not ACTIVE) end
+end)
+\`\`\`
+
+E3. PARTICLE SELF-TEST — before emitting ANY particle/VFX action, verify: (a) Texture is a real asset id or rbxasset:// path from the verified list, never "" or a made-up id; (b) Size AND Transparency AND Color are ALL set as NumberSequence/ColorSequence with at least 2 keypoints — never a single flat value that renders as an invisible dot; (c) Lifetime, Speed, SpreadAngle, Rate, LightEmission, Rotation, RotSpeed, Acceleration, EmissionDirection are all set explicitly; (d) Emitter is parented to an Attachment inside a Part (not a Model, not the ScreenGui, not ReplicatedStorage); (e) Enabled = true for continuous effects OR the code calls :Emit(n) for bursts; (f) A PointLight of matching color exists for auras/bursts/spells; (g) Continuous auras have a looping Sound, one-shots have a PlayOnRemove or :Play() Sound; (h) On CharacterAdded the effect is re-created and stale copies destroyed; (i) The effect is wrapped in a named Folder for easy toggle/remove. If any check fails, FIX before emitting.
+
 F. NO "IT KIND OF WORKS". Every ability must be fully playable on insert: keybind bound, activates on press, moves/renders correctly, deactivates cleanly, survives death/respawn, works on desktop AND mobile (Humanoid.MoveDirection covers thumbstick), and does not spam the output with warnings.
 
 
