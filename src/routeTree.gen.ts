@@ -27,8 +27,10 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AiRobloxGameMakerRouteImport } from './routes/ai-roblox-game-maker'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as GuidesIndexRouteImport } from './routes/guides.index'
 import { Route as UUsernameRouteImport } from './routes/u.$username'
 import { Route as TemplatesUiRouteImport } from './routes/templates.ui'
+import { Route as GuidesSlugRouteImport } from './routes/guides.$slug'
 import { Route as ApiVoiceRouteImport } from './routes/api/voice'
 import { Route as ApiHelpChatRouteImport } from './routes/api/help-chat'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
@@ -156,6 +158,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GuidesIndexRoute = GuidesIndexRouteImport.update({
+  id: '/guides/',
+  path: '/guides/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const UUsernameRoute = UUsernameRouteImport.update({
   id: '/u/$username',
   path: '/u/$username',
@@ -164,6 +171,11 @@ const UUsernameRoute = UUsernameRouteImport.update({
 const TemplatesUiRoute = TemplatesUiRouteImport.update({
   id: '/templates/ui',
   path: '/templates/ui',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GuidesSlugRoute = GuidesSlugRouteImport.update({
+  id: '/guides/$slug',
+  path: '/guides/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiVoiceRoute = ApiVoiceRouteImport.update({
@@ -397,8 +409,10 @@ export interface FileRoutesByFullPath {
   '/api/chat': typeof ApiChatRoute
   '/api/help-chat': typeof ApiHelpChatRoute
   '/api/voice': typeof ApiVoiceRoute
+  '/guides/$slug': typeof GuidesSlugRoute
   '/templates/ui': typeof TemplatesUiRoute
   '/u/$username': typeof UUsernameRoute
+  '/guides/': typeof GuidesIndexRoute
   '/models/$projectId': typeof AuthenticatedModelsProjectIdRoute
   '/project/$projectId': typeof AuthenticatedProjectProjectIdRoute
   '/settings/advanced': typeof AuthenticatedSettingsAdvancedRoute
@@ -455,8 +469,10 @@ export interface FileRoutesByTo {
   '/api/chat': typeof ApiChatRoute
   '/api/help-chat': typeof ApiHelpChatRoute
   '/api/voice': typeof ApiVoiceRoute
+  '/guides/$slug': typeof GuidesSlugRoute
   '/templates/ui': typeof TemplatesUiRoute
   '/u/$username': typeof UUsernameRoute
+  '/guides': typeof GuidesIndexRoute
   '/models/$projectId': typeof AuthenticatedModelsProjectIdRoute
   '/project/$projectId': typeof AuthenticatedProjectProjectIdRoute
   '/settings/advanced': typeof AuthenticatedSettingsAdvancedRoute
@@ -515,8 +531,10 @@ export interface FileRoutesById {
   '/api/chat': typeof ApiChatRoute
   '/api/help-chat': typeof ApiHelpChatRoute
   '/api/voice': typeof ApiVoiceRoute
+  '/guides/$slug': typeof GuidesSlugRoute
   '/templates/ui': typeof TemplatesUiRoute
   '/u/$username': typeof UUsernameRoute
+  '/guides/': typeof GuidesIndexRoute
   '/_authenticated/models/$projectId': typeof AuthenticatedModelsProjectIdRoute
   '/_authenticated/project/$projectId': typeof AuthenticatedProjectProjectIdRoute
   '/_authenticated/settings/advanced': typeof AuthenticatedSettingsAdvancedRoute
@@ -575,8 +593,10 @@ export interface FileRouteTypes {
     | '/api/chat'
     | '/api/help-chat'
     | '/api/voice'
+    | '/guides/$slug'
     | '/templates/ui'
     | '/u/$username'
+    | '/guides/'
     | '/models/$projectId'
     | '/project/$projectId'
     | '/settings/advanced'
@@ -633,8 +653,10 @@ export interface FileRouteTypes {
     | '/api/chat'
     | '/api/help-chat'
     | '/api/voice'
+    | '/guides/$slug'
     | '/templates/ui'
     | '/u/$username'
+    | '/guides'
     | '/models/$projectId'
     | '/project/$projectId'
     | '/settings/advanced'
@@ -692,8 +714,10 @@ export interface FileRouteTypes {
     | '/api/chat'
     | '/api/help-chat'
     | '/api/voice'
+    | '/guides/$slug'
     | '/templates/ui'
     | '/u/$username'
+    | '/guides/'
     | '/_authenticated/models/$projectId'
     | '/_authenticated/project/$projectId'
     | '/_authenticated/settings/advanced'
@@ -739,8 +763,10 @@ export interface RootRouteChildren {
   ApiChatRoute: typeof ApiChatRoute
   ApiHelpChatRoute: typeof ApiHelpChatRoute
   ApiVoiceRoute: typeof ApiVoiceRoute
+  GuidesSlugRoute: typeof GuidesSlugRoute
   TemplatesUiRoute: typeof TemplatesUiRoute
   UUsernameRoute: typeof UUsernameRoute
+  GuidesIndexRoute: typeof GuidesIndexRoute
   ApiPublicLeaderboardRoute: typeof ApiPublicLeaderboardRoute
   ApiPublicMaintenanceRoute: typeof ApiPublicMaintenanceRoute
   ApiPublicMcpRoute: typeof ApiPublicMcpRoute
@@ -889,6 +915,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/guides/': {
+      id: '/guides/'
+      path: '/guides'
+      fullPath: '/guides/'
+      preLoaderRoute: typeof GuidesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/u/$username': {
       id: '/u/$username'
       path: '/u/$username'
@@ -901,6 +934,13 @@ declare module '@tanstack/react-router' {
       path: '/templates/ui'
       fullPath: '/templates/ui'
       preLoaderRoute: typeof TemplatesUiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/guides/$slug': {
+      id: '/guides/$slug'
+      path: '/guides/$slug'
+      fullPath: '/guides/$slug'
+      preLoaderRoute: typeof GuidesSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/voice': {
@@ -1248,8 +1288,10 @@ const rootRouteChildren: RootRouteChildren = {
   ApiChatRoute: ApiChatRoute,
   ApiHelpChatRoute: ApiHelpChatRoute,
   ApiVoiceRoute: ApiVoiceRoute,
+  GuidesSlugRoute: GuidesSlugRoute,
   TemplatesUiRoute: TemplatesUiRoute,
   UUsernameRoute: UUsernameRoute,
+  GuidesIndexRoute: GuidesIndexRoute,
   ApiPublicLeaderboardRoute: ApiPublicLeaderboardRoute,
   ApiPublicMaintenanceRoute: ApiPublicMaintenanceRoute,
   ApiPublicMcpRoute: ApiPublicMcpRoute,
