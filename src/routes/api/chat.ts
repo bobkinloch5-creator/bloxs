@@ -7166,6 +7166,55 @@ export const Route = createFileRoute("/api/chat")({
             },
           });
 
+          // Compatibility stubs — some models (notably nvidia/qwen-2.5-coder-32b)
+          // try to call bloxsmith-actions "kinds" (run_lua, organize_project,
+          // scan_project, autofix_project, delete, set_properties, rename, move)
+          // as if they were tools. Registering no-op stubs lets the stream
+          // succeed and returns an instruction telling the model to put the
+          // action into the final bloxsmith-actions JSON block instead.
+          const makeActionKindStub = (kind: string, hint: string) =>
+            tool({
+              description: `Compatibility handler for direct ${kind} tool calls. Do not call this — emit a ${kind} action inside the final bloxsmith-actions JSON block instead. If called anyway, this returns a template so the stream can continue.`,
+              inputSchema: z.object({
+                parent_path: z.string().optional(),
+                target_path: z.string().optional(),
+                name: z.string().optional(),
+                source: z.string().optional(),
+                payload: z.record(z.string(), z.any()).optional(),
+              }).passthrough(),
+              execute: async (input: Record<string, unknown>) => ({
+                ok: true,
+                action: {
+                  kind,
+                  parent_path: typeof input.parent_path === "string" ? input.parent_path : undefined,
+                  target_path: typeof input.target_path === "string" ? input.target_path : undefined,
+                  name: typeof input.name === "string" ? input.name : undefined,
+                  payload: (input.payload && typeof input.payload === "object")
+                    ? input.payload
+                    : (typeof input.source === "string" ? { source: input.source } : {}),
+                },
+                instruction: `Copy this action object into the final bloxsmith-actions JSON block. ${hint}`,
+              }),
+            });
+
+          const runLuaTool = makeActionKindStub(
+            "run_lua",
+            "run_lua actions MUST include payload.source with complete runnable Luau.",
+          );
+          const organizeProjectTool = makeActionKindStub(
+            "organize_project",
+            "Emit organize_project near the end of the batch so stragglers get grouped.",
+          );
+          const scanProjectTool = makeActionKindStub(
+            "scan_project",
+            "Emit scan_project as the final action so the plugin re-syncs state.",
+          );
+          const autofixProjectTool = makeActionKindStub(
+            "autofix_project",
+            "Emit autofix_project just before scan_project to clean up any issues.",
+          );
+
+
           const tryStream = (
             model: typeof modelChoice.model,
             usedModelId: string,
