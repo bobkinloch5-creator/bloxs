@@ -1,9 +1,45 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Bell, Bot, Box, Brain, Check, CheckCircle2, ChevronDown, Copy, Gauge, ImageIcon, Lightbulb, Link2, ListChecks, Palette, Rocket, ScrollText, Search, Share2, ShieldCheck, Sparkles, Users, Wrench, X, Zap } from "lucide-react";
 
-const CHANGELOG_VERSION = "2026-07-06-premium-ui-and-vfx";
+const CHANGELOG_VERSION = "2026-07-07-goal-aware-critic-and-canonicalizer";
 
 const CHANGELOG_ITEMS = [
+  {
+    title: "🎯 Post-build coverage critic — surfaces the model forgets get built anyway",
+    date: "Jul 7",
+    icon: ShieldCheck,
+    body: "Every build turn now runs a goal-aware safety net right before actions leave for Studio. A new deterministic surface catalog (Main Menu, Loading Screen, HUD, Shop UI, Inventory UI, Settings, Pause Menu, Leaderboard, Dash, Sprint, Double Jump) is regex-extracted from your prompt. After the primary model emits its actions batch, the critic checks whether every requested surface is actually present. If any are missing, it fires a fast NVIDIA repair pass to generate patch actions covering just the gaps, then falls back to hand-verified deterministic templates (real MainMenu ScreenGui + Play/Shop/Inventory/Settings buttons, a non-lethal horizontal Dash LocalScript with proper LinearVelocity + cooldown) so the surface always ships — even if every model call fails. The reply shows a 'Coverage repair sent' note listing which surfaces were rescued so you can see the safety net firing.",
+  },
+  {
+    title: "🧼 Action canonicalizer — dedupes remotes, normalizes paths, autoFixes every script",
+    date: "Jul 7",
+    icon: Wrench,
+    body: "Added a deterministic post-processor that runs on every finalized action batch before it's sent to the plugin. It dedupes duplicate RemoteEvents / RemoteFunctions / UnreliableRemoteEvents by (parent_path, name) so the plugin no longer warns about repeated instances, normalizes BloxSmith folder paths so scripts and remotes agree on where things live, runs autoFixLuau on every emitted script source (deprecated wait/spawn/delay/:connect become task.wait/task.spawn/task.delay/:Connect; JSON-style tables become Luau tables; stray markdown fences are stripped), drops empty scripts before they create blank Instances in Studio, and logs any remaining Luau validator issues per action for observability. Pure mechanical cleanup — no LLM calls, no logic edits.",
+  },
+  {
+    title: "🧠 Smart Brain refactor — shared surface catalog between planner and critic",
+    date: "Jul 7",
+    icon: Brain,
+    body: "The required-surface catalog previously lived only inside smart-brain.functions.ts. Extracted it into a shared src/lib/surfaces.ts module so both the pre-build planner (coverage-gated re-planning loop) and the new post-build critic use the exact same definitions — same regex triggers, same plan keywords, same build hints, plus a new action-level coverage predicate per surface. Smart Brain's return shape was also cleaned up so the required-surface list serializes cleanly across the server-function RPC boundary without the coverage predicate function tripping serialization.",
+  },
+  {
+    title: "🎨 Premium UI law — every GUI, loading screen & main menu ships AAA-quality",
+    date: "Jul 6",
+    icon: Palette,
+    body: "Locked in a hard, non-negotiable Premium UI law across the BloxSmith system prompt. Every ScreenGui, HUD, loading screen, splash, title screen, main menu, pause menu, settings, shop, inventory, quest log, notification, and modal now MUST ship a polished, AAA look — no plain grey Roblox defaults, no flat single-color backgrounds, no unstyled TextButtons, no placeholder screens. Mandatory per surface: named Theme table (bg/surface/primary/glow/text/muted/stroke) matched to the game genre, layered background (3+ stop UIGradient + optional hero image + vignette + ambient accents), UICorner + UIStroke + UIPadding + UIListLayout on every container, soft drop-shadow behind primary CTAs, entrance tween on load (fade+slide with staggered cascade for lists), hover tween (position shift + stroke brighten + transparency drop at 0.18s Quad Out), press tween (Scale 0.97 bounce), Gotham typography (Black/Bold titles 48–110px, Semibold buttons 18–24px), responsive UIScale + UISizeConstraint + UIAspectRatioConstraint, 44px+ touch targets, and safe-area insets. A shared UIKit ModuleScript is spawned when multiple surfaces are built so the whole game shares one look.",
+  },
+  {
+    title: "🔥 Premium particle effects — layered core + glow + embers + smoke haze",
+    date: "Jul 6",
+    icon: Sparkles,
+    body: "Every humanoid VFX preset (Fire, Lightning, Magic, Ice, Poison, Holy, Dark, Energy) now stacks multiple ParticleEmitter layers for a cinematic, volumetric look instead of a single flat sprite stream. Fire keeps Roblox's reliable built-in Fire instance and adds on top: an ember layer (bright orange sparks flying up), a hot glow layer (soft orange bloom around the source), and a rising smoke haze layer. Lightning/Magic/Ice each get a bright core layer plus a soft glow layer with brighter LightEmission, richer 3-stop color ramps, and bigger point lights for real scene bloom. Sizes, rates, and light range auto-scale to each body part so the effect looks right on a hand, a torso, or a full aura.",
+  },
+  {
+    title: "🧠 Professional workflow law — interpret → expand → search → score → plan → build → validate → self-correct",
+    date: "Jul 6",
+    icon: Brain,
+    body: "BloxSmith now runs a permanent 12-step senior-developer pipeline before emitting any actions. Every prompt is silently interpreted beyond keywords (quantity, style, features, output shape), expanded into multiple related concepts, searched across Toolbox + saved assets + inventory + templates + procedural generation, and every candidate is scored on relevance/completeness/optimization/script quality/mesh + texture quality/ratings/performance — only the highest scorer is inserted. Complete worlds are preferred over isolated props (a 'medieval village' now implies houses + central structure + roads + terrain + trees + market + lighting + NPCs + spawns), missing assets are procedurally generated instead of infinite Toolbox looping, systems ship every layer (UI + data + save + hotbar + drag/drop + equip + anim + notifications + RemoteEvents), and every output is validated then self-corrected until it works. Users see clean results — the pipeline runs invisibly.",
+  },
   {
     title: "🎨 Premium UI law — every GUI, loading screen & main menu ships AAA-quality",
     date: "Jul 6",
