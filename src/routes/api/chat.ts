@@ -7339,6 +7339,7 @@ export const Route = createFileRoute("/api/chat")({
                     if (/402|credit/i.test(msg)) return "The selected AI model is unavailable right now. Try again in a moment.";
                     if (/429|rate|capacity|overloaded|503|502|timeout/i.test(msg)) return "That AI route is busy. Click Resend and BloxSmith will use the stable fallback route.";
                     if (/unavailable tool ['\"]?insert_asset/i.test(msg)) return "The model tried to insert an asset directly; BloxSmith kept the build alive and queued a safe Studio fallback. Please click Resend if you want another pass.";
+                    if (/unavailable tool/i.test(msg)) return "The model tried to call an unsupported tool. Click Resend — BloxSmith will keep the build alive and route the action through the standard pipeline.";
                     return `AI request failed: ${msg}`;
                   },
                 });
