@@ -111,8 +111,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:site", content: "@bloxsmith" },
       { name: "twitter:title", content: "BloxSmith — AI Roblox Game Builder" },
       { name: "twitter:description", content: "BloxSmith is an AI-powered Roblox game builder. Describe your game, watch BloxSmith generate Luau scripts, GUIs, maps, and systems straight into Roblox Studio." },
-      { property: "og:image", content: "https://bloxsmith.pro/__l5e/assets-v1/92c19508-35dc-4089-b0fe-6de29651d26a/bloxsmith-logo.png" },
-      { name: "twitter:image", content: "https://bloxsmith.pro/__l5e/assets-v1/92c19508-35dc-4089-b0fe-6de29651d26a/bloxsmith-logo.png" },
       { name: "theme-color", content: "#0b1220" },
       { name: "robots", content: "index, follow, max-image-preview:large" },
     ],
@@ -173,7 +171,7 @@ function RootComponent() {
 
   useEffect(() => {
     let mounted = true;
-    // Redirect to dashboard if a session already exists on a public auth-entry route
+    let unsubscribe: (() => void) | undefined;
     const maybeRedirect = (pathname: string) => {
       if (pathname === "/" || pathname === "/auth") {
         router.navigate({ to: "/dashboard" });
@@ -181,6 +179,7 @@ function RootComponent() {
     };
 
     import("@/integrations/supabase/client").then(({ supabase }) => {
+      if (!mounted) return;
       supabase.auth.getSession().then(({ data }) => {
         if (!mounted) return;
         if (data.session) maybeRedirect(window.location.pathname);
@@ -194,12 +193,13 @@ function RootComponent() {
           router.invalidate();
         }
       });
-
-      return () => sub.subscription.unsubscribe();
+      unsubscribe = () => sub.subscription.unsubscribe();
+      if (!mounted) unsubscribe();
     });
 
     return () => {
       mounted = false;
+      unsubscribe?.();
     };
   }, [router, queryClient]);
 
@@ -225,10 +225,15 @@ function RootComponent() {
 
 
 function BetaBanner() {
-  const [dismissed, setDismissed] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    return window.localStorage.getItem("bs:beta-banner-dismissed") === "1";
-  });
+  const [dismissed, setDismissed] = useState<boolean>(false);
+
+  useEffect(() => {
+    try {
+      if (window.localStorage.getItem("bs:beta-banner-dismissed") === "1") {
+        setDismissed(true);
+      }
+    } catch {}
+  }, []);
 
   if (dismissed) return null;
   return (
