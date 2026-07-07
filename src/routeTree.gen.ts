@@ -19,6 +19,7 @@ import { Route as RobloxScriptGeneratorRouteImport } from './routes/roblox-scrip
 import { Route as RobloxGuiMakerRouteImport } from './routes/roblox-gui-maker'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as LeaderboardRouteImport } from './routes/leaderboard'
+import { Route as GuidesRouteImport } from './routes/guides'
 import { Route as FreeRobloxStudioAiRouteImport } from './routes/free-roblox-studio-ai'
 import { Route as DonateRouteImport } from './routes/donate'
 import { Route as DocsRouteImport } from './routes/docs'
@@ -27,7 +28,6 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AiRobloxGameMakerRouteImport } from './routes/ai-roblox-game-maker'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as GuidesIndexRouteImport } from './routes/guides.index'
 import { Route as UUsernameRouteImport } from './routes/u.$username'
 import { Route as TemplatesUiRouteImport } from './routes/templates.ui'
 import { Route as GuidesSlugRouteImport } from './routes/guides.$slug'
@@ -119,6 +119,11 @@ const LeaderboardRoute = LeaderboardRouteImport.update({
   path: '/leaderboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GuidesRoute = GuidesRouteImport.update({
+  id: '/guides',
+  path: '/guides',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const FreeRobloxStudioAiRoute = FreeRobloxStudioAiRouteImport.update({
   id: '/free-roblox-studio-ai',
   path: '/free-roblox-studio-ai',
@@ -158,11 +163,6 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const GuidesIndexRoute = GuidesIndexRouteImport.update({
-  id: '/guides/',
-  path: '/guides/',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const UUsernameRoute = UUsernameRouteImport.update({
   id: '/u/$username',
   path: '/u/$username',
@@ -174,9 +174,9 @@ const TemplatesUiRoute = TemplatesUiRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const GuidesSlugRoute = GuidesSlugRouteImport.update({
-  id: '/guides/$slug',
-  path: '/guides/$slug',
-  getParentRoute: () => rootRouteImport,
+  id: '/$slug',
+  path: '/$slug',
+  getParentRoute: () => GuidesRoute,
 } as any)
 const ApiVoiceRoute = ApiVoiceRouteImport.update({
   id: '/api/voice',
@@ -383,6 +383,7 @@ export interface FileRoutesByFullPath {
   '/docs': typeof DocsRoute
   '/donate': typeof DonateRoute
   '/free-roblox-studio-ai': typeof FreeRobloxStudioAiRoute
+  '/guides': typeof GuidesRouteWithChildren
   '/leaderboard': typeof LeaderboardRoute
   '/privacy': typeof PrivacyRoute
   '/roblox-gui-maker': typeof RobloxGuiMakerRoute
@@ -412,7 +413,6 @@ export interface FileRoutesByFullPath {
   '/guides/$slug': typeof GuidesSlugRoute
   '/templates/ui': typeof TemplatesUiRoute
   '/u/$username': typeof UUsernameRoute
-  '/guides/': typeof GuidesIndexRoute
   '/models/$projectId': typeof AuthenticatedModelsProjectIdRoute
   '/project/$projectId': typeof AuthenticatedProjectProjectIdRoute
   '/settings/advanced': typeof AuthenticatedSettingsAdvancedRoute
@@ -443,6 +443,7 @@ export interface FileRoutesByTo {
   '/docs': typeof DocsRoute
   '/donate': typeof DonateRoute
   '/free-roblox-studio-ai': typeof FreeRobloxStudioAiRoute
+  '/guides': typeof GuidesRouteWithChildren
   '/leaderboard': typeof LeaderboardRoute
   '/privacy': typeof PrivacyRoute
   '/roblox-gui-maker': typeof RobloxGuiMakerRoute
@@ -472,7 +473,6 @@ export interface FileRoutesByTo {
   '/guides/$slug': typeof GuidesSlugRoute
   '/templates/ui': typeof TemplatesUiRoute
   '/u/$username': typeof UUsernameRoute
-  '/guides': typeof GuidesIndexRoute
   '/models/$projectId': typeof AuthenticatedModelsProjectIdRoute
   '/project/$projectId': typeof AuthenticatedProjectProjectIdRoute
   '/settings/advanced': typeof AuthenticatedSettingsAdvancedRoute
@@ -505,6 +505,7 @@ export interface FileRoutesById {
   '/docs': typeof DocsRoute
   '/donate': typeof DonateRoute
   '/free-roblox-studio-ai': typeof FreeRobloxStudioAiRoute
+  '/guides': typeof GuidesRouteWithChildren
   '/leaderboard': typeof LeaderboardRoute
   '/privacy': typeof PrivacyRoute
   '/roblox-gui-maker': typeof RobloxGuiMakerRoute
@@ -534,7 +535,6 @@ export interface FileRoutesById {
   '/guides/$slug': typeof GuidesSlugRoute
   '/templates/ui': typeof TemplatesUiRoute
   '/u/$username': typeof UUsernameRoute
-  '/guides/': typeof GuidesIndexRoute
   '/_authenticated/models/$projectId': typeof AuthenticatedModelsProjectIdRoute
   '/_authenticated/project/$projectId': typeof AuthenticatedProjectProjectIdRoute
   '/_authenticated/settings/advanced': typeof AuthenticatedSettingsAdvancedRoute
@@ -567,6 +567,7 @@ export interface FileRouteTypes {
     | '/docs'
     | '/donate'
     | '/free-roblox-studio-ai'
+    | '/guides'
     | '/leaderboard'
     | '/privacy'
     | '/roblox-gui-maker'
@@ -596,7 +597,6 @@ export interface FileRouteTypes {
     | '/guides/$slug'
     | '/templates/ui'
     | '/u/$username'
-    | '/guides/'
     | '/models/$projectId'
     | '/project/$projectId'
     | '/settings/advanced'
@@ -627,6 +627,7 @@ export interface FileRouteTypes {
     | '/docs'
     | '/donate'
     | '/free-roblox-studio-ai'
+    | '/guides'
     | '/leaderboard'
     | '/privacy'
     | '/roblox-gui-maker'
@@ -656,7 +657,6 @@ export interface FileRouteTypes {
     | '/guides/$slug'
     | '/templates/ui'
     | '/u/$username'
-    | '/guides'
     | '/models/$projectId'
     | '/project/$projectId'
     | '/settings/advanced'
@@ -688,6 +688,7 @@ export interface FileRouteTypes {
     | '/docs'
     | '/donate'
     | '/free-roblox-studio-ai'
+    | '/guides'
     | '/leaderboard'
     | '/privacy'
     | '/roblox-gui-maker'
@@ -717,7 +718,6 @@ export interface FileRouteTypes {
     | '/guides/$slug'
     | '/templates/ui'
     | '/u/$username'
-    | '/guides/'
     | '/_authenticated/models/$projectId'
     | '/_authenticated/project/$projectId'
     | '/_authenticated/settings/advanced'
@@ -750,6 +750,7 @@ export interface RootRouteChildren {
   DocsRoute: typeof DocsRoute
   DonateRoute: typeof DonateRoute
   FreeRobloxStudioAiRoute: typeof FreeRobloxStudioAiRoute
+  GuidesRoute: typeof GuidesRouteWithChildren
   LeaderboardRoute: typeof LeaderboardRoute
   PrivacyRoute: typeof PrivacyRoute
   RobloxGuiMakerRoute: typeof RobloxGuiMakerRoute
@@ -763,10 +764,8 @@ export interface RootRouteChildren {
   ApiChatRoute: typeof ApiChatRoute
   ApiHelpChatRoute: typeof ApiHelpChatRoute
   ApiVoiceRoute: typeof ApiVoiceRoute
-  GuidesSlugRoute: typeof GuidesSlugRoute
   TemplatesUiRoute: typeof TemplatesUiRoute
   UUsernameRoute: typeof UUsernameRoute
-  GuidesIndexRoute: typeof GuidesIndexRoute
   ApiPublicLeaderboardRoute: typeof ApiPublicLeaderboardRoute
   ApiPublicMaintenanceRoute: typeof ApiPublicMaintenanceRoute
   ApiPublicMcpRoute: typeof ApiPublicMcpRoute
@@ -859,6 +858,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LeaderboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/guides': {
+      id: '/guides'
+      path: '/guides'
+      fullPath: '/guides'
+      preLoaderRoute: typeof GuidesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/free-roblox-studio-ai': {
       id: '/free-roblox-studio-ai'
       path: '/free-roblox-studio-ai'
@@ -915,13 +921,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/guides/': {
-      id: '/guides/'
-      path: '/guides'
-      fullPath: '/guides/'
-      preLoaderRoute: typeof GuidesIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/u/$username': {
       id: '/u/$username'
       path: '/u/$username'
@@ -938,10 +937,10 @@ declare module '@tanstack/react-router' {
     }
     '/guides/$slug': {
       id: '/guides/$slug'
-      path: '/guides/$slug'
+      path: '/$slug'
       fullPath: '/guides/$slug'
       preLoaderRoute: typeof GuidesSlugRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof GuidesRoute
     }
     '/api/voice': {
       id: '/api/voice'
@@ -1266,6 +1265,17 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
 const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
+interface GuidesRouteChildren {
+  GuidesSlugRoute: typeof GuidesSlugRoute
+}
+
+const GuidesRouteChildren: GuidesRouteChildren = {
+  GuidesSlugRoute: GuidesSlugRoute,
+}
+
+const GuidesRouteWithChildren =
+  GuidesRoute._addFileChildren(GuidesRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
@@ -1275,6 +1285,7 @@ const rootRouteChildren: RootRouteChildren = {
   DocsRoute: DocsRoute,
   DonateRoute: DonateRoute,
   FreeRobloxStudioAiRoute: FreeRobloxStudioAiRoute,
+  GuidesRoute: GuidesRouteWithChildren,
   LeaderboardRoute: LeaderboardRoute,
   PrivacyRoute: PrivacyRoute,
   RobloxGuiMakerRoute: RobloxGuiMakerRoute,
@@ -1288,10 +1299,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiChatRoute: ApiChatRoute,
   ApiHelpChatRoute: ApiHelpChatRoute,
   ApiVoiceRoute: ApiVoiceRoute,
-  GuidesSlugRoute: GuidesSlugRoute,
   TemplatesUiRoute: TemplatesUiRoute,
   UUsernameRoute: UUsernameRoute,
-  GuidesIndexRoute: GuidesIndexRoute,
   ApiPublicLeaderboardRoute: ApiPublicLeaderboardRoute,
   ApiPublicMaintenanceRoute: ApiPublicMaintenanceRoute,
   ApiPublicMcpRoute: ApiPublicMcpRoute,

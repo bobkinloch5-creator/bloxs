@@ -5,7 +5,7 @@ import { breadcrumbJsonLd } from "@/components/SeoLanding";
 
 const URL = "https://bloxsmith.pro/guides";
 
-export const Route = createFileRoute("/guides/")({
+export const Route = createFileRoute("/guides")({
   head: () => ({
     meta: [
       { title: "Roblox Game Dev Guides — Build with AI | BloxSmith" },
