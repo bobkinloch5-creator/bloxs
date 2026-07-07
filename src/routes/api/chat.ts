@@ -6822,9 +6822,8 @@ export const Route = createFileRoute("/api/chat")({
                       });
                     }
 
-                    // Luau self-test gate: regen any script the validator
-                    // flagged with ERROR-severity issues. One scoped LLM call
-                    // per broken script, capped at MAX_REGEN_PER_TURN.
+                    // Luau self-test gate: cheap tag-only validation marker.
+                    // It never calls an LLM, so it cannot hold the stream open.
                     const errorScripts = canon.luauIssuesByAction.filter(
                       (e) => e.issues.some((i) => i.severity === "error"),
                     );
