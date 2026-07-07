@@ -15,8 +15,16 @@ export const Route = createFileRoute("/sitemap.xml")({
       GET: async () => {
         const entries: SitemapEntry[] = [
           { path: "/", changefreq: "weekly", priority: "1.0" },
+          { path: "/ai-roblox-game-maker", changefreq: "weekly", priority: "0.9" },
+          { path: "/roblox-script-generator", changefreq: "weekly", priority: "0.9" },
+          { path: "/roblox-gui-maker", changefreq: "weekly", priority: "0.9" },
+          { path: "/free-roblox-studio-ai", changefreq: "weekly", priority: "0.9" },
           { path: "/templates/ui", changefreq: "weekly", priority: "0.9" },
-          { path: "/docs", changefreq: "weekly", priority: "0.8" },
+          { path: "/guides", changefreq: "weekly", priority: "0.8" },
+          { path: "/guides/how-to-make-a-roblox-tycoon", changefreq: "monthly", priority: "0.8" },
+          { path: "/guides/how-to-make-a-roblox-obby", changefreq: "monthly", priority: "0.8" },
+          { path: "/guides/how-to-script-in-roblox-with-ai", changefreq: "monthly", priority: "0.8" },
+          { path: "/docs", changefreq: "weekly", priority: "0.7" },
           { path: "/support", changefreq: "monthly", priority: "0.6" },
           { path: "/contact", changefreq: "monthly", priority: "0.6" },
           { path: "/privacy", changefreq: "yearly", priority: "0.3" },
