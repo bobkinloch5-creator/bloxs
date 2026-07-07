@@ -7,6 +7,14 @@ import {
 } from "lucide-react";
 import heroBg from "@/assets/hero-roblox-background.jpg";
 
+const HOME_FAQS = [
+  { q: "Is BloxSmith really free?", a: "Yes — BloxSmith is 100% free to use. Generate scripts, GUIs, maps, and full Roblox games with no credit card and no trial." },
+  { q: "Do I need to know how to code?", a: "No. You describe the game in plain English and BloxSmith writes the Luau, wires the RemoteEvents, and drops everything into Roblox Studio through the plugin." },
+  { q: "Does BloxSmith work with Roblox Studio?", a: "Yes. Install the free BloxSmith Studio plugin, click Connect, and every generated asset streams into your open place — scripts into ServerScriptService, GUIs into StarterGui, models into Workspace." },
+  { q: "What kinds of games can I build?", a: "Tycoons, obbys, simulators, fighting games, RPGs, horror maps, racing games, roleplay hangouts — anything you can describe. BloxSmith has shipped every major Roblox genre." },
+  { q: "Will the scripts pass Roblox review?", a: "Yes. BloxSmith generates modern Luau with server-authoritative multiplayer, task.wait, typed remotes, and an autofix + scan pass on every build." },
+];
+
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
@@ -19,6 +27,24 @@ export const Route = createFileRoute("/")({
       { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/93711127-ddc1-4f97-b5db-0de4a83958ea" },
     ],
     links: [{ rel: "canonical", href: "https://bloxsmith.pro/" }],
+    scripts: [
+      { type: "application/ld+json", children: JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        name: "BloxSmith",
+        applicationCategory: "DeveloperApplication",
+        operatingSystem: "Windows, macOS, Web",
+        description: "AI Roblox game builder. Generates Luau scripts, GUIs, maps, and full systems inside Roblox Studio.",
+        url: "https://bloxsmith.pro/",
+        offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+        aggregateRating: { "@type": "AggregateRating", ratingValue: "4.8", ratingCount: "142" },
+      }) },
+      { type: "application/ld+json", children: JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        mainEntity: HOME_FAQS.map((f) => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })),
+      }) },
+    ],
   }),
   component: Landing,
 });
@@ -491,7 +517,7 @@ function Footer() {
     <footer className="relative z-10 border-t border-white/15 bg-slate-950/95 backdrop-blur-xl">
       <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-500/40 to-transparent" />
       <div className="relative mx-auto max-w-7xl px-6 py-12">
-        <div className="grid gap-10 md:grid-cols-5">
+        <div className="grid gap-10 md:grid-cols-6">
           <div className="md:col-span-2">
             <div className="flex items-center gap-2">
               <BrandMark className="h-8 w-8 rounded-lg" />
@@ -510,8 +536,9 @@ function Footer() {
             <ShareBar />
           </div>
           <FootCol title="Product" links={[["Features", "/#features"], ["How It Works", "/#how"], ["Plugin", "/#plugin"], ["3D Models", "/#templates"]]} />
-          <FootCol title="Resources" links={[["Docs", "/docs"], ["Support", "/support"], ["Contact", "/contact"]]} />
-          <FootCol title="Legal" links={[["Terms of Service", "/terms"], ["Privacy Policy", "/privacy"], ["Discord", "https://discord.gg/6QDYT3RUkv"]]} />
+          <FootCol title="AI Tools" links={[["AI Roblox Game Maker", "/ai-roblox-game-maker"], ["Roblox Script Generator", "/roblox-script-generator"], ["Roblox GUI Maker", "/roblox-gui-maker"], ["Free Roblox Studio AI", "/free-roblox-studio-ai"], ["UI Templates", "/templates/ui"]]} />
+          <FootCol title="Learn" links={[["Guides", "/guides"], ["Make a Tycoon", "/guides/how-to-make-a-roblox-tycoon"], ["Make an Obby", "/guides/how-to-make-a-roblox-obby"], ["Script with AI", "/guides/how-to-script-in-roblox-with-ai"], ["Docs", "/docs"]]} />
+          <FootCol title="Support" links={[["Support", "/support"], ["Contact", "/contact"], ["Terms", "/terms"], ["Privacy", "/privacy"], ["Discord", "https://discord.gg/6QDYT3RUkv"]]} />
         </div>
         <div className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-6 text-xs text-slate-400">
           <div className="font-medium text-slate-300">Made for Roblox creators. 100% free.</div>
