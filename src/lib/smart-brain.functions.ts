@@ -503,7 +503,7 @@ export const runSmartBrain = createServerFn({ method: "POST" })
         key: "smart_brain_last_run",
         value: JSON.stringify({
           goal: data.goal.slice(0, 300),
-          intent: { ...intent, requiredSurfaces: intent.requiredSurfaces.map((s) => s.label) },
+          intent: { ...intent, requiredSurfaces: intent.requiredSurfaces.map(toSerializable) },
           specialist_models: specialists.map((s) => ({ task: s.task, model: s.modelLabel })),
           coverage,
           confidence,
@@ -516,9 +516,14 @@ export const runSmartBrain = createServerFn({ method: "POST" })
       { onConflict: "project_id,key" },
     );
 
+    const serializableIntent: SerializableIntent = {
+      ...intent,
+      requiredSurfaces: intent.requiredSurfaces.map(toSerializable),
+    };
+
     return {
       ok: true,
-      intent,
+      intent: serializableIntent,
       contextSummary: contextSummary.slice(0, 4000),
       plan,
       specialists,
