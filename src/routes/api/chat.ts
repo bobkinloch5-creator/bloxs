@@ -426,8 +426,14 @@ function isDestructiveEditRequest(userText: string) {
 
 function isClearProjectKeepBaseplateRequest(userText: string) {
   const text = userText.toLowerCase();
-  return isDestructiveEditRequest(userText) && /\b(?:base\s*plate|baseplate)\b/.test(text) && /\b(?:keep|except|only|preserve|leave)\b/.test(text);
+  if (!isDestructiveEditRequest(userText)) return false;
+  // Explicit "keep only Baseplate" phrasing.
+  if (/\b(?:base\s*plate|baseplate)\b/.test(text) && /\b(?:keep|except|only|preserve|leave)\b/.test(text)) return true;
+  // Plain "delete/clear/wipe everything" with no other keep-target → default to keep Baseplate.
+  if (/\b(everything|all|workspace|project|map)\b/.test(text) && !/\b(?:keep|except|preserve|leave)\b/.test(text)) return true;
+  return false;
 }
+
 
 function clearProjectKeepBaseplateStudioActions(userText: string) {
   const safePrompt = userText.trim().slice(0, 240) || "clear project and keep only Baseplate";
