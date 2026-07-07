@@ -1,9 +1,31 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Bell, Bot, Box, Brain, Check, CheckCircle2, ChevronDown, Copy, Gauge, ImageIcon, Lightbulb, Link2, ListChecks, Palette, Rocket, ScrollText, Search, Share2, ShieldCheck, Sparkles, Users, Wrench, X, Zap } from "lucide-react";
 
-const CHANGELOG_VERSION = "2026-07-06-premium-ui-and-vfx";
+const CHANGELOG_VERSION = "2026-07-07-goal-aware-critic-and-canonicalizer";
 
 const CHANGELOG_ITEMS = [
+  {
+    title: "🎯 Post-build coverage critic — surfaces the model forgets get built anyway",
+    date: "Jul 7",
+    icon: ShieldCheck,
+    body: "Every build turn now runs a goal-aware safety net right before actions leave for Studio. A new deterministic surface catalog (Main Menu, Loading Screen, HUD, Shop UI, Inventory UI, Settings, Pause Menu, Leaderboard, Dash, Sprint, Double Jump) is regex-extracted from your prompt. After the primary model emits its actions batch, the critic checks whether every requested surface is actually present. If any are missing, it fires a fast NVIDIA repair pass to generate patch actions covering just the gaps, then falls back to hand-verified deterministic templates (real MainMenu ScreenGui + Play/Shop/Inventory/Settings buttons, a non-lethal horizontal Dash LocalScript with proper LinearVelocity + cooldown) so the surface always ships — even if every model call fails. The reply shows a 'Coverage repair sent' note listing which surfaces were rescued so you can see the safety net firing.",
+  },
+  {
+    title: "🧼 Action canonicalizer — dedupes remotes, normalizes paths, autoFixes every script",
+    date: "Jul 7",
+    icon: Wrench,
+    body: "Added a deterministic post-processor that runs on every finalized action batch before it's sent to the plugin. It dedupes duplicate RemoteEvents / RemoteFunctions / UnreliableRemoteEvents by (parent_path, name) so the plugin no longer warns about repeated instances, normalizes BloxSmith folder paths so scripts and remotes agree on where things live, runs autoFixLuau on every emitted script source (deprecated wait/spawn/delay/:connect become task.wait/task.spawn/task.delay/:Connect; JSON-style tables become Luau tables; stray markdown fences are stripped), drops empty scripts before they create blank Instances in Studio, and logs any remaining Luau validator issues per action for observability. Pure mechanical cleanup — no LLM calls, no logic edits.",
+  },
+  {
+    title: "🧠 Smart Brain refactor — shared surface catalog between planner and critic",
+    date: "Jul 7",
+    icon: Brain,
+    body: "The required-surface catalog previously lived only inside smart-brain.functions.ts. Extracted it into a shared src/lib/surfaces.ts module so both the pre-build planner (coverage-gated re-planning loop) and the new post-build critic use the exact same definitions — same regex triggers, same plan keywords, same build hints, plus a new action-level coverage predicate per surface. Smart Brain's return shape was also cleaned up so the required-surface list serializes cleanly across the server-function RPC boundary without the coverage predicate function tripping serialization.",
+  },
+];
+
+// Legacy — retained below for scrollback:
+const _CHANGELOG_ITEMS_ARCHIVE = [
   {
     title: "🎨 Premium UI law — every GUI, loading screen & main menu ships AAA-quality",
     date: "Jul 6",
