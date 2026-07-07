@@ -7434,15 +7434,15 @@ export const Route = createFileRoute("/api/chat")({
                 persisted = true;
                 await persistFinish(usedModelId, notice)({ text: accumulated });
               },
-              onAbort: () => {
+              onAbort: async () => {
                 clearStreamTimeout();
                 console.warn(`[chat] stream aborted on ${usedModelId} — persisting ${accumulated.length} chars`);
-                void safePersist("abort");
+                await safePersist("abort");
               },
-              onError: ({ error }) => {
+              onError: async ({ error }) => {
                 clearStreamTimeout();
                 console.error(`[chat] upstream error on ${usedModelId}`, error);
-                void safePersist("error");
+                await safePersist("error");
               },
             });
           };
