@@ -6841,6 +6841,44 @@ export const Route = createFileRoute("/api/chat")({
                         luauIssues: canon.luauIssuesByAction.length,
                       });
                     }
+
+                    // Luau self-test gate: regen any script the validator
+                    // flagged with ERROR-severity issues. One scoped LLM call
+                    // per broken script, capped at MAX_REGEN_PER_TURN.
+                    const errorScripts = canon.luauIssuesByAction.filter(
+                      (e) => e.issues.some((i) => i.severity === "error"),
+                    );
+                    if (errorScripts.length > 0) {
+                      try {
+                        const { runLuauSelfTest } = await import("@/lib/luau-self-test.server");
+                        const selfTest = await runLuauSelfTest({
+                          userText,
+                          actions: actions as any[],
+                          canon,
+                        });
+                        if (selfTest.fixedByRegen.length > 0 || selfTest.stillBroken.length > 0) {
+                          console.info("[chat] luau-self-test ran", {
+                            projectId,
+                            attempted: selfTest.attempted,
+                            fixed: selfTest.fixedByRegen,
+                            stillBroken: selfTest.stillBroken,
+                            ranMs: selfTest.ranMs,
+                          });
+                          const bits: string[] = [];
+                          if (selfTest.fixedByRegen.length > 0) {
+                            bits.push(`auto-repaired ${selfTest.fixedByRegen.length} script(s): ${selfTest.fixedByRegen.join(", ")}`);
+                          }
+                          if (selfTest.stillBroken.length > 0) {
+                            bits.push(`${selfTest.stillBroken.length} script(s) still flagged (${selfTest.stillBroken.join(", ")}) — plugin will warn on load`);
+                          }
+                          if (bits.length) {
+                            cleanContent = `${cleanContent.trim()}\n\n_Luau self-test: ${bits.join("; ")}._`;
+                          }
+                        }
+                      } catch (selfTestErr) {
+                        console.warn("[chat] luau-self-test failed (non-fatal)", selfTestErr);
+                      }
+                    }
                   } catch (canonErr) {
                     console.warn("[chat] action-canonicalizer failed (non-fatal)", canonErr);
                   }
