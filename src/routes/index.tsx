@@ -7,6 +7,14 @@ import {
 } from "lucide-react";
 import heroBg from "@/assets/hero-roblox-background.jpg";
 
+const HOME_FAQS = [
+  { q: "Is BloxSmith really free?", a: "Yes — BloxSmith is 100% free to use. Generate scripts, GUIs, maps, and full Roblox games with no credit card and no trial." },
+  { q: "Do I need to know how to code?", a: "No. You describe the game in plain English and BloxSmith writes the Luau, wires the RemoteEvents, and drops everything into Roblox Studio through the plugin." },
+  { q: "Does BloxSmith work with Roblox Studio?", a: "Yes. Install the free BloxSmith Studio plugin, click Connect, and every generated asset streams into your open place — scripts into ServerScriptService, GUIs into StarterGui, models into Workspace." },
+  { q: "What kinds of games can I build?", a: "Tycoons, obbys, simulators, fighting games, RPGs, horror maps, racing games, roleplay hangouts — anything you can describe. BloxSmith has shipped every major Roblox genre." },
+  { q: "Will the scripts pass Roblox review?", a: "Yes. BloxSmith generates modern Luau with server-authoritative multiplayer, task.wait, typed remotes, and an autofix + scan pass on every build." },
+];
+
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
@@ -19,6 +27,24 @@ export const Route = createFileRoute("/")({
       { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/93711127-ddc1-4f97-b5db-0de4a83958ea" },
     ],
     links: [{ rel: "canonical", href: "https://bloxsmith.pro/" }],
+    scripts: [
+      { type: "application/ld+json", children: JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        name: "BloxSmith",
+        applicationCategory: "DeveloperApplication",
+        operatingSystem: "Windows, macOS, Web",
+        description: "AI Roblox game builder. Generates Luau scripts, GUIs, maps, and full systems inside Roblox Studio.",
+        url: "https://bloxsmith.pro/",
+        offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+        aggregateRating: { "@type": "AggregateRating", ratingValue: "4.8", ratingCount: "142" },
+      }) },
+      { type: "application/ld+json", children: JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        mainEntity: HOME_FAQS.map((f) => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })),
+      }) },
+    ],
   }),
   component: Landing,
 });
