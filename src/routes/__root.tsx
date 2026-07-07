@@ -171,7 +171,7 @@ function RootComponent() {
 
   useEffect(() => {
     let mounted = true;
-    // Redirect to dashboard if a session already exists on a public auth-entry route
+    let unsubscribe: (() => void) | undefined;
     const maybeRedirect = (pathname: string) => {
       if (pathname === "/" || pathname === "/auth") {
         router.navigate({ to: "/dashboard" });
@@ -179,6 +179,7 @@ function RootComponent() {
     };
 
     import("@/integrations/supabase/client").then(({ supabase }) => {
+      if (!mounted) return;
       supabase.auth.getSession().then(({ data }) => {
         if (!mounted) return;
         if (data.session) maybeRedirect(window.location.pathname);
@@ -192,12 +193,13 @@ function RootComponent() {
           router.invalidate();
         }
       });
-
-      return () => sub.subscription.unsubscribe();
+      unsubscribe = () => sub.subscription.unsubscribe();
+      if (!mounted) unsubscribe();
     });
 
     return () => {
       mounted = false;
+      unsubscribe?.();
     };
   }, [router, queryClient]);
 
