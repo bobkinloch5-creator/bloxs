@@ -1,9 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Bell, Bot, Box, Brain, Check, CheckCircle2, ChevronDown, Copy, Gauge, ImageIcon, Lightbulb, Link2, ListChecks, Palette, Rocket, ScrollText, Search, Share2, ShieldCheck, Sparkles, Users, Wrench, X, Zap } from "lucide-react";
 
-const CHANGELOG_VERSION = "2026-07-07-goal-aware-critic-and-canonicalizer";
+const CHANGELOG_VERSION = "2026-07-07-luau-self-test-gate";
 
 const CHANGELOG_ITEMS = [
+  {
+    title: "🧪 Luau self-test gate — broken scripts get regenerated before they ship",
+    date: "Jul 7",
+    icon: ShieldCheck,
+    body: "Added a validator-driven repair pass right after the action canonicalizer. Every emitted Luau script now runs through validateLuau, and for any script flagged with error-severity issues (unbalanced blocks, mismatched brackets, loadstring, mixed server/client APIs, deprecated globals the auto-fixer couldn't catch) a scoped NVIDIA regen call is fired that rewrites ONLY that script's source given the exact validator errors and the original user request. Regen output is re-validated; if it passes it replaces the source in-place, if it still errors we keep the original but attach _luau_errors metadata so the Studio plugin can surface a load-time warning instead of exploding at runtime. Capped at 4 regens per turn with a 20s timeout to keep latency predictable. The reply now shows a 'Luau self-test' note listing which scripts were auto-repaired and which are still flagged.",
+  },
   {
     title: "🎯 Post-build coverage critic — surfaces the model forgets get built anyway",
     date: "Jul 7",
