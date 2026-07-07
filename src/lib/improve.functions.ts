@@ -7,33 +7,65 @@ import { FALLBACK_MODEL_ID } from "./models";
 
 const Input = z.object({ text: z.string().min(1).max(4000) });
 
+const IMPROVE_SYSTEM = `You rewrite short Roblox build requests into clearer, sharper prompts for the BloxSmith AI builder. Preserve the user's exact intent and scope — do NOT expand into a full brief, do NOT add unrelated features, do NOT add genres or systems the user didn't imply.
+
+Do:
+- Fix grammar, spelling, and awkward phrasing.
+- Make the subject and action explicit (what to build, where, how many).
+- Add ONE short constraint line only if it prevents scope creep (e.g. "just this, no extras", "server-authoritative", "safe Toolbox model").
+- Keep it under 60 words. Plain prose, no bullet lists, no headers, no quotes.
+
+If the request is a single small asset (one part, one script, one model, one icon), keep it a single tight sentence + the "no extras" constraint.
+If the request is already clear and specific, return it essentially unchanged (only fix grammar).
+Output the improved prompt only. No preamble.`;
+
+function deterministicImprove(input: string): string {
+  let cleaned = input.trim().replace(/\s+/g, " ").replace(/^["'`]+|["'`]+$/g, "");
+  if (!cleaned) return "";
+  cleaned = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+  if (!/[.!?)]$/.test(cleaned)) cleaned += ".";
+  const lower = cleaned.toLowerCase();
+  const singleAsset = /\b(add|insert|spawn|make|create|get|place|put)\b/.test(lower)
+    && /\b(tree|house|car|vehicle|sword|gun|weapon|pet|npc|zombie|road|building|furniture|chair|table|rock|bush|flower|shop|store|castle|boat|plane|door|window|sign|lamp)\b/.test(lower)
+    && !/\b(game|system|map|city|world|full|complete|entire)\b/.test(lower);
+  if (singleAsset && !/toolbox|creator store|safe|free|public|no extras|just this/i.test(cleaned)) {
+    cleaned = `${cleaned.replace(/[.!?]$/, "")} from the Roblox Toolbox (safe, free, public model) — just this, no extras.`;
+  } else if (/\b(script|button|remoteevent|localscript|modulescript)\b/i.test(cleaned) && !/no extras|only|just this|system|game|full|complete/i.test(cleaned)) {
+    cleaned = `${cleaned.replace(/[.!?]$/, "")} — only the requested item and required wiring, no extras.`;
+  }
+  return cleaned;
+}
+
 export const improvePrompt = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => Input.parse(input))
   .handler(async ({ data }) => {
+    const fallback = deterministicImprove(data.text);
+    if (!fallback) return { ok: false as const, error: "empty" };
     try {
-      // Keep the toolbar responsive: Improve is a lightweight polish action,
-      // not a build/planning pass. Do it deterministically instead of waiting
-      // on a model round-trip that can leave the button stuck on "Improving…".
-      let cleaned = data.text
-        .trim()
-        .replace(/\s+/g, " ")
-        .replace(/^["'`]+|["'`]+$/g, "");
-      if (cleaned && !/[.!?)]$/.test(cleaned)) cleaned += ".";
-
-      const lower = cleaned.toLowerCase();
-      const wantsSingleAsset = /\b(add|insert|spawn|make|create|get|place)\b/.test(lower)
-        && /\b(tree|house|car|vehicle|sword|gun|weapon|pet|npc|zombie|road|building|furniture|chair|table|rock|bush|flower|shop|store|castle|boat|plane)\b/.test(lower)
-        && !/\b(game|system|map|city|world|full|complete|entire)\b/.test(lower);
-      if (wantsSingleAsset && !/toolbox|creator store|safe|free|public/i.test(cleaned)) {
-        cleaned = `${cleaned.replace(/[.!?]$/, "")} from Roblox Toolbox (safe, free, public model) — just this, no extras.`;
-      } else if (!/no extras|only|just this/i.test(cleaned) && /\b(script|button|remoteevent|localscript|modulescript)\b/i.test(cleaned) && !/\b(system|game|full|complete)\b/i.test(cleaned)) {
-        cleaned = `${cleaned.replace(/[.!?]$/, "")} — only the requested item and required wiring, no extras.`;
+      const { model } = getProviderModel(FALLBACK_MODEL_ID);
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort("Improve timed out"), 3500);
+      const { text } = await generateText({
+        model,
+        system: IMPROVE_SYSTEM,
+        prompt: data.text,
+        temperature: 0.3,
+        maxOutputTokens: 180,
+        abortSignal: controller.signal,
+      });
+      clearTimeout(timeout);
+      let cleaned = (text || "").trim().replace(/^["'`]+|["'`]+$/g, "").replace(/\s+\n/g, "\n");
+      // Strip any accidental preamble like "Improved prompt:" or "Here is..."
+      cleaned = cleaned.replace(/^(improved prompt|here(?:'s| is)[^:]*|prompt)\s*[:\-–]\s*/i, "").trim();
+      if (!cleaned || cleaned.length < 3) return { ok: true as const, text: fallback };
+      // Guardrail: if the model ballooned it into a full brief, fall back.
+      if (cleaned.split(/\s+/).length > 90 || /\n\s*(goal|scope|systems|ui|world|polish|constraints)\s*:/i.test(cleaned)) {
+        return { ok: true as const, text: fallback };
       }
-      if (!cleaned) return { ok: false as const, error: "empty" };
       return { ok: true as const, text: cleaned };
-    } catch (e: any) {
-      return { ok: false as const, error: e?.message || "improve_failed" };
+    } catch {
+      return { ok: true as const, text: fallback };
     }
   });
 
