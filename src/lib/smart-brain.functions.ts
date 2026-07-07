@@ -1,18 +1,17 @@
 // Smart Brain — BloxSmith's intelligent pre-generation pipeline.
 //
-// Instead of piping the user prompt straight to a single model, this
-// orchestrator runs a 6-stage plan-then-build pipeline:
+// Stages:
 //   1. Intent analysis                          (fast model)
-//   2. Context retrieval (scene + memory + chat)
-//   3. Architecture planning                     (planner model)
-//   4. Specialist routing + parallel drafts      (per-task models)
-//   5. Merge + validate + dedupe                 (deterministic)
-//   6. Emit an enriched build directive          (returned to caller)
+//   2. Deterministic surface extraction         (regex; no model)
+//   3. Context retrieval (scene + memory + chat)
+//   4. Architecture planning                     (planner model)
+//   5. Plan critique + COVERAGE GATE — re-plans until every required
+//      surface is explicitly named in the plan (max 2 iterations)
+//   6. Specialist routing + parallel drafts      (per-task models)
+//   7. Emit an enriched build directive with a REQUIRED SURFACES contract
 //
 // The build directive is a compressed, high-signal instruction packet the
-// existing chat executor consumes as its user turn — so the final Luau/UI
-// generation still runs through the normal action-emitting pipeline, but
-// with a real plan, real specialist context, and real project awareness.
+// existing chat executor consumes as its user turn.
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { generateText } from "ai";
@@ -42,6 +41,7 @@ type Intent = {
   systems: string[];
   needs: AutoTask[];
   risks: string[];
+  requiredSurfaces: RequiredSurface[];
 };
 
 type Specialist = {
@@ -62,7 +62,148 @@ type BrainResult = {
   directive: string;
   confidence: number;
   ranMs: number;
+  coverage: { covered: string[]; missing: string[]; iterations: number };
 };
+
+// ── Required-surface catalogue ────────────────────────────────────────────
+// A surface is a concrete, verifiable thing the user asked for. Extraction
+// is deterministic (regex) so it never depends on a model getting it right.
+// Each surface carries a plan-keyword set (all must appear in the plan for
+// coverage to pass) and a build-hint the directive forwards to chat.ts so
+// the executor cannot silently drop it.
+type RequiredSurface = {
+  id: string;
+  label: string;
+  planKeywords: string[]; // lowercased; ALL must appear in plan text
+  buildHint: string;
+};
+
+const SURFACE_CATALOG: Array<{
+  id: string;
+  label: string;
+  match: RegExp;
+  planKeywords: string[];
+  buildHint: string;
+}> = [
+  {
+    id: "main_menu",
+    label: "Main Menu",
+    match: /\b(main\s*menu|title\s*screen|start\s*screen|menu\s*system|home\s*screen)\b/i,
+    planKeywords: ["mainmenu"],
+    buildHint:
+      "MainMenu Frame inside BloxSmith_Game_UI ScreenGui with Play, Shop, Inventory, Settings TextButtons; each button MUST wire a MouseButton1Click handler that toggles the correct panel or fires the correct RemoteEvent.",
+  },
+  {
+    id: "loading_screen",
+    label: "Loading Screen",
+    match: /\b(loading\s*screen|splash\s*screen|intro\s*screen|boot\s*screen)\b/i,
+    planKeywords: ["loadingscreen"],
+    buildHint:
+      "LoadingScreen Frame inside BloxSmith_Game_UI covering the full viewport, with logo/title Label, progress Bar (Frame + Size tween), and a fade-out tween that transitions to MainMenu when ContentProvider:PreloadAsync finishes.",
+  },
+  {
+    id: "hud",
+    label: "In-game HUD",
+    match: /\b(hud|heads?[-\s]?up\s*display|in[-\s]?game\s*ui|player\s*ui|game\s*ui)\b/i,
+    planKeywords: ["hud"],
+    buildHint:
+      "HUD Frame inside BloxSmith_Game_UI shown only during active play; include Coins/Score label bound to leaderstats and an inventory hotkey hint.",
+  },
+  {
+    id: "shop_ui",
+    label: "Shop UI",
+    match: /\b(shop\s*(ui|gui|menu|panel|screen)?|store\s*(ui|gui|menu|panel|screen))\b/i,
+    planKeywords: ["shop"],
+    buildHint:
+      "Shop panel Frame with a ScrollingFrame of item cards (Icon, Name, Price, Buy button); Buy fires a Purchase RemoteEvent validated server-side against a Config ModuleScript.",
+  },
+  {
+    id: "inventory_ui",
+    label: "Inventory UI",
+    match: /\b(inventory\s*(ui|gui|menu|panel|screen)?|backpack\s*ui|bag\s*ui)\b/i,
+    planKeywords: ["inventory"],
+    buildHint:
+      "Inventory panel Frame with a UIGridLayout of slot Frames; slots read from a per-player Inventory ModuleScript / Attribute and update via a RemoteEvent.",
+  },
+  {
+    id: "settings_menu",
+    label: "Settings Menu",
+    match: /\b(settings?\s*(menu|panel|screen|ui|gui)?|options\s*menu)\b/i,
+    planKeywords: ["settings"],
+    buildHint:
+      "Settings panel Frame with Music volume slider, SFX volume slider, and Graphics quality dropdown; persist via a DataStore-backed player Attribute.",
+  },
+  {
+    id: "pause_menu",
+    label: "Pause Menu",
+    match: /\b(pause\s*(menu|screen|ui|gui))\b/i,
+    planKeywords: ["pause"],
+    buildHint:
+      "Pause panel Frame toggled by ContextActionService binding Escape/Options; freezes local time-scale UI and offers Resume, Settings, Quit buttons.",
+  },
+  {
+    id: "leaderboard_ui",
+    label: "Leaderboard UI",
+    match: /\b(leaderboard\s*(ui|gui|panel|screen)?|scoreboard)\b/i,
+    planKeywords: ["leaderboard"],
+    buildHint:
+      "Leaderboard ScrollingFrame that mirrors leaderstats for all Players, ordered descending by primary stat.",
+  },
+  {
+    id: "dash_ability",
+    label: "Dash ability",
+    match: /\b(dash(ing)?|air\s*dash|dodge\s*roll)\b/i,
+    planKeywords: ["dash"],
+    buildHint:
+      "LocalScript in StarterPlayerScripts using ContextActionService to bind Q; applies a horizontal-only LinearVelocity (MaxAxesForce Vector3.new(1e6,0,1e6)) for 0.22s with 1.1s cooldown; disables FallingDown/Ragdoll states during the window and restores them; NEVER uses BodyVelocity and NEVER kills the player.",
+  },
+  {
+    id: "sprint_ability",
+    label: "Sprint",
+    match: /\b(sprint(ing)?|run\s*button|shift\s*to\s*run)\b/i,
+    planKeywords: ["sprint"],
+    buildHint:
+      "LocalScript bound to LeftShift; multiplies Humanoid.WalkSpeed by a Config factor while held and restores baseline on release.",
+  },
+  {
+    id: "double_jump",
+    label: "Double Jump",
+    match: /\b(double\s*jump|multi\s*jump|air\s*jump)\b/i,
+    planKeywords: ["doublejump"],
+    buildHint:
+      "LocalScript tracking Humanoid.StateChanged; allows one extra Jump impulse (Humanoid:ChangeState) while airborne, reset on Landed.",
+  },
+];
+
+function extractRequiredSurfaces(goal: string): RequiredSurface[] {
+  const found: RequiredSurface[] = [];
+  for (const s of SURFACE_CATALOG) {
+    if (s.match.test(goal)) {
+      found.push({
+        id: s.id,
+        label: s.label,
+        planKeywords: s.planKeywords,
+        buildHint: s.buildHint,
+      });
+    }
+  }
+  return found;
+}
+
+function checkPlanCoverage(
+  plan: string,
+  required: RequiredSurface[],
+): { covered: string[]; missing: string[] } {
+  const lower = plan.toLowerCase();
+  const covered: string[] = [];
+  const missing: string[] = [];
+  for (const s of required) {
+    const ok = s.planKeywords.every((k) => lower.includes(k.toLowerCase()));
+    if (ok) covered.push(s.label);
+    else missing.push(s.label);
+  }
+  return { covered, missing };
+}
 
 const INTENT_SYSTEM = `You are the BloxSmith Intent Router.
 Classify a Roblox developer's build request into a strict JSON object.
@@ -99,7 +240,8 @@ DONE-WHEN: 3-6 bullet lines describing observable success criteria in Studio.
 Rules:
 - Reference real instance paths from the scene digest whenever possible.
 - Never propose duplicating a system that already exists — extend it instead.
-- If the goal is humanoid VFX (for example "turn my character into flames"), plan a complete scripted effect: ModuleScript/Script or LocalScript as appropriate, Attachments inside the correct body BaseParts, ParticleEmitters with full Size/Transparency/Color/Lifetime/Rate/Speed/Acceleration values, PointLight/Sound for visibility, R15/R6 body-part fallback, CharacterAdded respawn handling, stale-effect cleanup, and performance caps. Do not plan a Toolbox model for this.
+- If the goal is humanoid VFX, plan a complete scripted effect: ModuleScript/Script or LocalScript as appropriate, Attachments inside the correct body BaseParts, ParticleEmitters with full Size/Transparency/Color/Lifetime/Rate/Speed/Acceleration values, PointLight/Sound for visibility, R15/R6 body-part fallback, CharacterAdded respawn handling, stale-effect cleanup, and performance caps. Do not plan a Toolbox model for this.
+- If a REQUIRED SURFACES block is supplied, EVERY listed surface MUST appear by name in NEW TO CREATE and be referenced in BUILD ORDER — no exceptions.
 - Keep total output under 900 words.`;
 
 const SPECIALIST_SYSTEM = `You are a BloxSmith specialist model. Produce a short, high-signal
@@ -135,13 +277,34 @@ async function analyzeIntent(goal: string): Promise<Intent> {
   ];
   const needs = (Array.isArray(parsed.needs) ? parsed.needs : [])
     .filter((n: unknown): n is AutoTask => (allowedNeeds as string[]).includes(String(n)));
+
+  const requiredSurfaces = extractRequiredSurfaces(goal);
+  const modelSystems = Array.isArray(parsed.systems) ? parsed.systems.slice(0, 12).map(String) : [];
+  // Merge deterministic surfaces into systems so downstream logs & the
+  // directive both reflect what the user actually asked for.
+  const mergedSystems = Array.from(new Set([...modelSystems, ...requiredSurfaces.map((s) => s.id)]));
+
+  // If the user asked for UI surfaces, force scripting+ui+testing into needs
+  // even when the intent model omitted them.
+  const finalNeeds = new Set<AutoTask>(needs.length ? needs : ["planning", "scripting"]);
+  if (requiredSurfaces.some((s) => /_menu$|_ui$|_screen$|^hud$/.test(s.id) || s.id === "main_menu" || s.id === "loading_screen" || s.id === "hud")) {
+    finalNeeds.add("ui");
+    finalNeeds.add("scripting");
+    finalNeeds.add("testing");
+  }
+  if (requiredSurfaces.some((s) => /_ability$|^dash|^sprint|^double_jump/.test(s.id))) {
+    finalNeeds.add("scripting");
+    finalNeeds.add("testing");
+  }
+
   return {
     summary: String(parsed.summary ?? goal.slice(0, 200)),
     category: (parsed.category as Intent["category"]) ?? "mixed",
     complexity: (parsed.complexity as Intent["complexity"]) ?? "medium",
-    systems: Array.isArray(parsed.systems) ? parsed.systems.slice(0, 12).map(String) : [],
-    needs: needs.length ? needs : ["planning", "scripting"],
+    systems: mergedSystems,
+    needs: Array.from(finalNeeds),
     risks: Array.isArray(parsed.risks) ? parsed.risks.slice(0, 6).map(String) : [],
+    requiredSurfaces,
   };
 }
 
@@ -195,12 +358,30 @@ async function retrieveContext(sb: any, projectId: string) {
   return { project, digest, memories, chat, contextSummary };
 }
 
-async function generatePlan(goal: string, contextSummary: string, intent: Intent): Promise<string> {
+function renderRequiredSurfacesBlock(surfaces: RequiredSurface[]): string {
+  if (!surfaces.length) return "(none extracted)";
+  return surfaces.map((s) => `- ${s.label} — must appear by name in the plan. Build hint: ${s.buildHint}`).join("\n");
+}
+
+async function generatePlan(
+  goal: string,
+  contextSummary: string,
+  intent: Intent,
+  extraDirective?: string,
+): Promise<string> {
   const planner = getPlannerModel();
+  const surfacesBlock = renderRequiredSurfacesBlock(intent.requiredSurfaces);
+  const promptParts = [
+    `USER GOAL:\n${goal}`,
+    `CLASSIFIED INTENT:\n${JSON.stringify({ ...intent, requiredSurfaces: intent.requiredSurfaces.map((s) => s.label) })}`,
+    `REQUIRED SURFACES (every one MUST appear in NEW TO CREATE and BUILD ORDER):\n${surfacesBlock}`,
+    `PROJECT CONTEXT:\n${contextSummary.slice(0, 6000)}`,
+  ];
+  if (extraDirective) promptParts.push(`ADDITIONAL DIRECTIVE:\n${extraDirective}`);
   const { text } = await generateText({
     model: planner.model,
     system: PLAN_SYSTEM,
-    prompt: `USER GOAL:\n${goal}\n\nCLASSIFIED INTENT:\n${JSON.stringify(intent)}\n\nPROJECT CONTEXT:\n${contextSummary.slice(0, 6000)}`,
+    prompt: promptParts.join("\n\n"),
     ...(planner.extraBody ? { providerOptions: { nvidia: planner.extraBody as Record<string, never> } as never } : {}),
     temperature: planner.modelSettings?.temperature ?? 0.2,
     ...(planner.modelSettings?.topP !== undefined ? { topP: planner.modelSettings.topP } : {}),
@@ -209,7 +390,7 @@ async function generatePlan(goal: string, contextSummary: string, intent: Intent
   return text.trim();
 }
 
-// Critique the plan and re-plan once if the score is low. Cheap: one small call.
+// Critique the plan quality — one cheap call.
 async function critiquePlan(goal: string, plan: string): Promise<{ score: number; gaps: string[]; note: string }> {
   const fb = getFallbackModel();
   try {
@@ -261,7 +442,7 @@ async function runSpecialist(task: AutoTask, goal: string, plan: string, digestT
   };
 }
 
-function scoreConfidence(intent: Intent, digestEmpty: boolean, specialists: Specialist[]): number {
+function scoreConfidence(intent: Intent, digestEmpty: boolean, specialists: Specialist[], coverageMissing: number): number {
   let score = 0.55;
   if (intent.needs.length >= 2) score += 0.08;
   if (!digestEmpty) score += 0.15;
@@ -269,6 +450,7 @@ function scoreConfidence(intent: Intent, digestEmpty: boolean, specialists: Spec
   if (specialists.every((s) => !s.notes.startsWith("(specialist unavailable"))) score += 0.12;
   if (intent.complexity === "trivial") score += 0.05;
   if (intent.complexity === "large") score -= 0.05;
+  score -= Math.min(0.3, coverageMissing * 0.1);
   return Math.max(0.2, Math.min(0.98, score));
 }
 
@@ -278,8 +460,9 @@ function buildDirective(params: {
   plan: string;
   specialists: Specialist[];
   digestEmpty: boolean;
+  coverage: { covered: string[]; missing: string[] };
 }): string {
-  const { goal, intent, plan, specialists, digestEmpty } = params;
+  const { goal, intent, plan, specialists, digestEmpty, coverage } = params;
   const specialistBlock = specialists.length
     ? specialists.map((s) => `[${s.label} — ${s.modelLabel}]\n${s.notes}`).join("\n\n")
     : "(no specialist input)";
@@ -294,6 +477,18 @@ function buildDirective(params: {
       ? "[PRO BUILDER]"
       : "[SMART MODE]";
 
+  const surfacesBlock = intent.requiredSurfaces.length
+    ? intent.requiredSurfaces
+        .map((s, i) => `${i + 1}. ${s.label} — ${s.buildHint}`)
+        .join("\n")
+    : "(none — the user did not name a specific surface)";
+
+  const coverageNote = intent.requiredSurfaces.length
+    ? coverage.missing.length
+      ? `⚠️ PLAN COVERAGE INCOMPLETE — missing: ${coverage.missing.join(", ")}. You MUST build these anyway using the build hints below; do not skip them.`
+      : `✅ Plan covers all ${coverage.covered.length} required surface(s).`
+    : "";
+
   return [
     `${modePrefix} ${goal.trim()}`,
     "",
@@ -305,6 +500,10 @@ function buildDirective(params: {
     `- Systems: ${intent.systems.join(", ") || "(none flagged)"}`,
     `- Risks to guard: ${intent.risks.join("; ") || "(none flagged)"}`,
     "",
+    "🎯 REQUIRED SURFACES — MUST-BUILD CONTRACT (non-negotiable):",
+    surfacesBlock,
+    coverageNote,
+    "",
     "ARCHITECTURE PLAN (from planner):",
     plan,
     "",
@@ -313,14 +512,17 @@ function buildDirective(params: {
     "",
     "EXECUTION RULES:",
     "- Emit ONE bloxsmith-actions block containing the full ordered build.",
+    "- Every REQUIRED SURFACE above MUST appear as concrete Instance actions in the batch. If the plan omits one, build it anyway from its build hint. Missing a required surface is a failed turn.",
     "- Reuse exact instance paths from the scene digest; do NOT duplicate existing systems.",
-    "- Follow BUILD ORDER above; earlier steps must exist before later steps reference them.",
+    "- Follow BUILD ORDER; earlier steps must exist before later steps reference them.",
     digestEmpty
       ? "- Scene digest is empty: begin the batch with a scan_project action."
       : "- Scene digest is fresh: skip a leading scan and only run scan_project at the end.",
     "- End with autofix_project then scan_project.",
-    "- Do NOT add features outside the plan. Ask nothing; just build.",
-  ].join("\n");
+    "- Do NOT add features outside the plan or required surfaces. Ask nothing; just build.",
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 export const runSmartBrain = createServerFn({ method: "POST" })
@@ -330,7 +532,7 @@ export const runSmartBrain = createServerFn({ method: "POST" })
     const started = Date.now();
     const sb = context.supabase as any;
 
-    // Stage 1: intent
+    // Stage 1+2: intent (LLM) + deterministic surface extraction
     const intent = await analyzeIntent(data.goal);
     const difficulty = intent.complexity === "large"
       ? "hard"
@@ -338,40 +540,61 @@ export const runSmartBrain = createServerFn({ method: "POST" })
         ? "easy"
         : estimateDifficulty(data.goal);
 
-    // Stage 2: context
+    // Stage 3: context
     const { digest, contextSummary } = await retrieveContext(sb, data.projectId);
 
-    // Stage 3: plan (+ critique + one re-plan if score < 7)
+    // Stage 4+5: plan → critique + COVERAGE GATE.
+    // Re-plan while either (a) critique < 7 with gaps, or (b) required surfaces are missing.
+    // Hard cap: 2 additional iterations.
     let plan = await generatePlan(data.goal, contextSummary, intent);
     let critique = await critiquePlan(data.goal, plan);
-    if (critique.score < 7 && critique.gaps.length) {
-      const revisedGoal = `${data.goal}\n\n[BRAIN CRITIQUE — address these gaps in the revised plan:]\n- ${critique.gaps.join("\n- ")}`;
-      const revised = await generatePlan(revisedGoal, contextSummary, intent);
+    let coverage = checkPlanCoverage(plan, intent.requiredSurfaces);
+    let iterations = 0;
+    const MAX_ITER = 2;
+    while (iterations < MAX_ITER && (coverage.missing.length > 0 || (critique.score < 7 && critique.gaps.length > 0))) {
+      const gapLines: string[] = [];
+      if (coverage.missing.length) {
+        gapLines.push(
+          `The previous plan FAILED to name these REQUIRED SURFACES in NEW TO CREATE / BUILD ORDER: ${coverage.missing.join(", ")}. In the revised plan, list each of them explicitly with a numbered BUILD ORDER step.`,
+        );
+      }
+      if (critique.gaps.length) {
+        gapLines.push(`Critic gaps to address: ${critique.gaps.join("; ")}.`);
+      }
+      const revised = await generatePlan(data.goal, contextSummary, intent, gapLines.join("\n\n"));
+      const revisedCoverage = checkPlanCoverage(revised, intent.requiredSurfaces);
       const revisedCritique = await critiquePlan(data.goal, revised);
-      if (revisedCritique.score >= critique.score) {
+      const better =
+        revisedCoverage.missing.length < coverage.missing.length ||
+        (revisedCoverage.missing.length === coverage.missing.length && revisedCritique.score >= critique.score);
+      if (better) {
         plan = revised;
         critique = revisedCritique;
+        coverage = revisedCoverage;
       }
+      iterations += 1;
+      if (coverage.missing.length === 0 && critique.score >= 7) break;
     }
 
-    // Stage 4: specialists (parallel, only those the intent flagged, cap at 4)
+    // Stage 6: specialists (parallel, only those the intent flagged, cap at 4)
     const wantedTasks = Array.from(new Set(intent.needs)).slice(0, 4);
     const specialists = await Promise.all(
       wantedTasks.map((task) => runSpecialist(task, data.goal, plan, digest.text, difficulty)),
     );
 
-    // Stage 5+6: merge → directive
+    // Stage 7: directive
     const directive = buildDirective({
       goal: data.goal,
       intent,
       plan,
       specialists,
       digestEmpty: digest.isEmpty,
+      coverage,
     });
 
     const confidence = Math.min(
       0.98,
-      scoreConfidence(intent, digest.isEmpty, specialists) * (critique.score / 10),
+      scoreConfidence(intent, digest.isEmpty, specialists, coverage.missing.length) * (critique.score / 10),
     );
 
     // Log the brain run into project_memory as a low-importance decision so
@@ -383,8 +606,9 @@ export const runSmartBrain = createServerFn({ method: "POST" })
         key: "smart_brain_last_run",
         value: JSON.stringify({
           goal: data.goal.slice(0, 300),
-          intent,
+          intent: { ...intent, requiredSurfaces: intent.requiredSurfaces.map((s) => s.label) },
           specialist_models: specialists.map((s) => ({ task: s.task, model: s.modelLabel })),
+          coverage,
           confidence,
           at: new Date().toISOString(),
         }).slice(0, 1800),
@@ -404,5 +628,6 @@ export const runSmartBrain = createServerFn({ method: "POST" })
       directive,
       confidence,
       ranMs: Date.now() - started,
+      coverage: { ...coverage, iterations },
     };
   });
