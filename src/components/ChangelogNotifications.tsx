@@ -1,15 +1,34 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Bell, Bot, Box, Brain, Check, CheckCircle2, ChevronDown, Copy, Gauge, ImageIcon, Lightbulb, Link2, ListChecks, Palette, Rocket, ScrollText, Search, Share2, ShieldCheck, Sparkles, Users, Wrench, X, Zap } from "lucide-react";
 
-const CHANGELOG_VERSION = "2026-07-07-luau-self-test-gate";
+const CHANGELOG_VERSION = "2026-07-07-auto-camera-focus";
 
 const CHANGELOG_ITEMS = [
   {
-    title: "🧪 Luau self-test gate — broken scripts get regenerated before they ship",
+    title: "🎥 Auto camera focus — Studio snaps to whatever just got built",
+    date: "Jul 7",
+    icon: Sparkles,
+    body: "Every build turn now auto-appends a camera_focus action targeting the most recent Workspace-scoped named object (insert_asset, part, model, folder, mesh, spawn_asset) so Roblox Studio automatically pans and zooms to the thing BloxSmith just created. Skipped when the model already emitted its own camera_focus / focus_camera / camera_zoom_to. The target resolves via the existing _bs_resolve path helper, defaults to a 45-stud offset, and also selects the object so it's highlighted in the Explorer.",
+  },
+  {
+    title: "⚡ Improve & Enhance no longer spin — instant prompt polish + 4.5s fallback",
+    date: "Jul 7",
+    icon: Zap,
+    body: "The toolbar Improve button is now fully deterministic and returns instantly (trim, whitespace collapse, sentence terminator) instead of waiting on an LLM round-trip that could hang. Enhance keeps its AI pass but is wrapped in an AbortController with a hard 4.5s timeout — on timeout or error it falls back to a short server-authoritative brief ('Goal / Scope / Constraints') so the button always resolves and the 'Improving…' state can never stick.",
+  },
+  {
+    title: "⏱️ Build turn hard-stop — streams, sanitization & critic all time-boxed",
+    date: "Jul 7",
+    icon: Gauge,
+    body: "Rewrote the chat pipeline so a single slow model call can no longer freeze the spinner. Fast Build now skips the expensive repair + regeneration passes entirely, standard/pro keep them capped at one call. Every AI stream runs under an AbortController hard-timeout (38s Fast, 75s standard), toolbox asset resolution + sanitization are wrapped in 2.5–6s withTimeout guards, the action critic honors maxRepairModelCalls (0 in Fast), and Fast Build's stepCount dropped from 6 to 3. Client spinner always terminates on time — no more 'stuck spinning' turns.",
+  },
+  {
+    title: "🧪 Luau self-test gate — tag-only, no more parallel regen hangs",
     date: "Jul 7",
     icon: ShieldCheck,
-    body: "Added a validator-driven repair pass right after the action canonicalizer. Every emitted Luau script now runs through validateLuau, and for any script flagged with error-severity issues (unbalanced blocks, mismatched brackets, loadstring, mixed server/client APIs, deprecated globals the auto-fixer couldn't catch) a scoped NVIDIA regen call is fired that rewrites ONLY that script's source given the exact validator errors and the original user request. Regen output is re-validated; if it passes it replaces the source in-place, if it still errors we keep the original but attach _luau_errors metadata so the Studio plugin can surface a load-time warning instead of exploding at runtime. Capped at 4 regens per turn with a 20s timeout to keep latency predictable. The reply now shows a 'Luau self-test' note listing which scripts were auto-repaired and which are still flagged.",
+    body: "Replaced the Promise.all LLM regeneration loop in the Luau self-test gate with a fast tag-only pass. It filters actions for error-severity validator issues, attaches _luau_errors metadata so the Studio plugin can warn at load time instead of exploding, and returns a deterministic SelfTestResult. The scoped NVIDIA repair pass still runs inside the main critic (capped at 4 regens per turn, 20s cap) — this gate no longer piles a second parallel regen on top of it, which is what was doubling build-turn latency.",
   },
+
   {
     title: "🎯 Post-build coverage critic — surfaces the model forgets get built anyway",
     date: "Jul 7",
