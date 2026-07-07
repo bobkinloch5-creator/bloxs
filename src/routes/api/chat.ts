@@ -7238,17 +7238,24 @@ export const Route = createFileRoute("/api/chat")({
               }
             };
             const fastBuild = mode === "build" && buildQuality === "basic";
+            const actionKindStubs = {
+              run_lua: runLuaTool,
+              organize_project: organizeProjectTool,
+              scan_project: scanProjectTool,
+              autofix_project: autofixProjectTool,
+            };
             const buildTools = (fastBuild
               ? (assetMode === "procedural" && !userExplicitlyRequestedToolbox(userText)
-                ? { insert_asset: insertAssetTool }
-                : { insert_asset: insertAssetTool, search_toolbox: toolboxTool, search_toolbox_set: toolboxSetTool })
+                ? { insert_asset: insertAssetTool, ...actionKindStubs }
+                : { insert_asset: insertAssetTool, search_toolbox: toolboxTool, search_toolbox_set: toolboxSetTool, ...actionKindStubs })
               : assetMode === "procedural" && !userExplicitlyRequestedToolbox(userText)
                 ? (imageGenerationRequested
-                  ? { insert_asset: insertAssetTool, generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool }
-                  : { insert_asset: insertAssetTool, roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch })
+                  ? { insert_asset: insertAssetTool, generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool, ...actionKindStubs }
+                  : { insert_asset: insertAssetTool, roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch, ...actionKindStubs })
                 : (imageGenerationRequested
-                  ? { insert_asset: insertAssetTool, search_toolbox: toolboxTool, search_toolbox_set: toolboxSetTool, generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool }
-                  : { insert_asset: insertAssetTool, search_toolbox: toolboxTool, search_toolbox_set: toolboxSetTool, roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch })) as ToolSet;
+                  ? { insert_asset: insertAssetTool, search_toolbox: toolboxTool, search_toolbox_set: toolboxSetTool, generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool, ...actionKindStubs }
+                  : { insert_asset: insertAssetTool, search_toolbox: toolboxTool, search_toolbox_set: toolboxSetTool, roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch, ...actionKindStubs })) as ToolSet;
+
             const chatTools = (imageGenerationRequested
               ? { generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool }
               : { roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch }) as ToolSet;
