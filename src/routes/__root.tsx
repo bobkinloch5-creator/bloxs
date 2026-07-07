@@ -111,8 +111,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:site", content: "@bloxsmith" },
       { name: "twitter:title", content: "BloxSmith — AI Roblox Game Builder" },
       { name: "twitter:description", content: "BloxSmith is an AI-powered Roblox game builder. Describe your game, watch BloxSmith generate Luau scripts, GUIs, maps, and systems straight into Roblox Studio." },
-      { property: "og:image", content: "https://bloxsmith.pro/__l5e/assets-v1/92c19508-35dc-4089-b0fe-6de29651d26a/bloxsmith-logo.png" },
-      { name: "twitter:image", content: "https://bloxsmith.pro/__l5e/assets-v1/92c19508-35dc-4089-b0fe-6de29651d26a/bloxsmith-logo.png" },
       { name: "theme-color", content: "#0b1220" },
       { name: "robots", content: "index, follow, max-image-preview:large" },
     ],
