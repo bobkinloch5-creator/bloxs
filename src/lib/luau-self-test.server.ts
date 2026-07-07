@@ -31,8 +31,8 @@ export type SelfTestResult = {
   ranMs: number;
 };
 
-const MAX_REGEN_PER_TURN = 4;
-const REGEN_TIMEOUT_MS = 20000;
+const MAX_REGEN_PER_TURN = 3;
+const REGEN_TIMEOUT_MS = 10000;
 
 const REGEN_SYSTEM = `You are the BloxSmith LUAU REPAIR agent.
 The Luau validator flagged errors in a script that was about to be shipped to Roblox Studio.
@@ -146,20 +146,30 @@ export async function runLuauSelfTest(opts: {
     );
   };
 
-  let attempted = 0;
-  for (const entry of broken) {
-    const action = findAction(entry.name, entry.kind);
-    if (!action) continue;
-    const src = getSource(action);
-    if (!src) continue;
+  // Run all regens in parallel — each is an independent LLM call bounded
+  // by REGEN_TIMEOUT_MS. Serial iteration multiplied worst-case latency by
+  // MAX_REGEN_PER_TURN which dominated build turn time.
+  const results = await Promise.all(
+    broken.map(async (entry) => {
+      const action = findAction(entry.name, entry.kind);
+      if (!action) return null;
+      const src = getSource(action);
+      if (!src) return null;
+      const regen = await regenScript({
+        userText: opts.userText,
+        action,
+        brokenSource: src,
+        errors: entry.issues,
+      });
+      return { entry, action, regen };
+    }),
+  );
 
+  let attempted = 0;
+  for (const r of results) {
+    if (!r) continue;
+    const { entry, action, regen } = r;
     attempted += 1;
-    const regen = await regenScript({
-      userText: opts.userText,
-      action,
-      brokenSource: src,
-      errors: entry.issues,
-    });
 
     if (!regen) {
       stillBroken.push(entry.name);
@@ -169,8 +179,6 @@ export async function runLuauSelfTest(opts: {
       continue;
     }
 
-    // Auto-fix + re-validate the regen. If it still errors, keep the ORIGINAL
-    // (regen might be worse) and mark for warning.
     const { source: fixed } = autoFixLuau(regen);
     const reissues = validateLuau(fixed);
     const stillErrors = reissues.filter((i) => i.severity === "error");
