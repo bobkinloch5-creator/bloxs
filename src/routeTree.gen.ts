@@ -15,12 +15,16 @@ import { Route as SupportRouteImport } from './routes/support'
 import { Route as StatusRouteImport } from './routes/status'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as ShowcaseRouteImport } from './routes/showcase'
+import { Route as RobloxScriptGeneratorRouteImport } from './routes/roblox-script-generator'
+import { Route as RobloxGuiMakerRouteImport } from './routes/roblox-gui-maker'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as LeaderboardRouteImport } from './routes/leaderboard'
+import { Route as FreeRobloxStudioAiRouteImport } from './routes/free-roblox-studio-ai'
 import { Route as DonateRouteImport } from './routes/donate'
 import { Route as DocsRouteImport } from './routes/docs'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AiRobloxGameMakerRouteImport } from './routes/ai-roblox-game-maker'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as UUsernameRouteImport } from './routes/u.$username'
@@ -93,6 +97,16 @@ const ShowcaseRoute = ShowcaseRouteImport.update({
   path: '/showcase',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RobloxScriptGeneratorRoute = RobloxScriptGeneratorRouteImport.update({
+  id: '/roblox-script-generator',
+  path: '/roblox-script-generator',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RobloxGuiMakerRoute = RobloxGuiMakerRouteImport.update({
+  id: '/roblox-gui-maker',
+  path: '/roblox-gui-maker',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PrivacyRoute = PrivacyRouteImport.update({
   id: '/privacy',
   path: '/privacy',
@@ -101,6 +115,11 @@ const PrivacyRoute = PrivacyRouteImport.update({
 const LeaderboardRoute = LeaderboardRouteImport.update({
   id: '/leaderboard',
   path: '/leaderboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FreeRobloxStudioAiRoute = FreeRobloxStudioAiRouteImport.update({
+  id: '/free-roblox-studio-ai',
+  path: '/free-roblox-studio-ai',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DonateRoute = DonateRouteImport.update({
@@ -121,6 +140,11 @@ const ContactRoute = ContactRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AiRobloxGameMakerRoute = AiRobloxGameMakerRouteImport.update({
+  id: '/ai-roblox-game-maker',
+  path: '/ai-roblox-game-maker',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
@@ -341,12 +365,16 @@ const ApiPublicPluginExecutionReportRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/ai-roblox-game-maker': typeof AiRobloxGameMakerRoute
   '/auth': typeof AuthRoute
   '/contact': typeof ContactRoute
   '/docs': typeof DocsRoute
   '/donate': typeof DonateRoute
+  '/free-roblox-studio-ai': typeof FreeRobloxStudioAiRoute
   '/leaderboard': typeof LeaderboardRoute
   '/privacy': typeof PrivacyRoute
+  '/roblox-gui-maker': typeof RobloxGuiMakerRoute
+  '/roblox-script-generator': typeof RobloxScriptGeneratorRoute
   '/showcase': typeof ShowcaseRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/status': typeof StatusRoute
@@ -395,12 +423,16 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/ai-roblox-game-maker': typeof AiRobloxGameMakerRoute
   '/auth': typeof AuthRoute
   '/contact': typeof ContactRoute
   '/docs': typeof DocsRoute
   '/donate': typeof DonateRoute
+  '/free-roblox-studio-ai': typeof FreeRobloxStudioAiRoute
   '/leaderboard': typeof LeaderboardRoute
   '/privacy': typeof PrivacyRoute
+  '/roblox-gui-maker': typeof RobloxGuiMakerRoute
+  '/roblox-script-generator': typeof RobloxScriptGeneratorRoute
   '/showcase': typeof ShowcaseRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/status': typeof StatusRoute
@@ -451,12 +483,16 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/ai-roblox-game-maker': typeof AiRobloxGameMakerRoute
   '/auth': typeof AuthRoute
   '/contact': typeof ContactRoute
   '/docs': typeof DocsRoute
   '/donate': typeof DonateRoute
+  '/free-roblox-studio-ai': typeof FreeRobloxStudioAiRoute
   '/leaderboard': typeof LeaderboardRoute
   '/privacy': typeof PrivacyRoute
+  '/roblox-gui-maker': typeof RobloxGuiMakerRoute
+  '/roblox-script-generator': typeof RobloxScriptGeneratorRoute
   '/showcase': typeof ShowcaseRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/status': typeof StatusRoute
@@ -507,12 +543,16 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/ai-roblox-game-maker'
     | '/auth'
     | '/contact'
     | '/docs'
     | '/donate'
+    | '/free-roblox-studio-ai'
     | '/leaderboard'
     | '/privacy'
+    | '/roblox-gui-maker'
+    | '/roblox-script-generator'
     | '/showcase'
     | '/sitemap.xml'
     | '/status'
@@ -561,12 +601,16 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/ai-roblox-game-maker'
     | '/auth'
     | '/contact'
     | '/docs'
     | '/donate'
+    | '/free-roblox-studio-ai'
     | '/leaderboard'
     | '/privacy'
+    | '/roblox-gui-maker'
+    | '/roblox-script-generator'
     | '/showcase'
     | '/sitemap.xml'
     | '/status'
@@ -616,12 +660,16 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_authenticated'
+    | '/ai-roblox-game-maker'
     | '/auth'
     | '/contact'
     | '/docs'
     | '/donate'
+    | '/free-roblox-studio-ai'
     | '/leaderboard'
     | '/privacy'
+    | '/roblox-gui-maker'
+    | '/roblox-script-generator'
     | '/showcase'
     | '/sitemap.xml'
     | '/status'
@@ -672,12 +720,16 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AiRobloxGameMakerRoute: typeof AiRobloxGameMakerRoute
   AuthRoute: typeof AuthRoute
   ContactRoute: typeof ContactRoute
   DocsRoute: typeof DocsRoute
   DonateRoute: typeof DonateRoute
+  FreeRobloxStudioAiRoute: typeof FreeRobloxStudioAiRoute
   LeaderboardRoute: typeof LeaderboardRoute
   PrivacyRoute: typeof PrivacyRoute
+  RobloxGuiMakerRoute: typeof RobloxGuiMakerRoute
+  RobloxScriptGeneratorRoute: typeof RobloxScriptGeneratorRoute
   ShowcaseRoute: typeof ShowcaseRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   StatusRoute: typeof StatusRoute
@@ -753,6 +805,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShowcaseRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/roblox-script-generator': {
+      id: '/roblox-script-generator'
+      path: '/roblox-script-generator'
+      fullPath: '/roblox-script-generator'
+      preLoaderRoute: typeof RobloxScriptGeneratorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/roblox-gui-maker': {
+      id: '/roblox-gui-maker'
+      path: '/roblox-gui-maker'
+      fullPath: '/roblox-gui-maker'
+      preLoaderRoute: typeof RobloxGuiMakerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/privacy': {
       id: '/privacy'
       path: '/privacy'
@@ -765,6 +831,13 @@ declare module '@tanstack/react-router' {
       path: '/leaderboard'
       fullPath: '/leaderboard'
       preLoaderRoute: typeof LeaderboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/free-roblox-studio-ai': {
+      id: '/free-roblox-studio-ai'
+      path: '/free-roblox-studio-ai'
+      fullPath: '/free-roblox-studio-ai'
+      preLoaderRoute: typeof FreeRobloxStudioAiRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/donate': {
@@ -793,6 +866,13 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ai-roblox-game-maker': {
+      id: '/ai-roblox-game-maker'
+      path: '/ai-roblox-game-maker'
+      fullPath: '/ai-roblox-game-maker'
+      preLoaderRoute: typeof AiRobloxGameMakerRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated': {
@@ -1149,12 +1229,16 @@ const AuthenticatedRouteRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AiRobloxGameMakerRoute: AiRobloxGameMakerRoute,
   AuthRoute: AuthRoute,
   ContactRoute: ContactRoute,
   DocsRoute: DocsRoute,
   DonateRoute: DonateRoute,
+  FreeRobloxStudioAiRoute: FreeRobloxStudioAiRoute,
   LeaderboardRoute: LeaderboardRoute,
   PrivacyRoute: PrivacyRoute,
+  RobloxGuiMakerRoute: RobloxGuiMakerRoute,
+  RobloxScriptGeneratorRoute: RobloxScriptGeneratorRoute,
   ShowcaseRoute: ShowcaseRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   StatusRoute: StatusRoute,
