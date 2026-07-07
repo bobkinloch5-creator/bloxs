@@ -6,12 +6,24 @@ BloxSmith turns natural-language game ideas into working Roblox experiences. It 
 
 ## Pages
 
-- [Home](/): The BloxSmith landing page, feature overview, and “Start Building Free” call to action.
+- [Home](/): The BloxSmith landing page, feature overview, and "Start Building Free" call to action.
+- [AI Roblox Game Maker](/ai-roblox-game-maker): Free AI Roblox game maker landing page explaining how to build full Roblox games with AI.
+- [Roblox Script Generator](/roblox-script-generator): Free AI Luau script generator for Roblox — Scripts, LocalScripts, ModuleScripts, RemoteEvents.
+- [Roblox GUI Maker](/roblox-gui-maker): Free AI GUI maker for Roblox Studio — shops, HUDs, inventories, menus.
+- [Free Roblox Studio AI](/free-roblox-studio-ai): 100% free AI assistant for Roblox Studio.
+- [UI Templates](/templates/ui): Free ready-made Roblox UI templates (shops, inventories, HUDs, menus).
+- [Guides](/guides): Free step-by-step tutorials for building Roblox games with AI.
 - [Docs](/docs): Help documentation for getting started, using the AI builder, and installing the Roblox Studio plugin.
 - [Support](/support): Support resources, FAQs, and how to get help with BloxSmith.
 - [Contact](/contact): Contact form and channels for reaching the BloxSmith team.
 - [Privacy](/privacy): Privacy policy and data practices for BloxSmith users.
 - [Terms](/terms): Terms of service and usage rules for the BloxSmith platform.
+
+## Guides
+
+- [How to make a Roblox tycoon](/guides/how-to-make-a-roblox-tycoon)
+- [How to make a Roblox obby](/guides/how-to-make-a-roblox-obby)
+- [How to script in Roblox with AI](/guides/how-to-script-in-roblox-with-ai)
 
 ## Optional
 
