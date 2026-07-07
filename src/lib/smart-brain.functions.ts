@@ -20,6 +20,11 @@ import { getProviderModel, getPlannerModel, getFallbackModel } from "./ai-gatewa
 import { summarizeSceneScan } from "./scene-digest.server";
 import { pickModelForTask, estimateDifficulty, TASK_LABELS, type AutoTask } from "./model-router";
 import { safeJsonParse } from "./safe-json";
+import {
+  extractRequiredSurfaces as extractRequiredSurfacesShared,
+  checkPlanCoverage as checkPlanCoverageShared,
+  type RequiredSurface,
+} from "./surfaces";
 
 const Input = z.object({
   projectId: z.string().uuid(),
