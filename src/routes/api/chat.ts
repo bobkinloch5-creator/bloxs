@@ -6791,6 +6791,62 @@ export const Route = createFileRoute("/api/chat")({
                 }
 
 
+                // ── Post-build critic + canonicalizer ─────────────────
+                // 1. Coverage critic: verify every "required surface" the
+                //    user asked for actually appears in the batch. If any
+                //    is missing, append repair actions (LLM or template).
+                // 2. Deterministic canonicalizer: dedupe remotes, normalize
+                //    folder paths, autoFixLuau every script.
+                // Both are best-effort — failures are logged and swallowed
+                // so a critic bug can never break a build turn.
+                if (mode === "build" && actions.length > 0) {
+                  try {
+                    const { critiqueAndRepairActions } = await import("@/lib/action-critic.server");
+                    const critique = await critiqueAndRepairActions({
+                      userText,
+                      actions: actions as any[],
+                    });
+                    if (critique.patchActions.length > 0) {
+                      actions = [
+                        ...actions,
+                        ...critique.patchActions.map(normalizePluginAction),
+                      ];
+                      const parts: string[] = [];
+                      if (critique.usedModel) parts.push("AI repair");
+                      if (critique.usedFallbackTemplate.length) {
+                        parts.push(`templates for ${critique.usedFallbackTemplate.join(", ")}`);
+                      }
+                      const via = parts.length ? ` (${parts.join(" + ")})` : "";
+                      cleanContent = `${cleanContent.trim()}\n\n_Coverage repair sent${via}: added actions for missing surface(s) — ${critique.missingBefore.join(", ")}._`;
+                      console.info("[chat] action-critic repair", {
+                        projectId,
+                        missing: critique.missingBefore,
+                        repairedBy: critique.repairedBySurface,
+                        usedModel: critique.usedModel,
+                        ranMs: critique.ranMs,
+                      });
+                    }
+                  } catch (criticErr) {
+                    console.warn("[chat] action-critic failed (non-fatal)", criticErr);
+                  }
+
+                  try {
+                    const { canonicalizeActions } = await import("@/lib/action-canonicalizer");
+                    const canon = canonicalizeActions(actions as any[]);
+                    if (canon.notes.length > 0) {
+                      actions = canon.actions as typeof actions;
+                      console.info("[chat] action-canonicalizer applied", {
+                        projectId,
+                        notes: canon.notes,
+                        luauIssues: canon.luauIssuesByAction.length,
+                      });
+                    }
+                  } catch (canonErr) {
+                    console.warn("[chat] action-canonicalizer failed (non-fatal)", canonErr);
+                  }
+                }
+
+
                 actions = actions.map(withExecutionMetadata);
                 console.info("[chat] actions generated", {
                   mode,
