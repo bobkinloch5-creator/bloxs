@@ -129,7 +129,7 @@ ${params.assistantText.slice(0, 12000)}`,
 }
 
 function userExplicitlyRequestedToolbox(userText: string) {
-  return /\b(toolbox|creator\s*store|marketplace|free\s+public\s+asset|public\s+asset|insert\s+asset|roblox\s+asset|asset\s*id|model\s*id|use\s+toolbox|from\s+toolbox)\b/i.test(userText);
+  return /\b(toolbox|tooblox|toolblox|creator\s*store|marketplace|free\s+public\s+asset|public\s+asset|insert\s+asset|roblox\s+asset|asset\s*id|model\s*id|use\s+toolbox|from\s+toolbox|from\s+tooblox|from\s+toolblox)\b/i.test(userText);
 }
 
 function neutralizePrematureBuildSuccess(text: string) {
@@ -6138,6 +6138,122 @@ export const Route = createFileRoute("/api/chat")({
               }
             } catch (e) {
               console.error("[chat/fastpath] toolbox fast-path failed, falling back to full AI turn", e);
+            }
+          }
+
+          // ── LAST-CHANCE FAST BUILD EXECUTOR ─────────────────────────────
+          // If the selected model stream aborts before producing text, onAbort
+          // callbacks are not a reliable place to queue Studio work because the
+          // browser has already disconnected. For Fast Build, never wait for the
+          // model when we can deterministically produce a real command: queue it
+          // before streaming starts and return immediately.
+          if (mode === "build" && buildQuality === "basic" && projectId && userText && !imageGenerationRequested) {
+            try {
+              let generated: any[] = [];
+              let deterministicModel = "deterministic-fast-build-last-chance";
+              let replyText = "Fast Build sent executable Studio commands — they should run now.";
+
+              if (isFlowerNatureRequest(userText)) {
+                generated = visibleFlowersStudioActions(userText);
+                deterministicModel = "deterministic-flowers-last-chance";
+                replyText = "Sent visible flowers to Studio — they should appear around the grass now.";
+              } else if (isSnowTerrainRequest(userText)) {
+                generated = visibleSnowTerrainStudioActions(userText);
+                deterministicModel = "deterministic-snow-last-chance";
+                replyText = "Sent visible snow terrain to Studio — it should build and focus the camera now.";
+              } else if (isSurfaceMaterialRequest(userText)) {
+                generated = visibleSurfaceMaterialStudioActions(userText);
+                deterministicModel = "deterministic-surface-last-chance";
+                replyText = "Sent a visible ground-material command to Studio — it should apply now.";
+              } else if (isNarrowFeatureRequest(userText) && !isSinglePhysicalAssetRequest(userText)) {
+                generated = narrowFeatureFallbackStudioActions(userText, languageName);
+                deterministicModel = "deterministic-narrow-last-chance";
+                replyText = "Sent the requested feature to Studio — it should execute now.";
+              } else if (assetMode !== "procedural" && (userExplicitlyRequestedToolbox(userText) || isSinglePhysicalAssetRequest(userText) || toolboxAssetFinderRequests(userText).length > 0)) {
+                generated = await toolboxAssetFinderStudioActions(userText);
+                deterministicModel = "deterministic-toolbox-last-chance";
+                replyText = "Sent the matching Toolbox asset command to Studio — it should execute now.";
+              }
+
+              if (generated.length === 0) {
+                generated = (isRobloxSystemRequest(userText) || isBroadPlayableGameRequest(userText))
+                  ? (shouldUseGenericRobloxSystemGuard(userText, buildQuality) ? robloxSystemStudioActions(userText, languageName) : broadPlayableGameStudioActions(userText, languageName))
+                  : proceduralEnvironmentStudioActions(userText, languageName);
+              }
+
+              const actions = generated
+                .map(normalizePluginAction)
+                .filter((action) => finalScriptIssues(action).length === 0)
+                .map((action: any) => ({
+                  ...action,
+                  payload: {
+                    ...(action.payload ?? {}),
+                    _bloxsmith: {
+                      execution_mode: "fast",
+                      structured: true,
+                      last_chance_fast_build: true,
+                      no_empty_folders: true,
+                      no_fake_assets: true,
+                      retry_failed_insertions: true,
+                      scan_inserted_scripts: true,
+                    },
+                  },
+                }));
+
+              if (actions.length > 0) {
+                const { data: msgRow, error: msgError } = await supabase
+                  .from("chat_messages")
+                  .insert({
+                    project_id: projectId,
+                    user_id: userId,
+                    role: "assistant",
+                    content: replyText,
+                    status: "sending",
+                    model: deterministicModel,
+                    actions,
+                  })
+                  .select("id")
+                  .single();
+                if (msgError) throw msgError;
+
+                let queuedCount = 0;
+                for (const [i, action] of actions.entries()) {
+                  const { error: rowError } = await supabase.from("plugin_actions").insert({
+                    project_id: projectId,
+                    user_id: userId,
+                    message_id: msgRow?.id ?? null,
+                    kind: action.kind,
+                    parent_path: action.parent_path,
+                    name: action.name,
+                    payload: action.payload,
+                    position: i,
+                  });
+                  if (rowError) {
+                    console.error("[chat/lastchance] dropped plugin action row", { projectId, userId, kind: action.kind, name: action.name, error: rowError.message });
+                  } else {
+                    queuedCount += 1;
+                  }
+                }
+                if (queuedCount === 0) throw new Error("No valid Studio actions could be queued.");
+
+                await supabase.from("build_history").insert({
+                  project_id: projectId,
+                  user_id: userId,
+                  prompt: userText,
+                  model: deterministicModel,
+                  files_count: queuedCount,
+                  plugin_status: "Queued",
+                  applied: false,
+                });
+                await supabase
+                  .from("projects")
+                  .update({ updated_at: new Date().toISOString() })
+                  .eq("id", projectId);
+                console.info("[chat/lastchance] queued Fast Build before model stream", { projectId, userId, actionCount: queuedCount, model: deterministicModel });
+                return streamPlainAssistantText(replyText, "last-chance-fast-build-text");
+              }
+            } catch (e) {
+              console.error("[chat/lastchance] deterministic Fast Build failed, falling back to model", e);
             }
           }
 
