@@ -46,7 +46,7 @@ type Intent = {
   systems: string[];
   needs: AutoTask[];
   risks: string[];
-  requiredSurfaces: SerializableSurface[];
+  requiredSurfaces: RequiredSurface[];
 };
 
 // Serializable view — drops the actionCovered function so this shape is
@@ -66,6 +66,10 @@ function toSerializable(s: RequiredSurface): SerializableSurface {
     buildHint: s.buildHint,
   };
 }
+
+type SerializableIntent = Omit<Intent, "requiredSurfaces"> & {
+  requiredSurfaces: SerializableSurface[];
+};
 
 type Specialist = {
   task: AutoTask;
