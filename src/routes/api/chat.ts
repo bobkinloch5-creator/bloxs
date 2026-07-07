@@ -6774,10 +6774,18 @@ export const Route = createFileRoute("/api/chat")({
                 if (mode === "build" && actions.length > 0) {
                   try {
                     const { critiqueAndRepairActions } = await import("@/lib/action-critic.server");
-                    const critique = await critiqueAndRepairActions({
+                    const critique = await withTimeout(critiqueAndRepairActions({
                       userText,
                       actions: actions as any[],
-                    });
+                      maxRepairModelCalls: buildQuality === "basic" ? 0 : 1,
+                    }), 5000, "action critic") ?? {
+                      patchActions: [],
+                      missingBefore: [],
+                      repairedBySurface: {},
+                      usedModel: false,
+                      usedFallbackTemplate: [],
+                      ranMs: 0,
+                    };
                     if (critique.patchActions.length > 0) {
                       actions = [
                         ...actions,
