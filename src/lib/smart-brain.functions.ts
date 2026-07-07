@@ -46,8 +46,26 @@ type Intent = {
   systems: string[];
   needs: AutoTask[];
   risks: string[];
-  requiredSurfaces: RequiredSurface[];
+  requiredSurfaces: SerializableSurface[];
 };
+
+// Serializable view — drops the actionCovered function so this shape is
+// safe to return across the createServerFn RPC boundary.
+type SerializableSurface = {
+  id: string;
+  label: string;
+  planKeywords: string[];
+  buildHint: string;
+};
+
+function toSerializable(s: RequiredSurface): SerializableSurface {
+  return {
+    id: s.id,
+    label: s.label,
+    planKeywords: s.planKeywords,
+    buildHint: s.buildHint,
+  };
+}
 
 type Specialist = {
   task: AutoTask;
