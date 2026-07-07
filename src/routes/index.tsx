@@ -517,7 +517,7 @@ function Footer() {
     <footer className="relative z-10 border-t border-white/15 bg-slate-950/95 backdrop-blur-xl">
       <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-500/40 to-transparent" />
       <div className="relative mx-auto max-w-7xl px-6 py-12">
-        <div className="grid gap-10 md:grid-cols-5">
+        <div className="grid gap-10 md:grid-cols-6">
           <div className="md:col-span-2">
             <div className="flex items-center gap-2">
               <BrandMark className="h-8 w-8 rounded-lg" />
@@ -536,8 +536,9 @@ function Footer() {
             <ShareBar />
           </div>
           <FootCol title="Product" links={[["Features", "/#features"], ["How It Works", "/#how"], ["Plugin", "/#plugin"], ["3D Models", "/#templates"]]} />
-          <FootCol title="Resources" links={[["Docs", "/docs"], ["Support", "/support"], ["Contact", "/contact"]]} />
-          <FootCol title="Legal" links={[["Terms of Service", "/terms"], ["Privacy Policy", "/privacy"], ["Discord", "https://discord.gg/6QDYT3RUkv"]]} />
+          <FootCol title="AI Tools" links={[["AI Roblox Game Maker", "/ai-roblox-game-maker"], ["Roblox Script Generator", "/roblox-script-generator"], ["Roblox GUI Maker", "/roblox-gui-maker"], ["Free Roblox Studio AI", "/free-roblox-studio-ai"], ["UI Templates", "/templates/ui"]]} />
+          <FootCol title="Learn" links={[["Guides", "/guides"], ["Make a Tycoon", "/guides/how-to-make-a-roblox-tycoon"], ["Make an Obby", "/guides/how-to-make-a-roblox-obby"], ["Script with AI", "/guides/how-to-script-in-roblox-with-ai"], ["Docs", "/docs"]]} />
+          <FootCol title="Support" links={[["Support", "/support"], ["Contact", "/contact"], ["Terms", "/terms"], ["Privacy", "/privacy"], ["Discord", "https://discord.gg/6QDYT3RUkv"]]} />
         </div>
         <div className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-6 text-xs text-slate-400">
           <div className="font-medium text-slate-300">Made for Roblox creators. 100% free.</div>
