@@ -82,7 +82,7 @@ type Specialist = {
 
 type BrainResult = {
   ok: true;
-  intent: Intent;
+  intent: SerializableIntent;
   contextSummary: string;
   plan: string;
   specialists: Specialist[];
