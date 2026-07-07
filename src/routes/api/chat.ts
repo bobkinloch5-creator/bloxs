@@ -7319,12 +7319,16 @@ export const Route = createFileRoute("/api/chat")({
             const fastBuild = mode === "build" && buildQuality === "basic";
             const maxStreamMs = mode === "chat" ? 45_000 : fastBuild ? 38_000 : 75_000;
             const timeoutController = new AbortController();
+            const abortFromClient = () => timeoutController.abort("Client disconnected");
+            if (request.signal.aborted) abortFromClient();
+            else request.signal.addEventListener("abort", abortFromClient, { once: true });
             const timeoutId = setTimeout(() => {
               timeoutController.abort(`BloxSmith timed out after ${Math.round(maxStreamMs / 1000)}s`);
             }, maxStreamMs);
-            const combinedSignal = typeof AbortSignal !== "undefined" && "any" in AbortSignal
-              ? AbortSignal.any([request.signal, timeoutController.signal])
-              : timeoutController.signal;
+            const clearStreamTimeout = () => {
+              clearTimeout(timeoutId);
+              request.signal.removeEventListener("abort", abortFromClient);
+            };
             const actionKindStubs = {
               run_lua: runLuaTool,
               organize_project: organizeProjectTool,
@@ -7350,7 +7354,7 @@ export const Route = createFileRoute("/api/chat")({
               model,
               system: (mode === "chat" ? FAST_CHAT_SYSTEM_PROMPT : FAST_BUILD_SYSTEM_PROMPT) + modeHeader + languageHeader + qualityHeader + assetModeRule + contextBlock,
               messages: convertedMessages,
-              abortSignal: combinedSignal,
+              abortSignal: timeoutController.signal,
               ...(extraBody ? { providerOptions: { nvidia: extraBody as Record<string, never> } as never } : {}),
               ...(modelSettings?.temperature !== undefined ? { temperature: modelSettings.temperature } : {}),
               ...(modelSettings?.topP !== undefined ? { topP: modelSettings.topP } : {}),
@@ -7366,18 +7370,18 @@ export const Route = createFileRoute("/api/chat")({
                 }
               },
               onFinish: async ({ text }) => {
-                clearTimeout(timeoutId);
+                clearStreamTimeout();
                 if (text && text.length > accumulated.length) accumulated = text;
                 persisted = true;
                 await persistFinish(usedModelId, notice)({ text: accumulated });
               },
               onAbort: () => {
-                clearTimeout(timeoutId);
+                clearStreamTimeout();
                 console.warn(`[chat] stream aborted on ${usedModelId} — persisting ${accumulated.length} chars`);
                 void safePersist("abort");
               },
               onError: ({ error }) => {
-                clearTimeout(timeoutId);
+                clearStreamTimeout();
                 console.error(`[chat] upstream error on ${usedModelId}`, error);
                 void safePersist("error");
               },
