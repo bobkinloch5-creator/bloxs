@@ -6596,24 +6596,28 @@ export const Route = createFileRoute("/api/chat")({
                 // swap in the repaired source. Runs in parallel across flagged
                 // actions with a hard cap so cost stays bounded on bad turns.
                 const REPAIR_CAP = 4;
+                // Fast Build must stay fast: once the primary model returns,
+                // avoid extra LLM repair/regeneration passes that hold the
+                // response open and look like an infinite spinner.
+                const allowPostGenerationLlmRepair = buildQuality !== "basic";
                 const repairable = (actions as any[]).filter((a) =>
                   a?.payload?._needs_retry &&
                   typeof a?.payload?.source === "string" &&
                   ["script", "localscript", "modulescript", "run_lua"].includes(String(a?.kind))
                 ).slice(0, REPAIR_CAP);
 
-                if (repairable.length > 0) {
+                if (repairable.length > 0 && allowPostGenerationLlmRepair) {
                   try {
                     const { repairLuauWithNvidia } = await import("@/lib/nvidia-critique.server");
                     const repairs = await Promise.allSettled(repairable.map((a: any) =>
-                      repairLuauWithNvidia({
+                      withTimeout(repairLuauWithNvidia({
                         source: String(a.payload.source),
                         issues: a.payload._luau_issues || [],
                         actionName: a?.name,
                         actionKind: a?.kind,
                         parentPath: a?.parent_path,
                         userRequest: userText,
-                      })
+                      }), 4500, "NVIDIA Luau repair")
                     ));
                     let repairedCount = 0;
                     repairs.forEach((r, i) => {
@@ -6638,6 +6642,8 @@ export const Route = createFileRoute("/api/chat")({
                   } catch (repairErr) {
                     console.warn("[chat] nvidia self-critique failed", repairErr);
                   }
+                } else if (repairable.length > 0) {
+                  console.info("[chat] skipped post-generation LLM repair in Fast Build", { repairable: repairable.length });
                 }
 
                 // Final script gate: Studio must never receive an empty or
