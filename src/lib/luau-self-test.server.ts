@@ -31,8 +31,8 @@ export type SelfTestResult = {
   ranMs: number;
 };
 
-const MAX_REGEN_PER_TURN = 4;
-const REGEN_TIMEOUT_MS = 20000;
+const MAX_REGEN_PER_TURN = 3;
+const REGEN_TIMEOUT_MS = 10000;
 
 const REGEN_SYSTEM = `You are the BloxSmith LUAU REPAIR agent.
 The Luau validator flagged errors in a script that was about to be shipped to Roblox Studio.
