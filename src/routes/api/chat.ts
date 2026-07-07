@@ -7004,8 +7004,7 @@ export const Route = createFileRoute("/api/chat")({
                     return true;
                   });
                   if (insertable.length > 0) {
-                    const { error: queueError } = await supabase.from("plugin_actions").insert(
-                      insertable.map((a, i) => ({
+                    const queueRows = insertable.map((a, i) => ({
                         project_id: projectId,
                         user_id: userId,
                         message_id: msgRow?.id ?? null,
@@ -7014,8 +7013,9 @@ export const Route = createFileRoute("/api/chat")({
                         name: a.name,
                         payload: a.payload,
                         position: i,
-                      })),
-                    );
+                      }));
+                    let queuedCount = queueRows.length;
+                    const { error: queueError } = await supabase.from("plugin_actions").insert(queueRows);
                     if (queueError) {
                       console.error("[chat] plugin action queue insert failed", {
                         projectId,
@@ -7024,13 +7024,31 @@ export const Route = createFileRoute("/api/chat")({
                         error: queueError.message,
                         kinds: insertable.map((a) => a.kind),
                       });
-                      throw queueError;
+                      // One invalid row must not block the rest of the build.
+                      // Retry individually and keep every valid action executable.
+                      queuedCount = 0;
+                      for (const row of queueRows) {
+                        const { error: rowError } = await supabase.from("plugin_actions").insert(row);
+                        if (rowError) {
+                          console.error("[chat] dropped invalid plugin action row", {
+                            projectId,
+                            userId,
+                            messageId: msgRow?.id ?? null,
+                            kind: row.kind,
+                            name: row.name,
+                            error: rowError.message,
+                          });
+                        } else {
+                          queuedCount += 1;
+                        }
+                      }
+                      if (queuedCount === 0) throw queueError;
                     }
                     console.info("[chat] actions queued", {
                       projectId,
                       userId,
                       messageId: msgRow?.id ?? null,
-                      queued: insertable.length,
+                      queued: queuedCount,
                     });
                   }
                 }
