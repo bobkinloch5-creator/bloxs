@@ -6657,33 +6657,37 @@ export const Route = createFileRoute("/api/chat")({
 
                 if (invalidScripts.length > 0) {
                   try {
-                    const { generateLuauReplacementWithNvidia } = await import("@/lib/nvidia-critique.server");
-                    const regenTargets = invalidScripts.slice(0, REPAIR_CAP);
-                    const regenerations = await Promise.allSettled(regenTargets.map(({ action, issues }) =>
-                      generateLuauReplacementWithNvidia({
-                        issues,
-                        actionName: action?.name,
-                        actionKind: action?.kind,
-                        parentPath: action?.parent_path,
-                        userRequest: userText,
-                      })
-                    ));
-                    let regeneratedCount = 0;
-                    regenerations.forEach((r, i) => {
-                      if (r.status === "fulfilled" && r.value) {
-                        const target = regenTargets[i].action;
-                        const renorm = normalizePluginAction({
-                          kind: target.kind,
-                          name: target.name,
-                          parent_path: target.parent_path,
-                          payload: { ...(target.payload ?? {}), _needs_retry: undefined, _luau_issues: undefined, source: r.value },
-                        });
-                        target.payload = renorm.payload;
-                        regeneratedCount += 1;
+                    if (allowPostGenerationLlmRepair) {
+                      const { generateLuauReplacementWithNvidia } = await import("@/lib/nvidia-critique.server");
+                      const regenTargets = invalidScripts.slice(0, REPAIR_CAP);
+                      const regenerations = await Promise.allSettled(regenTargets.map(({ action, issues }) =>
+                        withTimeout(generateLuauReplacementWithNvidia({
+                          issues,
+                          actionName: action?.name,
+                          actionKind: action?.kind,
+                          parentPath: action?.parent_path,
+                          userRequest: userText,
+                        }), 4500, "NVIDIA Luau regeneration")
+                      ));
+                      let regeneratedCount = 0;
+                      regenerations.forEach((r, i) => {
+                        if (r.status === "fulfilled" && r.value) {
+                          const target = regenTargets[i].action;
+                          const renorm = normalizePluginAction({
+                            kind: target.kind,
+                            name: target.name,
+                            parent_path: target.parent_path,
+                            payload: { ...(target.payload ?? {}), _needs_retry: undefined, _luau_issues: undefined, source: r.value },
+                          });
+                          target.payload = renorm.payload;
+                          regeneratedCount += 1;
+                        }
+                      });
+                      if (regeneratedCount > 0) {
+                        console.info("[chat] nvidia regenerated invalid/empty scripts", { regenerated: regeneratedCount, of: regenTargets.length });
                       }
-                    });
-                    if (regeneratedCount > 0) {
-                      console.info("[chat] nvidia regenerated invalid/empty scripts", { regenerated: regeneratedCount, of: regenTargets.length });
+                    } else {
+                      console.info("[chat] skipped post-generation LLM regeneration in Fast Build", { invalidScripts: invalidScripts.length });
                     }
                   } catch (regenErr) {
                     console.warn("[chat] nvidia script regeneration failed", regenErr);
