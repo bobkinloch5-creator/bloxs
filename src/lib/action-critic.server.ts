@@ -288,8 +288,11 @@ export async function critiqueAndRepairActions(params: {
 
   notes.push(`missing surfaces: ${coverage.missing.map((s) => s.label).join(", ")}`);
 
-  // One model call attempts to cover ALL missing surfaces at once.
-  const modelPatch = await askRepairModel(params.userText, coverage.missing, params.actions);
+  // One model call attempts to cover ALL missing surfaces at once. Fast Build
+  // can opt out so the visible response does not wait on a second AI pass.
+  const modelPatch = params.maxRepairModelCalls === 0
+    ? null
+    : await askRepairModel(params.userText, coverage.missing, params.actions);
 
   const patchActions: CriticAction[] = [];
   const repairedBySurface: Record<string, number> = {};

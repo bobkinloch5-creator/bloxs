@@ -6596,24 +6596,28 @@ export const Route = createFileRoute("/api/chat")({
                 // swap in the repaired source. Runs in parallel across flagged
                 // actions with a hard cap so cost stays bounded on bad turns.
                 const REPAIR_CAP = 4;
+                // Fast Build must stay fast: once the primary model returns,
+                // avoid extra LLM repair/regeneration passes that hold the
+                // response open and look like an infinite spinner.
+                const allowPostGenerationLlmRepair = buildQuality !== "basic";
                 const repairable = (actions as any[]).filter((a) =>
                   a?.payload?._needs_retry &&
                   typeof a?.payload?.source === "string" &&
                   ["script", "localscript", "modulescript", "run_lua"].includes(String(a?.kind))
                 ).slice(0, REPAIR_CAP);
 
-                if (repairable.length > 0) {
+                if (repairable.length > 0 && allowPostGenerationLlmRepair) {
                   try {
                     const { repairLuauWithNvidia } = await import("@/lib/nvidia-critique.server");
                     const repairs = await Promise.allSettled(repairable.map((a: any) =>
-                      repairLuauWithNvidia({
+                      withTimeout(repairLuauWithNvidia({
                         source: String(a.payload.source),
                         issues: a.payload._luau_issues || [],
                         actionName: a?.name,
                         actionKind: a?.kind,
                         parentPath: a?.parent_path,
                         userRequest: userText,
-                      })
+                      }), 4500, "NVIDIA Luau repair")
                     ));
                     let repairedCount = 0;
                     repairs.forEach((r, i) => {
@@ -6638,6 +6642,8 @@ export const Route = createFileRoute("/api/chat")({
                   } catch (repairErr) {
                     console.warn("[chat] nvidia self-critique failed", repairErr);
                   }
+                } else if (repairable.length > 0) {
+                  console.info("[chat] skipped post-generation LLM repair in Fast Build", { repairable: repairable.length });
                 }
 
                 // Final script gate: Studio must never receive an empty or
@@ -6651,43 +6657,45 @@ export const Route = createFileRoute("/api/chat")({
 
                 if (invalidScripts.length > 0) {
                   try {
-                    const { generateLuauReplacementWithNvidia } = await import("@/lib/nvidia-critique.server");
-                    const regenTargets = invalidScripts.slice(0, REPAIR_CAP);
-                    const regenerations = await Promise.allSettled(regenTargets.map(({ action, issues }) =>
-                      generateLuauReplacementWithNvidia({
-                        issues,
-                        actionName: action?.name,
-                        actionKind: action?.kind,
-                        parentPath: action?.parent_path,
-                        userRequest: userText,
-                      })
-                    ));
-                    let regeneratedCount = 0;
-                    regenerations.forEach((r, i) => {
-                      if (r.status === "fulfilled" && r.value) {
-                        const target = regenTargets[i].action;
-                        const renorm = normalizePluginAction({
-                          kind: target.kind,
-                          name: target.name,
-                          parent_path: target.parent_path,
-                          payload: { ...(target.payload ?? {}), _needs_retry: undefined, _luau_issues: undefined, source: r.value },
-                        });
-                        target.payload = renorm.payload;
-                        regeneratedCount += 1;
+                    if (allowPostGenerationLlmRepair) {
+                      const { generateLuauReplacementWithNvidia } = await import("@/lib/nvidia-critique.server");
+                      const regenTargets = invalidScripts.slice(0, REPAIR_CAP);
+                      const regenerations = await Promise.allSettled(regenTargets.map(({ action, issues }) =>
+                        withTimeout(generateLuauReplacementWithNvidia({
+                          issues,
+                          actionName: action?.name,
+                          actionKind: action?.kind,
+                          parentPath: action?.parent_path,
+                          userRequest: userText,
+                        }), 4500, "NVIDIA Luau regeneration")
+                      ));
+                      let regeneratedCount = 0;
+                      regenerations.forEach((r, i) => {
+                        if (r.status === "fulfilled" && r.value) {
+                          const target = regenTargets[i].action;
+                          const renorm = normalizePluginAction({
+                            kind: target.kind,
+                            name: target.name,
+                            parent_path: target.parent_path,
+                            payload: { ...(target.payload ?? {}), _needs_retry: undefined, _luau_issues: undefined, source: r.value },
+                          });
+                          target.payload = renorm.payload;
+                          regeneratedCount += 1;
+                        }
+                      });
+                      if (regeneratedCount > 0) {
+                        console.info("[chat] nvidia regenerated invalid/empty scripts", { regenerated: regeneratedCount, of: regenTargets.length });
                       }
-                    });
-                    if (regeneratedCount > 0) {
-                      console.info("[chat] nvidia regenerated invalid/empty scripts", { regenerated: regeneratedCount, of: regenTargets.length });
+                    } else {
+                      console.info("[chat] skipped post-generation LLM regeneration in Fast Build", { invalidScripts: invalidScripts.length });
                     }
                   } catch (regenErr) {
                     console.warn("[chat] nvidia script regeneration failed", regenErr);
                   }
 
-                  // NOTE: the previous "second-pass" NVIDIA regeneration was
-                  // removed — it duplicated the new post-canonicalizer
-                  // runLuauSelfTest gate below and added a full serial LLM
-                  // round-trip per broken script to every build turn. The
-                  // self-test now handles the retry once, in parallel.
+                  // NOTE: in Fast Build, invalid scripts are blocked or replaced
+                  // by deterministic rescue actions instead of starting another
+                  // AI request after the main response has already finished.
                   invalidScripts = (actions as any[])
                     .map((action) => ({ action, issues: finalScriptIssues(action) }))
                     .filter((x) => x.issues.length > 0);
@@ -6764,10 +6772,18 @@ export const Route = createFileRoute("/api/chat")({
                 if (mode === "build" && actions.length > 0) {
                   try {
                     const { critiqueAndRepairActions } = await import("@/lib/action-critic.server");
-                    const critique = await critiqueAndRepairActions({
+                    const critique = await withTimeout(critiqueAndRepairActions({
                       userText,
                       actions: actions as any[],
-                    });
+                      maxRepairModelCalls: buildQuality === "basic" ? 0 : 1,
+                    }), 5000, "action critic") ?? {
+                      patchActions: [],
+                      missingBefore: [],
+                      repairedBySurface: {},
+                      usedModel: false,
+                      usedFallbackTemplate: [],
+                      ranMs: 0,
+                    };
                     if (critique.patchActions.length > 0) {
                       actions = [
                         ...actions,
@@ -6804,9 +6820,8 @@ export const Route = createFileRoute("/api/chat")({
                       });
                     }
 
-                    // Luau self-test gate: regen any script the validator
-                    // flagged with ERROR-severity issues. One scoped LLM call
-                    // per broken script, capped at MAX_REGEN_PER_TURN.
+                    // Luau self-test gate: cheap tag-only validation marker.
+                    // It never calls an LLM, so it cannot hold the stream open.
                     const errorScripts = canon.luauIssuesByAction.filter(
                       (e) => e.issues.some((i) => i.severity === "error"),
                     );
@@ -6899,7 +6914,7 @@ export const Route = createFileRoute("/api/chat")({
                   const resolveCache = new Map<string, Promise<{ id: number; fallbacks: number[] } | null>>();
                   const insertAssets = (actions as Array<{ kind?: string; name?: string; payload?: Record<string, unknown> }>)
                     .filter((a) => a?.kind === "insert_asset");
-                  await Promise.all(insertAssets.map(async (a) => {
+                  await withTimeout(Promise.all(insertAssets.map(async (a) => {
                     const p = a.payload ?? (a.payload = {});
                     const q = String(p.source_query ?? p.asset_name ?? a.name ?? "").trim();
                     if (!q) return;
@@ -6922,10 +6937,14 @@ export const Route = createFileRoute("/api/chat")({
                       p.asset_id = hit.id;
                       p.fallback_ids = hit.fallbacks;
                     }
-                  }));
+                  })), buildQuality === "basic" ? 3000 : 6000, "insert asset resolution");
                   // Validate every insert_asset against Roblox's toolbox-details
                   // API and the runtime blacklist before Studio ever sees it.
-                  await sanitizeInsertAssetActions(actions as unknown as Array<Record<string, unknown>>).catch(() => null);
+                  await withTimeout(
+                    sanitizeInsertAssetActions(actions as unknown as Array<Record<string, unknown>>).catch(() => null),
+                    buildQuality === "basic" ? 2500 : 6000,
+                    "insert asset sanitization",
+                  );
                   const insertable = actions.filter((a) => {
                     if (!a || !(a as { kind?: string }).kind) return false;
                     const issues = finalScriptIssues(a);
@@ -7298,6 +7317,18 @@ export const Route = createFileRoute("/api/chat")({
               }
             };
             const fastBuild = mode === "build" && buildQuality === "basic";
+            const maxStreamMs = mode === "chat" ? 45_000 : fastBuild ? 38_000 : 75_000;
+            const timeoutController = new AbortController();
+            const abortFromClient = () => timeoutController.abort("Client disconnected");
+            if (request.signal.aborted) abortFromClient();
+            else request.signal.addEventListener("abort", abortFromClient, { once: true });
+            const timeoutId = setTimeout(() => {
+              timeoutController.abort(`BloxSmith timed out after ${Math.round(maxStreamMs / 1000)}s`);
+            }, maxStreamMs);
+            const clearStreamTimeout = () => {
+              clearTimeout(timeoutId);
+              request.signal.removeEventListener("abort", abortFromClient);
+            };
             const actionKindStubs = {
               run_lua: runLuaTool,
               organize_project: organizeProjectTool,
@@ -7323,13 +7354,13 @@ export const Route = createFileRoute("/api/chat")({
               model,
               system: (mode === "chat" ? FAST_CHAT_SYSTEM_PROMPT : FAST_BUILD_SYSTEM_PROMPT) + modeHeader + languageHeader + qualityHeader + assetModeRule + contextBlock,
               messages: convertedMessages,
-              abortSignal: request.signal,
+              abortSignal: timeoutController.signal,
               ...(extraBody ? { providerOptions: { nvidia: extraBody as Record<string, never> } as never } : {}),
               ...(modelSettings?.temperature !== undefined ? { temperature: modelSettings.temperature } : {}),
               ...(modelSettings?.topP !== undefined ? { topP: modelSettings.topP } : {}),
               maxOutputTokens: capOutputTokens(modelSettings, mode, buildQuality),
               tools: mode === "chat" ? chatTools : buildTools,
-              stopWhen: stepCountIs(mode === "chat" ? 6 : fastBuild ? 6 : 8),
+              stopWhen: stepCountIs(mode === "chat" ? 6 : fastBuild ? 3 : 8),
               onChunk: ({ chunk }) => {
                 if (chunk.type === "text-delta") {
                   const delta = (chunk as { text?: string; delta?: string }).text
@@ -7339,15 +7370,18 @@ export const Route = createFileRoute("/api/chat")({
                 }
               },
               onFinish: async ({ text }) => {
+                clearStreamTimeout();
                 if (text && text.length > accumulated.length) accumulated = text;
                 persisted = true;
                 await persistFinish(usedModelId, notice)({ text: accumulated });
               },
               onAbort: () => {
+                clearStreamTimeout();
                 console.warn(`[chat] stream aborted on ${usedModelId} — persisting ${accumulated.length} chars`);
                 void safePersist("abort");
               },
               onError: ({ error }) => {
+                clearStreamTimeout();
                 console.error(`[chat] upstream error on ${usedModelId}`, error);
                 void safePersist("error");
               },
