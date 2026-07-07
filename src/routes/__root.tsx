@@ -225,10 +225,15 @@ function RootComponent() {
 
 
 function BetaBanner() {
-  const [dismissed, setDismissed] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    return window.localStorage.getItem("bs:beta-banner-dismissed") === "1";
-  });
+  const [dismissed, setDismissed] = useState<boolean>(false);
+
+  useEffect(() => {
+    try {
+      if (window.localStorage.getItem("bs:beta-banner-dismissed") === "1") {
+        setDismissed(true);
+      }
+    } catch {}
+  }, []);
 
   if (dismissed) return null;
   return (
