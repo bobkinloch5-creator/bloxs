@@ -6693,11 +6693,9 @@ export const Route = createFileRoute("/api/chat")({
                     console.warn("[chat] nvidia script regeneration failed", regenErr);
                   }
 
-                  // NOTE: the previous "second-pass" NVIDIA regeneration was
-                  // removed — it duplicated the new post-canonicalizer
-                  // runLuauSelfTest gate below and added a full serial LLM
-                  // round-trip per broken script to every build turn. The
-                  // self-test now handles the retry once, in parallel.
+                  // NOTE: in Fast Build, invalid scripts are blocked or replaced
+                  // by deterministic rescue actions instead of starting another
+                  // AI request after the main response has already finished.
                   invalidScripts = (actions as any[])
                     .map((action) => ({ action, issues: finalScriptIssues(action) }))
                     .filter((x) => x.issues.length > 0);
