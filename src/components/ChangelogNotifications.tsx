@@ -22,10 +22,24 @@ const CHANGELOG_ITEMS = [
     icon: Brain,
     body: "The required-surface catalog previously lived only inside smart-brain.functions.ts. Extracted it into a shared src/lib/surfaces.ts module so both the pre-build planner (coverage-gated re-planning loop) and the new post-build critic use the exact same definitions — same regex triggers, same plan keywords, same build hints, plus a new action-level coverage predicate per surface. Smart Brain's return shape was also cleaned up so the required-surface list serializes cleanly across the server-function RPC boundary without the coverage predicate function tripping serialization.",
   },
-];
-
-// Legacy — retained below for scrollback:
-const _CHANGELOG_ITEMS_ARCHIVE = [
+  {
+    title: "🎨 Premium UI law — every GUI, loading screen & main menu ships AAA-quality",
+    date: "Jul 6",
+    icon: Palette,
+    body: "Locked in a hard, non-negotiable Premium UI law across the BloxSmith system prompt. Every ScreenGui, HUD, loading screen, splash, title screen, main menu, pause menu, settings, shop, inventory, quest log, notification, and modal now MUST ship a polished, AAA look — no plain grey Roblox defaults, no flat single-color backgrounds, no unstyled TextButtons, no placeholder screens. Mandatory per surface: named Theme table (bg/surface/primary/glow/text/muted/stroke) matched to the game genre, layered background (3+ stop UIGradient + optional hero image + vignette + ambient accents), UICorner + UIStroke + UIPadding + UIListLayout on every container, soft drop-shadow behind primary CTAs, entrance tween on load (fade+slide with staggered cascade for lists), hover tween (position shift + stroke brighten + transparency drop at 0.18s Quad Out), press tween (Scale 0.97 bounce), Gotham typography (Black/Bold titles 48–110px, Semibold buttons 18–24px), responsive UIScale + UISizeConstraint + UIAspectRatioConstraint, 44px+ touch targets, and safe-area insets. A shared UIKit ModuleScript is spawned when multiple surfaces are built so the whole game shares one look.",
+  },
+  {
+    title: "🔥 Premium particle effects — layered core + glow + embers + smoke haze",
+    date: "Jul 6",
+    icon: Sparkles,
+    body: "Every humanoid VFX preset (Fire, Lightning, Magic, Ice, Poison, Holy, Dark, Energy) now stacks multiple ParticleEmitter layers for a cinematic, volumetric look instead of a single flat sprite stream. Fire keeps Roblox's reliable built-in Fire instance and adds on top: an ember layer (bright orange sparks flying up), a hot glow layer (soft orange bloom around the source), and a rising smoke haze layer. Lightning/Magic/Ice each get a bright core layer plus a soft glow layer with brighter LightEmission, richer 3-stop color ramps, and bigger point lights for real scene bloom. Sizes, rates, and light range auto-scale to each body part so the effect looks right on a hand, a torso, or a full aura.",
+  },
+  {
+    title: "🧠 Professional workflow law — interpret → expand → search → score → plan → build → validate → self-correct",
+    date: "Jul 6",
+    icon: Brain,
+    body: "BloxSmith now runs a permanent 12-step senior-developer pipeline before emitting any actions. Every prompt is silently interpreted beyond keywords (quantity, style, features, output shape), expanded into multiple related concepts, searched across Toolbox + saved assets + inventory + templates + procedural generation, and every candidate is scored on relevance/completeness/optimization/script quality/mesh + texture quality/ratings/performance — only the highest scorer is inserted. Complete worlds are preferred over isolated props (a 'medieval village' now implies houses + central structure + roads + terrain + trees + market + lighting + NPCs + spawns), missing assets are procedurally generated instead of infinite Toolbox looping, systems ship every layer (UI + data + save + hotbar + drag/drop + equip + anim + notifications + RemoteEvents), and every output is validated then self-corrected until it works. Users see clean results — the pipeline runs invisibly.",
+  },
   {
     title: "🎨 Premium UI law — every GUI, loading screen & main menu ships AAA-quality",
     date: "Jul 6",
