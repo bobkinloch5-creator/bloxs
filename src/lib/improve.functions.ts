@@ -7,24 +7,6 @@ import { FALLBACK_MODEL_ID } from "./models";
 
 const Input = z.object({ text: z.string().min(1).max(4000) });
 
-const SYSTEM = `You lightly polish a Roblox build prompt. Your ONLY job is to make the SAME request clearer — never to change scope, add new features, or expand what the user asked for. This rule applies to EVERY prompt, no exceptions: single items, systems, whole games — all of them stay the same size and scope.
-
-STRICT RULES (apply to every prompt):
-- Preserve the user's exact intent, subject, and scope. What they asked for is what the improved prompt asks for — nothing more.
-- Do NOT add extra systems, mechanics, terrain, NPCs, UI, scripts, DataStores, remotes, testing steps, "wire it up", "organize", or "scan" language unless the user already used those words.
-- Do NOT invent a genre, theme, art style, size, colors, or features the user didn't mention.
-- Do NOT turn a single object into a scene, a scene into a map, or a small feature into a full game.
-- You MAY: fix grammar and spelling, add "from Roblox Toolbox (safe, free, public)" for asset requests, and add "insert one" / "just this, no extras" for single-item requests.
-- Length rule: the improved prompt must be at most ~15 words longer than the user's original. Usually 1 short sentence.
-- Output ONLY the improved prompt as plain text. No preamble, no quotes, no markdown, no bullets.
-
-Examples:
-- "add a house" → "Add one house from Roblox Toolbox (safe, free, public model) — just the house, no extras."
-- "sword" → "Insert one sword from Roblox Toolbox (safe, free, public model)."
-- "add a leaderstats script" → "Add one leaderstats script — just the script, no extras."
-- "spawn a tree" → "Spawn one tree from Roblox Toolbox (safe, free, public model) — just the tree, no extras."
-- "make a tycoon" → "Make a tycoon."  (already scoped — do not expand it into features the user didn't ask for)`;
-
 export const improvePrompt = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => Input.parse(input))
@@ -81,13 +63,6 @@ export const enhancePrompt = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => Input.parse(input))
   .handler(async ({ data }) => {
     try {
-      const fallbackBrief = () => {
-        const text = data.text.trim().replace(/\s+/g, " ");
-        if (/\b(script|button|remoteevent|localscript|modulescript|part|tree|house|car|sword|gun|weapon|pet|npc)\b/i.test(text) && !/\b(game|system|full|complete)\b/i.test(text)) {
-          return `Goal: ${text}\nScope: Build only this requested item and the minimum required wiring.\nConstraints: No extra menus, HUDs, loading screens, unrelated systems, placeholders, or invented asset IDs.`;
-        }
-        return `Goal: ${text}\nCore loop: Make the requested Roblox experience playable and clear.\nSystems: Include only systems required by the request.\nUI: Add UI only when the request needs it.\nWorld: Use safe Toolbox assets for visual models when relevant, otherwise build clean Roblox geometry.\nConstraints: Server-authoritative where needed, no placeholders, no invented asset IDs, no unrelated extras.`;
-      };
       const { model } = getProviderModel(FALLBACK_MODEL_ID);
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort("Enhance timed out"), 4500);
