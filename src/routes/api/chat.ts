@@ -7317,6 +7317,14 @@ export const Route = createFileRoute("/api/chat")({
               }
             };
             const fastBuild = mode === "build" && buildQuality === "basic";
+            const maxStreamMs = mode === "chat" ? 45_000 : fastBuild ? 38_000 : 75_000;
+            const timeoutController = new AbortController();
+            const timeoutId = setTimeout(() => {
+              timeoutController.abort(`BloxSmith timed out after ${Math.round(maxStreamMs / 1000)}s`);
+            }, maxStreamMs);
+            const combinedSignal = typeof AbortSignal !== "undefined" && "any" in AbortSignal
+              ? AbortSignal.any([request.signal, timeoutController.signal])
+              : timeoutController.signal;
             const actionKindStubs = {
               run_lua: runLuaTool,
               organize_project: organizeProjectTool,
@@ -7342,13 +7350,13 @@ export const Route = createFileRoute("/api/chat")({
               model,
               system: (mode === "chat" ? FAST_CHAT_SYSTEM_PROMPT : FAST_BUILD_SYSTEM_PROMPT) + modeHeader + languageHeader + qualityHeader + assetModeRule + contextBlock,
               messages: convertedMessages,
-              abortSignal: request.signal,
+              abortSignal: combinedSignal,
               ...(extraBody ? { providerOptions: { nvidia: extraBody as Record<string, never> } as never } : {}),
               ...(modelSettings?.temperature !== undefined ? { temperature: modelSettings.temperature } : {}),
               ...(modelSettings?.topP !== undefined ? { topP: modelSettings.topP } : {}),
               maxOutputTokens: capOutputTokens(modelSettings, mode, buildQuality),
               tools: mode === "chat" ? chatTools : buildTools,
-              stopWhen: stepCountIs(mode === "chat" ? 6 : fastBuild ? 6 : 8),
+              stopWhen: stepCountIs(mode === "chat" ? 6 : fastBuild ? 3 : 8),
               onChunk: ({ chunk }) => {
                 if (chunk.type === "text-delta") {
                   const delta = (chunk as { text?: string; delta?: string }).text
@@ -7358,15 +7366,18 @@ export const Route = createFileRoute("/api/chat")({
                 }
               },
               onFinish: async ({ text }) => {
+                clearTimeout(timeoutId);
                 if (text && text.length > accumulated.length) accumulated = text;
                 persisted = true;
                 await persistFinish(usedModelId, notice)({ text: accumulated });
               },
               onAbort: () => {
+                clearTimeout(timeoutId);
                 console.warn(`[chat] stream aborted on ${usedModelId} — persisting ${accumulated.length} chars`);
                 void safePersist("abort");
               },
               onError: ({ error }) => {
+                clearTimeout(timeoutId);
                 console.error(`[chat] upstream error on ${usedModelId}`, error);
                 void safePersist("error");
               },
