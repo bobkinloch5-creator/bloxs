@@ -2725,6 +2725,128 @@ Lighting.Brightness = math.max(Lighting.Brightness, 2)
   ];
 }
 
+function isFlowerNatureRequest(userText: string) {
+  return /\b(flowers?|flowerbed|flower\s*bed|wildflowers?|plants?|bushes|shrubs)\b/i.test(userText) &&
+    /\b(add|make|create|build|place|put|spawn|scatter|around|near|on|in)\b/i.test(userText);
+}
+
+function visibleFlowersStudioActions(userText: string) {
+  const safePrompt = userText.trim().slice(0, 220) || "add visible flowers";
+  const source = `
+local Workspace = game:GetService("Workspace")
+local Lighting = game:GetService("Lighting")
+
+local request = ${JSON.stringify(safePrompt)}
+local root = Workspace:FindFirstChild("BloxSmith_Visible_Flowers")
+if root then root:Destroy() end
+root = Instance.new("Folder")
+root.Name = "BloxSmith_Visible_Flowers"
+root.Parent = Workspace
+
+local function makePart(parent, name, size, cf, color, material, shape)
+  local p = Instance.new("Part")
+  p.Name = name
+  p.Anchored = true
+  p.CanCollide = false
+  p.Size = size
+  p.CFrame = cf
+  p.Color = color
+  p.Material = material or Enum.Material.SmoothPlastic
+  p.TopSurface = Enum.SurfaceType.Smooth
+  p.BottomSurface = Enum.SurfaceType.Smooth
+  if shape then p.Shape = shape end
+  p.Parent = parent
+  return p
+end
+
+local function groundYAt(x, z)
+  local origin = Vector3.new(x, 300, z)
+  local direction = Vector3.new(0, -700, 0)
+  local params = RaycastParams.new()
+  params.FilterType = Enum.RaycastFilterType.Exclude
+  params.FilterDescendantsInstances = { root }
+  local hit = Workspace:Raycast(origin, direction, params)
+  if hit then return hit.Position.Y end
+  return 0.6
+end
+
+local palette = {
+  Color3.fromRGB(255, 92, 132),
+  Color3.fromRGB(255, 210, 64),
+  Color3.fromRGB(167, 101, 255),
+  Color3.fromRGB(93, 205, 255),
+  Color3.fromRGB(255, 142, 71),
+  Color3.fromRGB(245, 245, 255),
+}
+
+local centers = {
+  Vector3.new(-36, 0, -22), Vector3.new(-20, 0, 28), Vector3.new(22, 0, -30),
+  Vector3.new(38, 0, 18), Vector3.new(0, 0, 42), Vector3.new(-48, 0, 38),
+}
+
+local count = 0
+for patchIndex, center in ipairs(centers) do
+  local patch = Instance.new("Folder")
+  patch.Name = "Flower_Patch_" .. patchIndex
+  patch.Parent = root
+  for i = 1, 18 do
+    local angle = (i / 18) * math.pi * 2 + patchIndex * 0.37
+    local radius = 3 + ((i * 7 + patchIndex * 3) % 12)
+    local x = center.X + math.cos(angle) * radius
+    local z = center.Z + math.sin(angle) * radius
+    local y = groundYAt(x, z) + 0.35
+    local flower = Instance.new("Model")
+    flower.Name = "Flower_" .. patchIndex .. "_" .. i
+    flower.Parent = patch
+    local stem = makePart(flower, "Stem", Vector3.new(0.16, 1.1, 0.16), CFrame.new(x, y + 0.45, z), Color3.fromRGB(55, 150, 66), Enum.Material.Grass)
+    local headColor = palette[((i + patchIndex) % #palette) + 1]
+    local head = makePart(flower, "Blossom", Vector3.new(0.75, 0.22, 0.75), CFrame.new(x, y + 1.05, z), headColor, Enum.Material.Neon, Enum.PartType.Ball)
+    flower.PrimaryPart = stem
+    count += 1
+  end
+end
+
+local marker = makePart(root, "BloxSmith_Flowers_Camera_Target", Vector3.new(3, 3, 3), CFrame.new(0, 4, 0), Color3.fromRGB(255, 255, 255), Enum.Material.Neon)
+marker.Transparency = 1
+marker:SetAttribute("BloxSmithRequest", request)
+marker:SetAttribute("FlowersCreated", count)
+
+pcall(function()
+  Lighting.ClockTime = math.max(Lighting.ClockTime, 12)
+  Lighting.Brightness = math.max(Lighting.Brightness, 2)
+  local cam = Workspace.CurrentCamera
+  if cam then
+    local pos = marker.Position
+    cam.CFrame = CFrame.new(pos + Vector3.new(55, 34, 55), pos)
+  end
+  game:GetService("Selection"):Set({ root })
+end)
+
+return {
+  instance = root,
+  path = root:GetFullName(),
+  created = count,
+  visible = true,
+  summary = "Created visible flower patches around the grass"
+}
+`;
+
+  return [
+    {
+      kind: "run_lua",
+      parent_path: "Workspace",
+      name: "BloxSmith_Create_Visible_Flowers",
+      payload: { source, request: safePrompt, visible_output_required: true },
+    },
+    {
+      kind: "scan_project",
+      parent_path: "Workspace",
+      name: "BloxSmith_Scan_After_Flowers",
+      payload: { reason: "verify_visible_flowers_were_created" },
+    },
+  ];
+}
+
 function visibleSnowTerrainStudioActions(userText: string) {
   const safePrompt = userText.trim().slice(0, 220) || "add snow terrain";
   const source = `
@@ -5552,6 +5674,77 @@ export const Route = createFileRoute("/api/chat")({
                 .eq("id", projectId);
               console.info("[chat/fastpath] queued visible snow terrain instantly", { projectId, userId, actionCount: actions.length });
               return streamPlainAssistantText(replyText, "snow-terrain-fastpath-text");
+            }
+          }
+
+          // ── INSTANT VISIBLE FLOWERS / SMALL NATURE FAST-PATH ─────────────
+          // Small visual add-ons like "add flowers" must not wait for the LLM.
+          // The recent failure mode was: user message persisted, model stream
+          // aborted/returned nothing, and zero plugin_actions were queued while
+          // Studio kept polling "no actions". Queue deterministic visible work.
+          if (mode === "build" && projectId && userText && isFlowerNatureRequest(userText) && !imageGenerationRequested) {
+            const actions = visibleFlowersStudioActions(userText)
+              .map(normalizePluginAction)
+              .filter((action) => finalScriptIssues(action).length === 0)
+              .map((action: any) => ({
+                ...action,
+                payload: {
+                  ...(action.payload ?? {}),
+                  _bloxsmith: {
+                    execution_mode: "fast",
+                    structured: true,
+                    exact_scope: true,
+                    visible_output_required: true,
+                    flowers_fast_path: true,
+                    no_empty_folders: true,
+                    no_fake_assets: true,
+                  },
+                },
+              }));
+            if (actions.length > 0) {
+              const replyText = "Sent visible flowers to Studio — they should appear around the grass now.";
+              const { data: msgRow, error: msgError } = await supabase
+                .from("chat_messages")
+                .insert({
+                  project_id: projectId,
+                  user_id: userId,
+                  role: "assistant",
+                  content: replyText,
+                  status: "sending",
+                  model: "deterministic-flowers-fastpath",
+                  actions,
+                })
+                .select("id")
+                .single();
+              if (msgError) throw msgError;
+              const { error: queueError } = await supabase.from("plugin_actions").insert(
+                actions.map((action, i) => ({
+                  project_id: projectId,
+                  user_id: userId,
+                  message_id: msgRow?.id ?? null,
+                  kind: action.kind,
+                  parent_path: action.parent_path,
+                  name: action.name,
+                  payload: action.payload,
+                  position: i,
+                })),
+              );
+              if (queueError) throw queueError;
+              await supabase.from("build_history").insert({
+                project_id: projectId,
+                user_id: userId,
+                prompt: userText,
+                model: "deterministic-flowers-fastpath",
+                files_count: actions.length,
+                plugin_status: "Queued",
+                applied: false,
+              });
+              await supabase
+                .from("projects")
+                .update({ updated_at: new Date().toISOString() })
+                .eq("id", projectId);
+              console.info("[chat/fastpath] queued visible flowers instantly", { projectId, userId, actionCount: actions.length });
+              return streamPlainAssistantText(replyText, "flowers-fastpath-text");
             }
           }
 
