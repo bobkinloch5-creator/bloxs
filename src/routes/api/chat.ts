@@ -6867,9 +6867,12 @@ export const Route = createFileRoute("/api/chat")({
                 // the user sees the result immediately in Studio.
                 if (mode === "build" && actions.length > 0) {
                   try {
-                    const hasCam = (actions as any[]).some(
-                      (a) => a?.kind === "camera_focus" || a?.kind === "focus_camera" || a?.kind === "camera_zoom_to",
-                    );
+                    const hasCam = (actions as any[]).some((a) => {
+                      const kind = String(a?.kind || "");
+                      const toolbelt = String(a?.payload?._toolbelt || "");
+                      return kind === "camera_focus" || kind === "focus_camera" || kind === "camera_zoom_to" ||
+                        toolbelt === "camera_focus" || toolbelt === "focus_camera" || toolbelt === "camera_zoom_to";
+                    });
                     if (!hasCam) {
                       const focusableKinds = new Set([
                         "insert_asset", "part", "create_part", "create_model",
@@ -6890,13 +6893,17 @@ export const Route = createFileRoute("/api/chat")({
                         break;
                       }
                       if (target) {
-                        (actions as any[]).push({
+                        // Compile the virtual camera_focus toolbelt action into
+                        // run_lua before persistence. plugin_actions has a strict
+                        // kind constraint, so queuing raw `camera_focus` rejects
+                        // the whole batch and makes Studio execute nothing.
+                        (actions as any[]).push(normalizePluginAction({
                           kind: "camera_focus",
                           name: "BloxSmith_AutoCameraFocus",
                           parent_path: "Workspace",
                           target_path: target,
                           payload: { target_path: target, distance: 45, reason: "auto_focus_after_build" },
-                        });
+                        }));
                       }
                     }
                   } catch (camErr) {
@@ -6997,8 +7004,7 @@ export const Route = createFileRoute("/api/chat")({
                     return true;
                   });
                   if (insertable.length > 0) {
-                    await supabase.from("plugin_actions").insert(
-                      insertable.map((a, i) => ({
+                    const queueRows = insertable.map((a, i) => ({
                         project_id: projectId,
                         user_id: userId,
                         message_id: msgRow?.id ?? null,
@@ -7007,13 +7013,42 @@ export const Route = createFileRoute("/api/chat")({
                         name: a.name,
                         payload: a.payload,
                         position: i,
-                      })),
-                    );
+                      }));
+                    let queuedCount = queueRows.length;
+                    const { error: queueError } = await supabase.from("plugin_actions").insert(queueRows);
+                    if (queueError) {
+                      console.error("[chat] plugin action queue insert failed", {
+                        projectId,
+                        userId,
+                        messageId: msgRow?.id ?? null,
+                        error: queueError.message,
+                        kinds: insertable.map((a) => a.kind),
+                      });
+                      // One invalid row must not block the rest of the build.
+                      // Retry individually and keep every valid action executable.
+                      queuedCount = 0;
+                      for (const row of queueRows) {
+                        const { error: rowError } = await supabase.from("plugin_actions").insert(row);
+                        if (rowError) {
+                          console.error("[chat] dropped invalid plugin action row", {
+                            projectId,
+                            userId,
+                            messageId: msgRow?.id ?? null,
+                            kind: row.kind,
+                            name: row.name,
+                            error: rowError.message,
+                          });
+                        } else {
+                          queuedCount += 1;
+                        }
+                      }
+                      if (queuedCount === 0) throw queueError;
+                    }
                     console.info("[chat] actions queued", {
                       projectId,
                       userId,
                       messageId: msgRow?.id ?? null,
-                      queued: insertable.length,
+                      queued: queuedCount,
                     });
                   }
                 }
@@ -7417,15 +7452,15 @@ export const Route = createFileRoute("/api/chat")({
                 persisted = true;
                 await persistFinish(usedModelId, notice)({ text: accumulated });
               },
-              onAbort: () => {
+              onAbort: async () => {
                 clearStreamTimeout();
                 console.warn(`[chat] stream aborted on ${usedModelId} — persisting ${accumulated.length} chars`);
-                void safePersist("abort");
+                await safePersist("abort");
               },
-              onError: ({ error }) => {
+              onError: async ({ error }) => {
                 clearStreamTimeout();
                 console.error(`[chat] upstream error on ${usedModelId}`, error);
-                void safePersist("error");
+                await safePersist("error");
               },
             });
           };
