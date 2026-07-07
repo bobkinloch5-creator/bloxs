@@ -6914,7 +6914,7 @@ export const Route = createFileRoute("/api/chat")({
                   const resolveCache = new Map<string, Promise<{ id: number; fallbacks: number[] } | null>>();
                   const insertAssets = (actions as Array<{ kind?: string; name?: string; payload?: Record<string, unknown> }>)
                     .filter((a) => a?.kind === "insert_asset");
-                  await Promise.all(insertAssets.map(async (a) => {
+                  await withTimeout(Promise.all(insertAssets.map(async (a) => {
                     const p = a.payload ?? (a.payload = {});
                     const q = String(p.source_query ?? p.asset_name ?? a.name ?? "").trim();
                     if (!q) return;
@@ -6937,10 +6937,14 @@ export const Route = createFileRoute("/api/chat")({
                       p.asset_id = hit.id;
                       p.fallback_ids = hit.fallbacks;
                     }
-                  }));
+                  })), buildQuality === "basic" ? 3000 : 6000, "insert asset resolution");
                   // Validate every insert_asset against Roblox's toolbox-details
                   // API and the runtime blacklist before Studio ever sees it.
-                  await sanitizeInsertAssetActions(actions as unknown as Array<Record<string, unknown>>).catch(() => null);
+                  await withTimeout(
+                    sanitizeInsertAssetActions(actions as unknown as Array<Record<string, unknown>>).catch(() => null),
+                    buildQuality === "basic" ? 2500 : 6000,
+                    "insert asset sanitization",
+                  );
                   const insertable = actions.filter((a) => {
                     if (!a || !(a as { kind?: string }).kind) return false;
                     const issues = finalScriptIssues(a);
