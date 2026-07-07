@@ -5603,7 +5603,7 @@ export const Route = createFileRoute("/api/chat")({
               prompt: userText,
               model: activeModelId,
               files_count: actions.length,
-              plugin_status: "Queued",
+              plugin_status: "Connected",
               applied: false,
             });
             console.info("[chat/fastpath] queued clear project keep baseplate", { projectId, userId, actionCount: actions.length });
@@ -5665,7 +5665,7 @@ export const Route = createFileRoute("/api/chat")({
                 prompt: userText,
                 model: "deterministic-snow-terrain-fastpath",
                 files_count: actions.length,
-                plugin_status: "Queued",
+                plugin_status: "Connected",
                 applied: false,
               });
               await supabase
@@ -5736,7 +5736,7 @@ export const Route = createFileRoute("/api/chat")({
                 prompt: userText,
                 model: "deterministic-flowers-fastpath",
                 files_count: actions.length,
-                plugin_status: "Queued",
+                plugin_status: "Connected",
                 applied: false,
               });
               await supabase
@@ -5803,7 +5803,7 @@ export const Route = createFileRoute("/api/chat")({
                 prompt: userText,
                 model: "deterministic-surface-material-fastpath",
                 files_count: actions.length,
-                plugin_status: "Queued",
+                plugin_status: "Connected",
                 applied: false,
               });
               await supabase
@@ -5881,7 +5881,7 @@ export const Route = createFileRoute("/api/chat")({
                 prompt: userText,
                 model: "deterministic-fastpath",
                 files_count: generated.length,
-                plugin_status: "Queued",
+                plugin_status: "Connected",
                 applied: false,
               });
               await supabase
@@ -5970,7 +5970,7 @@ export const Route = createFileRoute("/api/chat")({
                 prompt: userText,
                 model: "deterministic-instant-fast-build",
                 files_count: generated.length,
-                plugin_status: "Queued",
+                plugin_status: "Connected",
                 applied: false,
               });
               await supabase
@@ -6104,7 +6104,7 @@ export const Route = createFileRoute("/api/chat")({
                   prompt: userText,
                   model: activeModelId,
                   files_count: allInserts.length,
-                  plugin_status: "Queued",
+                  plugin_status: "Connected",
                   applied: false,
                 });
                 console.info("[chat/fastpath] queued toolbox insert", {
@@ -6242,7 +6242,7 @@ export const Route = createFileRoute("/api/chat")({
                   prompt: userText,
                   model: deterministicModel,
                   files_count: queuedCount,
-                  plugin_status: "Queued",
+                  plugin_status: "Connected",
                   applied: false,
                 });
                 await supabase
@@ -7386,7 +7386,7 @@ export const Route = createFileRoute("/api/chat")({
                     prompt: userText,
                     model: usedModelId,
                     files_count: actions.length,
-                    plugin_status: actions.length > 0 ? "Queued" : "No actions generated",
+                    plugin_status: actions.length > 0 ? "Connected" : "Disconnected",
                     applied: false,
                   });
                 }
