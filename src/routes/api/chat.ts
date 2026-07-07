@@ -6861,6 +6861,48 @@ export const Route = createFileRoute("/api/chat")({
                   }
                 }
 
+                // Auto camera focus: if the model built visible content in
+                // Workspace but didn't emit its own camera_focus, append one
+                // targeting the most recent workspace-scoped named object so
+                // the user sees the result immediately in Studio.
+                if (mode === "build" && actions.length > 0) {
+                  try {
+                    const hasCam = (actions as any[]).some(
+                      (a) => a?.kind === "camera_focus" || a?.kind === "focus_camera" || a?.kind === "camera_zoom_to",
+                    );
+                    if (!hasCam) {
+                      const focusableKinds = new Set([
+                        "insert_asset", "part", "create_part", "create_model",
+                        "create_folder", "model", "mesh", "spawn_asset",
+                      ]);
+                      let target: string | null = null;
+                      for (let i = (actions as any[]).length - 1; i >= 0; i--) {
+                        const a: any = (actions as any[])[i];
+                        const kind = String(a?.kind || "");
+                        const name = String(a?.name || a?.payload?.name || "").trim();
+                        const parent = String(a?.parent_path || a?.payload?.parent_path || "").trim();
+                        if (!name) continue;
+                        const parentLower = parent.toLowerCase();
+                        const isWorkspace = parentLower === "workspace" || parentLower.startsWith("workspace/") || parentLower.startsWith("workspace.");
+                        if (!isWorkspace) continue;
+                        if (!focusableKinds.has(kind)) continue;
+                        target = parent ? `${parent}/${name}` : `Workspace/${name}`;
+                        break;
+                      }
+                      if (target) {
+                        (actions as any[]).push({
+                          kind: "camera_focus",
+                          name: "BloxSmith_AutoCameraFocus",
+                          parent_path: "Workspace",
+                          target_path: target,
+                          payload: { target_path: target, distance: 45, reason: "auto_focus_after_build" },
+                        });
+                      }
+                    }
+                  } catch (camErr) {
+                    console.warn("[chat] auto camera_focus failed (non-fatal)", camErr);
+                  }
+                }
 
                 actions = actions.map(withExecutionMetadata);
                 console.info("[chat] actions generated", {
