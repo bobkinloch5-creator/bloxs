@@ -98,6 +98,7 @@ ${opts.brokenSource}
 
 Return corrected Luau source only.`;
 
+  void extraBody;
   try {
     const { text } = await withTimeout(
       generateText({
@@ -105,7 +106,6 @@ Return corrected Luau source only.`;
         system: REGEN_SYSTEM,
         prompt,
         temperature: 0.1,
-        ...(extraBody ? { providerOptions: { openai: extraBody } } : {}),
       }),
       REGEN_TIMEOUT_MS,
     );
