@@ -5677,6 +5677,77 @@ export const Route = createFileRoute("/api/chat")({
             }
           }
 
+          // ── INSTANT VISIBLE FLOWERS / SMALL NATURE FAST-PATH ─────────────
+          // Small visual add-ons like "add flowers" must not wait for the LLM.
+          // The recent failure mode was: user message persisted, model stream
+          // aborted/returned nothing, and zero plugin_actions were queued while
+          // Studio kept polling "no actions". Queue deterministic visible work.
+          if (mode === "build" && projectId && userText && isFlowerNatureRequest(userText) && !imageGenerationRequested) {
+            const actions = visibleFlowersStudioActions(userText)
+              .map(normalizePluginAction)
+              .filter((action) => finalScriptIssues(action).length === 0)
+              .map((action: any) => ({
+                ...action,
+                payload: {
+                  ...(action.payload ?? {}),
+                  _bloxsmith: {
+                    execution_mode: "fast",
+                    structured: true,
+                    exact_scope: true,
+                    visible_output_required: true,
+                    flowers_fast_path: true,
+                    no_empty_folders: true,
+                    no_fake_assets: true,
+                  },
+                },
+              }));
+            if (actions.length > 0) {
+              const replyText = "Sent visible flowers to Studio — they should appear around the grass now.";
+              const { data: msgRow, error: msgError } = await supabase
+                .from("chat_messages")
+                .insert({
+                  project_id: projectId,
+                  user_id: userId,
+                  role: "assistant",
+                  content: replyText,
+                  status: "sending",
+                  model: "deterministic-flowers-fastpath",
+                  actions,
+                })
+                .select("id")
+                .single();
+              if (msgError) throw msgError;
+              const { error: queueError } = await supabase.from("plugin_actions").insert(
+                actions.map((action, i) => ({
+                  project_id: projectId,
+                  user_id: userId,
+                  message_id: msgRow?.id ?? null,
+                  kind: action.kind,
+                  parent_path: action.parent_path,
+                  name: action.name,
+                  payload: action.payload,
+                  position: i,
+                })),
+              );
+              if (queueError) throw queueError;
+              await supabase.from("build_history").insert({
+                project_id: projectId,
+                user_id: userId,
+                prompt: userText,
+                model: "deterministic-flowers-fastpath",
+                files_count: actions.length,
+                plugin_status: "Queued",
+                applied: false,
+              });
+              await supabase
+                .from("projects")
+                .update({ updated_at: new Date().toISOString() })
+                .eq("id", projectId);
+              console.info("[chat/fastpath] queued visible flowers instantly", { projectId, userId, actionCount: actions.length });
+              return streamPlainAssistantText(replyText, "flowers-fastpath-text");
+            }
+          }
+
           // ── INSTANT VISIBLE SURFACE MATERIAL FAST-PATH ──────────────────
           // Requests like "fill the ground with gravel" must visibly change the
           // current Studio place even if Toolbox search has no exact material kit.
