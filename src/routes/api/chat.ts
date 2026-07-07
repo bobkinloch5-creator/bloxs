@@ -7166,6 +7166,55 @@ export const Route = createFileRoute("/api/chat")({
             },
           });
 
+          // Compatibility stubs — some models (notably nvidia/qwen-2.5-coder-32b)
+          // try to call bloxsmith-actions "kinds" (run_lua, organize_project,
+          // scan_project, autofix_project, delete, set_properties, rename, move)
+          // as if they were tools. Registering no-op stubs lets the stream
+          // succeed and returns an instruction telling the model to put the
+          // action into the final bloxsmith-actions JSON block instead.
+          const makeActionKindStub = (kind: string, hint: string) =>
+            tool({
+              description: `Compatibility handler for direct ${kind} tool calls. Do not call this — emit a ${kind} action inside the final bloxsmith-actions JSON block instead. If called anyway, this returns a template so the stream can continue.`,
+              inputSchema: z.object({
+                parent_path: z.string().optional(),
+                target_path: z.string().optional(),
+                name: z.string().optional(),
+                source: z.string().optional(),
+                payload: z.record(z.string(), z.any()).optional(),
+              }).passthrough(),
+              execute: async (input: Record<string, unknown>) => ({
+                ok: true,
+                action: {
+                  kind,
+                  parent_path: typeof input.parent_path === "string" ? input.parent_path : undefined,
+                  target_path: typeof input.target_path === "string" ? input.target_path : undefined,
+                  name: typeof input.name === "string" ? input.name : undefined,
+                  payload: (input.payload && typeof input.payload === "object")
+                    ? input.payload
+                    : (typeof input.source === "string" ? { source: input.source } : {}),
+                },
+                instruction: `Copy this action object into the final bloxsmith-actions JSON block. ${hint}`,
+              }),
+            });
+
+          const runLuaTool = makeActionKindStub(
+            "run_lua",
+            "run_lua actions MUST include payload.source with complete runnable Luau.",
+          );
+          const organizeProjectTool = makeActionKindStub(
+            "organize_project",
+            "Emit organize_project near the end of the batch so stragglers get grouped.",
+          );
+          const scanProjectTool = makeActionKindStub(
+            "scan_project",
+            "Emit scan_project as the final action so the plugin re-syncs state.",
+          );
+          const autofixProjectTool = makeActionKindStub(
+            "autofix_project",
+            "Emit autofix_project just before scan_project to clean up any issues.",
+          );
+
+
           const tryStream = (
             model: typeof modelChoice.model,
             usedModelId: string,
@@ -7189,17 +7238,24 @@ export const Route = createFileRoute("/api/chat")({
               }
             };
             const fastBuild = mode === "build" && buildQuality === "basic";
+            const actionKindStubs = {
+              run_lua: runLuaTool,
+              organize_project: organizeProjectTool,
+              scan_project: scanProjectTool,
+              autofix_project: autofixProjectTool,
+            };
             const buildTools = (fastBuild
               ? (assetMode === "procedural" && !userExplicitlyRequestedToolbox(userText)
-                ? { insert_asset: insertAssetTool }
-                : { insert_asset: insertAssetTool, search_toolbox: toolboxTool, search_toolbox_set: toolboxSetTool })
+                ? { insert_asset: insertAssetTool, ...actionKindStubs }
+                : { insert_asset: insertAssetTool, search_toolbox: toolboxTool, search_toolbox_set: toolboxSetTool, ...actionKindStubs })
               : assetMode === "procedural" && !userExplicitlyRequestedToolbox(userText)
                 ? (imageGenerationRequested
-                  ? { insert_asset: insertAssetTool, generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool }
-                  : { insert_asset: insertAssetTool, roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch })
+                  ? { insert_asset: insertAssetTool, generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool, ...actionKindStubs }
+                  : { insert_asset: insertAssetTool, roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch, ...actionKindStubs })
                 : (imageGenerationRequested
-                  ? { insert_asset: insertAssetTool, search_toolbox: toolboxTool, search_toolbox_set: toolboxSetTool, generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool }
-                  : { insert_asset: insertAssetTool, search_toolbox: toolboxTool, search_toolbox_set: toolboxSetTool, roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch })) as ToolSet;
+                  ? { insert_asset: insertAssetTool, search_toolbox: toolboxTool, search_toolbox_set: toolboxSetTool, generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool, ...actionKindStubs }
+                  : { insert_asset: insertAssetTool, search_toolbox: toolboxTool, search_toolbox_set: toolboxSetTool, roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch, ...actionKindStubs })) as ToolSet;
+
             const chatTools = (imageGenerationRequested
               ? { generate_image: generateImageTool, generate_ui_concept: generateUiConceptTool }
               : { roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch }) as ToolSet;
@@ -7258,6 +7314,7 @@ export const Route = createFileRoute("/api/chat")({
                 if (/429|rate|capacity|overloaded|503|502|timeout|Too Many/i.test(msg)) return `That fast AI route is busy. Click Resend — BloxSmith will use the stable fallback route now.`;
                 if (/Tool result is missing/i.test(msg)) return "The previous turn was interrupted mid-tool-call. Please resend your request.";
                 if (/unavailable tool ['\"]?insert_asset/i.test(msg)) return "The model tried to insert an asset directly; BloxSmith kept the build alive and queued a safe Studio fallback. Please click Resend if you want another pass.";
+                if (/unavailable tool/i.test(msg)) return "The model tried to call an unsupported tool. Click Resend — BloxSmith will keep the build alive and route the action through the standard pipeline.";
                 return `AI request failed on ${modelChoice.meta.label}: ${msg}. Try Resend or pick a different model.`;
               },
             });
@@ -7282,6 +7339,7 @@ export const Route = createFileRoute("/api/chat")({
                     if (/402|credit/i.test(msg)) return "The selected AI model is unavailable right now. Try again in a moment.";
                     if (/429|rate|capacity|overloaded|503|502|timeout/i.test(msg)) return "That AI route is busy. Click Resend and BloxSmith will use the stable fallback route.";
                     if (/unavailable tool ['\"]?insert_asset/i.test(msg)) return "The model tried to insert an asset directly; BloxSmith kept the build alive and queued a safe Studio fallback. Please click Resend if you want another pass.";
+                    if (/unavailable tool/i.test(msg)) return "The model tried to call an unsupported tool. Click Resend — BloxSmith will keep the build alive and route the action through the standard pipeline.";
                     return `AI request failed: ${msg}`;
                   },
                 });
