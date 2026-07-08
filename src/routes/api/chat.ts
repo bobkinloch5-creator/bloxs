@@ -2732,8 +2732,15 @@ Lighting.Brightness = math.max(Lighting.Brightness, 2)
 }
 
 function isFlowerNatureRequest(userText: string) {
-  return /\b(flowers?|flowerbed|flower\s*bed|wildflowers?|plants?|bushes|shrubs)\b/i.test(userText) &&
-    /\b(add|make|create|build|place|put|spawn|scatter|around|near|on|in)\b/i.test(userText);
+  // Only trigger on affirmative add/create verbs. Prepositions like "in / on /
+  // near / around" alone are too generic and hijack destructive/fix asks like
+  // "remove the flowers near the pond" or "fix the flowerbed in my map".
+  if (!/\b(flowers?|flowerbed|flower\s*bed|wildflowers?|plants?|bushes|shrubs)\b/i.test(userText)) return false;
+  if (!/\b(add|make|create|build|place|put|spawn|scatter|plant|grow|generate|populate|fill)\b/i.test(userText)) return false;
+  // Guard against destructive / fix / restyle intents that also mention flowers.
+  if (isDestructiveEditRequest(userText)) return false;
+  if (/\b(remove|delete|clear|wipe|erase|destroy|kill|get\s+rid\s+of|take\s+out|undo|revert|reset|fix|repair|debug|broken|not\s+working|redesign|restyle|recolor|replace|move|resize|shrink|expand|hide|disable)\b/i.test(userText)) return false;
+  return true;
 }
 
 function visibleFlowersStudioActions(userText: string) {

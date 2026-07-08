@@ -211,9 +211,9 @@ async function retrieveContext(sb: any, projectId: string) {
       .select("id, name, description, game_type, prompt")
       .eq("id", projectId).maybeSingle(),
     sb.from("plugin_sessions")
-      .select("last_scan, last_seen_at")
+      .select("last_scan, last_seen")
       .eq("project_id", projectId)
-      .order("last_seen_at", { ascending: false })
+      .order("last_seen", { ascending: false })
       .limit(1).maybeSingle(),
     sb.from("project_memory")
       .select("key, value, kind, importance")

@@ -91,13 +91,13 @@ export const generateBuildInsights = createServerFn({ method: "POST" })
 
     const [{ data: project }, { data: session }, { data: report }, { data: memory }] = await Promise.all([
       sb.from("projects").select("name, description, game_type").eq("id", data.project_id).maybeSingle(),
-      sb.from("plugin_sessions").select("scene_digest, last_scan_at").eq("project_id", data.project_id).order("updated_at", { ascending: false }).limit(1).maybeSingle(),
+      sb.from("plugin_sessions").select("last_scan, last_scan_at").eq("project_id", data.project_id).order("last_seen", { ascending: false }).limit(1).maybeSingle(),
       sb.from("execution_reports").select("total, ok_count, fail_count, skip_count, repair_count, steps, summary, created_at").eq("project_id", data.project_id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
       sb.from("project_memory").select("key, value, kind, importance").eq("project_id", data.project_id).order("importance", { ascending: false }).limit(15),
     ]);
     if (!project) throw new Error("Project not found");
 
-    const digest = summarizeSceneScan(session?.scene_digest);
+    const digest = summarizeSceneScan(session?.last_scan);
 
     const context_payload = {
       project: { name: project.name, description: project.description, type: project.game_type },

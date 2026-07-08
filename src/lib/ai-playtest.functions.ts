@@ -99,7 +99,7 @@ export const runAiPlaytest = createServerFn({ method: "POST" })
       sb.from("plugin_sessions")
         .select("last_scan, last_scan_at, plugin_version, place_id")
         .eq("user_id", context.userId)
-        .order("updated_at", { ascending: false })
+        .order("last_seen", { ascending: false })
         .limit(1)
         .maybeSingle(),
     ]);

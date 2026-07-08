@@ -101,10 +101,10 @@ export const startDevSession = createServerFn({ method: "POST" })
 
     const [{ data: project }, { data: session }, { data: memory }] = await Promise.all([
       sb.from("projects").select("name, description, game_type").eq("id", data.project_id).maybeSingle(),
-      sb.from("plugin_sessions").select("scene_digest, last_scan_at").eq("project_id", data.project_id).order("updated_at", { ascending: false }).limit(1).maybeSingle(),
+      sb.from("plugin_sessions").select("last_scan, last_scan_at").eq("project_id", data.project_id).order("last_seen", { ascending: false }).limit(1).maybeSingle(),
       sb.from("project_memory").select("key, value, kind").eq("project_id", data.project_id).order("importance", { ascending: false }).limit(15),
     ]);
-    const digest = summarizeSceneScan(session?.scene_digest);
+    const digest = summarizeSceneScan(session?.last_scan);
 
     // Cancel any prior active session for this project.
     await sb.from("dev_sessions")
