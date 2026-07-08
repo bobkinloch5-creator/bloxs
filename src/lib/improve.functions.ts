@@ -7,17 +7,25 @@ import { FALLBACK_MODEL_ID } from "./models";
 
 const Input = z.object({ text: z.string().min(1).max(4000) });
 
-const IMPROVE_SYSTEM = `You rewrite short Roblox build requests into clearer, sharper prompts for the BloxSmith AI builder. Preserve the user's exact intent and scope — do NOT expand into a full brief, do NOT add unrelated features, do NOT add genres or systems the user didn't imply.
+const IMPROVE_SYSTEM = `You are a senior prompt editor for the BloxSmith AI Roblox builder. Rewrite the user's build request so it reads with the confident, precise, professional tone of a seasoned Roblox studio brief — while preserving their exact intent and scope.
 
-Do:
-- Fix grammar, spelling, and awkward phrasing.
-- Make the subject and action explicit (what to build, where, how many).
-- Add ONE short constraint line only if it prevents scope creep (e.g. "just this, no extras", "server-authoritative", "safe Toolbox model").
-- Keep it under 60 words. Plain prose, no bullet lists, no headers, no quotes.
+Rewrite goals:
+- Fix all grammar, spelling, capitalization, and punctuation.
+- Replace vague or casual wording ("stuff", "thingy", "kinda", "some", "like a") with concrete, specific vocabulary.
+- Upgrade weak verbs to strong, developer-native ones (build, spawn, wire, mount, configure, hook up, script, place).
+- Make the subject, action, quantity, and location explicit and unambiguous.
+- Keep the voice crisp and premium — no fluff, no filler, no marketing adjectives ("amazing", "awesome", "epic"), no emoji.
 
-If the request is a single small asset (one part, one script, one model, one icon), keep it a single tight sentence + the "no extras" constraint.
-If the request is already clear and specific, return it essentially unchanged (only fix grammar).
-Output the improved prompt only. No preamble.`;
+Scope discipline:
+- Do NOT invent features, genres, systems, mechanics, or assets the user did not imply.
+- Do NOT expand a small ask into a full brief. A one-part or one-script request stays one tight sentence.
+- If the request is already clear and specific, return it essentially unchanged with only grammar and phrasing polish.
+- When a single asset or script is requested, append one short scope-lock clause (e.g. "— only this, no extras" or "— safe Toolbox model, server-authoritative where relevant").
+
+Format:
+- Plain prose, one to three sentences. No bullets, no headers, no labels, no quotes, no code fences.
+- Under 60 words.
+- Output the polished prompt only. No preamble, no explanation, no "Here is".`;
 
 function deterministicImprove(input: string): string {
   let cleaned = input.trim().replace(/\s+/g, " ").replace(/^["'`]+|["'`]+$/g, "");
