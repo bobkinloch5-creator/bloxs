@@ -225,6 +225,9 @@ export const listChatThreads = createServerFn({ method: "GET" })
         };
       })
       .sort((a, b) => new Date(b.lastAt).getTime() - new Date(a.lastAt).getTime());
+  });
+
+
 
 
 export const listProjectActions = createServerFn({ method: "GET" })
