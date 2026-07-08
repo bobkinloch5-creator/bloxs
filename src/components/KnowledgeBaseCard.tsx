@@ -236,13 +236,18 @@ export function KnowledgeBaseCard() {
         </div>
         <div className="mt-1 flex items-center justify-between text-[10px] text-white/40">
           <span>{percent}% complete</span>
-          {running && progress?.currentTitle && (
-            <span className="truncate ml-2 max-w-[60%]" title={progress.currentTitle}>
-              embedding · {progress.currentTitle}
+          {running && (livePos?.current_title || progress?.currentTitle) && (
+            <span className="truncate ml-2 max-w-[60%]" title={livePos?.current_title ?? progress?.currentTitle ?? ""}>
+              embedding · {livePos?.current_title ?? progress?.currentTitle}
             </span>
           )}
         </div>
-      </div>
+        {running && livePos?.status === "running" && (
+          <div className="mt-1 text-[10px] text-white/40 flex items-center justify-between">
+            <span>{livePos.message ?? ""}</span>
+            <span>+{livePos.inserted} indexed · {livePos.failed} failed</span>
+          </div>
+        )}
 
       {/* Pre-flight preview: chunks-to-process + credits available */}
       {!ready && !running && (
