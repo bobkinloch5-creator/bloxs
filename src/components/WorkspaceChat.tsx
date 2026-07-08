@@ -26,6 +26,8 @@ import { useBloxSmithSpeaker } from "@/components/VoiceControls";
 import { friendlyError } from "@/lib/friendly-error";
 import { MODELS, isSelectable } from "@/lib/models";
 import { pickModelForTask, estimateDifficulty } from "@/lib/model-router";
+import { ChatHistoryButton } from "@/components/ChatHistoryButton";
+
 
 
 // Strip internal machinery from what the user sees in chat.
@@ -163,11 +165,14 @@ export function WorkspaceChat({
   activeProjectId,
   onProjectCreated,
   onRequestNewProject,
+  onSelectProject,
 }: {
   activeProjectId: string | null;
   onProjectCreated: (id: string) => void;
   onRequestNewProject?: () => void;
+  onSelectProject?: (projectId: string) => void;
 }) {
+
   const qc = useQueryClient();
   const createFn = useServerFn(createProject);
   const listFn = useServerFn(listMessages);
@@ -554,32 +559,41 @@ export function WorkspaceChat({
     <div className="rounded-2xl border border-white/15 bg-white/[0.04] p-3 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)] sm:p-5">
       {/* Chat / Build segmented toggle */}
       <div className="mb-3 flex items-center justify-between gap-2">
-        <div className="inline-flex rounded-xl border border-white/15 bg-black/30 p-1">
-          <button
-            type="button"
-            onClick={() => setComposerMode("chat")}
-            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
-              mode === "chat"
-                ? "bg-indigo-500 text-white shadow-[0_6px_18px_-8px_rgba(99,102,241,0.9)]"
-                : "text-slate-300 hover:text-white hover:bg-white/5"
-            }`}
-            aria-pressed={mode === "chat"}
-          >
-            <MessageSquare className="h-3.5 w-3.5" /> Chat
-          </button>
-          <button
-            type="button"
-            onClick={() => setComposerMode("build")}
-            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
-              mode === "build"
-                ? "bg-indigo-500 text-white shadow-[0_6px_18px_-8px_rgba(99,102,241,0.9)]"
-                : "text-slate-300 hover:text-white hover:bg-white/5"
-            }`}
-            aria-pressed={mode === "build"}
-          >
-            <Hammer className="h-3.5 w-3.5" /> Build
-          </button>
+        <div className="flex items-center gap-2">
+          <div className="inline-flex rounded-xl border border-white/15 bg-black/30 p-1">
+            <button
+              type="button"
+              onClick={() => setComposerMode("chat")}
+              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                mode === "chat"
+                  ? "bg-indigo-500 text-white shadow-[0_6px_18px_-8px_rgba(99,102,241,0.9)]"
+                  : "text-slate-300 hover:text-white hover:bg-white/5"
+              }`}
+              aria-pressed={mode === "chat"}
+            >
+              <MessageSquare className="h-3.5 w-3.5" /> Chat
+            </button>
+            <button
+              type="button"
+              onClick={() => setComposerMode("build")}
+              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                mode === "build"
+                  ? "bg-indigo-500 text-white shadow-[0_6px_18px_-8px_rgba(99,102,241,0.9)]"
+                  : "text-slate-300 hover:text-white hover:bg-white/5"
+              }`}
+              aria-pressed={mode === "build"}
+            >
+              <Hammer className="h-3.5 w-3.5" /> Build
+            </button>
+          </div>
+          {onSelectProject && (
+            <ChatHistoryButton
+              activeProjectId={activeProjectId}
+              onSelect={onSelectProject}
+            />
+          )}
         </div>
+
         <div className="flex flex-col items-end gap-1">
           <div className="flex items-center gap-2">
             <label className="hidden sm:flex items-center gap-1.5 text-[11px] font-semibold text-slate-300">

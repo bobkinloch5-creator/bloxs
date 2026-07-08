@@ -303,7 +303,9 @@ function Dashboard() {
                 activeProjectId={activeProjectId}
                 onProjectCreated={(id) => setActiveProjectId(id)}
                 onRequestNewProject={() => setNewProjectOpen(true)}
+                onSelectProject={(id) => openProject(id)}
               />
+
             </section>
 
             {/* Persistent project memory — everything the AI remembers about this project */}
