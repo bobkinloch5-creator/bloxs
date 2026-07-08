@@ -414,11 +414,25 @@ local root = make("Frame", {
   Size = UDim2.fromScale(1, 1),
 }, gui)
 
-make("UIScale", { Scale = 1 }, root)
+local rootScale = make("UIScale", { Scale = 1 }, root)
 make("UIGradient", {
   Color = ColorSequence.new(palette.bg, palette.bg2),
   Rotation = 35,
 }, root)
+
+-- Mobile-friendly scale: shrink UI on narrow viewports so it stays readable on phones.
+local Workspace = game:GetService("Workspace")
+local camera = Workspace.CurrentCamera
+local function refitScale()
+  if not camera then return end
+  local vp = camera.ViewportSize
+  local scale = math.clamp(vp.X / 1280, 0.62, 1.15)
+  rootScale.Scale = scale
+end
+refitScale()
+if camera then
+  camera:GetPropertyChangedSignal("ViewportSize"):Connect(refitScale)
+end
 
 local built = {}
 
