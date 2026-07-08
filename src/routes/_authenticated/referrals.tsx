@@ -246,8 +246,9 @@ function ReferralsPage() {
         </section>
 
         <p className="mt-8 text-center text-xs text-slate-500">
-          BloxSmith is 100% free. Referrals are for community credit only — no purchases involved.
+          Each friend that redeems your code gives <span className="font-bold text-emerald-300">+25 credits to both of you</span> — no purchases required.
         </p>
+
       </div>
     </div>
   );
