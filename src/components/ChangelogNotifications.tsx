@@ -1044,8 +1044,16 @@ function ChangelogCard({ item, expanded, onToggle }: { item: EnrichedItem; expan
       className="bs-changelog-card group relative rounded-xl border border-white/10 bg-white/[0.02] p-3.5"
     >
       <div className="flex items-start gap-3">
-        <div className={`mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg ring-1 ${meta.ring} bg-black/30 ${meta.accent}`}>
-          <Icon className="h-4 w-4" />
+        <div className={`relative mt-0.5 grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-lg ring-1 ${meta.ring} bg-gradient-to-br from-indigo-500/25 via-fuchsia-500/15 to-black/40 shadow-[0_4px_14px_-4px_rgba(139,92,246,0.4)]`}>
+          <img
+            src={bloxsmithLogo.url}
+            alt="BloxSmith"
+            loading="lazy"
+            className="h-6 w-6 object-contain drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)]"
+          />
+          <span className={`absolute -bottom-0.5 -right-0.5 grid h-3.5 w-3.5 place-items-center rounded-full bg-black/80 ring-1 ring-white/10 ${meta.accent}`}>
+            <Icon className="h-2.5 w-2.5" />
+          </span>
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-3">
