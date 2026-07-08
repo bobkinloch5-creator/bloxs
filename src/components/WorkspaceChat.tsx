@@ -163,11 +163,14 @@ export function WorkspaceChat({
   activeProjectId,
   onProjectCreated,
   onRequestNewProject,
+  onSelectProject,
 }: {
   activeProjectId: string | null;
   onProjectCreated: (id: string) => void;
   onRequestNewProject?: () => void;
+  onSelectProject?: (projectId: string) => void;
 }) {
+
   const qc = useQueryClient();
   const createFn = useServerFn(createProject);
   const listFn = useServerFn(listMessages);
