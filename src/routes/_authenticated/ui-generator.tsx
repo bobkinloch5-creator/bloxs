@@ -305,6 +305,25 @@ function ResultCard({ result, onDelete, deleting, onRegenerate, onRemix, regener
           </div>
         </div>
         <div className="flex flex-wrap gap-1.5">
+          {onRegenerate && (
+            <button
+              onClick={onRegenerate}
+              disabled={regenerating}
+              title="Generate a fresh variant of this exact prompt and style"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-violet-400/30 bg-violet-500/15 px-2.5 py-1.5 text-[11px] font-bold text-violet-100 hover:bg-violet-500/25 disabled:opacity-50"
+            >
+              {regenerating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />} Regenerate
+            </button>
+          )}
+          {onRemix && (
+            <button
+              onClick={onRemix}
+              title="Load this prompt back into the composer to edit"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-[11px] font-semibold text-slate-200 hover:bg-white/10"
+            >
+              <Shuffle className="h-3.5 w-3.5" /> Remix
+            </button>
+          )}
           <button
             onClick={async () => {
               try {
