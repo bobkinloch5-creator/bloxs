@@ -965,22 +965,6 @@ local function wrapGinsertObjects(id, objects, name)
 end
 
 local function ginsertCandidate(id, name)
-    if type(ginsert) == "function" then
-        local ok, result = pcall(function() return ginsert(id) end)
-        if ok and typeof(result) == "Instance" then
-            local container = Instance.new("Model")
-            container.Name = name or ("Asset_" .. tostring(id))
-            result.Parent = container
-            return container, nil
-        elseif ok and type(result) == "table" then
-            local wrapped, err = wrapGinsertObjects(id, result, name)
-            if wrapped then return wrapped, nil end
-            return nil, err
-        elseif not ok then
-            return nil, tostring(result)
-        end
-    end
-
     local ok, objects = pcall(function() return game:GetObjects("rbxassetid://" .. tostring(id)) end)
     if ok then
         local wrapped, err = wrapGinsertObjects(id, objects, name)
