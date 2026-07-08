@@ -4831,7 +4831,8 @@ function broadPlayableGameStudioActions(userText: string, languageName: string) 
   if (!isBroadPlayableGameRequest(userText)) return [];
   const safePrompt = userText.trim().slice(0, 260) || "Roblox playable game system";
   const text = userText.toLowerCase();
-  const genre = /\b(obby|parkour)\b/.test(text) ? "obby" :
+  const genre = /\b(city|town|downtown|metropolis|neighborhood|urban|village)\b/.test(text) ? "city" :
+    /\b(obby|parkour)\b/.test(text) ? "obby" :
     /\b(tycoon)\b/.test(text) ? "tycoon" :
     /\b(racing|race\s*track|race\s*course)\b/.test(text) ? "racing" :
     /\b(zombie|survival|horror)\b/.test(text) ? "survival" :
