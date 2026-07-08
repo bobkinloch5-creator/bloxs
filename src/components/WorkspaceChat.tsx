@@ -17,7 +17,7 @@ import ReactMarkdown from "react-markdown";
 import { supabase } from "@/integrations/supabase/client";
 import { createProject } from "@/lib/projects.functions";
 import { listMessages, getPluginSession, getBuildExecutionStatus, clearMessages, executeQueuedActionsNow } from "@/lib/chat.functions";
-import { improvePrompt, enhancePrompt } from "@/lib/improve.functions";
+import { improvePrompt } from "@/lib/improve.functions";
 import { saveProjectAsset } from "@/lib/project-assets.functions";
 import { Link } from "@tanstack/react-router";
 import { Plug } from "lucide-react";
