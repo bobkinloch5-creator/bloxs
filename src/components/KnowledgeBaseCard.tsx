@@ -40,9 +40,11 @@ export function KnowledgeBaseCard() {
   const auditFn = useServerFn(getKbSeedAuditLog);
   const profileFn = useServerFn(getMyProfile);
   const cancelFn = useServerFn(cancelKbSeed);
+  const progressFn = useServerFn(getKbSeedProgress);
 
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState<SeedBatchResult | null>(null);
+  const [livePos, setLivePos] = useState<KbSeedProgress | null>(null);
   const [showLog, setShowLog] = useState(false);
   const cancelRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
