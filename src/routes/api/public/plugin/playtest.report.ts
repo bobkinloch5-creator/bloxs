@@ -158,6 +158,22 @@ export const Route = createFileRoute("/api/public/plugin/playtest/report")({
             updated_at: new Date().toISOString(),
           });
 
+          // Fire the AI auto-fix in the background so the plugin's polling
+          // sees a fresh directive within ~15-20s. We don't await it — the
+          // plugin polls /playtest/next-action.
+          if (directive === "wait_for_ai") {
+            (async () => {
+              try {
+                const { runPlaytestAutofixCore } = await import("@/lib/playtest-autofix.server");
+                await runPlaytestAutofixCore(sb, profile.id, runId);
+              } catch (e) {
+                // Best-effort; the plugin will time out and stop the loop.
+              }
+            })();
+          }
+
+
+
 
           // ── Feedback loop: link this report to the most recent pipeline run
           //    that is awaiting verification, and decide whether auto-repair
