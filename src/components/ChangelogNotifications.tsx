@@ -42,9 +42,8 @@ const CHANGELOG_ITEMS = [
     icon: ScrollText,
     body: "Added multi-thread chat history to the main BloxSmith builder chat, persisted per account in Lovable Cloud. New ChatHistoryButton opens a panel of every previous conversation you've had with the builder, so you can jump back into an old thread, review what BloxSmith proposed, or start a fresh one at any time. Threads store the full UIMessage[] with role/parts (not a flat text field) so tool calls, tool results, and streamed markdown all replay correctly. Wired into the dashboard route and the WorkspaceChat composer via a new server function boundary in src/lib/chat.functions.ts — all reads/writes are auth-scoped to the signed-in user's threads only.",
   },
-];
-
-const CHANGELOG_ITEMS_LEGACY = [
+  ,
+  ...([
   {
     title: "🔒 Project reads narrowed to members-only + storage thumbnail policy fix",
     date: "Jul 3",
