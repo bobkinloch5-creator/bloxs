@@ -701,6 +701,7 @@ const CHANGELOG_ITEMS = [
     icon: Wrench,
     body: "Loading screens no longer repeat the same plain BloxSmith layout. The generator and Studio build guard now produce different clean layouts based on the prompt.",
   },
+] as typeof CHANGELOG_ITEMS),
 ];
 
 type Category = "feature" | "bug" | "perf" | "ui" | "security" | "improvement";
