@@ -20,7 +20,7 @@ local Selection             = game:GetService("Selection")
 
 local API_BASE       = "https://bloxsmith.pro"
 local POLL_INTERVAL  = 0.5
-local PLUGIN_VERSION = "2.1.23"
+local PLUGIN_VERSION = "2.1.24"
 
 ------------------------------------------------------------------- token helpers
 local TOKEN_KEY = "token"
@@ -74,6 +74,11 @@ local subStatus   = label(main, "Click Connect to link this Studio session.", UD
 local infoLabel   = label(main, "Place: loading...    Live: 0    v" .. PLUGIN_VERSION, UDim2.new(0,12,0,98), UDim2.new(1,-24,0,16), nil, 12, Color3.fromRGB(160,165,180))
 local lastLabel   = label(main, "Last action: (none)", UDim2.new(0,12,0,116), UDim2.new(1,-24,0,16), nil, 12, Color3.fromRGB(160,165,180))
 
+local function round(inst, r)
+    local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, r or 6); c.Parent = inst
+    return inst
+end
+
 -- primary connect button
 local connectBtn = Instance.new("TextButton")
 connectBtn.Position = UDim2.new(0,12,0,142); connectBtn.Size = UDim2.new(1,-24,0,34)
@@ -81,7 +86,9 @@ connectBtn.BackgroundColor3 = Color3.fromRGB(70,130,240)
 connectBtn.TextColor3 = Color3.fromRGB(255,255,255)
 connectBtn.Font = Enum.Font.BuilderSansBold; connectBtn.TextSize = 14
 connectBtn.Text = "Connect"; connectBtn.BorderSizePixel = 0
+connectBtn.AutoButtonColor = true
 connectBtn.Parent = main
+round(connectBtn, 8)
 
 -- approval link box (hidden by default)
 local linkBox = Instance.new("TextBox")
@@ -93,6 +100,7 @@ linkBox.Text = ""; linkBox.PlaceholderText = "Approval link appears here"
 linkBox.ClearTextOnFocus = false; linkBox.TextEditable = false
 linkBox.BorderSizePixel = 0; linkBox.Visible = false
 linkBox.Parent = main
+round(linkBox, 6)
 
 -- control buttons grid (4 rows x 3 cols)
 local controls = Instance.new("Frame")
@@ -103,13 +111,20 @@ grid.CellPadding = UDim2.new(0,6,0,6)
 grid.CellSize = UDim2.new(0.333, -4, 0, 28)
 grid.SortOrder = Enum.SortOrder.LayoutOrder
 
-local function ctrlBtn(text, order)
+local function ctrlBtn(text, order, opts)
+    opts = opts or {}
+    local baseColor = opts.color or Color3.fromRGB(45,48,58)
+    local hoverColor = opts.hover or Color3.fromRGB(60,64,78)
     local b = Instance.new("TextButton")
-    b.BackgroundColor3 = Color3.fromRGB(45,48,58)
-    b.TextColor3 = Color3.fromRGB(220,225,235)
+    b.BackgroundColor3 = baseColor
+    b.TextColor3 = opts.textColor or Color3.fromRGB(220,225,235)
     b.Font = Enum.Font.BuilderSansMedium; b.TextSize = 12
     b.Text = text; b.BorderSizePixel = 0
+    b.AutoButtonColor = false
     b.LayoutOrder = order; b.Parent = controls
+    round(b, 6)
+    b.MouseEnter:Connect(function() b.BackgroundColor3 = hoverColor end)
+    b.MouseLeave:Connect(function() b.BackgroundColor3 = baseColor end)
     return b
 end
 
@@ -124,6 +139,12 @@ local sendErrBtn   = ctrlBtn("Send Errors", 8)
 local autoErrBtn   = ctrlBtn("Auto-Send: ON", 9)
 local organizeBtn  = ctrlBtn("Organize", 10)
 local autoFixBtn   = ctrlBtn("Auto-Fix", 11)
+local cleanBtn     = ctrlBtn("Clean Slate", 12, {
+    color = Color3.fromRGB(120, 55, 55),
+    hover = Color3.fromRGB(150, 70, 70),
+    textColor = Color3.fromRGB(255, 235, 235),
+})
+
 
 ------------------------------------------------------------------- log
 local logBar = Instance.new("Frame")
@@ -145,7 +166,9 @@ local function miniBtn(text, xOff)
     b.TextColor3 = Color3.fromRGB(210,215,225)
     b.Font = Enum.Font.BuilderSans; b.TextSize = 11
     b.Text = text; b.BorderSizePixel = 0
-    b.Parent = logBar; return b
+    b.Parent = logBar
+    round(b, 4)
+    return b
 end
 local copyLogBtn  = miniBtn("Copy", 0)
 local clearLogBtn = miniBtn("Clear", -66)
@@ -156,6 +179,8 @@ logFrame.Position = UDim2.new(0,12,0,378); logFrame.Size = UDim2.new(1,-24,1,-39
 logFrame.BackgroundColor3 = Color3.fromRGB(14,16,22); logFrame.BorderSizePixel = 0
 logFrame.CanvasSize = UDim2.new(0,0,0,0); logFrame.ScrollBarThickness = 4
 logFrame.Parent = main
+round(logFrame, 6)
+
 local lp = Instance.new("UIPadding", logFrame)
 lp.PaddingTop = UDim.new(0,6); lp.PaddingBottom = UDim.new(0,6)
 lp.PaddingLeft = UDim.new(0,6); lp.PaddingRight = UDim.new(0,6)
@@ -2164,6 +2189,153 @@ autoFixBtn.MouseButton1Click:Connect(function()
     autoFixBusy = false
     autoFixBtn.Text = "Auto-Fix"
 end)
+
+------------------------------------------------------------------- Clean Slate (workspace reset)
+local function showConfirm(title, body, onConfirm)
+    local overlay = Instance.new("Frame")
+    overlay.Size = UDim2.fromScale(1,1)
+    overlay.BackgroundColor3 = Color3.fromRGB(0,0,0)
+    overlay.BackgroundTransparency = 0.4
+    overlay.BorderSizePixel = 0
+    overlay.ZIndex = 50
+    overlay.Parent = widget
+
+    local card = Instance.new("Frame")
+    card.AnchorPoint = Vector2.new(0.5,0.5)
+    card.Position = UDim2.fromScale(0.5,0.5)
+    card.Size = UDim2.new(1,-40,0,180)
+    card.BackgroundColor3 = Color3.fromRGB(28,30,38)
+    card.BorderSizePixel = 0
+    card.ZIndex = 51
+    card.Parent = overlay
+    round(card, 10)
+
+    local t = Instance.new("TextLabel")
+    t.BackgroundTransparency = 1
+    t.Position = UDim2.new(0,14,0,12); t.Size = UDim2.new(1,-28,0,22)
+    t.Font = Enum.Font.BuilderSansBold; t.TextSize = 15
+    t.TextColor3 = Color3.fromRGB(255,220,220)
+    t.TextXAlignment = Enum.TextXAlignment.Left
+    t.Text = title; t.ZIndex = 52; t.Parent = card
+
+    local b = Instance.new("TextLabel")
+    b.BackgroundTransparency = 1
+    b.Position = UDim2.new(0,14,0,40); b.Size = UDim2.new(1,-28,0,90)
+    b.Font = Enum.Font.BuilderSans; b.TextSize = 12
+    b.TextColor3 = Color3.fromRGB(210,215,225)
+    b.TextXAlignment = Enum.TextXAlignment.Left
+    b.TextYAlignment = Enum.TextYAlignment.Top
+    b.TextWrapped = true
+    b.Text = body; b.ZIndex = 52; b.Parent = card
+
+    local function mkBtn(text, x, color, hover)
+        local btn = Instance.new("TextButton")
+        btn.AnchorPoint = Vector2.new(1, 1)
+        btn.Position = UDim2.new(x, -14, 1, -14); btn.Size = UDim2.new(0, 110, 0, 30)
+        btn.BackgroundColor3 = color
+        btn.TextColor3 = Color3.fromRGB(255,255,255)
+        btn.Font = Enum.Font.BuilderSansBold; btn.TextSize = 13
+        btn.Text = text; btn.BorderSizePixel = 0
+        btn.AutoButtonColor = false
+        btn.ZIndex = 52; btn.Parent = card
+        round(btn, 6)
+        btn.MouseEnter:Connect(function() btn.BackgroundColor3 = hover end)
+        btn.MouseLeave:Connect(function() btn.BackgroundColor3 = color end)
+        return btn
+    end
+    local cancel = mkBtn("Cancel", 0.5, Color3.fromRGB(60,64,78), Color3.fromRGB(75,80,95))
+    cancel.Position = UDim2.new(0.5, -6, 1, -14)
+    cancel.AnchorPoint = Vector2.new(1, 1)
+    local confirm = mkBtn("Wipe it", 1, Color3.fromRGB(180,60,60), Color3.fromRGB(210,80,80))
+
+    cancel.MouseButton1Click:Connect(function() overlay:Destroy() end)
+    confirm.MouseButton1Click:Connect(function()
+        overlay:Destroy()
+        onConfirm()
+    end)
+end
+
+local CLEAN_CLEAR_CONTAINERS = {
+    ServerScriptService, ServerStorage, ReplicatedStorage,
+    StarterGui, StarterPack, Lighting, Teams, SoundService,
+}
+
+local function cleanSlate()
+    local removed = 0
+    -- Workspace: keep Terrain + Camera, drop everything else
+    for _, ch in ipairs(Workspace:GetChildren()) do
+        if not ch:IsA("Terrain") and not ch:IsA("Camera") then
+            pcall(function() ch:Destroy() end)
+            removed += 1
+        end
+    end
+    -- Reset terrain
+    pcall(function() Workspace.Terrain:Clear() end)
+
+    -- Clear common script containers
+    for _, container in ipairs(CLEAN_CLEAR_CONTAINERS) do
+        for _, ch in ipairs(container:GetChildren()) do
+            pcall(function() ch:Destroy() end)
+            removed += 1
+        end
+    end
+    -- StarterPlayer sub-containers
+    local sps = StarterPlayer:FindFirstChild("StarterPlayerScripts")
+    if sps then for _, ch in ipairs(sps:GetChildren()) do pcall(function() ch:Destroy() end); removed += 1 end end
+    local scs = StarterPlayer:FindFirstChild("StarterCharacterScripts")
+    if scs then for _, ch in ipairs(scs:GetChildren()) do pcall(function() ch:Destroy() end); removed += 1 end end
+
+    -- Fresh Baseplate
+    local base = Instance.new("Part")
+    base.Name = "Baseplate"
+    base.Size = Vector3.new(512, 4, 512)
+    base.Position = Vector3.new(0, -2, 0)
+    base.Anchored = true
+    base.Locked = true
+    base.Material = Enum.Material.SmoothPlastic
+    base.Color = Color3.fromRGB(60, 68, 78)
+    base.TopSurface = Enum.SurfaceType.Smooth
+    base.BottomSurface = Enum.SurfaceType.Smooth
+    base.Parent = Workspace
+
+    -- Spawn location so Play works immediately
+    local spawn = Instance.new("SpawnLocation")
+    spawn.Name = "SpawnLocation"
+    spawn.Size = Vector3.new(6, 1, 6)
+    spawn.Position = Vector3.new(0, 0.5, 0)
+    spawn.Anchored = true
+    spawn.Locked = true
+    spawn.TopSurface = Enum.SurfaceType.Smooth
+    spawn.BottomSurface = Enum.SurfaceType.Smooth
+    spawn.BrickColor = BrickColor.new("Medium stone grey")
+    spawn.Parent = Workspace
+
+    return removed
+end
+
+local cleanBusy = false
+cleanBtn.MouseButton1Click:Connect(function()
+    if cleanBusy then return end
+    showConfirm(
+        "Wipe place to a clean slate?",
+        "This deletes every child of Workspace (except Terrain/Camera) and clears ServerScriptService, ServerStorage, ReplicatedStorage, StarterGui, StarterPack, Lighting, Teams, SoundService, StarterPlayerScripts, and StarterCharacterScripts. A fresh Baseplate + SpawnLocation are added. Undo (Ctrl+Z) will restore.",
+        function()
+            cleanBusy = true
+            cleanBtn.Text = "Wiping..."
+            ChangeHistoryService:SetWaypoint("BloxSmith clean-slate start")
+            local ok, result = pcall(cleanSlate)
+            ChangeHistoryService:SetWaypoint("BloxSmith clean-slate done")
+            if ok then
+                log(("Clean slate complete -- removed %d item(s), added Baseplate + SpawnLocation."):format(result or 0), "success")
+            else
+                log("Clean slate failed: " .. tostring(result), "error")
+            end
+            cleanBusy = false
+            cleanBtn.Text = "Clean Slate"
+        end
+    )
+end)
+
 
 task.spawn(function()
     while true do
