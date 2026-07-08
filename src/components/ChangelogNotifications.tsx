@@ -3,9 +3,15 @@ import { AlertTriangle, Bell, Bot, Box, Brain, Check, CheckCircle2, ChevronDown,
 import { checkChangelogCoverage, warnIfIncomplete } from "@/lib/changelog-coverage";
 
 
-const CHANGELOG_VERSION = "2026-07-08-avatars-likes-privacy";
+const CHANGELOG_VERSION = "2026-07-08-referral-code-read-path";
 
 const CHANGELOG_ITEMS = [
+  {
+    title: "🎟️ Invite code loading fixed for locked-down profile reads",
+    date: "Jul 8",
+    icon: Wrench,
+    body: "Referral codes were already backfilled for all 195 profiles, but the Invite friends page could still show 'loading…' because getMyReferral was reading referral_code through the signed-in Data API client after the profiles table was locked down at the grant layer. The server function now reads and mint-fixes the current user's referral code through the server-only admin client while staying scoped to auth.uid(), and friend profile lookups use the same safe server path. The page also logs and displays a retryable warning if the code request ever fails instead of silently looking stuck forever.",
+  },
   {
     title: "🔒 Privacy hardening — avatars folder-scoped, showcase likes no longer public",
     date: "Jul 8",

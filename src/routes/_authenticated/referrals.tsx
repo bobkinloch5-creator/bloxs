@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { getMyReferral, applyReferralCode } from "@/lib/referrals.functions";
 import { friendlyError } from "@/lib/friendly-error";
@@ -31,8 +31,12 @@ function ReferralsPage() {
   const getFn = useServerFn(getMyReferral);
   const applyFn = useServerFn(applyReferralCode);
   const qc = useQueryClient();
-  const { data } = useQuery({ queryKey: ["my-referral"], queryFn: () => getFn() });
+  const { data, error, isError, isLoading, isFetching, refetch } = useQuery({ queryKey: ["my-referral"], queryFn: () => getFn() });
   const [input, setInput] = useState("");
+
+  useEffect(() => {
+    if (isError) console.warn("[referrals] Invite code failed to load", error);
+  }, [error, isError]);
 
   const applyMut = useMutation({
     mutationFn: (code: string) => applyFn({ data: { code } }),
@@ -83,6 +87,7 @@ function ReferralsPage() {
 
   const count = data?.count ?? 0;
   const weekly = data?.weekly ?? 0;
+  const codeText = data?.code ?? (isLoading || (isFetching && !data) ? "loading…" : "code unavailable");
 
   return (
     <div className="min-h-screen bg-[#0a0a1a] text-white">
@@ -117,13 +122,27 @@ function ReferralsPage() {
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <button
               onClick={copyCode}
+              disabled={!data?.code}
               className="group inline-flex items-center gap-3 rounded-2xl border border-white/15 bg-black/40 px-4 py-3 font-mono text-2xl font-black tracking-[0.18em] text-white transition hover:border-indigo-400/60"
               title="Click to copy"
             >
-              {data?.code ?? "loading…"}
+              {codeText}
               <Copy className="h-4 w-4 text-slate-400 group-hover:text-white" />
             </button>
           </div>
+
+          {isError && (
+            <div role="alert" className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300/30 bg-amber-400/10 px-3 py-2 text-xs text-amber-100">
+              <span>Invite code could not load. The backend will retry when you refresh or tap Retry.</span>
+              <button
+                type="button"
+                onClick={() => refetch()}
+                className="rounded-lg border border-amber-200/30 px-3 py-1 font-bold text-amber-50 hover:bg-amber-200/10"
+              >
+                Retry
+              </button>
+            </div>
+          )}
 
           <div className="mt-4 rounded-2xl border border-white/10 bg-black/40 p-3">
             <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">

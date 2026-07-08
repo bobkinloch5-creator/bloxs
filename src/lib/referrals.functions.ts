@@ -6,31 +6,42 @@ import { z } from "zod";
 export const getMyReferral = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    let { data: profile } = await context.supabase
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // profiles is intentionally locked down at the Data API grant layer, so
+    // own referral reads must go through the server admin client and stay
+    // scoped to the authenticated user here.
+    let { data: profile, error: profileError } = await supabaseAdmin
       .from("profiles")
       .select("referral_code")
       .eq("id", context.userId)
-      .single();
+      .maybeSingle();
+    if (profileError) throw new Error(profileError.message);
 
     // Safety net: if the code is still null (older accounts / trigger race),
     // mint one now so the UI never sits on "loading…".
     if (!profile?.referral_code) {
-      const gen = "BS" + Math.random().toString(36).slice(2, 10).toUpperCase();
-      const { data: updated } = await context.supabase
-        .from("profiles")
-        .update({ referral_code: gen })
-        .eq("id", context.userId)
-        .is("referral_code", null)
-        .select("referral_code")
-        .maybeSingle();
-      if (updated?.referral_code) profile = updated;
-      else {
-        // Someone else beat us to it — re-read.
-        const { data: reread } = await context.supabase
+      for (let attempt = 0; attempt < 5 && !profile?.referral_code; attempt += 1) {
+        const gen = "BS" + Math.random().toString(36).slice(2, 10).toUpperCase();
+        const { data: updated, error: updateError } = await supabaseAdmin
+          .from("profiles")
+          .update({ referral_code: gen })
+          .eq("id", context.userId)
+          .is("referral_code", null)
+          .select("referral_code")
+          .maybeSingle();
+        if (updateError && !/duplicate|unique/i.test(updateError.message)) throw new Error(updateError.message);
+        if (updated?.referral_code) profile = updated;
+      }
+
+      if (!profile?.referral_code) {
+        // Someone else beat us to it, or a unique-code retry lost the race — re-read.
+        const { data: reread, error: rereadError } = await supabaseAdmin
           .from("profiles")
           .select("referral_code")
           .eq("id", context.userId)
-          .single();
+          .maybeSingle();
+        if (rereadError) throw new Error(rereadError.message);
         profile = reread ?? profile;
       }
     }
@@ -51,10 +62,11 @@ export const getMyReferral = createServerFn({ method: "GET" })
     const ids = Array.from(new Set(rows.map((r: any) => r.referred_user_id).filter(Boolean)));
     let profiles: any[] = [];
     if (ids.length) {
-      const { data: ps } = await context.supabase
+      const { data: ps, error: profilesError } = await supabaseAdmin
         .from("profiles")
         .select("id, username, display_name, avatar_url")
         .in("id", ids as string[]);
+      if (profilesError) throw new Error(profilesError.message);
       profiles = ps ?? [];
     }
     const byId = new Map(profiles.map((p) => [p.id, p]));
@@ -87,13 +99,14 @@ export const applyReferralCode = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ code: z.string().min(4).max(24) }).parse(d))
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const bonusCredits = 25;
 
     // Look up the referrer profile by code.
-    const { data: refProfile, error } = await context.supabase
+    const { data: refProfile, error } = await supabaseAdmin
       .from("profiles")
       .select("id,referral_code")
       .eq("referral_code", data.code.trim().toUpperCase())
-      .single();
+      .maybeSingle();
     if (error || !refProfile) throw new Error("Invalid referral code");
     if (refProfile.id === context.userId) throw new Error("You can't refer yourself.");
 
@@ -121,8 +134,8 @@ export const applyReferralCode = createServerFn({ method: "POST" })
       if (!p) return;
       const plan = (p as any).plan ?? "Free";
       if (plan === "Owner" || plan === "Unlimited") return;
-      const newMax = Number(p.max_credits ?? 0) + REFERRAL_BONUS_CREDITS;
-      const newCredits = Number(p.credits ?? 0) + REFERRAL_BONUS_CREDITS;
+      const newMax = Number(p.max_credits ?? 0) + bonusCredits;
+      const newCredits = Number(p.credits ?? 0) + bonusCredits;
       await supabaseAdmin
         .from("profiles")
         .update({ credits: newCredits, max_credits: newMax })
@@ -130,6 +143,6 @@ export const applyReferralCode = createServerFn({ method: "POST" })
     }
     await Promise.all([grantBonus(refProfile.id), grantBonus(context.userId)]);
 
-    return { ok: true, referrer: refProfile.id, bonus: REFERRAL_BONUS_CREDITS };
+    return { ok: true, referrer: refProfile.id, bonus: bonusCredits };
   });
 
