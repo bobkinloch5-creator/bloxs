@@ -8,8 +8,10 @@ import {
   seedKnowledgeBaseBatch,
   getKbSeedAuditLog,
   cancelKbSeed,
+  getKbSeedProgress,
   type SeedBatchResult,
   type KbSeedAuditEntry,
+  type KbSeedProgress,
 } from "@/lib/kb.functions";
 import { getMyProfile } from "@/lib/profile.functions";
 
