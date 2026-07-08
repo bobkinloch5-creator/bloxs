@@ -2190,6 +2190,153 @@ autoFixBtn.MouseButton1Click:Connect(function()
     autoFixBtn.Text = "Auto-Fix"
 end)
 
+------------------------------------------------------------------- Clean Slate (workspace reset)
+local function showConfirm(title, body, onConfirm)
+    local overlay = Instance.new("Frame")
+    overlay.Size = UDim2.fromScale(1,1)
+    overlay.BackgroundColor3 = Color3.fromRGB(0,0,0)
+    overlay.BackgroundTransparency = 0.4
+    overlay.BorderSizePixel = 0
+    overlay.ZIndex = 50
+    overlay.Parent = widget
+
+    local card = Instance.new("Frame")
+    card.AnchorPoint = Vector2.new(0.5,0.5)
+    card.Position = UDim2.fromScale(0.5,0.5)
+    card.Size = UDim2.new(1,-40,0,180)
+    card.BackgroundColor3 = Color3.fromRGB(28,30,38)
+    card.BorderSizePixel = 0
+    card.ZIndex = 51
+    card.Parent = overlay
+    round(card, 10)
+
+    local t = Instance.new("TextLabel")
+    t.BackgroundTransparency = 1
+    t.Position = UDim2.new(0,14,0,12); t.Size = UDim2.new(1,-28,0,22)
+    t.Font = Enum.Font.BuilderSansBold; t.TextSize = 15
+    t.TextColor3 = Color3.fromRGB(255,220,220)
+    t.TextXAlignment = Enum.TextXAlignment.Left
+    t.Text = title; t.ZIndex = 52; t.Parent = card
+
+    local b = Instance.new("TextLabel")
+    b.BackgroundTransparency = 1
+    b.Position = UDim2.new(0,14,0,40); b.Size = UDim2.new(1,-28,0,90)
+    b.Font = Enum.Font.BuilderSans; b.TextSize = 12
+    b.TextColor3 = Color3.fromRGB(210,215,225)
+    b.TextXAlignment = Enum.TextXAlignment.Left
+    b.TextYAlignment = Enum.TextYAlignment.Top
+    b.TextWrapped = true
+    b.Text = body; b.ZIndex = 52; b.Parent = card
+
+    local function mkBtn(text, x, color, hover)
+        local btn = Instance.new("TextButton")
+        btn.AnchorPoint = Vector2.new(1, 1)
+        btn.Position = UDim2.new(x, -14, 1, -14); btn.Size = UDim2.new(0, 110, 0, 30)
+        btn.BackgroundColor3 = color
+        btn.TextColor3 = Color3.fromRGB(255,255,255)
+        btn.Font = Enum.Font.BuilderSansBold; btn.TextSize = 13
+        btn.Text = text; btn.BorderSizePixel = 0
+        btn.AutoButtonColor = false
+        btn.ZIndex = 52; btn.Parent = card
+        round(btn, 6)
+        btn.MouseEnter:Connect(function() btn.BackgroundColor3 = hover end)
+        btn.MouseLeave:Connect(function() btn.BackgroundColor3 = color end)
+        return btn
+    end
+    local cancel = mkBtn("Cancel", 0.5, Color3.fromRGB(60,64,78), Color3.fromRGB(75,80,95))
+    cancel.Position = UDim2.new(0.5, -6, 1, -14)
+    cancel.AnchorPoint = Vector2.new(1, 1)
+    local confirm = mkBtn("Wipe it", 1, Color3.fromRGB(180,60,60), Color3.fromRGB(210,80,80))
+
+    cancel.MouseButton1Click:Connect(function() overlay:Destroy() end)
+    confirm.MouseButton1Click:Connect(function()
+        overlay:Destroy()
+        onConfirm()
+    end)
+end
+
+local CLEAN_CLEAR_CONTAINERS = {
+    ServerScriptService, ServerStorage, ReplicatedStorage,
+    StarterGui, StarterPack, Lighting, Teams, SoundService,
+}
+
+local function cleanSlate()
+    local removed = 0
+    -- Workspace: keep Terrain + Camera, drop everything else
+    for _, ch in ipairs(Workspace:GetChildren()) do
+        if not ch:IsA("Terrain") and not ch:IsA("Camera") then
+            pcall(function() ch:Destroy() end)
+            removed += 1
+        end
+    end
+    -- Reset terrain
+    pcall(function() Workspace.Terrain:Clear() end)
+
+    -- Clear common script containers
+    for _, container in ipairs(CLEAN_CLEAR_CONTAINERS) do
+        for _, ch in ipairs(container:GetChildren()) do
+            pcall(function() ch:Destroy() end)
+            removed += 1
+        end
+    end
+    -- StarterPlayer sub-containers
+    local sps = StarterPlayer:FindFirstChild("StarterPlayerScripts")
+    if sps then for _, ch in ipairs(sps:GetChildren()) do pcall(function() ch:Destroy() end); removed += 1 end end
+    local scs = StarterPlayer:FindFirstChild("StarterCharacterScripts")
+    if scs then for _, ch in ipairs(scs:GetChildren()) do pcall(function() ch:Destroy() end); removed += 1 end end
+
+    -- Fresh Baseplate
+    local base = Instance.new("Part")
+    base.Name = "Baseplate"
+    base.Size = Vector3.new(512, 4, 512)
+    base.Position = Vector3.new(0, -2, 0)
+    base.Anchored = true
+    base.Locked = true
+    base.Material = Enum.Material.SmoothPlastic
+    base.Color = Color3.fromRGB(60, 68, 78)
+    base.TopSurface = Enum.SurfaceType.Smooth
+    base.BottomSurface = Enum.SurfaceType.Smooth
+    base.Parent = Workspace
+
+    -- Spawn location so Play works immediately
+    local spawn = Instance.new("SpawnLocation")
+    spawn.Name = "SpawnLocation"
+    spawn.Size = Vector3.new(6, 1, 6)
+    spawn.Position = Vector3.new(0, 0.5, 0)
+    spawn.Anchored = true
+    spawn.Locked = true
+    spawn.TopSurface = Enum.SurfaceType.Smooth
+    spawn.BottomSurface = Enum.SurfaceType.Smooth
+    spawn.BrickColor = BrickColor.new("Medium stone grey")
+    spawn.Parent = Workspace
+
+    return removed
+end
+
+local cleanBusy = false
+cleanBtn.MouseButton1Click:Connect(function()
+    if cleanBusy then return end
+    showConfirm(
+        "Wipe place to a clean slate?",
+        "This deletes every child of Workspace (except Terrain/Camera) and clears ServerScriptService, ServerStorage, ReplicatedStorage, StarterGui, StarterPack, Lighting, Teams, SoundService, StarterPlayerScripts, and StarterCharacterScripts. A fresh Baseplate + SpawnLocation are added. Undo (Ctrl+Z) will restore.",
+        function()
+            cleanBusy = true
+            cleanBtn.Text = "Wiping..."
+            ChangeHistoryService:SetWaypoint("BloxSmith clean-slate start")
+            local ok, result = pcall(cleanSlate)
+            ChangeHistoryService:SetWaypoint("BloxSmith clean-slate done")
+            if ok then
+                log(("Clean slate complete -- removed %d item(s), added Baseplate + SpawnLocation."):format(result or 0), "success")
+            else
+                log("Clean slate failed: " .. tostring(result), "error")
+            end
+            cleanBusy = false
+            cleanBtn.Text = "Clean Slate"
+        end
+    )
+end)
+
+
 task.spawn(function()
     while true do
         task.wait(15)
