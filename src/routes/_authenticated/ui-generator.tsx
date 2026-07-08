@@ -159,35 +159,55 @@ function UiGenerator() {
         </div>
 
         <label className="mt-5 block text-xs font-semibold uppercase tracking-wider text-violet-300">Describe the UI</label>
-        <div className="mt-2 flex gap-2 rounded-2xl border border-white/10 bg-black/35 p-2 ring-1 ring-violet-300/10">
-          <input
+        <div className="mt-2 rounded-2xl border border-white/10 bg-black/35 p-2 ring-1 ring-violet-300/10 focus-within:ring-violet-300/40 transition">
+          <textarea
             value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") generate(); }}
-            placeholder="e.g. A shop with 6 items, currency display, and a Buy button"
-            className="min-w-0 flex-1 bg-transparent px-2 py-2 text-sm outline-none placeholder:text-muted-foreground"
+            onChange={(e) => setPrompt(e.target.value.slice(0, 2000))}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); generate(); }
+            }}
+            placeholder="e.g. Simulator HUD with animated coin counter, multiplier and rebirth pills, and a side rail with Shop / Pets / Rebirth"
+            rows={3}
+            className="min-h-[92px] w-full resize-y bg-transparent px-3 py-2 text-sm outline-none placeholder:text-muted-foreground"
           />
-          <button
-            onClick={() => generate()}
-            disabled={gen.isPending || !prompt.trim()}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-violet-500 via-fuchsia-500 to-cyan-400 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-violet-900/30 disabled:opacity-50"
-          >
-            {gen.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />} Generate
-          </button>
+          <div className="flex items-center justify-between gap-2 border-t border-white/5 px-2 pt-2">
+            <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wider text-violet-300/70">
+              <kbd className="rounded border border-white/10 bg-white/5 px-1.5 py-0.5">⌘ / Ctrl + Enter</kbd>
+              <span className="text-muted-foreground">to generate</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className={`text-[10px] font-semibold tabular-nums ${prompt.length > 1800 ? "text-amber-300" : "text-muted-foreground"}`}>{prompt.length}/2000</span>
+              <button
+                onClick={() => generate()}
+                disabled={gen.isPending || !prompt.trim()}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-violet-500 via-fuchsia-500 to-cyan-400 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-violet-900/30 disabled:opacity-50"
+              >
+                {gen.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />} Generate
+              </button>
+            </div>
+          </div>
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
-          {STYLES.map((s) => (
-            <button
-              key={s}
-              onClick={() => setStyle(s)}
-              className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-[11px] font-bold transition ${
-                style === s ? "border-violet-300/45 bg-violet-500/25 text-violet-100" : "border-white/10 bg-white/5 text-slate-300 hover:bg-white/10"
-              }`}
-            >
-              <span className={`h-2.5 w-2.5 rounded-full ${style === s ? "bg-cyan-300" : "bg-violet-300/50"}`} />
-              {s}
-            </button>
-          ))}
+          {STYLES.map((s) => {
+            const pal = paletteFor(s);
+            const active = style === s;
+            return (
+              <button
+                key={s}
+                onClick={() => setStyle(s)}
+                className={`group inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-[11px] font-bold transition ${
+                  active ? "border-violet-300/60 bg-violet-500/25 text-violet-50 shadow-md shadow-violet-900/30" : "border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 hover:border-white/20"
+                }`}
+                title={`${s} palette`}
+              >
+                <span
+                  className="h-3 w-3 rounded-full ring-1 ring-white/20"
+                  style={{ background: `linear-gradient(135deg, ${pal.accent}, ${pal.accent2})` }}
+                />
+                {s}
+              </button>
+            );
+          })}
         </div>
         <div className="mt-3 flex flex-wrap gap-1.5">
           <span className="text-[10px] font-semibold uppercase tracking-wider text-violet-300/70">Try:</span>
