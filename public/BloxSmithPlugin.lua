@@ -2054,6 +2054,14 @@ local function pollOnce(force)
         setStatus("Build complete", Color3.fromRGB(120,220,160), ("Built %d thing(s). Camera focused."):format(okN))
     end
     log(("Batch complete -- %d ok, %d failed."):format(okN, failN), failN > 0 and "warn" or "success")
+    -- ── Auto-Playtest v2: verify the build actually works, and let the AI
+    --    fix failures automatically (up to 4 retries).
+    if okN > 0 and failN == 0 and _G.__BS_RunAutoPlaytest then
+        task.spawn(function()
+            local ok, err = pcall(_G.__BS_RunAutoPlaytest, actions)
+            if not ok then log("Auto-Playtest failed to start: " .. tostring(err), "warn") end
+        end)
+    end
     return #actions
 end
 
@@ -2616,6 +2624,300 @@ task.spawn(function()
         end
     end
 end)
+
+------------------------------------------------------------------- Auto-Playtest v2
+-- Runs after every material build batch. Verifies compile/spawn/UI/interactions/
+-- remotes/DataStore/perf, POSTs the report, and follows the server's loop
+-- directive (wait_for_ai -> rerun -> stop/passed/stuck) up to 4 attempts.
+do
+    local MATERIAL_CLASSES = {
+        Script=true, LocalScript=true, ModuleScript=true,
+        RemoteEvent=true, RemoteFunction=true, BindableEvent=true, BindableFunction=true,
+        Tool=true, ClickDetector=true, ProximityPrompt=true, SpawnLocation=true,
+        ScreenGui=true, SurfaceGui=true, BillboardGui=true,
+    }
+    local MATERIAL_PARENTS = {
+        "StarterPlayer","StarterGui","StarterPack",
+        "ServerScriptService","ReplicatedStorage","ServerStorage",
+    }
+
+    local function isMaterialBatch(actions)
+        if not actions then return false end
+        for _, a in ipairs(actions) do
+            local k = tostring(a.kind or ""):lower()
+            if k == "script" or k == "localscript" or k == "modulescript"
+                or k == "remoteevent" or k == "remotefunction"
+                or k == "run_lua" or k == "insert_asset"
+                or k == "spawn_location" or k == "screengui" or k == "tool" then
+                return true
+            end
+            local cls = a.className or (a.payload and a.payload.className) or ""
+            if MATERIAL_CLASSES[cls] then return true end
+            local parent = tostring(a.parent or (a.payload and a.payload.parent) or "")
+            for _, p in ipairs(MATERIAL_PARENTS) do
+                if string.find(parent, p, 1, true) then return true end
+            end
+        end
+        return false
+    end
+
+    local function newHttpUuid()
+        local HttpService = game:GetService("HttpService")
+        return string.lower(HttpService:GenerateGUID(false))
+    end
+    local function safeChildren(inst)
+        local ok, kids = pcall(function() return inst:GetDescendants() end)
+        return ok and kids or {}
+    end
+
+    local function phaseCompile()
+        local findings, ev = {}, { errors = 0, warnings = 0 }
+        for _, e in ipairs(errorQueue) do
+            if e.level == "error" then
+                ev.errors = ev.errors + 1
+                table.insert(findings, { severity="critical", category="script",
+                    title="Studio reported a script error",
+                    detail=tostring(e.message):sub(1,400), path="LogService" })
+            elseif e.level == "warn" then ev.warnings = ev.warnings + 1 end
+        end
+        return { pass = ev.errors == 0, findings = findings, evidence = ev }
+    end
+
+    local function phaseSpawn()
+        local findings, spawns = {}, 0
+        for _, d in ipairs(safeChildren(game.Workspace)) do
+            if d:IsA("SpawnLocation") then spawns = spawns + 1 end
+        end
+        if spawns == 0 then
+            table.insert(findings, { severity="high", category="gameplay",
+                title="No SpawnLocation in Workspace",
+                detail="Players will fall on join. Add at least one SpawnLocation.",
+                path="Workspace", auto_fixable=true })
+        end
+        return { pass = #findings == 0, findings = findings, evidence = { spawn_count = spawns } }
+    end
+
+    local function phaseUI()
+        local StarterGui = game:GetService("StarterGui")
+        local findings, guiCount, buttonCount = {}, 0, 0
+        for _, gui in ipairs(safeChildren(StarterGui)) do
+            if gui:IsA("ScreenGui") then
+                guiCount = guiCount + 1
+                for _, node in ipairs(safeChildren(gui)) do
+                    if node:IsA("GuiButton") then buttonCount = buttonCount + 1 end
+                    if node:IsA("GuiObject") and node.Size.X.Scale == 0 and node.Size.X.Offset == 0
+                        and node.Size.Y.Scale == 0 and node.Size.Y.Offset == 0 then
+                        table.insert(findings, { severity="medium", category="ui",
+                            title="GUI element has zero size",
+                            detail="Element " .. node:GetFullName() .. " will not render.",
+                            path=node:GetFullName() })
+                    end
+                end
+            end
+        end
+        return { pass = #findings == 0, findings = findings, evidence = { gui_count = guiCount, button_count = buttonCount } }
+    end
+
+    local function phaseInteractions()
+        local clicks, prompts, tools = 0, 0, 0
+        for _, inst in ipairs(safeChildren(game.Workspace)) do
+            if inst:IsA("ClickDetector") then clicks = clicks + 1
+            elseif inst:IsA("ProximityPrompt") then prompts = prompts + 1
+            elseif inst:IsA("Tool") then tools = tools + 1 end
+        end
+        return { pass = true, findings = {}, evidence = { click_detectors=clicks, proximity_prompts=prompts, tools=tools } }
+    end
+
+    local function phaseRemotes()
+        local findings = {}
+        local ReplicatedStorage = game:GetService("ReplicatedStorage")
+        local remotes = 0
+        for _, inst in ipairs(safeChildren(ReplicatedStorage)) do
+            if inst:IsA("RemoteEvent") or inst:IsA("RemoteFunction") then
+                remotes = remotes + 1
+                local hasListener = false
+                pcall(function()
+                    if inst:IsA("RemoteEvent") then
+                        hasListener = #inst.OnServerEvent:GetConnections() > 0
+                    else
+                        hasListener = inst.OnServerInvoke ~= nil
+                    end
+                end)
+                if not hasListener then
+                    table.insert(findings, { severity="medium", category="script",
+                        title="Remote has no server listener",
+                        detail="Nothing is listening to " .. inst.Name .. ". Client calls will silently fail.",
+                        path=inst:GetFullName() })
+                end
+            end
+        end
+        return { pass = #findings == 0, findings = findings, evidence = { remotes = remotes } }
+    end
+
+    local function phaseDataStore()
+        local findings = {}
+        local DataStoreService = game:GetService("DataStoreService")
+        local ok, err = pcall(function()
+            local ds = DataStoreService:GetDataStore("BloxSmithPlaytestProbe")
+            ds:SetAsync("__probe__" .. tostring(math.random(1, 1e9)), { t = os.time() })
+        end)
+        if not ok then
+            table.insert(findings, { severity="high", category="security",
+                title="DataStore write failed in Studio",
+                detail="Enable 'Allow Studio Access to API Services' or DataStores will fail at runtime. Error: " .. tostring(err):sub(1,200),
+                path="DataStoreService" })
+        end
+        return { pass = ok, findings = findings, evidence = { studio_api_ok = ok } }
+    end
+
+    local function phasePerf()
+        local RunService = game:GetService("RunService")
+        local Stats = game:GetService("Stats")
+        local samples, worst = 0, 0
+        local memStart = 0
+        pcall(function() memStart = Stats:GetTotalMemoryUsageMb() end)
+        local conn = RunService.Heartbeat:Connect(function(dt)
+            samples = samples + 1
+            if dt > worst then worst = dt end
+        end)
+        task.wait(2)
+        if conn then conn:Disconnect() end
+        local memEnd = 0
+        pcall(function() memEnd = Stats:GetTotalMemoryUsageMb() end)
+        local memDelta = memEnd - memStart
+        local findings = {}
+        if worst > 0.2 then
+            table.insert(findings, { severity="medium", category="performance",
+                title="Frame stall detected (>200ms)",
+                detail=("Worst frame during 2s sample: %.0fms."):format(worst * 1000),
+                path="Heartbeat" })
+        end
+        if memDelta > 200 then
+            table.insert(findings, { severity="medium", category="performance",
+                title="Memory grew >200MB during sample",
+                detail=("Memory went from %.0fMB to %.0fMB in 2s."):format(memStart, memEnd),
+                path="Stats" })
+        end
+        return { pass = #findings == 0, findings = findings,
+            evidence = { samples = samples, worst_frame_ms = math.floor(worst * 1000), mem_delta_mb = memDelta } }
+    end
+
+    local function tryScreenshot()
+        local ok, contentId = pcall(function()
+            local CaptureService = game:GetService("CaptureService")
+            local id
+            CaptureService:CaptureAsync(function(returned) id = returned end)
+            local waited = 0
+            while not id and waited < 3 do task.wait(0.25); waited = waited + 0.25 end
+            return id
+        end)
+        return ok and contentId or nil
+    end
+
+    local activeRun = { id = nil, attempt = 0, running = false }
+
+    local function pollNext(token, runId)
+        local d, err = post("/api/public/plugin/playtest/next-action", { token = token, run_id = runId }, { verbose = false })
+        if err then return nil end
+        return d
+    end
+
+    local function runOnce(autoTriggered, parentRunId)
+        local token = validToken()
+        if not token then log("Playtest skipped: not connected.", "warn"); return end
+        if activeRun.running then log("Playtest already running.", "debug"); return end
+        activeRun.running = true
+        setStatus("Playtesting", Color3.fromRGB(200,180,255), "Verifying scripts, UI, spawn, remotes, perf...")
+        local runId = activeRun.id or newHttpUuid()
+        activeRun.id = runId
+        activeRun.attempt = activeRun.attempt + 1
+        log(("-- Auto-Playtest attempt %d (run %s)"):format(activeRun.attempt, runId:sub(1,8)), "info")
+
+        local t0 = os.clock()
+        local phases = {
+            compile = phaseCompile(),
+            spawn = phaseSpawn(),
+            ui = phaseUI(),
+            interactions = phaseInteractions(),
+            remotes = phaseRemotes(),
+            datastore = phaseDataStore(),
+            perf = phasePerf(),
+        }
+        local allFindings, allPass, phaseResults = {}, true, {}
+        for name, r in pairs(phases) do
+            phaseResults[name] = { pass = r.pass, evidence = r.evidence, finding_count = #r.findings }
+            if not r.pass then allPass = false end
+            for _, f in ipairs(r.findings) do
+                f.id = f.id or (name .. "-" .. tostring(#allFindings + 1))
+                table.insert(allFindings, f)
+            end
+        end
+        local screenshot = tryScreenshot()
+        local duration = math.floor((os.clock() - t0) * 1000)
+
+        local resp, perr = post("/api/public/plugin/playtest/report", {
+            token = token, run_id = runId, parent_run_id = parentRunId,
+            attempt = activeRun.attempt, auto_triggered = autoTriggered == true,
+            max_attempts = 4,
+            status = allPass and "passed" or "failed",
+            duration_ms = duration,
+            summary = {
+                verdict = allPass and "clean" or "broken",
+                headline = allPass and "All phases passed" or ("%d issue(s) found"):format(#allFindings),
+                phase_count = 7,
+            },
+            metrics = { duration_ms = duration, phase_count = 7, finding_count = #allFindings },
+            findings = allFindings,
+            phase_results = phaseResults,
+            screenshot_urls = screenshot and { tostring(screenshot) } or {},
+        }, { verbose = false })
+        if perr then
+            log("Playtest report upload failed: " .. tostring(perr), "error")
+            activeRun.running = false; return
+        end
+
+        local directive = resp and resp.directive or "passed"
+        local reason = resp and resp.reason or ""
+        log(("-- Playtest %s (%s). %s"):format(directive, allPass and "green" or "red", reason),
+            directive == "passed" and "success" or "warn")
+
+        if directive == "wait_for_ai" then
+            setStatus("AI fixing", Color3.fromRGB(255,200,120), "AI is auto-fixing the failing findings...")
+            local elapsed = 0
+            while elapsed < 90 do
+                task.wait(3); elapsed = elapsed + 3
+                local d = pollNext(token, runId)
+                if d and d.directive and d.directive ~= "wait_for_ai" then
+                    directive = d.directive
+                    log(("-- Loop directive -> %s (%s)"):format(directive, tostring(d.reason or "")), "info")
+                    break
+                end
+            end
+        end
+
+        activeRun.running = false
+        if directive == "rerun" then
+            task.wait(1); runOnce(true, runId)
+        elseif directive == "passed" then
+            setStatus("Playtest passed", Color3.fromRGB(120,220,160), "All phases green.")
+            activeRun.id = nil; activeRun.attempt = 0
+        elseif directive == "stuck" then
+            setStatus("Playtest stuck", Color3.fromRGB(255,180,80), "Same failure twice; stopping loop.")
+            activeRun.id = nil; activeRun.attempt = 0
+        else
+            setStatus("Playtest stopped", Color3.fromRGB(255,180,80), reason ~= "" and reason or "Loop stopped.")
+            activeRun.id = nil; activeRun.attempt = 0
+        end
+    end
+
+    _G.__BS_RunAutoPlaytest = function(actions)
+        if not isMaterialBatch(actions) then
+            log("Auto-Playtest skipped: batch is cosmetic-only.", "debug"); return
+        end
+        runOnce(true, nil)
+    end
+    _G.__BS_RunPlaytestManual = function() runOnce(false, nil) end
+end
 
 log("BloxSmith v" .. PLUGIN_VERSION .. " loaded.", "success")
 log("API: " .. API_BASE, "debug")

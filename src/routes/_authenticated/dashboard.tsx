@@ -30,6 +30,7 @@ import { NewProjectModal } from "@/components/NewProjectModal";
 import { ProjectMemoryCard } from "@/components/ProjectMemoryCard";
 import { OnboardingChallenges } from "@/components/OnboardingChallenges";
 import { AiPlaytestCard } from "@/components/AiPlaytestCard";
+import { LivePlaytestCard } from "@/components/LivePlaytestCard";
 import robloxBg from "@/assets/backgrounds/roblox-dashboard.jpg";
 import bloxsmithLogo from "@/assets/bloxsmith-logo.png.asset.json";
 
@@ -317,8 +318,9 @@ function Dashboard() {
             )}
 
             {/* AI Playtest — the AI reads your scripts and reports back what it sees */}
-            <section id="ai-playtest">
+            <section id="ai-playtest" className="space-y-4">
               <AiPlaytestCard projectId={activeProjectId} projectName={activeProject?.name} />
+              <LivePlaytestCard />
             </section>
 
             {/* Invite friends prompt — visible on every dashboard load */}

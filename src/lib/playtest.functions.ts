@@ -11,9 +11,10 @@ export const getLatestPlaytest = createServerFn({ method: "POST" })
     const sb = context.supabase as any;
     const { data: rows, error } = await sb
       .from("playtest_reports")
-      .select("id, created_at, summary, findings, metrics, place_id")
+      .select("id, run_id, attempt, status, created_at, summary, findings, metrics, phase_results, screenshot_urls, duration_ms, place_id")
       .order("created_at", { ascending: false })
       .limit(data.limit);
     if (error) return { ok: false as const, error: error.message, reports: [] };
     return { ok: true as const, reports: rows ?? [] };
   });
+

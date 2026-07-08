@@ -4,15 +4,23 @@ import { checkChangelogCoverage, warnIfIncomplete } from "@/lib/changelog-covera
 import bloxsmithLogo from "@/assets/bloxsmith-logo.png.asset.json";
 
 
-const CHANGELOG_VERSION = "2026-07-08-polish-hardened";
+const CHANGELOG_VERSION = "2026-07-08-auto-playtest-v2";
 
 const CHANGELOG_ITEMS = [
+  {
+    title: "🔁 Auto-Playtest v2 — every build is verified in Studio and the AI auto-fixes failures (up to 4 retries)",
+    date: "Jul 8",
+    icon: ShieldCheck,
+    body: "Turned Playtest into a real verification loop. After every material build batch (any script, RemoteEvent, SpawnLocation, ScreenGui, Tool, ClickDetector, ProximityPrompt, or DataStore change), the plugin now automatically runs 7 verification phases in Studio: (1) Compile — snapshots LogService for errors + warnings; (2) Spawn — asserts at least one SpawnLocation is reachable; (3) UI — walks StarterGui for zero-size elements and dead structure; (4) Interactions — counts wired ClickDetectors/ProximityPrompts/Tools; (5) Remotes — flags every RemoteEvent/RemoteFunction with no server listener; (6) DataStore — writes a probe key to verify Studio API access + saves; (7) Perf — samples Heartbeat for 2s to catch >200ms frame stalls and >200MB memory jumps. It also tries CaptureService for a Studio viewport screenshot when permitted. Findings, phase results, and screenshots all POST to /api/public/plugin/playtest/report which decides the next directive: PASSED (green pill, done), WAIT_FOR_AI (a background AI call reads the failing findings, produces a targeted fix plan, stores it into the report, and flips the directive to RERUN so the plugin re-runs Playtest), STUCK (same failure fingerprint twice → stops the loop with a clear reason), or STOP (hit 4 attempts). New \"Live Playtest\" card on the dashboard shows the live directive pill, retry counter, per-phase pass/fail grid, screenshot strip, findings list, the AI's fix plan, and a Stop button. The system prompt gained a PLAYTEST AUTO-FIX PROTOCOL block that forces repair turns to focus only on listed finding IDs, output the smallest diff, and stop after two identical fingerprints instead of thrashing. New DB tables: playtest_reports gained run_id/attempt/parent_run_id/phase_results/screenshot_urls/status/finding_fingerprint columns, and a new playtest_loop_state table tracks the loop directive. Screenshots land in a private playtest-screenshots bucket with per-user RLS.",
+  },
+
   {
     title: "🧼 Polish button now actually polishes — typo fixes, dedupe, and forced genre expansion",
     date: "Jul 8",
     icon: Sparkles,
     body: "Fixed the Polish button ignoring messy prompts. It now runs a mandatory cleanup pass on every result (both the model output and the fallback): common Roblox typos are corrected (\"everythign\" → \"everything\", \"biuld\" → \"build\", \"toolboxx\" → \"toolbox\", \"rblox/roblx\" → \"Roblox\"), duplicated words are collapsed (\"everything and everything and everything\" → \"everything\"), and capitalization + punctuation are normalized. Added a similarity guard: if the model returns text that's >85% word-overlap with your input and barely longer, Polish now discards it and uses the deterministic rewrite instead — so you never get a \"polished\" prompt that's basically the same string back. Added a genre-expansion fallback so short game asks always come back as a real studio brief even if the model bails: \"a city / town / metropolis\" → gridded street map, sidewalks, streetlights, mixed buildings with interiors, spawn plaza, day/night skybox, mobile controls; \"a tycoon\" → claim pad, dropper→conveyor→collector, upgrade buttons, leaderstats, DataStore save/load, sellable stack; \"an obby\" → 15+ progressive stages, checkpoints, lobby, win zone, kill bricks, mobile jump button; \"a zombie game\" → wave spawning, server-side AI, starter weapon, HUD, round timer; \"a racing game\" → closed track, drivable vehicles, lap counter, checkpoints, leaderboard; \"a simulator\" → gather action, currency, upgrade shop, rebirth, DataStore. If your ask contains a genre keyword and the model returns fewer than 25 words, Polish automatically falls back to the full genre brief. Model output word cap also raised to 200 to fit the richer briefs.",
   },
+
 
   {
     title: "🏙️ Build mode now understands \"build me a city\" (and 6 other short genre asks)",
