@@ -172,7 +172,7 @@ export function WorkspaceChat({
   const createFn = useServerFn(createProject);
   const listFn = useServerFn(listMessages);
   const improveFn = useServerFn(improvePrompt);
-  const enhanceFn = useServerFn(enhancePrompt);
+  
   const sessFn = useServerFn(getPluginSession);
   const execStatusFn = useServerFn(getBuildExecutionStatus);
   const executeNowFn = useServerFn(executeQueuedActionsNow);
