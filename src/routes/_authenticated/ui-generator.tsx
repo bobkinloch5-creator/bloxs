@@ -277,18 +277,30 @@ function UiGenerator() {
   );
 }
 
-function ResultCard({ result, onDelete, deleting }: { result: Generated; onDelete: (id: string) => void; deleting?: boolean }) {
+function ResultCard({ result, onDelete, deleting, onRegenerate, onRemix, regenerating }: {
+  result: Generated;
+  onDelete: (id: string) => void;
+  deleting?: boolean;
+  onRegenerate?: () => void;
+  onRemix?: () => void;
+  regenerating?: boolean;
+}) {
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState<string | null>(null);
+  const swatch = useMemo(() => paletteFor(result.style), [result.style]);
   const createdLabel = typeof result.createdAt === "number"
     ? new Date(result.createdAt).toLocaleString()
     : new Date(result.createdAt).toLocaleString();
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 backdrop-blur-sm">
+    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 backdrop-blur-sm transition hover:border-white/20">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="truncate text-sm font-bold text-slate-100">{result.prompt}</div>
-          <div className="mt-0.5 text-[11px] text-muted-foreground">
+          <div className="mt-0.5 flex items-center gap-2 text-[11px] text-muted-foreground">
+            <span
+              className="inline-block h-2.5 w-2.5 rounded-full ring-1 ring-white/20"
+              style={{ background: `linear-gradient(135deg, ${swatch.accent}, ${swatch.accent2})` }}
+            />
             {result.style} · saved concept · {createdLabel}
           </div>
         </div>
