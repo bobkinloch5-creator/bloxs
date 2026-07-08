@@ -1,5 +1,5 @@
 -- BloxSmithPlugin.lua
--- BloxSmith Roblox Studio Plugin ??? execution & connection bridge.
+-- BloxSmith Roblox Studio Plugin -- execution & connection bridge.
 -- Install: Plugins > Open Plugins Folder, drop this file in, restart Studio.
 
 local HttpService           = game:GetService("HttpService")
@@ -19,8 +19,8 @@ local CollectionService     = game:GetService("CollectionService")
 local Selection             = game:GetService("Selection")
 
 local API_BASE       = "https://bloxsmith.pro"
-local POLL_INTERVAL  = 0.05
-local PLUGIN_VERSION = "2.1.22"
+local POLL_INTERVAL  = 0.5
+local PLUGIN_VERSION = "2.1.23"
 
 ------------------------------------------------------------------- token helpers
 local TOKEN_KEY = "token"
@@ -54,7 +54,7 @@ local function label(parent, text, pos, size, font, ts, color)
     local l = Instance.new("TextLabel")
     l.Position = pos; l.Size = size
     l.BackgroundTransparency = 1
-    l.Font = font or Enum.Font.Gotham
+    l.Font = font or Enum.Font.BuilderSans
     l.TextSize = ts or 13
     l.TextColor3 = color or Color3.fromRGB(220,220,230)
     l.TextXAlignment = Enum.TextXAlignment.Left
@@ -65,21 +65,21 @@ local function label(parent, text, pos, size, font, ts, color)
     return l
 end
 
-local title = label(main, "BloxSmith", UDim2.new(0,12,0,10), UDim2.new(1,-24,0,22), Enum.Font.GothamBold, 16)
+local title = label(main, "BloxSmith", UDim2.new(0,12,0,10), UDim2.new(1,-24,0,22), Enum.Font.BuilderSansBold, 16)
 label(main, "Execution bridge for Roblox Studio", UDim2.new(0,12,0,32), UDim2.new(1,-24,0,16), nil, 12, Color3.fromRGB(150,155,170))
 
-local statusLabel = label(main, "Status: not connected", UDim2.new(0,12,0,58), UDim2.new(1,-24,0,18), Enum.Font.GothamMedium, 13)
+local statusLabel = label(main, "Status: not connected", UDim2.new(0,12,0,58), UDim2.new(1,-24,0,18), Enum.Font.BuilderSansMedium, 13)
 local subStatus   = label(main, "Click Connect to link this Studio session.", UDim2.new(0,12,0,78), UDim2.new(1,-24,0,16), nil, 12, Color3.fromRGB(150,155,170))
 
-local infoLabel   = label(main, "Place: ???    Live: 0    v" .. PLUGIN_VERSION, UDim2.new(0,12,0,98), UDim2.new(1,-24,0,16), nil, 12, Color3.fromRGB(160,165,180))
-local lastLabel   = label(main, "Last action: ???", UDim2.new(0,12,0,116), UDim2.new(1,-24,0,16), nil, 12, Color3.fromRGB(160,165,180))
+local infoLabel   = label(main, "Place: loading...    Live: 0    v" .. PLUGIN_VERSION, UDim2.new(0,12,0,98), UDim2.new(1,-24,0,16), nil, 12, Color3.fromRGB(160,165,180))
+local lastLabel   = label(main, "Last action: (none)", UDim2.new(0,12,0,116), UDim2.new(1,-24,0,16), nil, 12, Color3.fromRGB(160,165,180))
 
 -- primary connect button
 local connectBtn = Instance.new("TextButton")
 connectBtn.Position = UDim2.new(0,12,0,142); connectBtn.Size = UDim2.new(1,-24,0,34)
 connectBtn.BackgroundColor3 = Color3.fromRGB(70,130,240)
 connectBtn.TextColor3 = Color3.fromRGB(255,255,255)
-connectBtn.Font = Enum.Font.GothamBold; connectBtn.TextSize = 14
+connectBtn.Font = Enum.Font.BuilderSansBold; connectBtn.TextSize = 14
 connectBtn.Text = "Connect"; connectBtn.BorderSizePixel = 0
 connectBtn.Parent = main
 
@@ -94,9 +94,9 @@ linkBox.ClearTextOnFocus = false; linkBox.TextEditable = false
 linkBox.BorderSizePixel = 0; linkBox.Visible = false
 linkBox.Parent = main
 
--- control buttons grid (2 rows x 3 cols)
+-- control buttons grid (4 rows x 3 cols)
 local controls = Instance.new("Frame")
-controls.Position = UDim2.new(0,12,0,216); controls.Size = UDim2.new(1,-24,0,128)
+controls.Position = UDim2.new(0,12,0,216); controls.Size = UDim2.new(1,-24,0,140)
 controls.BackgroundTransparency = 1; controls.Parent = main
 local grid = Instance.new("UIGridLayout", controls)
 grid.CellPadding = UDim2.new(0,6,0,6)
@@ -107,7 +107,7 @@ local function ctrlBtn(text, order)
     local b = Instance.new("TextButton")
     b.BackgroundColor3 = Color3.fromRGB(45,48,58)
     b.TextColor3 = Color3.fromRGB(220,225,235)
-    b.Font = Enum.Font.GothamMedium; b.TextSize = 12
+    b.Font = Enum.Font.BuilderSansMedium; b.TextSize = 12
     b.Text = text; b.BorderSizePixel = 0
     b.LayoutOrder = order; b.Parent = controls
     return b
@@ -132,7 +132,7 @@ logBar.BackgroundTransparency = 1; logBar.Parent = main
 
 local logTitle = Instance.new("TextLabel")
 logTitle.Size = UDim2.new(1,-220,1,0); logTitle.BackgroundTransparency = 1
-logTitle.Font = Enum.Font.GothamBold; logTitle.TextSize = 12
+logTitle.Font = Enum.Font.BuilderSansBold; logTitle.TextSize = 12
 logTitle.TextColor3 = Color3.fromRGB(200,205,215)
 logTitle.TextXAlignment = Enum.TextXAlignment.Left
 logTitle.Text = "Activity log"; logTitle.Parent = logBar
@@ -143,7 +143,7 @@ local function miniBtn(text, xOff)
     b.Position = UDim2.new(1,xOff,0.5,0); b.Size = UDim2.new(0,60,0,20)
     b.BackgroundColor3 = Color3.fromRGB(45,48,58)
     b.TextColor3 = Color3.fromRGB(210,215,225)
-    b.Font = Enum.Font.Gotham; b.TextSize = 11
+    b.Font = Enum.Font.BuilderSans; b.TextSize = 11
     b.Text = text; b.BorderSizePixel = 0
     b.Parent = logBar; return b
 end
@@ -325,7 +325,7 @@ local function ensureProjectFolders()
         ensureFolder(ServerStorage, "BloxSmith_Quarantine"),
     }
     -- StarterPlayerScripts is a protected Roblox service container.
-    -- Never attempt to create or re-parent it ??? just look it up if it exists.
+    -- Never attempt to create or re-parent it -- just look it up if it exists.
     local starterScripts = StarterPlayer:FindFirstChild("StarterPlayerScripts")
     if starterScripts then
         table.insert(folders, starterScripts)
@@ -574,7 +574,7 @@ local function ud2(t, defScale, defOffset)
 end
 
 local function ensureUnique(parent, name)
-    -- avoid duplicate child names by suffixing _2, _3???
+    -- avoid duplicate child names by suffixing _2, _3--
     if not parent:FindFirstChild(name) then return name end
     local i = 2
     while parent:FindFirstChild(name .. "_" .. i) do i += 1 end
@@ -842,7 +842,7 @@ local function makeGuiObject(className, a, p)
         obj.Text = payload.text or a.name
         if payload.text_color then obj.TextColor3 = color(payload.text_color) or obj.TextColor3 end
         if payload.text_size then obj.TextSize = payload.text_size end
-        obj.Font = Enum.Font.Gotham
+        obj.Font = Enum.Font.BuilderSans
     end
     if obj:IsA("ImageLabel") and payload.image then obj.Image = payload.image end
     obj.Parent = p; applyProps(obj, payload.properties); return obj
@@ -932,13 +932,13 @@ end
 
 Exec.organize_project = function(_, _)
     local result = organizeProject()
-    log(("Organized project ??? moved %d item(s)."):format(result.moved_count or 0), "success")
+    log(("Organized project -- moved %d item(s)."):format(result.moved_count or 0), "success")
     return result
 end
 
 Exec.autofix_project = function(_, _)
     local result = autoFixProject()
-    log(("Auto-fix complete ??? %d moved, %d fixed."):format(result.moved_count or 0, result.fixed_count or 0), "success")
+    log(("Auto-fix complete -- %d moved, %d fixed."):format(result.moved_count or 0, result.fixed_count or 0), "success")
     return result
 end
 
@@ -965,22 +965,6 @@ local function wrapGinsertObjects(id, objects, name)
 end
 
 local function ginsertCandidate(id, name)
-    if type(ginsert) == "function" then
-        local ok, result = pcall(function() return ginsert(id) end)
-        if ok and typeof(result) == "Instance" then
-            local container = Instance.new("Model")
-            container.Name = name or ("Asset_" .. tostring(id))
-            result.Parent = container
-            return container, nil
-        elseif ok and type(result) == "table" then
-            local wrapped, err = wrapGinsertObjects(id, result, name)
-            if wrapped then return wrapped, nil end
-            return nil, err
-        elseif not ok then
-            return nil, tostring(result)
-        end
-    end
-
     local ok, objects = pcall(function() return game:GetObjects("rbxassetid://" .. tostring(id)) end)
     if ok then
         local wrapped, err = wrapGinsertObjects(id, objects, name)
@@ -1111,17 +1095,19 @@ Exec.insert_asset = function(a, p)
         end
     end
 
-    local inserted, loadErr, usedId = nil, nil, nil
+    local noScripts = payload.no_scripts ~= false and payload.allow_scripts ~= true
+    local inserted, loadErr, usedId, safetyReport = nil, nil, nil, nil
     local attempted = {}
     for index, candidateId in ipairs(candidates) do
         table.insert(attempted, candidateId)
         inserted, loadErr = loadAssetCandidate(candidateId, a.name or ("Asset_" .. candidateId), p)
         if inserted then
-            local proof = inspectInsertedAsset(inserted, { no_scripts = true })
-            if not proof.has_visible_content then
+            -- Single scan: checks visibility AND quarantines suspicious scripts.
+            safetyReport = inspectInsertedAsset(inserted, { no_scripts = noScripts })
+            if not safetyReport.has_visible_content then
                 inserted:Destroy()
                 blockedAssetIds[candidateId] = true
-                inserted = nil
+                inserted = nil; safetyReport = nil
                 loadErr = "loaded asset has no visible 3D content"
                 log(("Skipped empty/invisible asset id=%d. Trying another free model."):format(candidateId), "warn")
             else
@@ -1196,8 +1182,7 @@ Exec.insert_asset = function(a, p)
         if payload.category then inserted:SetAttribute("BloxSmithCategory", tostring(payload.category)) end
         inserted:SetAttribute("BloxSmithStudioVerified", true)
     end)
-    local noScripts = payload.no_scripts ~= false and payload.allow_scripts ~= true
-    local safetyReport = inspectInsertedAsset(inserted, { no_scripts = noScripts })
+    safetyReport = safetyReport or inspectInsertedAsset(inserted, { no_scripts = noScripts })
     if safetyReport.quarantined > 0 then
         log(("Asset safety scan quarantined %d suspicious script(s) from id=%d."):format(safetyReport.quarantined, usedId), "warn")
     elseif safetyReport.scripts > 0 then
@@ -1211,7 +1196,7 @@ Exec.insert_asset = function(a, p)
             size = { size.X, size.Y, size.Z },
         }
     end
-    log(("??? inserted verified asset id=%d as '%s' under %s (%d visible part(s), %d texture/mesh signal(s))"):format(
+    log(("-- inserted verified asset id=%d as '%s' under %s (%d visible part(s), %d texture/mesh signal(s))"):format(
         usedId,
         inserted.Name,
         p:GetFullName(),
@@ -1273,15 +1258,15 @@ Exec.toolbox_assets = function(a, p)
                     path = placed:GetFullName(), class = placed.ClassName,
                     creator = asset.creator, safety = safety,
                 })
-                log(("??? asset id=%d '%s'"):format(id, placed.Name), "success")
+                log(("-- asset id=%d '%s'"):format(id, placed.Name), "success")
             else
                 skipped += 1
                 table.insert(failed, { id = id, name = asset.name, reason = err })
-                log(("??? asset id=%d unauthorized or missing (%s) ??? skipped; no hardcoded fallback inserted"):format(id, tostring(err)), "warn")
+                log(("-- asset id=%d unauthorized or missing (%s) -- skipped; no hardcoded fallback inserted"):format(id, tostring(err)), "warn")
             end
         end
     end
-    log(("Toolbox batch ??? %d inserted, %d skipped, %d failed."):format(
+    log(("Toolbox batch -- %d inserted, %d skipped, %d failed."):format(
         #inserted, skipped, #failed), #failed > 0 and "warn" or "success")
     return { inserted = inserted, failed = failed, skipped = skipped, source = payload.source or "live" }
 end
@@ -1299,7 +1284,7 @@ Exec.set_properties = function(a, _)
             inst = parent and parent:FindFirstChild(a.name)
         end
         if not inst then
-            log(("set_properties skipped ??? target not found: %s"):format(tostring(path)), "warn")
+            log(("set_properties skipped -- target not found: %s"):format(tostring(path)), "warn")
             return { skipped = true, reason = "target_not_found", target_path = path }
         end
     end
@@ -1361,8 +1346,8 @@ end
 -- run_lua: execute a Luau builder script INSIDE the plugin context.
 -- Two extra helpers are exposed to the builder so the AI doesn't have to
 -- guard every property write itself:
---   safeSet(inst, key, value)            ??? pcall-wrapped single property set
---   safeSetProps(inst, { K = V, ... })   ??? pcall-wrapped bulk set
+--   safeSet(inst, key, value)            -- pcall-wrapped single property set
+--   safeSetProps(inst, { K = V, ... })   -- pcall-wrapped bulk set
 -- Both swallow errors with a [BloxSmith] warn so one hallucinated property
 -- (e.g. workspace.Terrain.Decoration) can't kill the whole build.
 Exec.run_lua = function(a, p)
@@ -1456,7 +1441,7 @@ local function describeAction(a)
         )
     end
     local mode = meta.execution_mode and (" [" .. tostring(meta.execution_mode) .. "]") or ""
-    return ("%s%s '%s' ??? %s%s"):format(a.kind, mode, tostring(a.name), tostring(a.parent_path or "auto"), extra)
+    return ("%s%s '%s' -- %s%s"):format(a.kind, mode, tostring(a.name), tostring(a.parent_path or "auto"), extra)
 end
 
 local function executeAction(action)
@@ -1464,7 +1449,7 @@ local function executeAction(action)
     local handler = Exec[kind]
     if not handler then error("Unknown action kind: " .. tostring(kind)) end
     local parent = resolveParent(action.parent_path, kind)
-    log("??? " .. describeAction(action), "debug")
+    log("-- " .. describeAction(action), "debug")
     return handler(action, parent)
 end
 
@@ -1609,7 +1594,7 @@ local function post(path, body, opts)
     opts = opts or {}
     local verbose = opts.verbose ~= false and (VERBOSE or opts.force)
     local t0 = os.clock()
-    if verbose then log("??? POST " .. API_BASE .. path, "net") end
+    if verbose then log("-- POST " .. API_BASE .. path, "net") end
     body = body or {}
     local headers = { ["Content-Type"] = "application/json" }
     -- Forward token in both header and body for defense-in-depth.
@@ -1626,17 +1611,17 @@ local function post(path, body, opts)
     end)
     local dt = math.floor((os.clock() - t0) * 1000)
     if not ok then
-        log(("??? POST %s failed after %dms ??? %s"):format(path, dt, tostring(res)), "error")
+        log(("-- POST %s failed after %dms -- %s"):format(path, dt, tostring(res)), "error")
         return nil, tostring(res), 0
     end
     if not res.Success then
         local short = tostring(res.Body or "")
-        if #short > 240 then short = short:sub(1,240) .. "???" end
-        log(("??? POST %s ??? HTTP %s in %dms ??? %s"):format(path, tostring(res.StatusCode), dt, short), "error")
+        if #short > 240 then short = short:sub(1,240) .. "--" end
+        log(("-- POST %s -- HTTP %s in %dms -- %s"):format(path, tostring(res.StatusCode), dt, short), "error")
         return nil, "HTTP " .. tostring(res.StatusCode) .. ": " .. tostring(res.Body), tonumber(res.StatusCode) or 0
     end
     local decoded; pcall(function() decoded = HttpService:JSONDecode(res.Body) end)
-    if verbose then log(("??? POST %s ??? %s in %dms"):format(path, tostring(res.StatusCode), dt), "net") end
+    if verbose then log(("-- POST %s -- %s in %dms"):format(path, tostring(res.StatusCode), dt), "net") end
     return decoded or {}, nil, tonumber(res.StatusCode) or 200
 end
 
@@ -1667,7 +1652,7 @@ end
 
 ------------------------------------------------------------------- state
 local connected, pairingCode = false, nil
-local lastHeartbeat, queueLen, lastAction = 0, 0, "???"
+local lastHeartbeat, queueLen, lastAction = 0, 0, "--"
 
 local function setStatus(text, color, sub)
     statusLabel.Text = "Status: " .. text
@@ -1705,7 +1690,7 @@ local function pollOnce(force)
         connected = false
         setStatus("not connected", Color3.fromRGB(255,180,80),
             "Plugin not connected. Please reconnect from bloxsmith.pro.")
-        if force then log("No saved token ??? click Connect to link.", "warn") end
+        if force then log("No saved token -- click Connect to link.", "warn") end
         return
     end
     if force then log(("token found: yes  ??  API: %s  ??  place: %s  ??  v%s")
@@ -1720,11 +1705,11 @@ local function pollOnce(force)
             connectBtn.Text = "Connect"; connectBtn.BackgroundColor3 = Color3.fromRGB(70,130,240)
             setStatus("not connected", Color3.fromRGB(255,180,80),
                 "Plugin not connected. Please reconnect from bloxsmith.pro.")
-            log("Token rejected by server (401) ??? cleared. Click Connect to reconnect.", "error")
+            log("Token rejected by server (401) -- cleared. Click Connect to reconnect.", "error")
             return
         end
         setStatus("error", Color3.fromRGB(255,120,120), err)
-        log("Poll failed ??? will retry.", "error"); return
+        log("Poll failed -- will retry.", "error"); return
     end
     if data and data.user_id then
         -- userId surfaced only on first successful poll after (re)connect
@@ -1734,7 +1719,7 @@ local function pollOnce(force)
     local actions = data.actions or {}
     queueLen = #actions; refreshInfo()
     if os.clock() - lastHeartbeat > 60 then
-        log(("Heartbeat ??? %d pending"):format(#actions), "debug")
+        log(("Heartbeat -- %d pending"):format(#actions), "debug")
         lastHeartbeat = os.clock()
     end
     if #actions == 0 then return 0 end
@@ -1787,12 +1772,12 @@ local function pollOnce(force)
         local ok, errOrInst = executeActionWithTimeout(a)
         if ok then
             okN += 1; lastAction = describeAction(a)
-            log("??? " .. lastAction, "action")
+            log("-- " .. lastAction, "action")
             results[#results+1] = { action_id = a.id, status = "done", result = reportableResult(errOrInst) }
             pcall(collectInstancesFromResult, focusTargets, errOrInst)
         else
             failN += 1
-            log("??? " .. a.kind .. " '" .. tostring(a.name) .. "': " .. tostring(errOrInst), "error")
+            log("-- " .. a.kind .. " '" .. tostring(a.name) .. "': " .. tostring(errOrInst), "error")
             results[#results+1] = { action_id = a.id, status = "failed", error = tostring(errOrInst) }
         end
     end
@@ -1805,7 +1790,7 @@ local function pollOnce(force)
             local moved = fixResult.moved_count or 0
             local fixed = fixResult.fixed_count or 0
             if moved > 0 or fixed > 0 then
-                log(("Auto-cleanup after batch ??? %d moved, %d fixed."):format(moved, fixed), "success")
+                log(("Auto-cleanup after batch -- %d moved, %d fixed."):format(moved, fixed), "success")
             end
         elseif not fixOk then
             log("Auto-cleanup skipped: " .. tostring(fixResult), "warn")
@@ -1823,14 +1808,14 @@ local function pollOnce(force)
     else
         setStatus("Build complete", Color3.fromRGB(120,220,160), ("Built %d thing(s). Camera focused."):format(okN))
     end
-    log(("Batch complete ??? %d ok, %d failed."):format(okN, failN), failN > 0 and "warn" or "success")
+    log(("Batch complete -- %d ok, %d failed."):format(okN, failN), failN > 0 and "warn" or "success")
     return #actions
 end
 
 local function startPairing()
-    setStatus("connecting", Color3.fromRGB(160,200,255), "Creating one-time approval link???")
+    setStatus("connecting", Color3.fromRGB(160,200,255), "Creating one-time approval link--")
     connectBtn.Text = "Cancel"; connectBtn.BackgroundColor3 = Color3.fromRGB(220,90,90)
-    log("Requesting pair code???", "info")
+    log("Requesting pair code--", "info")
     local data, err = post("/api/public/plugin/pair/start", { plugin_version = PLUGIN_VERSION }, { verbose = true })
     if err or not data or not data.code then
         log("Pair start failed: " .. tostring(err or "no data"), "error")
@@ -1855,7 +1840,7 @@ local function startPairing()
         elseif poll and poll.status == "approved" and poll.plugin_token then
             plugin:SetSetting("token", poll.plugin_token)
             pairingCode = nil; linkBox.Visible = false
-            log("Approved ??? ??? token saved.", "success")
+            log("Approved -- -- token saved.", "success")
             connected = true
             connectBtn.Text = "Disconnect"; connectBtn.BackgroundColor3 = Color3.fromRGB(220,90,90)
             pollOnce(true); return
@@ -1875,7 +1860,7 @@ local function disconnect()
     connectBtn.Text = "Connect"; connectBtn.BackgroundColor3 = Color3.fromRGB(70,130,240)
     linkBox.Visible = false
     setStatus("not connected", Color3.fromRGB(200,200,210), "Click Connect to link.")
-    log("Disconnected ??? token removed.", "warn")
+    log("Disconnected -- token removed.", "warn")
 end
 
 ------------------------------------------------------------------- buttons
@@ -1891,11 +1876,19 @@ end)
 
 reconnectBtn.MouseButton1Click:Connect(function()
     if not validToken() then
-        log("No saved token ??? starting fresh connect.", "warn")
+        log("No saved token -- starting fresh connect.", "warn")
         clearToken(); connected = false
         task.spawn(startPairing); return
     end
-    log("Reconnecting???", "info"); connected = true; pollOnce(true)
+    log("Reconnecting...", "info")
+    connected = false
+    local ok, err = pcall(pollOnce, true)
+    if ok then
+        connected = true
+    else
+        log("Reconnect failed: " .. tostring(err), "error")
+        setStatus("error", Color3.fromRGB(255,120,120), "Reconnect failed. Try Connect.")
+    end
 end)
 
 syncBtn.MouseButton1Click:Connect(function()
@@ -1905,13 +1898,13 @@ end)
 
 execBtn.MouseButton1Click:Connect(function()
     if not connected then log("Not connected.", "warn"); return end
-    log("Executing now???", "info"); pollOnce(true)
+    log("Executing now--", "info"); pollOnce(true)
 end)
 
 clearBtn.MouseButton1Click:Connect(function()
     local token = validToken()
-    if not token then log("Not connected ??? click Connect first.", "warn"); return end
-    log("Clearing stuck queue???", "info")
+    if not token then log("Not connected -- click Connect first.", "warn"); return end
+    log("Clearing stuck queue--", "info")
     local data, err = post("/api/public/plugin/clear", { token = token }, { verbose = true })
     if err then log("Clear failed: " .. err, "error")
     else log(("Cleared %d action(s)."):format((data and data.cleared) or 0), "success"); queueLen = 0; refreshInfo() end
@@ -1925,7 +1918,7 @@ end)
 
 openWebBtn.MouseButton1Click:Connect(function()
     if tryCopy(API_BASE .. "/plugin") then
-        log("Copied " .. API_BASE .. "/plugin to clipboard ??? paste into your browser.", "info")
+        log("Copied " .. API_BASE .. "/plugin to clipboard -- paste into your browser.", "info")
     else
         log("Open " .. API_BASE .. "/plugin in your browser.", "info")
     end
@@ -2067,24 +2060,33 @@ Exec.scan_project = function(_, _)
         token = token, place_id = tostring(game.PlaceId or 0), scan = scan,
     }, { verbose = false })
     if err then error("scan upload failed: " .. tostring(err)) end
-    log(("Workspace scan uploaded ??? %d instance(s), %d issue(s)."):format(scan.sampled or 0, #(scan.awareness and scan.awareness.issues or {})), "success")
+    log(("Workspace scan uploaded -- %d instance(s), %d issue(s)."):format(scan.sampled or 0, #(scan.awareness and scan.awareness.issues or {})), "success")
     return { scanned = scan.sampled, issues = scan.awareness and scan.awareness.issues or {}, uploaded = data and data.ok == true }
 end
 
+local scanBusy = false
 scanBtn.MouseButton1Click:Connect(function()
+    if scanBusy then log("Scan already running...", "warn"); return end
     local token = validToken()
-    if not token then log("Not connected ??? click Connect first.", "warn"); return end
-    log("Scanning game tree???", "info")
-    local scan = buildScan()
-    log(("Scanned %d instance(s) across %d service(s)."):format(scan.sampled, #scan.roots), "debug")
-    local data, err = post("/api/public/plugin/scan", {
-        token = token, place_id = tostring(game.PlaceId or 0), scan = scan,
-    }, { verbose = true })
-    if err then log("Scan upload failed: " .. err, "error")
-    else log("??? Scan uploaded. AI will see this on your next message.", "success") end
+    if not token then log("Not connected -- click Connect first.", "warn"); return end
+    scanBusy = true
+    scanBtn.Text = "Scanning..."
+    log("Scanning game tree...", "info")
+    local ok, err = pcall(function()
+        local scan = buildScan()
+        log(("Scanned %d instance(s) across %d service(s)."):format(scan.sampled, #scan.roots), "debug")
+        local data, uErr = post("/api/public/plugin/scan", {
+            token = token, place_id = tostring(game.PlaceId or 0), scan = scan,
+        }, { verbose = true })
+        if uErr then log("Scan upload failed: " .. uErr, "error")
+        else log("Scan uploaded. AI will see this on your next message.", "success") end
+    end)
+    if not ok then log("Scan crashed: " .. tostring(err), "error") end
+    scanBusy = false
+    scanBtn.Text = "Scan Game"
 end)
 
-------------------------------------------------------------------- error capture (LogService ??? API)
+------------------------------------------------------------------- error capture (LogService -- API)
 local LogService = game:GetService("LogService")
 local AUTO_SEND_ERRORS = true
 local errorQueue, lastErrFlush = {}, 0
@@ -2117,7 +2119,7 @@ local function flushErrors(manual)
         -- requeue so we can retry
         for _, e in ipairs(batch) do table.insert(errorQueue, e) end
     else
-        log(("??? Sent %d Studio error(s) ??? AI will use these to fix on next message."):format(#batch), "success")
+        log(("-- Sent %d Studio error(s) -- AI will use these to fix on next message."):format(#batch), "success")
     end
 end
 
@@ -2129,26 +2131,38 @@ autoErrBtn.MouseButton1Click:Connect(function()
     log("Auto error upload " .. (AUTO_SEND_ERRORS and "enabled" or "disabled"), "debug")
 end)
 
+local organizeBusy = false
 organizeBtn.MouseButton1Click:Connect(function()
+    if organizeBusy then log("Organize already running...", "warn"); return end
+    organizeBusy = true
+    organizeBtn.Text = "Organizing..."
     ChangeHistoryService:SetWaypoint("BloxSmith organize start")
     local ok, result = pcall(organizeProject)
     ChangeHistoryService:SetWaypoint("BloxSmith organize done")
     if ok then
-        log(("Organized project ??? moved %d item(s)."):format((result and result.moved_count) or 0), "success")
+        log(("Organized project -- moved %d item(s)."):format((result and result.moved_count) or 0), "success")
     else
         log("Organize failed: " .. tostring(result), "error")
     end
+    organizeBusy = false
+    organizeBtn.Text = "Organize"
 end)
 
+local autoFixBusy = false
 autoFixBtn.MouseButton1Click:Connect(function()
+    if autoFixBusy then log("Auto-Fix already running...", "warn"); return end
+    autoFixBusy = true
+    autoFixBtn.Text = "Fixing..."
     ChangeHistoryService:SetWaypoint("BloxSmith auto-fix start")
     local ok, result = pcall(autoFixProject)
     ChangeHistoryService:SetWaypoint("BloxSmith auto-fix done")
     if ok then
-        log(("Auto-fix complete ??? %d moved, %d fixed."):format((result and result.moved_count) or 0, (result and result.fixed_count) or 0), "success")
+        log(("Auto-fix complete -- %d moved, %d fixed."):format((result and result.moved_count) or 0, (result and result.fixed_count) or 0), "success")
     else
         log("Auto-fix failed: " .. tostring(result), "error")
     end
+    autoFixBusy = false
+    autoFixBtn.Text = "Auto-Fix"
 end)
 
 task.spawn(function()
@@ -2166,7 +2180,7 @@ task.spawn(function()
     if validToken() then
         connected = true
         connectBtn.Text = "Disconnect"; connectBtn.BackgroundColor3 = Color3.fromRGB(220,90,90)
-        log("Restoring previous session???", "info"); pollOnce(true)
+        log("Restoring previous session--", "info"); pollOnce(true)
     else
         clearToken() -- scrub any stale empty/garbage value
         connected = false
@@ -2180,7 +2194,7 @@ task.spawn(function()
         task.wait(POLL_INTERVAL)
         if connected then
             -- Drain: keep polling immediately while the server has work ready.
-            for _ = 1, 20 do
+            for _ = 1, 5 do
                 local ok, errOrCount = pcall(pollOnce)
                 if not ok then
                     log("Poll loop crashed: " .. tostring(errOrCount), "error")
@@ -2213,5 +2227,5 @@ end)
 
 log("BloxSmith v" .. PLUGIN_VERSION .. " loaded.", "success")
 log("API: " .. API_BASE, "debug")
-log("Studio " .. studioVersion() .. " ??? place " .. tostring(game.PlaceId or 0), "debug")
-log("Use Connect ??? approve in browser ??? builds execute here automatically.", "info")
+log("Studio " .. studioVersion() .. " -- place " .. tostring(game.PlaceId or 0), "debug")
+log("Use Connect -- approve in browser -- builds execute here automatically.", "info")
