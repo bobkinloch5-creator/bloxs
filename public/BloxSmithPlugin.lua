@@ -842,7 +842,7 @@ local function makeGuiObject(className, a, p)
         obj.Text = payload.text or a.name
         if payload.text_color then obj.TextColor3 = color(payload.text_color) or obj.TextColor3 end
         if payload.text_size then obj.TextSize = payload.text_size end
-        obj.Font = Enum.Font.Gotham
+        obj.Font = Enum.Font.BuilderSans
     end
     if obj:IsA("ImageLabel") and payload.image then obj.Image = payload.image end
     obj.Parent = p; applyProps(obj, payload.properties); return obj
