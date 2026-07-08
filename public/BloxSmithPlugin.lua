@@ -19,8 +19,8 @@ local CollectionService     = game:GetService("CollectionService")
 local Selection             = game:GetService("Selection")
 
 local API_BASE       = "https://bloxsmith.pro"
-local POLL_INTERVAL  = 0.05
-local PLUGIN_VERSION = "2.1.22"
+local POLL_INTERVAL  = 0.5
+local PLUGIN_VERSION = "2.1.23"
 
 ------------------------------------------------------------------- token helpers
 local TOKEN_KEY = "token"
@@ -54,7 +54,7 @@ local function label(parent, text, pos, size, font, ts, color)
     local l = Instance.new("TextLabel")
     l.Position = pos; l.Size = size
     l.BackgroundTransparency = 1
-    l.Font = font or Enum.Font.Gotham
+    l.Font = font or Enum.Font.BuilderSans
     l.TextSize = ts or 13
     l.TextColor3 = color or Color3.fromRGB(220,220,230)
     l.TextXAlignment = Enum.TextXAlignment.Left
@@ -65,21 +65,21 @@ local function label(parent, text, pos, size, font, ts, color)
     return l
 end
 
-local title = label(main, "BloxSmith", UDim2.new(0,12,0,10), UDim2.new(1,-24,0,22), Enum.Font.GothamBold, 16)
+local title = label(main, "BloxSmith", UDim2.new(0,12,0,10), UDim2.new(1,-24,0,22), Enum.Font.BuilderSansBold, 16)
 label(main, "Execution bridge for Roblox Studio", UDim2.new(0,12,0,32), UDim2.new(1,-24,0,16), nil, 12, Color3.fromRGB(150,155,170))
 
-local statusLabel = label(main, "Status: not connected", UDim2.new(0,12,0,58), UDim2.new(1,-24,0,18), Enum.Font.GothamMedium, 13)
+local statusLabel = label(main, "Status: not connected", UDim2.new(0,12,0,58), UDim2.new(1,-24,0,18), Enum.Font.BuilderSansMedium, 13)
 local subStatus   = label(main, "Click Connect to link this Studio session.", UDim2.new(0,12,0,78), UDim2.new(1,-24,0,16), nil, 12, Color3.fromRGB(150,155,170))
 
-local infoLabel   = label(main, "Place: --    Live: 0    v" .. PLUGIN_VERSION, UDim2.new(0,12,0,98), UDim2.new(1,-24,0,16), nil, 12, Color3.fromRGB(160,165,180))
-local lastLabel   = label(main, "Last action: --", UDim2.new(0,12,0,116), UDim2.new(1,-24,0,16), nil, 12, Color3.fromRGB(160,165,180))
+local infoLabel   = label(main, "Place: loading...    Live: 0    v" .. PLUGIN_VERSION, UDim2.new(0,12,0,98), UDim2.new(1,-24,0,16), nil, 12, Color3.fromRGB(160,165,180))
+local lastLabel   = label(main, "Last action: (none)", UDim2.new(0,12,0,116), UDim2.new(1,-24,0,16), nil, 12, Color3.fromRGB(160,165,180))
 
 -- primary connect button
 local connectBtn = Instance.new("TextButton")
 connectBtn.Position = UDim2.new(0,12,0,142); connectBtn.Size = UDim2.new(1,-24,0,34)
 connectBtn.BackgroundColor3 = Color3.fromRGB(70,130,240)
 connectBtn.TextColor3 = Color3.fromRGB(255,255,255)
-connectBtn.Font = Enum.Font.GothamBold; connectBtn.TextSize = 14
+connectBtn.Font = Enum.Font.BuilderSansBold; connectBtn.TextSize = 14
 connectBtn.Text = "Connect"; connectBtn.BorderSizePixel = 0
 connectBtn.Parent = main
 
@@ -94,9 +94,9 @@ linkBox.ClearTextOnFocus = false; linkBox.TextEditable = false
 linkBox.BorderSizePixel = 0; linkBox.Visible = false
 linkBox.Parent = main
 
--- control buttons grid (2 rows x 3 cols)
+-- control buttons grid (4 rows x 3 cols)
 local controls = Instance.new("Frame")
-controls.Position = UDim2.new(0,12,0,216); controls.Size = UDim2.new(1,-24,0,128)
+controls.Position = UDim2.new(0,12,0,216); controls.Size = UDim2.new(1,-24,0,140)
 controls.BackgroundTransparency = 1; controls.Parent = main
 local grid = Instance.new("UIGridLayout", controls)
 grid.CellPadding = UDim2.new(0,6,0,6)
@@ -107,7 +107,7 @@ local function ctrlBtn(text, order)
     local b = Instance.new("TextButton")
     b.BackgroundColor3 = Color3.fromRGB(45,48,58)
     b.TextColor3 = Color3.fromRGB(220,225,235)
-    b.Font = Enum.Font.GothamMedium; b.TextSize = 12
+    b.Font = Enum.Font.BuilderSansMedium; b.TextSize = 12
     b.Text = text; b.BorderSizePixel = 0
     b.LayoutOrder = order; b.Parent = controls
     return b
@@ -132,7 +132,7 @@ logBar.BackgroundTransparency = 1; logBar.Parent = main
 
 local logTitle = Instance.new("TextLabel")
 logTitle.Size = UDim2.new(1,-220,1,0); logTitle.BackgroundTransparency = 1
-logTitle.Font = Enum.Font.GothamBold; logTitle.TextSize = 12
+logTitle.Font = Enum.Font.BuilderSansBold; logTitle.TextSize = 12
 logTitle.TextColor3 = Color3.fromRGB(200,205,215)
 logTitle.TextXAlignment = Enum.TextXAlignment.Left
 logTitle.Text = "Activity log"; logTitle.Parent = logBar
@@ -143,7 +143,7 @@ local function miniBtn(text, xOff)
     b.Position = UDim2.new(1,xOff,0.5,0); b.Size = UDim2.new(0,60,0,20)
     b.BackgroundColor3 = Color3.fromRGB(45,48,58)
     b.TextColor3 = Color3.fromRGB(210,215,225)
-    b.Font = Enum.Font.Gotham; b.TextSize = 11
+    b.Font = Enum.Font.BuilderSans; b.TextSize = 11
     b.Text = text; b.BorderSizePixel = 0
     b.Parent = logBar; return b
 end
