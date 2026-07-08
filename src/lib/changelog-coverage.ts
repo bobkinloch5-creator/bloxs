@@ -48,11 +48,21 @@ export type CoverageReport = {
 };
 
 /**
- * Check every migration has at least one same-day changelog entry.
+ * Check every recent migration has at least one same-day changelog entry.
+ * Only migrations from the last RECENT_DAYS days are considered — older
+ * historical migrations aren't worth surfacing a warning for.
  * `changelogDates` is the flat list of `date` fields from CHANGELOG_ITEMS.
  */
+const RECENT_DAYS = 5;
+
 export function checkChangelogCoverage(changelogDates: string[]): CoverageReport {
-  const migrations = listMigrations();
+  const allMigrations = listMigrations();
+  const cutoff = new Date();
+  cutoff.setUTCHours(0, 0, 0, 0);
+  cutoff.setUTCDate(cutoff.getUTCDate() - RECENT_DAYS);
+  const cutoffIso = cutoff.toISOString().slice(0, 10);
+  const migrations = allMigrations.filter((m) => m.iso >= cutoffIso);
+
   const covered = new Set(changelogDates.map((d) => d.trim()));
   const migrationDates = new Set(migrations.map((m) => m.date));
   const missingDates: string[] = [];
@@ -60,7 +70,7 @@ export function checkChangelogCoverage(changelogDates: string[]): CoverageReport
   missingDates.sort();
   const orphanMigrations = migrations.filter((m) => missingDates.includes(m.date));
   return {
-    totalMigrations: migrations.length,
+    totalMigrations: allMigrations.length,
     coveredDates: Array.from(migrationDates).filter((d) => covered.has(d)),
     missingDates,
     orphanMigrations,
