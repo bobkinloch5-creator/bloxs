@@ -133,12 +133,20 @@ export const seedKnowledgeBaseBatch = createServerFn({ method: "POST" })
     let failed = 0;
     let firstError: string | undefined;
     let creditExhausted = false;
+    let cancelled = false;
     let currentTitle: string | undefined;
 
+    // Forward the client's abort signal into the loop so Cancel stops the
+    // in-flight batch between chunks, not just between batches.
+    let signal: AbortSignal | undefined;
+    try { signal = getRequest().signal; } catch { signal = undefined; }
+
     for (const chunk of batch) {
+      if (signal?.aborted) { cancelled = true; break; }
       currentTitle = chunk.title;
       try {
         const vec = await embedText(`${chunk.title}\n\n${chunk.content}`);
+        if (signal?.aborted) { cancelled = true; break; }
         const { error } = await admin.from("kb_chunks").upsert(
           [{
             topic: chunk.topic,
@@ -157,8 +165,12 @@ export const seedKnowledgeBaseBatch = createServerFn({ method: "POST" })
           inserted += 1;
         }
       } catch (e) {
-        failed += 1;
         const msg = e instanceof Error ? e.message : String(e);
+        if (signal?.aborted || /aborted|AbortError/i.test(msg)) {
+          cancelled = true;
+          break;
+        }
+        failed += 1;
         if (!firstError) firstError = msg;
         if (msg.toLowerCase().includes("credits are exhausted")) {
           creditExhausted = true;
@@ -169,14 +181,16 @@ export const seedKnowledgeBaseBatch = createServerFn({ method: "POST" })
 
     const totalIndexed = have.size + inserted;
     const remaining = KB_CORPUS.length - totalIndexed;
-    const done = creditExhausted || remaining <= 0;
+    const done = creditExhausted || cancelled || remaining <= 0;
 
     // Audit log — never let logging failure break seeding.
     try {
       await admin.from("admin_audit_logs").insert([{
         actor_id: userId,
         actor_email: claims?.email ?? null,
-        action: done ? "kb_seed.complete" : "kb_seed.batch",
+        action: cancelled
+          ? "kb_seed.cancelled"
+          : done ? "kb_seed.complete" : "kb_seed.batch",
         target_type: "kb_chunks",
         metadata: {
           processed: batch.length,
@@ -186,6 +200,7 @@ export const seedKnowledgeBaseBatch = createServerFn({ method: "POST" })
           totalIndexed,
           target: KB_CORPUS.length,
           creditExhausted,
+          cancelled,
           firstError: firstError ?? null,
         },
       }]);
@@ -193,16 +208,18 @@ export const seedKnowledgeBaseBatch = createServerFn({ method: "POST" })
       /* ignore audit failure */
     }
 
-    const message = creditExhausted
-      ? `Stopped — AI credits exhausted after ${inserted} in this batch.`
-      : failed > 0
-        ? `Batch: ${inserted} indexed, ${failed} failed. ${remaining} remaining.`
-        : done
-          ? `Indexing complete — ${totalIndexed}/${KB_CORPUS.length} chunks.`
-          : `Batch: +${inserted} indexed. ${remaining} remaining.`;
+    const message = cancelled
+      ? `Cancelled — ${inserted} indexed in this batch, ${remaining} remaining.`
+      : creditExhausted
+        ? `Stopped — AI credits exhausted after ${inserted} in this batch.`
+        : failed > 0
+          ? `Batch: ${inserted} indexed, ${failed} failed. ${remaining} remaining.`
+          : done
+            ? `Indexing complete — ${totalIndexed}/${KB_CORPUS.length} chunks.`
+            : `Batch: +${inserted} indexed. ${remaining} remaining.`;
 
     return {
-      ok: failed === 0 && !creditExhausted,
+      ok: failed === 0 && !creditExhausted && !cancelled,
       done,
       processed: batch.length,
       inserted,
@@ -214,6 +231,41 @@ export const seedKnowledgeBaseBatch = createServerFn({ method: "POST" })
       firstError,
       currentTitle,
     };
+  });
+
+// Explicit cancel endpoint — writes a cancellation audit entry immediately
+// when the user clicks Cancel, so the log records the intent even if the
+// in-flight batch's own audit write is torn down by the abort.
+export const cancelKbSeed = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { reason?: string } | undefined) => ({
+    reason: (data?.reason ?? "").slice(0, 200),
+  }))
+  .handler(async ({ data, context }): Promise<{ ok: true }> => {
+    const { userId, claims } = context as unknown as {
+      userId: string;
+      claims: { email?: string } | null;
+    };
+    await requireOwnerOrAdmin(
+      context.supabase as unknown as Parameters<typeof requireOwnerOrAdmin>[0],
+      userId,
+    );
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      await (supabaseAdmin as unknown as {
+        from: (t: string) => {
+          insert: (rows: Array<Record<string, unknown>>) =>
+            Promise<{ error: { message: string } | null }>;
+        };
+      }).from("admin_audit_logs").insert([{
+        actor_id: userId,
+        actor_email: claims?.email ?? null,
+        action: "kb_seed.cancelled",
+        target_type: "kb_chunks",
+        metadata: { reason: data.reason || "user_cancelled", source: "client" },
+      }]);
+    } catch { /* ignore */ }
+    return { ok: true };
   });
 
 // Legacy one-shot endpoint — kept for backwards compatibility. Loops the
