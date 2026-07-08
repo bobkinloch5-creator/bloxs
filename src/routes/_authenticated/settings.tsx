@@ -532,3 +532,33 @@ function Field({ label, children, wide = false }: { label: string; children: Rea
   );
 }
 
+
+async function resizeImageToJpeg(file: File, maxSize: number, quality: number): Promise<Blob> {
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result));
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const i = new Image();
+    i.onload = () => resolve(i);
+    i.onerror = reject;
+    i.src = dataUrl;
+  });
+  const size = Math.min(maxSize, Math.max(img.width, img.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = size; canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Canvas 2D not supported");
+  // Cover-crop centered
+  const scale = Math.max(size / img.width, size / img.height);
+  const sw = img.width * scale;
+  const sh = img.height * scale;
+  ctx.fillStyle = "#0f172a";
+  ctx.fillRect(0, 0, size, size);
+  ctx.drawImage(img, (size - sw) / 2, (size - sh) / 2, sw, sh);
+  return await new Promise<Blob>((resolve, reject) =>
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Encode failed"))), "image/jpeg", quality),
+  );
+}
