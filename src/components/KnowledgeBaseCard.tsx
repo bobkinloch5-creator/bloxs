@@ -87,7 +87,18 @@ export function KnowledgeBaseCard() {
     let totalFailed = 0;
     try {
       while (!cancelRef.current) {
-        const res: SeedBatchResult = await batchFn({ data: { batchSize: 5 } });
+        const controller = new AbortController();
+        abortRef.current = controller;
+        let res: SeedBatchResult;
+        try {
+          res = await batchFn({ data: { batchSize: 5 }, signal: controller.signal });
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          if (cancelRef.current || /aborted|AbortError/i.test(msg)) break;
+          throw e;
+        } finally {
+          abortRef.current = null;
+        }
         totalInserted += res.inserted;
         totalFailed += res.failed;
         setProgress(res);
@@ -98,7 +109,6 @@ export function KnowledgeBaseCard() {
           else toast(res.message);
           break;
         }
-        // Small breather between batches so the UI feels responsive.
         await new Promise((r) => setTimeout(r, 150));
       }
       if (cancelRef.current) {
@@ -108,12 +118,18 @@ export function KnowledgeBaseCard() {
       toast.error(friendlyError(e));
     } finally {
       setRunning(false);
+      abortRef.current = null;
       queryClient.invalidateQueries({ queryKey: ["kb-status"] });
       refetchAudit();
     }
   }, [batchFn, queryClient, refetchAudit, running]);
 
-  const cancel = useCallback(() => { cancelRef.current = true; }, []);
+  const cancel = useCallback(() => {
+    cancelRef.current = true;
+    abortRef.current?.abort();
+    // Fire-and-forget cancellation audit; don't block the UI.
+    cancelFn({ data: { reason: "user_cancelled" } }).catch(() => {});
+  }, [cancelFn]);
 
   const exportAuditCsv = useCallback(async () => {
     try {
