@@ -287,6 +287,128 @@ function SettingsPage() {
             </div>
           </section>
 
+          {/* ===== Account (username, avatar, password) ===== */}
+          <section className="rounded-3xl border border-white/10 bg-white/[0.045] p-5 shadow-2xl shadow-black/20 backdrop-blur sm:p-6">
+            <SectionTitle icon={<AtSign className="h-4 w-4" />} title="Account" description="Change your username, upload a profile avatar, and update your password." />
+
+            {/* Avatar */}
+            <div className="mt-5 flex flex-col gap-4 rounded-2xl border border-white/10 bg-black/20 p-4 sm:flex-row sm:items-center">
+              <div className="grid h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-2xl border border-white/15 bg-violet-500 text-3xl font-black text-white shadow-xl">
+                {profileAny.avatar_url ? <img src={profileAny.avatar_url} alt="" className="h-full w-full object-cover" /> : initial}
+              </div>
+              <div className="flex-1">
+                <div className="text-sm font-bold text-white inline-flex items-center gap-2"><Camera className="h-4 w-4" /> Profile avatar</div>
+                <p className="mt-1 text-xs text-muted-foreground">Upload a square image up to 5&nbsp;MB. We auto-resize to 512×512 JPEG for fast loading.</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarPick} />
+                  <button onClick={() => fileInputRef.current?.click()} disabled={avatarBusy}
+                    className="inline-flex items-center gap-2 rounded-xl bg-violet-500/90 px-4 py-2 text-sm font-bold text-white transition hover:bg-violet-500 disabled:opacity-50">
+                    {avatarBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />} Upload new
+                  </button>
+                  {profileAny.avatar_url && (
+                    <button onClick={() => clearAvatar.mutate()} disabled={clearAvatar.isPending}
+                      className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/[0.04] px-4 py-2 text-sm font-bold text-white transition hover:bg-white/[0.08] disabled:opacity-50">
+                      {clearAvatar.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <XIcon className="h-4 w-4" />} Remove
+                    </button>
+                  )}
+                </div>
+                {avatarMsg && <p className="mt-2 text-xs text-slate-300">{avatarMsg}</p>}
+              </div>
+            </div>
+
+            {/* Username */}
+            <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-4">
+              <div className="text-sm font-bold text-white inline-flex items-center gap-2"><AtSign className="h-4 w-4" /> Username</div>
+              <p className="mt-1 text-xs text-muted-foreground">3–24 characters, lowercase letters, numbers, or underscores. Can be changed once every 14 days.</p>
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+                <div className="relative flex-1">
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">@</span>
+                  <input
+                    value={usernameDraft}
+                    onChange={(e) => { setUsernameDraft(e.target.value); setUsernameMsg(null); }}
+                    className="profile-input pl-7"
+                    placeholder="your_handle"
+                    maxLength={24}
+                    autoCapitalize="none"
+                    spellCheck={false}
+                  />
+                </div>
+                <button
+                  onClick={() => changeUsername.mutate()}
+                  disabled={
+                    changeUsername.isPending ||
+                    usernameStatus !== "ok" ||
+                    cooldownDays > 0 ||
+                    usernameDraft.trim().toLowerCase() === (profileAny.username ?? "")
+                  }
+                  className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground transition hover:opacity-90 disabled:opacity-40"
+                >
+                  {changeUsername.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />} Change username
+                </button>
+              </div>
+              <div className="mt-2 text-xs">
+                {usernameStatus === "checking" && <span className="text-slate-400">Checking availability…</span>}
+                {usernameStatus === "ok" && <span className="text-emerald-300">Available ✓</span>}
+                {usernameStatus === "taken" && <span className="text-red-300">Already taken</span>}
+                {usernameStatus === "format" && <span className="text-amber-300">Only a–z, 0–9, and _ (3–24 chars)</span>}
+                {cooldownDays > 0 && <span className="ml-2 text-slate-400">· Next change in {cooldownDays} day{cooldownDays === 1 ? "" : "s"}</span>}
+              </div>
+              {usernameMsg && <p className="mt-2 text-xs text-slate-300">{usernameMsg}</p>}
+            </div>
+
+            {/* Password */}
+            <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-4">
+              <div className="text-sm font-bold text-white inline-flex items-center gap-2"><KeyRound className="h-4 w-4" /> Password</div>
+              <p className="mt-1 text-xs text-muted-foreground">Enter your current password, then a new password (min 8 characters). If you signed up with Google/Apple, use the reset email instead.</p>
+              <div className="mt-3 grid gap-3 md:grid-cols-3">
+                <input type="password" autoComplete="current-password" value={pwForm.current}
+                  onChange={(e) => { setPwForm({ ...pwForm, current: e.target.value }); setPwMsg(null); }}
+                  className="profile-input" placeholder="Current password" />
+                <input type="password" autoComplete="new-password" value={pwForm.next}
+                  onChange={(e) => { setPwForm({ ...pwForm, next: e.target.value }); setPwMsg(null); }}
+                  className="profile-input" placeholder="New password" />
+                <input type="password" autoComplete="new-password" value={pwForm.confirm}
+                  onChange={(e) => { setPwForm({ ...pwForm, confirm: e.target.value }); setPwMsg(null); }}
+                  className="profile-input" placeholder="Confirm new password" />
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  onClick={() => changePw.mutate()}
+                  disabled={changePw.isPending || !pwForm.current || !pwForm.next || !pwForm.confirm}
+                  className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground transition hover:opacity-90 disabled:opacity-40"
+                >
+                  {changePw.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />} Update password
+                </button>
+                <button
+                  onClick={() => sendReset.mutate()}
+                  disabled={sendReset.isPending}
+                  className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/[0.04] px-4 py-2 text-sm font-bold text-white transition hover:bg-white/[0.08] disabled:opacity-50"
+                >
+                  {sendReset.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />} Send reset email
+                </button>
+              </div>
+              {pwMsg && (
+                <p className={`mt-2 text-xs ${pwMsg.ok ? "text-emerald-300" : "text-red-300"}`}>{pwMsg.text}</p>
+              )}
+            </div>
+          </section>
+
+          {/* ===== Collaboration pointer ===== */}
+          <section className="rounded-3xl border border-cyan-300/20 bg-cyan-400/10 p-5 text-cyan-50">
+            <div className="flex items-start gap-3">
+              <Users className="mt-0.5 h-5 w-5 text-cyan-200" />
+              <div className="flex-1">
+                <div className="font-black">Build together in the same workspace</div>
+                <p className="mt-1 text-sm text-cyan-100/85">Invite teammates by username, assign editor or viewer roles, chat in real time, and see every action in the shared activity feed — all per project.</p>
+                <a href="/collaborators" className="mt-3 inline-flex items-center gap-2 rounded-xl bg-cyan-400/90 px-4 py-2 text-sm font-bold text-slate-900 transition hover:bg-cyan-300">
+                  <Users className="h-4 w-4" /> Open collaboration hub
+                </a>
+              </div>
+            </div>
+          </section>
+
+
+
 
 
 
