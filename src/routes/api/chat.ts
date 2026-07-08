@@ -4923,6 +4923,14 @@ gui:SetAttribute("Language", ${JSON.stringify(languageName)})
 
 function broadPlayableGameStudioActions(userText: string, languageName: string) {
   if (!isBroadPlayableGameRequest(userText)) return [];
+  // If the user named a real world/place/theme (city, castle, mall, farm, hospital, mansion, forest, island, arena, spaceship, military base, pirate, mine, temple, hotel, church, gym, school, prison, house, restaurant, dungeon, world/map),
+  // do NOT drop a placeholder "adventure" stub on top of the map — the model
+  // + Toolbox pipeline (driven by the injected Genre Brief) will build the
+  // real thing, and stacking the stub on top produces the tiny grass pad
+  // with an "ADVENTURE SYSTEM" HUD instead of the actual map.
+  if (/\b(city|town|downtown|metropolis|neighborhood|urban|village|castle|medieval|kingdom|fortress|keep|dungeon|crypt|catacomb|mall|shopping\s*mall|shopping\s*center|school|high\s*school|university|college|classroom|hospital|clinic|medical\s*center|airport|airfield|terminal|farm|ranch|farmland|restaurant|diner|cafe|coffee\s*shop|pizzeria|prison|jail|penitentiary|mansion|manor|villa|estate|house|home|cabin|cottage|forest|woods|jungle|island|beach|tropical|resort|arena|coliseum|stadium|space\s*ship|spaceship|starship|space\s*station|military\s*base|army\s*base|army\s*camp|military\s*camp|pirate|mine|mining|cave|caves|temple|shrine|ruins|pyramid|hotel|resort\s*hotel|church|cathedral|chapel|gym|fitness\s*center|workout|map|world|open\s*world|game\s*world)\b/i.test(userText)) {
+    return [];
+  }
   const safePrompt = userText.trim().slice(0, 260) || "Roblox playable game system";
   const text = userText.toLowerCase();
   const genre = /\b(city|town|downtown|metropolis|neighborhood|urban|village)\b/.test(text) ? "city" :
