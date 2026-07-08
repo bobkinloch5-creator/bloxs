@@ -860,6 +860,42 @@ export type Database = {
         }
         Relationships: []
       }
+      kb_seed_progress: {
+        Row: {
+          current_index: number
+          current_title: string | null
+          failed: number
+          inserted: number
+          message: string | null
+          status: string
+          total: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          current_index?: number
+          current_title?: string | null
+          failed?: number
+          inserted?: number
+          message?: string | null
+          status?: string
+          total?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          current_index?: number
+          current_title?: string | null
+          failed?: number
+          inserted?: number
+          message?: string | null
+          status?: string
+          total?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       mcp_servers: {
         Row: {
           created_at: string

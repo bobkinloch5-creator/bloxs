@@ -8,8 +8,10 @@ import {
   seedKnowledgeBaseBatch,
   getKbSeedAuditLog,
   cancelKbSeed,
+  getKbSeedProgress,
   type SeedBatchResult,
   type KbSeedAuditEntry,
+  type KbSeedProgress,
 } from "@/lib/kb.functions";
 import { getMyProfile } from "@/lib/profile.functions";
 
@@ -38,9 +40,11 @@ export function KnowledgeBaseCard() {
   const auditFn = useServerFn(getKbSeedAuditLog);
   const profileFn = useServerFn(getMyProfile);
   const cancelFn = useServerFn(cancelKbSeed);
+  const progressFn = useServerFn(getKbSeedProgress);
 
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState<SeedBatchResult | null>(null);
+  const [livePos, setLivePos] = useState<KbSeedProgress | null>(null);
   const [showLog, setShowLog] = useState(false);
   const cancelRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
@@ -64,7 +68,26 @@ export function KnowledgeBaseCard() {
     staleTime: 15_000,
   });
 
-  const indexed = progress?.totalIndexed ?? status?.indexed ?? 0;
+  // Real-time seeding progress — polls every 700ms while a run is active so
+  // the UI shows per-chunk updates (title, inserted/failed counts) instead of
+  // only updating between full batches.
+  useQuery({
+    queryKey: ["kb-seed-progress"],
+    queryFn: async () => {
+      const p = await progressFn({});
+      setLivePos(p);
+      return p;
+    },
+    enabled: running,
+    refetchInterval: 700,
+    refetchIntervalInBackground: false,
+    staleTime: 0,
+  });
+
+  const liveIndexed = running && livePos?.status === "running"
+    ? livePos.current_index
+    : (progress?.totalIndexed ?? status?.indexed ?? 0);
+  const indexed = liveIndexed;
   const target = status?.target ?? progress?.target ?? 0;
   const remaining = Math.max(0, target - indexed);
   const ready = target > 0 && indexed >= target && !running;
@@ -118,6 +141,7 @@ export function KnowledgeBaseCard() {
       toast.error(friendlyError(e));
     } finally {
       setRunning(false);
+      setLivePos(null);
       abortRef.current = null;
       queryClient.invalidateQueries({ queryKey: ["kb-status"] });
       refetchAudit();
@@ -212,13 +236,20 @@ export function KnowledgeBaseCard() {
         </div>
         <div className="mt-1 flex items-center justify-between text-[10px] text-white/40">
           <span>{percent}% complete</span>
-          {running && progress?.currentTitle && (
-            <span className="truncate ml-2 max-w-[60%]" title={progress.currentTitle}>
-              embedding · {progress.currentTitle}
+          {running && (livePos?.current_title || progress?.currentTitle) && (
+            <span className="truncate ml-2 max-w-[60%]" title={livePos?.current_title ?? progress?.currentTitle ?? ""}>
+              embedding · {livePos?.current_title ?? progress?.currentTitle}
             </span>
           )}
         </div>
+        {running && livePos?.status === "running" && (
+          <div className="mt-1 text-[10px] text-white/40 flex items-center justify-between">
+            <span>{livePos.message ?? ""}</span>
+            <span>+{livePos.inserted} indexed · {livePos.failed} failed</span>
+          </div>
+        )}
       </div>
+
 
       {/* Pre-flight preview: chunks-to-process + credits available */}
       {!ready && !running && (

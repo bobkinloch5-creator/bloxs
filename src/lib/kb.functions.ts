@@ -141,9 +141,46 @@ export const seedKnowledgeBaseBatch = createServerFn({ method: "POST" })
     let signal: AbortSignal | undefined;
     try { signal = getRequest().signal; } catch { signal = undefined; }
 
+    // Fire-and-forget progress writes — the client polls `getKbSeedProgress`
+    // to render per-chunk updates within a batch.
+    const progressAdmin = admin as unknown as {
+      from: (t: string) => {
+        upsert: (rows: Array<Record<string, unknown>>, opts: { onConflict: string }) =>
+          Promise<{ error: { message: string } | null }>;
+      };
+    };
+    const writeProgress = (patch: Record<string, unknown>): void => {
+      void progressAdmin.from("kb_seed_progress").upsert(
+        [{
+          user_id: userId,
+          total: KB_CORPUS.length,
+          updated_at: new Date().toISOString(),
+          ...patch,
+        }],
+        { onConflict: "user_id" },
+      ).catch(() => {});
+    };
+
+    writeProgress({
+      status: "running",
+      current_index: have.size,
+      inserted: 0,
+      failed: 0,
+      current_title: batch[0]?.title ?? null,
+      message: `Starting batch of ${batch.length}…`,
+    });
+
     for (const chunk of batch) {
       if (signal?.aborted) { cancelled = true; break; }
       currentTitle = chunk.title;
+      writeProgress({
+        status: "running",
+        current_index: have.size + inserted,
+        inserted,
+        failed,
+        current_title: chunk.title,
+        message: `Embedding ${chunk.title}`,
+      });
       try {
         const vec = await embedText(`${chunk.title}\n\n${chunk.content}`);
         if (signal?.aborted) { cancelled = true; break; }
@@ -182,6 +219,21 @@ export const seedKnowledgeBaseBatch = createServerFn({ method: "POST" })
     const totalIndexed = have.size + inserted;
     const remaining = KB_CORPUS.length - totalIndexed;
     const done = creditExhausted || cancelled || remaining <= 0;
+
+    writeProgress({
+      status: cancelled ? "cancelled" : creditExhausted ? "error" : done ? "done" : "running",
+      current_index: totalIndexed,
+      inserted,
+      failed,
+      current_title: currentTitle ?? null,
+      message: cancelled
+        ? "Cancelled by user"
+        : creditExhausted
+          ? "AI credits exhausted"
+          : done
+            ? "Indexing complete"
+            : `Batch finished, ${remaining} remaining`,
+    });
 
     // Audit log — never let logging failure break seeding.
     try {
@@ -230,6 +282,71 @@ export const seedKnowledgeBaseBatch = createServerFn({ method: "POST" })
       message,
       firstError,
       currentTitle,
+    };
+  });
+
+export type KbSeedProgress = {
+  status: "idle" | "running" | "done" | "cancelled" | "error";
+  current_index: number;
+  total: number;
+  inserted: number;
+  failed: number;
+  current_title: string | null;
+  message: string | null;
+  updated_at: string | null;
+};
+
+// Poll endpoint the KB card hits every ~700ms while running to show
+// per-chunk progress from inside the current batch.
+export const getKbSeedProgress = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<KbSeedProgress> => {
+    const { userId } = context as unknown as { userId: string };
+    const sb = context.supabase as unknown as {
+      from: (t: string) => {
+        select: (cols: string) => {
+          eq: (col: string, val: string) => {
+            maybeSingle: () => Promise<{
+              data: {
+                status: string;
+                current_index: number;
+                total: number;
+                inserted: number;
+                failed: number;
+                current_title: string | null;
+                message: string | null;
+                updated_at: string;
+              } | null;
+              error: { message: string } | null;
+            }>;
+          };
+        };
+      };
+    };
+    const { data } = await sb
+      .from("kb_seed_progress")
+      .select("status, current_index, total, inserted, failed, current_title, message, updated_at")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (!data) {
+      return {
+        status: "idle", current_index: 0, total: 0, inserted: 0, failed: 0,
+        current_title: null, message: null, updated_at: null,
+      };
+    }
+    const allowed = ["idle","running","done","cancelled","error"] as const;
+    const status = (allowed as readonly string[]).includes(data.status)
+      ? data.status as KbSeedProgress["status"]
+      : "idle";
+    return {
+      status,
+      current_index: data.current_index,
+      total: data.total,
+      inserted: data.inserted,
+      failed: data.failed,
+      current_title: data.current_title,
+      message: data.message,
+      updated_at: data.updated_at,
     };
   });
 
