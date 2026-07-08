@@ -7,6 +7,7 @@ import {
   getKbStatus,
   seedKnowledgeBaseBatch,
   getKbSeedAuditLog,
+  cancelKbSeed,
   type SeedBatchResult,
   type KbSeedAuditEntry,
 } from "@/lib/kb.functions";
