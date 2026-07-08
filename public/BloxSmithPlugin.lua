@@ -2064,17 +2064,26 @@ Exec.scan_project = function(_, _)
     return { scanned = scan.sampled, issues = scan.awareness and scan.awareness.issues or {}, uploaded = data and data.ok == true }
 end
 
+local scanBusy = false
 scanBtn.MouseButton1Click:Connect(function()
+    if scanBusy then log("Scan already running...", "warn"); return end
     local token = validToken()
     if not token then log("Not connected -- click Connect first.", "warn"); return end
-    log("Scanning game tree--", "info")
-    local scan = buildScan()
-    log(("Scanned %d instance(s) across %d service(s)."):format(scan.sampled, #scan.roots), "debug")
-    local data, err = post("/api/public/plugin/scan", {
-        token = token, place_id = tostring(game.PlaceId or 0), scan = scan,
-    }, { verbose = true })
-    if err then log("Scan upload failed: " .. err, "error")
-    else log("-- Scan uploaded. AI will see this on your next message.", "success") end
+    scanBusy = true
+    scanBtn.Text = "Scanning..."
+    log("Scanning game tree...", "info")
+    local ok, err = pcall(function()
+        local scan = buildScan()
+        log(("Scanned %d instance(s) across %d service(s)."):format(scan.sampled, #scan.roots), "debug")
+        local data, uErr = post("/api/public/plugin/scan", {
+            token = token, place_id = tostring(game.PlaceId or 0), scan = scan,
+        }, { verbose = true })
+        if uErr then log("Scan upload failed: " .. uErr, "error")
+        else log("Scan uploaded. AI will see this on your next message.", "success") end
+    end)
+    if not ok then log("Scan crashed: " .. tostring(err), "error") end
+    scanBusy = false
+    scanBtn.Text = "Scan Game"
 end)
 
 ------------------------------------------------------------------- error capture (LogService -- API)
@@ -2122,7 +2131,11 @@ autoErrBtn.MouseButton1Click:Connect(function()
     log("Auto error upload " .. (AUTO_SEND_ERRORS and "enabled" or "disabled"), "debug")
 end)
 
+local organizeBusy = false
 organizeBtn.MouseButton1Click:Connect(function()
+    if organizeBusy then log("Organize already running...", "warn"); return end
+    organizeBusy = true
+    organizeBtn.Text = "Organizing..."
     ChangeHistoryService:SetWaypoint("BloxSmith organize start")
     local ok, result = pcall(organizeProject)
     ChangeHistoryService:SetWaypoint("BloxSmith organize done")
@@ -2131,9 +2144,15 @@ organizeBtn.MouseButton1Click:Connect(function()
     else
         log("Organize failed: " .. tostring(result), "error")
     end
+    organizeBusy = false
+    organizeBtn.Text = "Organize"
 end)
 
+local autoFixBusy = false
 autoFixBtn.MouseButton1Click:Connect(function()
+    if autoFixBusy then log("Auto-Fix already running...", "warn"); return end
+    autoFixBusy = true
+    autoFixBtn.Text = "Fixing..."
     ChangeHistoryService:SetWaypoint("BloxSmith auto-fix start")
     local ok, result = pcall(autoFixProject)
     ChangeHistoryService:SetWaypoint("BloxSmith auto-fix done")
@@ -2142,6 +2161,8 @@ autoFixBtn.MouseButton1Click:Connect(function()
     else
         log("Auto-fix failed: " .. tostring(result), "error")
     end
+    autoFixBusy = false
+    autoFixBtn.Text = "Auto-Fix"
 end)
 
 task.spawn(function()
