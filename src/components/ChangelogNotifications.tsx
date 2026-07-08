@@ -3,15 +3,22 @@ import { AlertTriangle, Bell, Bot, Box, Brain, Check, CheckCircle2, ChevronDown,
 import { checkChangelogCoverage, warnIfIncomplete } from "@/lib/changelog-coverage";
 
 
-const CHANGELOG_VERSION = "2026-07-08-referral-credit-bonus";
+const CHANGELOG_VERSION = "2026-07-08-referral-audit-page";
 
 const CHANGELOG_ITEMS = [
+  {
+    title: "🔍 Referral code audit page — one-click backfill + coverage report",
+    date: "Jul 8",
+    icon: ShieldCheck,
+    body: "New admin-only page at /referral-audit shows the full referral_code health of every profile: total profiles, how many have a code, how many are still NULL, coverage percentage, duplicate code detection, and a table of up to 50 missing profiles with created dates. A big green/amber summary banner calls out backfill status at a glance ('Backfill complete — every profile has a unique referral code' vs. how many rows still need attention, including a special flag if any of the NULLs were created in the last 24h — which would mean the auto-assign trigger is broken). If anything is missing, a one-click 'Backfill N' button generates fresh BSxxxxxxxx codes for every NULL row server-side using the service role. Currently reports 195/195 profiles covered — trigger + read-time mint + historical backfill all confirmed working.",
+  },
   {
     title: "🎁 Referral bonus — +25 credits for you AND your friend on every redeem",
     date: "Jul 8",
     icon: Sparkles,
     body: "Every friend that redeems your BSxxxxxxxx invite code now grants +25 credits to both accounts. The reward bumps your max_credits (so the extra credits don't get clipped by the daily reset) and tops up your current credits so they're immediately usable. Owner/Unlimited plans are skipped (already uncapped). Duplicate/self-redeems are still rejected as before. Toast on the Invite friends page now confirms the exact bonus that landed.",
   },
+
 
   {
     title: "👤 Full account controls — change username, upload avatar, update password",
