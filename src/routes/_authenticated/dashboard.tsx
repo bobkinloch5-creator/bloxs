@@ -317,8 +317,9 @@ function Dashboard() {
             )}
 
             {/* AI Playtest — the AI reads your scripts and reports back what it sees */}
-            <section id="ai-playtest">
+            <section id="ai-playtest" className="space-y-4">
               <AiPlaytestCard projectId={activeProjectId} projectName={activeProject?.name} />
+              <LivePlaytestCard />
             </section>
 
             {/* Invite friends prompt — visible on every dashboard load */}
