@@ -1,6 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { convertToModelMessages, streamText, type UIMessage } from "ai";
-import { getFallbackModel } from "@/lib/ai-gateway.server";
+import { getProviderModel } from "@/lib/ai-gateway.server";
+
+// Fast, small NVIDIA chat model — this widget answers short website questions,
+// not code generation, so we deliberately avoid the heavy coder model.
+const HELPER_MODEL_ID = "nvidia/nemotron-nano-9b-v2";
 
 const SYSTEM_PROMPT = `You are the BloxSmith Help Assistant — a friendly, knowledgeable guide for the BloxSmith website (https://bloxsmith.pro).
 
@@ -36,11 +40,16 @@ export const Route = createFileRoute("/api/help-chat")({
             return new Response("Messages are required", { status: 400 });
           }
           const messages = body.messages as UIMessage[];
-          const { model } = getFallbackModel();
+          // Trim the transcript so old turns don't slow every reply.
+          const recent = messages.slice(-12);
+          const { model } = getProviderModel(HELPER_MODEL_ID);
           const result = streamText({
             model,
             system: SYSTEM_PROMPT,
-            messages: await convertToModelMessages(messages),
+            messages: await convertToModelMessages(recent),
+            temperature: 0.4,
+            maxOutputTokens: 500,
+            abortSignal: request.signal,
           });
           return result.toUIMessageStreamResponse({ originalMessages: messages });
         } catch (err) {
