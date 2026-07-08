@@ -134,16 +134,28 @@ export const changeMyUsername = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    // Update via user-scoped client so the trigger sees auth.uid()
-    const { data: row, error } = await context.supabase
+    // Explicit validation because we update via admin (bypasses trigger)
+    const { data: cur, error: cErr } = await supabaseAdmin
+      .from("profiles").select("username, username_changed_at").eq("id", context.userId).maybeSingle();
+    if (cErr) throw new Error(cErr.message);
+    if (cur?.username_changed_at) {
+      const last = new Date(cur.username_changed_at).getTime();
+      const daysLeft = Math.ceil((last + 14 * 86400_000 - Date.now()) / 86400_000);
+      if (daysLeft > 0) throw new Error(`You can change your username again in ${daysLeft} day${daysLeft === 1 ? "" : "s"}.`);
+    }
+    const { data: dup } = await supabaseAdmin
+      .from("profiles").select("id").ilike("username", data.username).neq("id", context.userId).maybeSingle();
+    if (dup) throw new Error("That username is already taken.");
+    const { data: row, error } = await supabaseAdmin
       .from("profiles")
-      .update({ username: data.username } as never)
+      .update({ username: data.username, username_changed_at: new Date().toISOString() } as never)
       .eq("id", context.userId)
       .select("id, username, username_changed_at")
       .single();
     if (error) throw new Error(error.message);
     return row;
   });
+
 
 export const checkUsernameAvailable = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
