@@ -449,4 +449,303 @@ export const KB_CORPUS: KbSeedChunk[] = [
       "Show on-screen action buttons only when isMobile. Larger tap targets (>= 48px). " +
       "Use UIAspectRatioConstraint for square icons and UIScale with a device-based factor so 4K + phone both look right.",
   },
+
+  // ── Scripter: advanced systems ──────────────────────────────────────
+  {
+    topic: "scripter",
+    title: "ProfileService (recommended DataStore wrapper)",
+    source: "library:ProfileService",
+    source_hash: "lib/profileservice/v1",
+    content:
+      "Prefer ProfileService (loleris) over raw DataStore for real games — session-locking prevents item duplication across servers, auto-reconciles schema, handles GDPR wipes. " +
+      "Pattern: ProfileStore = ProfileService.GetProfileStore('PlayerData', TEMPLATE); profile = ProfileStore:LoadProfileAsync('Player_'..userId, 'ForceLoad'); profile:AddUserId(userId); profile:Reconcile(); profile:ListenToRelease(function() Players[userId]:Kick('Profile released') end). " +
+      "Write to profile.Data.Coins directly — auto-saves on interval + on leave. Never roll your own datastore for anything with tradeable items.",
+  },
+  {
+    topic: "scripter",
+    title: "Anti-exploit: server sanity checks",
+    source: "system:anti-exploit",
+    source_hash: "system/anti-exploit/v1",
+    content:
+      "Exploiters can fire any RemoteEvent with any arg. Server MUST: validate types (typeof(x)=='number'), clamp ranges, verify distance (player.Character.HumanoidRootPart.Position - target).Magnitude < MAX_REACH, rate-limit (last[player]=os.clock() checks), verify ownership (item belongs to player), and never trust client-sent damage / position / currency. " +
+      "Use Debounce table keyed by player. Kick or log repeated violations. Track suspicious patterns with a Score system before banning.",
+  },
+  {
+    topic: "scripter",
+    title: "Remote rate-limiter pattern",
+    source: "system:rate-limit",
+    source_hash: "system/rate-limit/v1",
+    content:
+      "local buckets = {}; local function allow(player, key, perSec) local now=os.clock(); local b=buckets[player]; if not b then b={}; buckets[player]=b end; local t=b[key] or 0; if now - t < 1/perSec then return false end; b[key]=now; return true end. " +
+      "Players.PlayerRemoving:Connect(function(p) buckets[p]=nil end). Guard every RemoteEvent handler with allow(player,'attack',6) etc.",
+  },
+  {
+    topic: "scripter",
+    title: "Zombie / NPC AI with Pathfinding",
+    source: "system:npc-ai",
+    source_hash: "system/npc-ai/v1",
+    content:
+      "local PS = game:GetService('PathfindingService'); local path = PS:CreatePath({AgentRadius=2, AgentHeight=5, AgentCanJump=true, WaypointSpacing=4}). " +
+      "Loop: find nearest player within aggro radius, path:ComputeAsync(zombie.HRP.Position, target.Position); for _,wp in path:GetWaypoints() do humanoid:MoveTo(wp.Position); if wp.Action==Enum.PathWaypointAction.Jump then humanoid.Jump=true end; humanoid.MoveToFinished:Wait() end. " +
+      "Recompute every ~0.5s or when Blocked. Attack when in range via Touched or a magnitude check.",
+  },
+  {
+    topic: "scripter",
+    title: "Round / lobby system skeleton",
+    source: "system:rounds",
+    source_hash: "system/rounds/v1",
+    content:
+      "ServerScript: while true do WaitForPlayers(2); Intermission(15); local map=LoadMap(); TeleportAll(map.Spawn); StartRound(120); DeclareWinner(); Cleanup(map); end. " +
+      "Use ReplicatedStorage.Maps folder cloned in, :Destroy() at end. Broadcast state via RoundStateValue (StringValue) so UI reflects Intermission/InRound/EndRound. " +
+      "Track alive players in a set; last-one-standing or timer-elapsed ends the round.",
+  },
+  {
+    topic: "scripter",
+    title: "Ragdoll on death",
+    source: "system:ragdoll",
+    source_hash: "system/ragdoll/v1",
+    content:
+      "On humanoid.Died: for each Motor6D in character, replace with BallSocketConstraint using its Part0/Part1 + attachments at C0/C1. Set humanoid:ChangeState(Enum.HumanoidStateType.Physics). " +
+      "Add HingeConstraints on knees/elbows with LimitsEnabled for realism. Destroy character after 5s or on respawn.",
+  },
+  {
+    topic: "scripter",
+    title: "Weapon hit registration with lag compensation",
+    source: "system:hitreg",
+    source_hash: "system/hitreg/v1",
+    content:
+      "Client fires HitRemote with {targetPart, hitPos, timestamp}. Server rewinds: check target's HRP position ~ping/2 ago (store a small ring buffer of positions per character). " +
+      "Verify (hitPos - rewindedPos).Magnitude < weapon.MaxRadius and (attacker.HRP.Position - hitPos).Magnitude < weapon.Range. Then apply damage server-side. Never trust client-reported damage value.",
+  },
+  {
+    topic: "scripter",
+    title: "TweenService for smooth motion + UI",
+    source: "roblox-api:TweenService",
+    source_hash: "api/tweenservice/v1",
+    content:
+      "local TS = game:GetService('TweenService'); local info = TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out); TS:Create(instance, info, {Position = target, Transparency = 0}):Play(). " +
+      "For UI: tween Size/Position/BackgroundTransparency. For parts: use TweenService, NOT :SetPrimaryPartCFrame in a loop. Tweens are client- OR server-authoritative depending on where you play them.",
+  },
+  {
+    topic: "scripter",
+    title: "ContextActionService for cross-platform input",
+    source: "roblox-api:ContextActionService",
+    source_hash: "api/cas/v1",
+    content:
+      "local CAS = game:GetService('ContextActionService'); CAS:BindAction('Sprint', handler, true, Enum.KeyCode.LeftShift, Enum.KeyCode.ButtonR2). " +
+      "Third arg true = auto-creates a mobile touch button. handler(actionName, inputState, inputObject) — check inputState == Enum.UserInputState.Begin. Use CAS:SetTitle/SetImage for the mobile button.",
+  },
+  {
+    topic: "scripter",
+    title: "Camera controllers (first + third person)",
+    source: "system:camera",
+    source_hash: "system/camera/v1",
+    content:
+      "LocalScript in StarterPlayerScripts. camera = workspace.CurrentCamera; camera.CameraType = Enum.CameraType.Scriptable. " +
+      "Third-person: RunService.RenderStepped:Connect(function(dt) local target = character.HRP.Position; camera.CFrame = CFrame.new(target - lookVec*distance + Vector3.new(0,2,0), target) end). " +
+      "First-person: lock mouse (UIS.MouseBehavior = Enum.MouseBehavior.LockCenter), read Delta each frame, apply yaw/pitch, position camera at head attachment.",
+  },
+  {
+    topic: "scripter",
+    title: "MessagingService (cross-server events)",
+    source: "roblox-api:MessagingService",
+    source_hash: "api/messaging/v1",
+    content:
+      "local MS = game:GetService('MessagingService'); MS:SubscribeAsync('GlobalEvent', function(msg) print(msg.Data) end); MS:PublishAsync('GlobalEvent', {text='hi'}). " +
+      "Payload <= 1KB, 150 messages/min per topic. Great for global chat, cross-server leaderboards, global boss timers. Combine with MemoryStoreService for shared counters.",
+  },
+  {
+    topic: "scripter",
+    title: "MemoryStoreService (fast shared state)",
+    source: "roblox-api:MemoryStoreService",
+    source_hash: "api/memorystore/v1",
+    content:
+      "local MSS = game:GetService('MemoryStoreService'); local queue = MSS:GetQueue('Matchmaking', 60); queue:AddAsync(userId, 30). " +
+      "SortedMap for global leaderboards (:SetAsync,:GetRangeAsync). HashMap for shared flags. TTL required, capped throughput per key — use for matchmaking, live event counters, cross-server rooms.",
+  },
+  {
+    topic: "scripter",
+    title: "TeleportService + reserved servers",
+    source: "roblox-api:TeleportService",
+    source_hash: "api/teleport/v1",
+    content:
+      "local TS = game:GetService('TeleportService'); local code = TS:ReserveServer(placeId); TS:TeleportToPrivateServer(placeId, code, {player1, player2}, nil, teleportData). " +
+      "Retrieve on arrival: TS:GetLocalPlayerTeleportData() (client) or player:GetJoinData().TeleportData (server). Wrap in pcall + retry. Use for lobby→match, dungeons, party instances.",
+  },
+  {
+    topic: "scripter",
+    title: "MarketplaceService: dev products + subs",
+    source: "roblox-api:MarketplaceService",
+    source_hash: "api/marketplace/v1",
+    content:
+      "local MPS = game:GetService('MarketplaceService'); MPS:PromptProductPurchase(player, productId). " +
+      "MPS.ProcessReceipt = function(info) local player = Players:GetPlayerByUserId(info.PlayerId); if not player then return Enum.ProductPurchaseDecision.NotProcessedYet end; grant(player, info.ProductId); saveNow(player); return Enum.ProductPurchaseDecision.PurchaseGranted end. " +
+      "Only return PurchaseGranted AFTER data is safely saved. Gamepasses: MPS:UserOwnsGamePassAsync(userId, passId).",
+  },
+  {
+    topic: "scripter",
+    title: "AnalyticsService (Roblox built-in)",
+    source: "roblox-api:AnalyticsService",
+    source_hash: "api/analytics/v1",
+    content:
+      "local AS = game:GetService('AnalyticsService'); AS:LogEconomyEvent(player, Enum.AnalyticsEconomyFlowType.Sink, 'Coins', 100, balance, Enum.AnalyticsEconomyTransactionType.Shop.Name, 'sword'). " +
+      "LogFunnelStepEvent for tutorial funnels, LogProgressionEvent for level ups. Shows up in Creator Dashboard analytics — invaluable for tuning drop rates and shop prices.",
+  },
+  {
+    topic: "scripter",
+    title: "Signal + Maid patterns (memory-safe events)",
+    source: "style:signal-maid",
+    source_hash: "style/signal-maid/v1",
+    content:
+      "Maid = collect connections/instances: maid = {}; function giveTask(t) table.insert(maid,t) end; function cleanup() for _,t in maid do if typeof(t)=='RBXScriptConnection' then t:Disconnect() elseif typeof(t)=='Instance' then t:Destroy() else t() end end end. " +
+      "Always :Disconnect() events on PlayerRemoving / Character death / Tool unequip or you leak memory. Prefer Sleitnick's Signal + Trove libraries in production.",
+  },
+  {
+    topic: "scripter",
+    title: "Placement / build system (grid snap)",
+    source: "system:placement",
+    source_hash: "system/placement/v1",
+    content:
+      "Client: RunService.RenderStepped raycasts from mouse using workspace.CurrentCamera:ViewportPointToRay. Snap: pos = Vector3.new(math.floor(hit.X/g+0.5)*g, hit.Y, math.floor(hit.Z/g+0.5)*g). Show ghost model tinted green/red for valid/overlap. " +
+      "On click, fire PlaceRemote with model id + CFrame. Server re-validates ownership, funds, no overlap (Workspace:GetPartsInPart), then clones the real model.",
+  },
+  {
+    topic: "scripter",
+    title: "Trading system (safe)",
+    source: "system:trading",
+    source_hash: "system/trading/v1",
+    content:
+      "State machine per trade session (ReplicatedStorage session folder): Opened -> Offering -> ConfirmedA -> ConfirmedB -> Committed. Only server mutates state; clients propose changes via remotes. " +
+      "On Confirm from both sides, in ONE server tick: verify both players still own offered items, transfer items via ProfileService (both profiles saved atomically), log the trade with trade id + userIds + items. Never allow item transfer outside this committed step.",
+  },
+  {
+    topic: "scripter",
+    title: "TextService chat filter (safety)",
+    source: "roblox-api:TextService",
+    source_hash: "api/textservice/v1",
+    content:
+      "local TS = game:GetService('TextService'); local ok, filter = pcall(TS.FilterStringAsync, TS, message, fromUserId); if ok then local safe = filter:GetChatForUserAsync(toUserId); label.Text = safe end. " +
+      "MUST filter every player-authored string shown to other players: usernames on custom UIs, pet names, sign text, house names. Roblox will moderate your game if you skip this.",
+  },
+  {
+    topic: "scripter",
+    title: "Vehicle: raycast suspension car",
+    source: "system:vehicle",
+    source_hash: "system/vehicle/v1",
+    content:
+      "Chassis = single Part. 4 Attachments at wheel positions. Each RenderStepped: raycast down suspensionLength, compute compression, apply upward VectorForce = k*compression - c*verticalVelocity. Steering via BodyGyro/AlignOrientation on chassis. Throttle applies forward VectorForce at rear attachments. " +
+      "Feels sports-car with k≈40000, c≈3000 on a 4-stud chassis. Grounded raycasts also give surface friction — vary throttle force by hit.Material.",
+  },
+  {
+    topic: "scripter",
+    title: "Tower Defense placement + wave system",
+    source: "system:td",
+    source_hash: "system/td/v1",
+    content:
+      "Path = Folder of numbered waypoints (Part.Waypoint_1..N). Enemies clone from ReplicatedStorage.Enemies, walk waypoints via humanoid:MoveTo + MoveToFinished:Wait, damage base on reach. " +
+      "Towers: Model with RangePart (invisible sphere). Loop finds nearest enemy in range, fires projectile or hitscan every fireRate. Waves defined as {{enemy='Zombie', count=10, delay=0.5}, ...}. Between waves 15s intermission with a Skip button.",
+  },
+  {
+    topic: "scripter",
+    title: "Simulator: pets + multipliers",
+    source: "system:pets",
+    source_hash: "system/pets/v1",
+    content:
+      "Pet = Model welded to invisible AlignPosition/AlignOrientation follower behind player. Each equipped pet contributes multiplier to Coins (or Strength). Server stores player.equippedPets = {petUUID,...} with max slots. " +
+      "Rarity roll: weighted table; log Analytics economy event. Hatch UI: 3-second reveal tween. Cap total equipped multiplier (e.g. 500x) to control inflation.",
+  },
+  {
+    topic: "scripter",
+    title: "Quest / objective tracker",
+    source: "system:quests",
+    source_hash: "system/quests/v1",
+    content:
+      "Quest def: {id, title, goal={type='kill', target='Zombie', count=10}, reward={coins=100, xp=50}}. Server tracks per-player progress table; increments on relevant events (enemy died, item picked up). " +
+      "On complete, grant reward, mark done in profile, fire QuestUpdate to client to update HUD. Support daily quests via os.date('*t').yday reset check.",
+  },
+  {
+    topic: "scripter",
+    title: "Dialogue / NPC interaction",
+    source: "system:dialogue",
+    source_hash: "system/dialogue/v1",
+    content:
+      "ProximityPrompt on NPC ('Talk'). On Triggered, fire DialogueRemote:FireClient(player, npcId, dialogueId). Client shows portrait + typewriter TextLabel + choice buttons. " +
+      "Choices reference next node id or 'end' or 'giveQuest:foo'. Data-driven: define trees in ModuleScripts under ServerStorage.Dialogues so writers don't touch code.",
+  },
+  {
+    topic: "scripter",
+    title: "Loot table / drop rolling",
+    source: "system:loot",
+    source_hash: "system/loot/v1",
+    content:
+      "Weighted roll: local total=0; for _,e in table do total+=e.weight end; local r=math.random()*total; local acc=0; for _,e in table do acc+=e.weight; if r<=acc then return e end end. " +
+      "Publish drop rates to players (regulated in some regions). Log every rare drop with player, item, timestamp for anti-dupe auditing.",
+  },
+
+  // ── World Builder: environments ─────────────────────────────────────
+  {
+    topic: "world_builder",
+    title: "Terrain painting + biomes",
+    source: "system:terrain",
+    source_hash: "system/terrain/v1",
+    content:
+      "Terrain:FillRegion(region, 4, Enum.Material.Grass) for large fills. Use Terrain Editor for hand-sculpting cliffs, water pools, caves. " +
+      "Biome tint: adjust Terrain.WaterColor + Lighting.Atmosphere per zone. For procedural: nested loops over chunks calling Terrain:WriteVoxels with material+occupancy grids derived from Perlin noise (math.noise).",
+  },
+  {
+    topic: "world_builder",
+    title: "Post-processing profiles per zone",
+    source: "system:lighting-profiles",
+    source_hash: "system/lighting-profiles/v1",
+    content:
+      "Store Lighting effect presets in ModuleScript: {Cave = {Bloom={Intensity=0.2}, ColorCorrection={Tint=Color3.new(0.6,0.7,1)}}}. Zone triggers (Touched on invisible Region parts) tween effects to target values over 1s. " +
+      "Enable Bloom + Sunrays + DepthOfField sparingly on mobile — check UserInputService.TouchEnabled and reduce intensity.",
+  },
+  {
+    topic: "world_builder",
+    title: "Weather + particle presets",
+    source: "system:weather",
+    source_hash: "system/weather/v1",
+    content:
+      "Rain: ParticleEmitter high above map, huge Rate (500), Speed 60, Lifetime 1.5, Texture=streak. Combine with Atmosphere.Density up + Lighting.Ambient down. " +
+      "Snow: slower speed, drift via Acceleration.X sine. Fog: increase Lighting.FogEnd inward. Broadcast weather state via StringValue so late joiners sync.",
+  },
+  {
+    topic: "world_builder",
+    title: "Procedural map (voxel + noise)",
+    source: "system:procgen",
+    source_hash: "system/procgen/v1",
+    content:
+      "for x=1,W do for z=1,D do local h = math.noise(x*0.05, z*0.05)*20 + 30; for y=1,h do fill voxel with Grass; if y<h-3 then Rock end end end end. " +
+      "Chunk on demand around each player using StreamingEnabled semantics. Seed with a game-wide constant so the world is deterministic across servers.",
+  },
+
+  // ── UI Designer: extra patterns ─────────────────────────────────────
+  {
+    topic: "ui_designer",
+    title: "Menu with tabs (settings pattern)",
+    source: "system:tabs",
+    source_hash: "system/tabs/v1",
+    content:
+      "Container Frame + top TabBar (UIListLayout Horizontal). Each tab button toggles Visible on its content Frame. Highlight active tab via BackgroundColor3 + UIStroke. " +
+      "For settings: bind toggles/sliders to a client-side Config module, save preferences in a small DataStore key per player (Music volume, camera sensitivity).",
+  },
+  {
+    topic: "ui_designer",
+    title: "Loading screen + preload",
+    source: "system:loading",
+    source_hash: "system/loading/v1",
+    content:
+      "ReplicatedFirst LocalScript. game:GetService('ReplicatedFirst'):RemoveDefaultLoadingScreen(). Show custom ScreenGui. " +
+      "ContentProvider:PreloadAsync({...assets}); player.CharacterAdded:Wait(); tween out ScreenGui and Destroy(). Keeps first paint clean; NEVER auto-add this unless the user asked for a splash screen (violates strict scope rules).",
+  },
+  {
+    topic: "ui_designer",
+    title: "Leaderboard (global via OrderedDataStore)",
+    source: "system:leaderboard-ui",
+    source_hash: "system/leaderboard-ui/v1",
+    content:
+      "Server: DataStoreService:GetOrderedDataStore('Coins'):GetSortedAsync(false, 100). Push top rows via LeaderboardRemote every 60s. " +
+      "Client: ScrollingFrame with rank + username + value rows, tween new entries. Optional per-server ranking via a table sorted every few seconds.",
+  },
 ];
