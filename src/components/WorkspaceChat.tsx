@@ -17,7 +17,7 @@ import ReactMarkdown from "react-markdown";
 import { supabase } from "@/integrations/supabase/client";
 import { createProject } from "@/lib/projects.functions";
 import { listMessages, getPluginSession, getBuildExecutionStatus, clearMessages, executeQueuedActionsNow } from "@/lib/chat.functions";
-import { improvePrompt, enhancePrompt } from "@/lib/improve.functions";
+import { improvePrompt } from "@/lib/improve.functions";
 import { saveProjectAsset } from "@/lib/project-assets.functions";
 import { Link } from "@tanstack/react-router";
 import { Plug } from "lucide-react";
@@ -172,7 +172,7 @@ export function WorkspaceChat({
   const createFn = useServerFn(createProject);
   const listFn = useServerFn(listMessages);
   const improveFn = useServerFn(improvePrompt);
-  const enhanceFn = useServerFn(enhancePrompt);
+  
   const sessFn = useServerFn(getPluginSession);
   const execStatusFn = useServerFn(getBuildExecutionStatus);
   const executeNowFn = useServerFn(executeQueuedActionsNow);
@@ -209,7 +209,7 @@ export function WorkspaceChat({
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [token, setToken] = useState<string | null>(null);
   const [enhancing, setEnhancing] = useState(false);
-  const [enhancingPro, setEnhancingPro] = useState(false);
+  
   // 🎙️ NVIDIA Voice — TTS enabled state persisted across sessions
   const [ttsEnabled, setTtsEnabled] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
@@ -463,36 +463,17 @@ export function WorkspaceChat({
       const res = await improveFn({ data: { text } });
       if (res.ok && res.text) {
         setPrompt(res.text);
-        toast.success("Prompt improved");
+        toast.success("Prompt polished");
       } else {
-        toast.error("Couldn't improve the prompt.");
+        toast.error("Couldn't polish the prompt.");
       }
     } catch (e) {
-      toast.error(friendlyError(e, { fallback: "Improve failed." }));
+      toast.error(friendlyError(e, { fallback: "Polish failed." }));
     } finally {
       setEnhancing(false);
     }
   }
 
-  async function enhancePro() {
-    const text = prompt.trim();
-    if (!text) { toast.error("Type a prompt first."); return; }
-    if (enhancingPro) return;
-    setEnhancingPro(true);
-    try {
-      const res = await enhanceFn({ data: { text } });
-      if (res.ok && res.text) {
-        setPrompt(res.text);
-        toast.success("Prompt enhanced into build brief");
-      } else {
-        toast.error("Couldn't enhance the prompt.");
-      }
-    } catch (e) {
-      toast.error(friendlyError(e, { fallback: "Enhance failed." }));
-    } finally {
-      setEnhancingPro(false);
-    }
-  }
 
   const handleVoiceUtterance = useCallback((text: string) => {
     // Voice utterances always go to Build mode so they execute in Studio
@@ -956,22 +937,11 @@ export function WorkspaceChat({
             onClick={enhance}
             disabled={!prompt.trim() || enhancing || busy}
             className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg border border-indigo-400/40 bg-indigo-500/10 px-3 py-2 text-xs font-semibold text-indigo-100 transition hover:bg-indigo-500/20 hover:border-indigo-400/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
-            title="Improve prompt — expand into a detailed build brief"
-            aria-label="Improve prompt"
+            title="Polish prompt — refine wording, grammar, and clarity into a premium build request"
+            aria-label="Polish prompt"
           >
             {enhancing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
-            <span className="hidden sm:inline">{enhancing ? "Improving…" : "Improve"}</span>
-          </button>
-          <button
-            type="button"
-            onClick={enhancePro}
-            disabled={!prompt.trim() || enhancingPro || busy}
-            className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg border border-fuchsia-400/40 bg-fuchsia-500/10 px-3 py-2 text-xs font-semibold text-fuchsia-100 transition hover:bg-fuchsia-500/20 hover:border-fuchsia-400/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
-            title="Enhance prompt — expand vague idea into a full build brief (genre, mechanics, systems, UI, polish)"
-            aria-label="Enhance prompt"
-          >
-            {enhancingPro ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-            <span className="hidden sm:inline">{enhancingPro ? "Enhancing…" : "Enhance"}</span>
+            <span className="hidden sm:inline">{enhancing ? "Polishing…" : "Polish"}</span>
           </button>
         </div>
 
