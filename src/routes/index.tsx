@@ -86,6 +86,9 @@ function Header() {
         <Link to="/support" className="hover:text-white transition">Support</Link>
       </nav>
       <div className="flex items-center gap-2">
+        <Link to="/donate" aria-label="Donate to BloxSmith" title="Support BloxSmith" className="inline-flex items-center gap-1 rounded-lg border border-pink-400/30 bg-pink-500/10 px-2.5 py-1.5 text-xs font-semibold text-pink-200 hover:border-pink-400/60 hover:bg-pink-500/15 hover:text-white transition">
+          <Heart className="h-3.5 w-3.5" /> Donate
+        </Link>
         <Link to="/auth" aria-label="Log in to BloxSmith" className="rounded-lg border border-white/15 bg-white/5 px-3.5 py-2 text-sm text-white/90 hover:bg-white/10 transition">Log in</Link>
         <Link to="/auth" aria-label="Start building a Roblox game for free" className="bs-btn-grad inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-white">
           <Zap className="h-4 w-4" aria-hidden="true" /> Start Building Free
