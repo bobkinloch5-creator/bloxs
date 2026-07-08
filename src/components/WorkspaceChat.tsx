@@ -190,6 +190,10 @@ export function WorkspaceChat({
   );
 
   const [prompt, setPrompt] = useState("");
+  // Live mirror of `prompt` so the memoized transport body always sees the
+  // latest text without recreating the transport on every keystroke.
+  const promptRef = useRef("");
+  useEffect(() => { promptRef.current = prompt; }, [prompt]);
   const [mode, setMode] = useState<Mode>("build");
   // Live mirror of `mode` — read by the transport body and by submit()'s
   // plugin/project gates so a synchronous flip (e.g. the Image button) takes
