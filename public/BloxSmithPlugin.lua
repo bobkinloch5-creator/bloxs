@@ -1958,6 +1958,9 @@ local function pollOnce(force)
         if lastHeartbeat == 0 then log("userId: " .. tostring(data.user_id), "debug") end
     end
     setStatus("Connected to Studio", Color3.fromRGB(120,220,160), "Waiting for prompt.")
+    if data.credits ~= nil or data.max_credits ~= nil then
+        setCredits(data.credits, data.max_credits, data.plan)
+    end
     local actions = data.actions or {}
     queueLen = #actions; refreshInfo()
     if os.clock() - lastHeartbeat > 60 then
