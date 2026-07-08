@@ -1025,31 +1025,94 @@ export type Database = {
           },
         ]
       }
+      playtest_loop_state: {
+        Row: {
+          attempt: number
+          created_at: string
+          directive: string
+          last_fingerprint: string | null
+          max_attempts: number
+          reason: string | null
+          run_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          attempt?: number
+          created_at?: string
+          directive?: string
+          last_fingerprint?: string | null
+          max_attempts?: number
+          reason?: string | null
+          run_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          attempt?: number
+          created_at?: string
+          directive?: string
+          last_fingerprint?: string | null
+          max_attempts?: number
+          reason?: string | null
+          run_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       playtest_reports: {
         Row: {
+          attempt: number
+          auto_triggered: boolean
           created_at: string
+          duration_ms: number | null
+          finding_fingerprint: string | null
           findings: Json
           id: string
           metrics: Json
+          parent_run_id: string | null
+          phase_results: Json
           place_id: string | null
+          run_id: string | null
+          screenshot_urls: string[]
+          status: string
           summary: Json
           user_id: string
         }
         Insert: {
+          attempt?: number
+          auto_triggered?: boolean
           created_at?: string
+          duration_ms?: number | null
+          finding_fingerprint?: string | null
           findings: Json
           id?: string
           metrics: Json
+          parent_run_id?: string | null
+          phase_results?: Json
           place_id?: string | null
+          run_id?: string | null
+          screenshot_urls?: string[]
+          status?: string
           summary: Json
           user_id: string
         }
         Update: {
+          attempt?: number
+          auto_triggered?: boolean
           created_at?: string
+          duration_ms?: number | null
+          finding_fingerprint?: string | null
           findings?: Json
           id?: string
           metrics?: Json
+          parent_run_id?: string | null
+          phase_results?: Json
           place_id?: string | null
+          run_id?: string | null
+          screenshot_urls?: string[]
+          status?: string
           summary?: Json
           user_id?: string
         }

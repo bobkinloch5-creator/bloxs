@@ -69,7 +69,9 @@ import { Route as ApiPublicPluginCompleteRouteImport } from './routes/api/public
 import { Route as ApiPublicPluginClearRouteImport } from './routes/api/public/plugin/clear'
 import { Route as ApiPublicPluginSnapshotUploadRouteImport } from './routes/api/public/plugin/snapshot.upload'
 import { Route as ApiPublicPluginSnapshotFetchRouteImport } from './routes/api/public/plugin/snapshot.fetch'
+import { Route as ApiPublicPluginPlaytestUploadRouteImport } from './routes/api/public/plugin/playtest.upload'
 import { Route as ApiPublicPluginPlaytestReportRouteImport } from './routes/api/public/plugin/playtest.report'
+import { Route as ApiPublicPluginPlaytestNextActionRouteImport } from './routes/api/public/plugin/playtest.next-action'
 import { Route as ApiPublicPluginPairStartRouteImport } from './routes/api/public/plugin/pair.start'
 import { Route as ApiPublicPluginPairPollRouteImport } from './routes/api/public/plugin/pair.poll'
 import { Route as ApiPublicPluginExecutionReportRouteImport } from './routes/api/public/plugin/execution.report'
@@ -382,10 +384,22 @@ const ApiPublicPluginSnapshotFetchRoute =
     path: '/api/public/plugin/snapshot/fetch',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicPluginPlaytestUploadRoute =
+  ApiPublicPluginPlaytestUploadRouteImport.update({
+    id: '/api/public/plugin/playtest/upload',
+    path: '/api/public/plugin/playtest/upload',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicPluginPlaytestReportRoute =
   ApiPublicPluginPlaytestReportRouteImport.update({
     id: '/api/public/plugin/playtest/report',
     path: '/api/public/plugin/playtest/report',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicPluginPlaytestNextActionRoute =
+  ApiPublicPluginPlaytestNextActionRouteImport.update({
+    id: '/api/public/plugin/playtest/next-action',
+    path: '/api/public/plugin/playtest/next-action',
     getParentRoute: () => rootRouteImport,
   } as any)
 const ApiPublicPluginPairStartRoute =
@@ -467,7 +481,9 @@ export interface FileRoutesByFullPath {
   '/api/public/plugin/execution/report': typeof ApiPublicPluginExecutionReportRoute
   '/api/public/plugin/pair/poll': typeof ApiPublicPluginPairPollRoute
   '/api/public/plugin/pair/start': typeof ApiPublicPluginPairStartRoute
+  '/api/public/plugin/playtest/next-action': typeof ApiPublicPluginPlaytestNextActionRoute
   '/api/public/plugin/playtest/report': typeof ApiPublicPluginPlaytestReportRoute
+  '/api/public/plugin/playtest/upload': typeof ApiPublicPluginPlaytestUploadRoute
   '/api/public/plugin/snapshot/fetch': typeof ApiPublicPluginSnapshotFetchRoute
   '/api/public/plugin/snapshot/upload': typeof ApiPublicPluginSnapshotUploadRoute
 }
@@ -532,7 +548,9 @@ export interface FileRoutesByTo {
   '/api/public/plugin/execution/report': typeof ApiPublicPluginExecutionReportRoute
   '/api/public/plugin/pair/poll': typeof ApiPublicPluginPairPollRoute
   '/api/public/plugin/pair/start': typeof ApiPublicPluginPairStartRoute
+  '/api/public/plugin/playtest/next-action': typeof ApiPublicPluginPlaytestNextActionRoute
   '/api/public/plugin/playtest/report': typeof ApiPublicPluginPlaytestReportRoute
+  '/api/public/plugin/playtest/upload': typeof ApiPublicPluginPlaytestUploadRoute
   '/api/public/plugin/snapshot/fetch': typeof ApiPublicPluginSnapshotFetchRoute
   '/api/public/plugin/snapshot/upload': typeof ApiPublicPluginSnapshotUploadRoute
 }
@@ -599,7 +617,9 @@ export interface FileRoutesById {
   '/api/public/plugin/execution/report': typeof ApiPublicPluginExecutionReportRoute
   '/api/public/plugin/pair/poll': typeof ApiPublicPluginPairPollRoute
   '/api/public/plugin/pair/start': typeof ApiPublicPluginPairStartRoute
+  '/api/public/plugin/playtest/next-action': typeof ApiPublicPluginPlaytestNextActionRoute
   '/api/public/plugin/playtest/report': typeof ApiPublicPluginPlaytestReportRoute
+  '/api/public/plugin/playtest/upload': typeof ApiPublicPluginPlaytestUploadRoute
   '/api/public/plugin/snapshot/fetch': typeof ApiPublicPluginSnapshotFetchRoute
   '/api/public/plugin/snapshot/upload': typeof ApiPublicPluginSnapshotUploadRoute
 }
@@ -666,7 +686,9 @@ export interface FileRouteTypes {
     | '/api/public/plugin/execution/report'
     | '/api/public/plugin/pair/poll'
     | '/api/public/plugin/pair/start'
+    | '/api/public/plugin/playtest/next-action'
     | '/api/public/plugin/playtest/report'
+    | '/api/public/plugin/playtest/upload'
     | '/api/public/plugin/snapshot/fetch'
     | '/api/public/plugin/snapshot/upload'
   fileRoutesByTo: FileRoutesByTo
@@ -731,7 +753,9 @@ export interface FileRouteTypes {
     | '/api/public/plugin/execution/report'
     | '/api/public/plugin/pair/poll'
     | '/api/public/plugin/pair/start'
+    | '/api/public/plugin/playtest/next-action'
     | '/api/public/plugin/playtest/report'
+    | '/api/public/plugin/playtest/upload'
     | '/api/public/plugin/snapshot/fetch'
     | '/api/public/plugin/snapshot/upload'
   id:
@@ -797,7 +821,9 @@ export interface FileRouteTypes {
     | '/api/public/plugin/execution/report'
     | '/api/public/plugin/pair/poll'
     | '/api/public/plugin/pair/start'
+    | '/api/public/plugin/playtest/next-action'
     | '/api/public/plugin/playtest/report'
+    | '/api/public/plugin/playtest/upload'
     | '/api/public/plugin/snapshot/fetch'
     | '/api/public/plugin/snapshot/upload'
   fileRoutesById: FileRoutesById
@@ -847,7 +873,9 @@ export interface RootRouteChildren {
   ApiPublicPluginExecutionReportRoute: typeof ApiPublicPluginExecutionReportRoute
   ApiPublicPluginPairPollRoute: typeof ApiPublicPluginPairPollRoute
   ApiPublicPluginPairStartRoute: typeof ApiPublicPluginPairStartRoute
+  ApiPublicPluginPlaytestNextActionRoute: typeof ApiPublicPluginPlaytestNextActionRoute
   ApiPublicPluginPlaytestReportRoute: typeof ApiPublicPluginPlaytestReportRoute
+  ApiPublicPluginPlaytestUploadRoute: typeof ApiPublicPluginPlaytestUploadRoute
   ApiPublicPluginSnapshotFetchRoute: typeof ApiPublicPluginSnapshotFetchRoute
   ApiPublicPluginSnapshotUploadRoute: typeof ApiPublicPluginSnapshotUploadRoute
 }
@@ -1274,11 +1302,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicPluginSnapshotFetchRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/plugin/playtest/upload': {
+      id: '/api/public/plugin/playtest/upload'
+      path: '/api/public/plugin/playtest/upload'
+      fullPath: '/api/public/plugin/playtest/upload'
+      preLoaderRoute: typeof ApiPublicPluginPlaytestUploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/plugin/playtest/report': {
       id: '/api/public/plugin/playtest/report'
       path: '/api/public/plugin/playtest/report'
       fullPath: '/api/public/plugin/playtest/report'
       preLoaderRoute: typeof ApiPublicPluginPlaytestReportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/plugin/playtest/next-action': {
+      id: '/api/public/plugin/playtest/next-action'
+      path: '/api/public/plugin/playtest/next-action'
+      fullPath: '/api/public/plugin/playtest/next-action'
+      preLoaderRoute: typeof ApiPublicPluginPlaytestNextActionRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/plugin/pair/start': {
@@ -1413,7 +1455,10 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicPluginExecutionReportRoute: ApiPublicPluginExecutionReportRoute,
   ApiPublicPluginPairPollRoute: ApiPublicPluginPairPollRoute,
   ApiPublicPluginPairStartRoute: ApiPublicPluginPairStartRoute,
+  ApiPublicPluginPlaytestNextActionRoute:
+    ApiPublicPluginPlaytestNextActionRoute,
   ApiPublicPluginPlaytestReportRoute: ApiPublicPluginPlaytestReportRoute,
+  ApiPublicPluginPlaytestUploadRoute: ApiPublicPluginPlaytestUploadRoute,
   ApiPublicPluginSnapshotFetchRoute: ApiPublicPluginSnapshotFetchRoute,
   ApiPublicPluginSnapshotUploadRoute: ApiPublicPluginSnapshotUploadRoute,
 }

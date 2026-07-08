@@ -2054,6 +2054,14 @@ local function pollOnce(force)
         setStatus("Build complete", Color3.fromRGB(120,220,160), ("Built %d thing(s). Camera focused."):format(okN))
     end
     log(("Batch complete -- %d ok, %d failed."):format(okN, failN), failN > 0 and "warn" or "success")
+    -- ── Auto-Playtest v2: verify the build actually works, and let the AI
+    --    fix failures automatically (up to 4 retries).
+    if okN > 0 and failN == 0 and _G.__BS_RunAutoPlaytest then
+        task.spawn(function()
+            local ok, err = pcall(_G.__BS_RunAutoPlaytest, actions)
+            if not ok then log("Auto-Playtest failed to start: " .. tostring(err), "warn") end
+        end)
+    end
     return #actions
 end
 
