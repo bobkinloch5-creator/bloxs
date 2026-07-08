@@ -112,12 +112,12 @@ export const improvePrompt = createServerFn({ method: "POST" })
         abortSignal: controller.signal,
       });
       clearTimeout(timeout);
-      let cleaned = (text || "").trim().replace(/^["'`]+|["'`]+$/g, "").replace(/\s+\n/g, "\n");
+      let cleaned = fixCommonTypos((text || "").trim().replace(/^["'`]+|["'`]+$/g, "").replace(/\s+\n/g, "\n"));
       // Strip any accidental preamble like "Improved prompt:" or "Here is..."
       cleaned = cleaned.replace(/^(improved prompt|here(?:'s| is)[^:]*|prompt)\s*[:\-–]\s*/i, "").trim();
       if (!cleaned || cleaned.length < 3) return { ok: true as const, text: fallback };
       // Guardrail: block only obvious labeled-brief format (Enhance's job, not Polish's).
-      if (cleaned.split(/\s+/).length > 180 || /\n\s*(goal|scope|systems|ui|world|polish|constraints)\s*:/i.test(cleaned)) {
+      if (cleaned.split(/\s+/).length > 200 || /\n\s*(goal|scope|systems|ui|world|polish|constraints)\s*:/i.test(cleaned)) {
         return { ok: true as const, text: fallback };
       }
       return { ok: true as const, text: cleaned };
