@@ -1880,7 +1880,15 @@ reconnectBtn.MouseButton1Click:Connect(function()
         clearToken(); connected = false
         task.spawn(startPairing); return
     end
-    log("Reconnecting--", "info"); connected = true; pollOnce(true)
+    log("Reconnecting...", "info")
+    connected = false
+    local ok, err = pcall(pollOnce, true)
+    if ok then
+        connected = true
+    else
+        log("Reconnect failed: " .. tostring(err), "error")
+        setStatus("error", Color3.fromRGB(255,120,120), "Reconnect failed. Try Connect.")
+    end
 end)
 
 syncBtn.MouseButton1Click:Connect(function()
