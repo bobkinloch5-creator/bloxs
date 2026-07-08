@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { BookOpen, Loader2, CheckCircle2, RefreshCw, AlertCircle, ScrollText, XCircle } from "lucide-react";
+import { BookOpen, Loader2, CheckCircle2, RefreshCw, AlertCircle, ScrollText, XCircle, Zap, Infinity as InfinityIcon } from "lucide-react";
 import { toast } from "sonner";
 import { useCallback, useRef, useState } from "react";
 import {
@@ -10,6 +10,7 @@ import {
   type SeedBatchResult,
   type KbSeedAuditEntry,
 } from "@/lib/kb.functions";
+import { getMyProfile } from "@/lib/profile.functions";
 
 function friendlyError(err: unknown): string {
   const msg = err instanceof Error ? err.message : String(err ?? "Unknown error");
@@ -34,6 +35,7 @@ export function KnowledgeBaseCard() {
   const statusFn = useServerFn(getKbStatus);
   const batchFn = useServerFn(seedKnowledgeBaseBatch);
   const auditFn = useServerFn(getKbSeedAuditLog);
+  const profileFn = useServerFn(getMyProfile);
 
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState<SeedBatchResult | null>(null);
@@ -53,10 +55,25 @@ export function KnowledgeBaseCard() {
     staleTime: 10_000,
   });
 
+  const { data: profile } = useQuery({
+    queryKey: ["profile"],
+    queryFn: () => profileFn(),
+    staleTime: 15_000,
+  });
+
   const indexed = progress?.totalIndexed ?? status?.indexed ?? 0;
   const target = status?.target ?? progress?.target ?? 0;
+  const remaining = Math.max(0, target - indexed);
   const ready = target > 0 && indexed >= target && !running;
   const percent = target > 0 ? Math.min(100, Math.round((indexed / target) * 100)) : 0;
+
+  const isOwner = profile?.plan === "Owner" || !!profile?.is_admin;
+  const credits = profile?.credits ?? 0;
+  const maxCredits = profile?.max_credits ?? 0;
+  // ~1 embedding call per chunk. NVIDIA embeddings on the gateway bill ~1 credit
+  // per call — treat as a conservative upper bound for the preview.
+  const estCreditCost = remaining;
+  const notEnoughCredits = !isOwner && !ready && estCreditCost > credits;
 
   const runSeeding = useCallback(async () => {
     if (running) return;
@@ -144,6 +161,38 @@ export function KnowledgeBaseCard() {
           )}
         </div>
       </div>
+
+      {/* Pre-flight preview: chunks-to-process + credits available */}
+      {!ready && !running && (
+        <div className="mb-3 grid grid-cols-2 gap-2">
+          <div className="rounded-lg border border-white/10 bg-black/20 px-2.5 py-2">
+            <div className="text-[10px] uppercase tracking-wider text-white/40">Chunks to process</div>
+            <div className="mt-0.5 text-sm font-semibold text-white">
+              {remaining} <span className="text-[10px] font-normal text-white/40">of {target}</span>
+            </div>
+            <div className="mt-0.5 text-[10px] text-white/40">
+              {remaining === 0 ? "Nothing new to embed" : `~${estCreditCost} embedding call${estCreditCost === 1 ? "" : "s"}`}
+            </div>
+          </div>
+          <div className={`rounded-lg border px-2.5 py-2 ${notEnoughCredits ? "border-rose-400/40 bg-rose-500/10" : "border-white/10 bg-black/20"}`}>
+            <div className="text-[10px] uppercase tracking-wider text-white/40 flex items-center gap-1">
+              <Zap className="w-3 h-3" /> Your credits
+            </div>
+            <div className="mt-0.5 text-sm font-semibold text-white flex items-center gap-1">
+              {isOwner ? (
+                <><InfinityIcon className="w-3.5 h-3.5" /> <span className="text-[10px] font-normal text-white/40">Owner</span></>
+              ) : (
+                <>{credits}<span className="text-[10px] font-normal text-white/40">/{maxCredits}</span></>
+              )}
+            </div>
+            <div className={`mt-0.5 text-[10px] ${notEnoughCredits ? "text-rose-200" : "text-white/40"}`}>
+              {isOwner ? "Unmetered" : notEnoughCredits ? `Short ~${estCreditCost - credits} credit${estCreditCost - credits === 1 ? "" : "s"}` : "Enough to finish"}
+            </div>
+          </div>
+        </div>
+      )}
+
+
 
       <div className="flex gap-2">
         <button
