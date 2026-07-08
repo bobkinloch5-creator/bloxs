@@ -11,7 +11,7 @@ import {
   Infinity as InfinityIcon, ChevronDown, Paperclip, Image as ImageIcon,
   Send, Hammer, TrendingUp, Wrench, Gamepad2, Upload, CheckCircle2,
   Code2, Package, Crown, ExternalLink, MoreHorizontal, ArrowRight,
-  Radio, HelpCircle, LayoutDashboard, Server,
+  Radio, HelpCircle, LayoutDashboard, Server, Gift,
 } from "lucide-react";
 import thumbTycoon from "@/assets/thumbs/tycoon.jpg";
 import thumbObby from "@/assets/thumbs/obby.jpg";
@@ -29,6 +29,7 @@ import { WorkspaceChat } from "@/components/WorkspaceChat";
 import { NewProjectModal } from "@/components/NewProjectModal";
 import { ProjectMemoryCard } from "@/components/ProjectMemoryCard";
 import { OnboardingChallenges } from "@/components/OnboardingChallenges";
+import { AiPlaytestCard } from "@/components/AiPlaytestCard";
 import robloxBg from "@/assets/backgrounds/roblox-dashboard.jpg";
 
 
@@ -57,6 +58,7 @@ const NAV: NavItem[] = [
   { key: "plugin",   label: "Studio Plugin", icon: Plug,            to: "/plugin" },
   { key: "mcp",      label: "MCP Servers",   icon: Server,          to: "/mcp-servers" },
   { key: "community",label: "Community",     icon: Users,           to: "/collaborators" },
+  { key: "referrals",label: "Invite Friends",icon: Gift,            to: "/referrals" },
 ];
 
 const QUICK_ACTIONS: { key: string; label: string; desc: string; icon: typeof Box; to: string }[] = [
@@ -310,6 +312,31 @@ function Dashboard() {
                 <ProjectMemoryCard projectId={activeProjectId} />
               </section>
             )}
+
+            {/* AI Playtest — the AI reads your scripts and reports back what it sees */}
+            <section id="ai-playtest">
+              <AiPlaytestCard projectId={activeProjectId} projectName={activeProject?.name} />
+            </section>
+
+            {/* Invite friends prompt — visible on every dashboard load */}
+            <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-indigo-400/30 bg-gradient-to-r from-indigo-500/10 via-fuchsia-500/5 to-indigo-500/10 p-4 sm:p-5">
+              <div className="flex items-center gap-3">
+                <span className="grid h-10 w-10 place-items-center rounded-xl bg-indigo-500/20 text-indigo-200">
+                  <Gift className="h-5 w-5" />
+                </span>
+                <div>
+                  <div className="text-sm font-bold text-white">Invite friends to BloxSmith</div>
+                  <div className="text-xs text-slate-400">Share your code — get shouted out on the community leaderboard.</div>
+                </div>
+              </div>
+              <Link
+                to="/referrals"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-500 px-3.5 py-2 text-xs font-bold text-white hover:bg-indigo-400"
+              >
+                <Gift className="h-3.5 w-3.5" /> Get your invite link
+              </Link>
+            </section>
+
 
 
 
