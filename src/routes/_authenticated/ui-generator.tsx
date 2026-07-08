@@ -3,9 +3,10 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getMyProfile } from "@/lib/profile.functions";
 import { deleteSavedRobloxUi, generateRobloxUi, listSavedRobloxUis } from "@/lib/ui-generator.functions";
+import { paletteFor } from "@/lib/roblox-ui-blueprint";
 import { PageShell, EmptyState } from "@/components/PageShell";
-import { LayoutDashboard, Send, Loader2, Copy, Check, AlertTriangle, Sparkles, Shuffle, Download, ExternalLink, Trash2, RefreshCw } from "lucide-react";
-import { useEffect, useState } from "react";
+import { LayoutDashboard, Send, Loader2, Copy, Check, AlertTriangle, Sparkles, Shuffle, Download, ExternalLink, Trash2, RefreshCw, RotateCcw } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 
 export const Route = createFileRoute("/_authenticated/ui-generator")({
   head: () => ({ meta: [
@@ -158,35 +159,55 @@ function UiGenerator() {
         </div>
 
         <label className="mt-5 block text-xs font-semibold uppercase tracking-wider text-violet-300">Describe the UI</label>
-        <div className="mt-2 flex gap-2 rounded-2xl border border-white/10 bg-black/35 p-2 ring-1 ring-violet-300/10">
-          <input
+        <div className="mt-2 rounded-2xl border border-white/10 bg-black/35 p-2 ring-1 ring-violet-300/10 focus-within:ring-violet-300/40 transition">
+          <textarea
             value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") generate(); }}
-            placeholder="e.g. A shop with 6 items, currency display, and a Buy button"
-            className="min-w-0 flex-1 bg-transparent px-2 py-2 text-sm outline-none placeholder:text-muted-foreground"
+            onChange={(e) => setPrompt(e.target.value.slice(0, 2000))}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); generate(); }
+            }}
+            placeholder="e.g. Simulator HUD with animated coin counter, multiplier and rebirth pills, and a side rail with Shop / Pets / Rebirth"
+            rows={3}
+            className="min-h-[92px] w-full resize-y bg-transparent px-3 py-2 text-sm outline-none placeholder:text-muted-foreground"
           />
-          <button
-            onClick={() => generate()}
-            disabled={gen.isPending || !prompt.trim()}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-violet-500 via-fuchsia-500 to-cyan-400 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-violet-900/30 disabled:opacity-50"
-          >
-            {gen.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />} Generate
-          </button>
+          <div className="flex items-center justify-between gap-2 border-t border-white/5 px-2 pt-2">
+            <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wider text-violet-300/70">
+              <kbd className="rounded border border-white/10 bg-white/5 px-1.5 py-0.5">⌘ / Ctrl + Enter</kbd>
+              <span className="text-muted-foreground">to generate</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className={`text-[10px] font-semibold tabular-nums ${prompt.length > 1800 ? "text-amber-300" : "text-muted-foreground"}`}>{prompt.length}/2000</span>
+              <button
+                onClick={() => generate()}
+                disabled={gen.isPending || !prompt.trim()}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-violet-500 via-fuchsia-500 to-cyan-400 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-violet-900/30 disabled:opacity-50"
+              >
+                {gen.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />} Generate
+              </button>
+            </div>
+          </div>
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
-          {STYLES.map((s) => (
-            <button
-              key={s}
-              onClick={() => setStyle(s)}
-              className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-[11px] font-bold transition ${
-                style === s ? "border-violet-300/45 bg-violet-500/25 text-violet-100" : "border-white/10 bg-white/5 text-slate-300 hover:bg-white/10"
-              }`}
-            >
-              <span className={`h-2.5 w-2.5 rounded-full ${style === s ? "bg-cyan-300" : "bg-violet-300/50"}`} />
-              {s}
-            </button>
-          ))}
+          {STYLES.map((s) => {
+            const pal = paletteFor(s);
+            const active = style === s;
+            return (
+              <button
+                key={s}
+                onClick={() => setStyle(s)}
+                className={`group inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-[11px] font-bold transition ${
+                  active ? "border-violet-300/60 bg-violet-500/25 text-violet-50 shadow-md shadow-violet-900/30" : "border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 hover:border-white/20"
+                }`}
+                title={`${s} palette`}
+              >
+                <span
+                  className="h-3 w-3 rounded-full ring-1 ring-white/20"
+                  style={{ background: `linear-gradient(135deg, ${pal.accent}, ${pal.accent2})` }}
+                />
+                {s}
+              </button>
+            );
+          })}
         </div>
         <div className="mt-3 flex flex-wrap gap-1.5">
           <span className="text-[10px] font-semibold uppercase tracking-wider text-violet-300/70">Try:</span>
@@ -240,7 +261,15 @@ function UiGenerator() {
             </button>
           </div>
           {generated.map((g) => (
-            <ResultCard key={g.id} result={g} onDelete={(id) => del.mutate(id)} deleting={del.isPending} />
+            <ResultCard
+              key={g.id}
+              result={g}
+              onDelete={(id) => del.mutate(id)}
+              deleting={del.isPending}
+              onRegenerate={() => { setPrompt(g.prompt); setStyle(g.style); gen.mutate({ prompt: g.prompt, style: g.style }); }}
+              onRemix={() => { setPrompt(g.prompt); setStyle(g.style); }}
+              regenerating={gen.isPending}
+            />
           ))}
         </div>
       )}
@@ -248,22 +277,53 @@ function UiGenerator() {
   );
 }
 
-function ResultCard({ result, onDelete, deleting }: { result: Generated; onDelete: (id: string) => void; deleting?: boolean }) {
+function ResultCard({ result, onDelete, deleting, onRegenerate, onRemix, regenerating }: {
+  result: Generated;
+  onDelete: (id: string) => void;
+  deleting?: boolean;
+  onRegenerate?: () => void;
+  onRemix?: () => void;
+  regenerating?: boolean;
+}) {
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState<string | null>(null);
+  const swatch = useMemo(() => paletteFor(result.style), [result.style]);
   const createdLabel = typeof result.createdAt === "number"
     ? new Date(result.createdAt).toLocaleString()
     : new Date(result.createdAt).toLocaleString();
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 backdrop-blur-sm">
+    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 backdrop-blur-sm transition hover:border-white/20">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="truncate text-sm font-bold text-slate-100">{result.prompt}</div>
-          <div className="mt-0.5 text-[11px] text-muted-foreground">
+          <div className="mt-0.5 flex items-center gap-2 text-[11px] text-muted-foreground">
+            <span
+              className="inline-block h-2.5 w-2.5 rounded-full ring-1 ring-white/20"
+              style={{ background: `linear-gradient(135deg, ${swatch.accent}, ${swatch.accent2})` }}
+            />
             {result.style} · saved concept · {createdLabel}
           </div>
         </div>
         <div className="flex flex-wrap gap-1.5">
+          {onRegenerate && (
+            <button
+              onClick={onRegenerate}
+              disabled={regenerating}
+              title="Generate a fresh variant of this exact prompt and style"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-violet-400/30 bg-violet-500/15 px-2.5 py-1.5 text-[11px] font-bold text-violet-100 hover:bg-violet-500/25 disabled:opacity-50"
+            >
+              {regenerating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />} Regenerate
+            </button>
+          )}
+          {onRemix && (
+            <button
+              onClick={onRemix}
+              title="Load this prompt back into the composer to edit"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-[11px] font-semibold text-slate-200 hover:bg-white/10"
+            >
+              <Shuffle className="h-3.5 w-3.5" /> Remix
+            </button>
+          )}
           <button
             onClick={async () => {
               try {
