@@ -1,9 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { getMyProfile, updateMyProfile, deleteMyAccount } from "@/lib/profile.functions";
+import {
+  getMyProfile,
+  updateMyProfile,
+  deleteMyAccount,
+  changeMyUsername,
+  checkUsernameAvailable,
+  setMyAvatar,
+  clearMyAvatar,
+  changeMyPassword,
+  sendMyPasswordResetEmail,
+} from "@/lib/profile.functions";
 import { supabase } from "@/integrations/supabase/client";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+
 import {
   BadgeCheck,
   Bot,
