@@ -20,6 +20,7 @@ import {
 import { listPendingDonationClaims, decideDonationClaim } from "@/lib/donations.functions";
 import { MODELS } from "@/lib/models";
 import { ModelTestPanel } from "@/components/ModelTestPanel";
+import { KnowledgeBaseCard } from "@/components/KnowledgeBaseCard";
 import {
   Crown, ShieldCheck, Folder, MessageSquare, Plug, Settings, Sparkles, Loader2, AlertTriangle,
   Heart, Check, X, Users, UserPlus, Ban, ShieldOff, Gift, Search, Coins, ShieldAlert, Star,
@@ -1079,6 +1080,8 @@ function OwnerToolsTab() {
           </button>
         </div>
       </Card>
+
+      <KnowledgeBaseCard />
 
       <Card>
         <SectionTitle icon={ShieldAlert} title="Danger Zone" tint="rose" />
