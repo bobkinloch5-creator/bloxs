@@ -7,25 +7,31 @@ import { FALLBACK_MODEL_ID } from "./models";
 
 const Input = z.object({ text: z.string().min(1).max(4000) });
 
-const IMPROVE_SYSTEM = `You are a senior prompt editor for the BloxSmith AI Roblox builder. Rewrite the user's build request so it reads with the confident, precise, professional tone of a seasoned Roblox studio brief — while preserving their exact intent and scope.
+const IMPROVE_SYSTEM = `You are a senior prompt editor for the BloxSmith AI Roblox builder. Rewrite the user's build request so it reads like a confident, precise Roblox studio brief the builder can execute end-to-end — while preserving the user's exact intent and scope.
+
+INTERPRETATION (critical):
+- Read the user's request the way an experienced Roblox developer would. A short noun like "a city", "a tycoon", "a zombie game", "a shop", "a sword", "an obby", "a racing game", "a farm", "a dungeon", "a pet system" already IMPLIES the full expected build — infer and name what a player would recognize as that thing.
+- For GAME / GENRE / SYSTEM / FEATURE-PACKAGE asks, expand the request into an unambiguous brief that spells out: the world/map, the core gameplay loop, the systems the genre requires (spawns, HUD, currency, save, combat, shop, quests, rounds — only ones the genre actually needs), the visual/theme direction, and the target device (PC + Mobile by default).
+- Example: "build me a city" → "Build a full playable city map with a gridded street layout, drivable roads, sidewalks, streetlights, traffic props, a mix of residential + commercial buildings with interiors, spawn plaza, day/night skybox, ambient sound, mobile-friendly camera and controls — server-authoritative, no placeholders, no invented asset IDs."
+- For NARROW single-item asks ("add a jump button", "one script that heals the player", "insert a tree", "make a red part"), do NOT expand. Return a tight one-sentence brief and append a scope-lock clause ("— only this, no extras, plus minimum required wiring").
 
 Rewrite goals:
 - Fix all grammar, spelling, capitalization, and punctuation.
-- Replace vague or casual wording ("stuff", "thingy", "kinda", "some", "like a") with concrete, specific vocabulary.
-- Upgrade weak verbs to strong, developer-native ones (build, spawn, wire, mount, configure, hook up, script, place).
-- Make the subject, action, quantity, and location explicit and unambiguous.
-- Keep the voice crisp and premium — no fluff, no filler, no marketing adjectives ("amazing", "awesome", "epic"), no emoji.
+- Replace vague wording ("stuff", "thingy", "kinda", "some", "like a") with concrete Roblox-native vocabulary.
+- Upgrade weak verbs to strong developer verbs (build, spawn, wire, mount, configure, script, place, hook up).
+- Make subject, action, quantity, scope, and location explicit.
+- Keep the voice crisp and professional — no fluff, no marketing adjectives ("amazing", "awesome", "epic"), no emoji.
 
 Scope discipline:
-- Do NOT invent features, genres, systems, mechanics, or assets the user did not imply.
-- Do NOT expand a small ask into a full brief. A one-part or one-script request stays one tight sentence.
-- If the request is already clear and specific, return it essentially unchanged with only grammar and phrasing polish.
-- When a single asset or script is requested, append one short scope-lock clause (e.g. "— only this, no extras" or "— safe Toolbox model, server-authoritative where relevant").
+- Never invent a totally unrelated genre, mechanic, or asset the user did not imply.
+- Never downscope a full-game/system ask into a single part.
+- If the request is already clear and specific, tighten grammar only.
 
 Format:
-- Plain prose, one to three sentences. No bullets, no headers, no labels, no quotes, no code fences.
-- Under 60 words.
-- Output the polished prompt only. No preamble, no explanation, no "Here is".`;
+- Plain prose. 1 sentence for narrow asks, up to 4 sentences for full-game / system asks.
+- No bullets, no headers, no labels, no quotes, no code fences, no preamble.
+- Under 120 words.
+- Output the polished prompt only. No "Here is", no explanation.`;
 
 function deterministicImprove(input: string): string {
   let cleaned = input.trim().replace(/\s+/g, " ").replace(/^["'`]+|["'`]+$/g, "");
@@ -53,13 +59,13 @@ export const improvePrompt = createServerFn({ method: "POST" })
     try {
       const { model } = getProviderModel(FALLBACK_MODEL_ID);
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort("Improve timed out"), 3500);
+      const timeout = setTimeout(() => controller.abort("Improve timed out"), 6000);
       const { text } = await generateText({
         model,
         system: IMPROVE_SYSTEM,
         prompt: data.text,
         temperature: 0.3,
-        maxOutputTokens: 180,
+        maxOutputTokens: 400,
         abortSignal: controller.signal,
       });
       clearTimeout(timeout);
@@ -67,8 +73,8 @@ export const improvePrompt = createServerFn({ method: "POST" })
       // Strip any accidental preamble like "Improved prompt:" or "Here is..."
       cleaned = cleaned.replace(/^(improved prompt|here(?:'s| is)[^:]*|prompt)\s*[:\-–]\s*/i, "").trim();
       if (!cleaned || cleaned.length < 3) return { ok: true as const, text: fallback };
-      // Guardrail: if the model ballooned it into a full brief, fall back.
-      if (cleaned.split(/\s+/).length > 90 || /\n\s*(goal|scope|systems|ui|world|polish|constraints)\s*:/i.test(cleaned)) {
+      // Guardrail: block only obvious labeled-brief format (Enhance's job, not Polish's).
+      if (cleaned.split(/\s+/).length > 180 || /\n\s*(goal|scope|systems|ui|world|polish|constraints)\s*:/i.test(cleaned)) {
         return { ok: true as const, text: fallback };
       }
       return { ok: true as const, text: cleaned };

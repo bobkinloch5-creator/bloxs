@@ -3,9 +3,45 @@ import { AlertTriangle, Bell, Bot, Box, Brain, Check, CheckCircle2, ChevronDown,
 import { checkChangelogCoverage, warnIfIncomplete } from "@/lib/changelog-coverage";
 
 
-const CHANGELOG_VERSION = "2026-07-08-referral-code-read-path";
+const CHANGELOG_VERSION = "2026-07-08-polish-smart-city";
 
 const CHANGELOG_ITEMS = [
+  {
+    title: "✨ Polish button is now context-aware — \"build me a city\" expands to a full brief",
+    date: "Jul 8",
+    icon: Sparkles,
+    body: "Rewrote the Polish (Improve) prompt so it interprets your ask the way an experienced Roblox dev would. Short nouns like \"a city\", \"a tycoon\", \"a zombie game\", \"a shop\", \"a sword\", \"an obby\", \"a racing game\", \"a farm\", \"a dungeon\", or \"a pet system\" now get expanded into an unambiguous studio-grade brief that names the world/map, the core loop, the required systems (spawns, HUD, currency, save, combat, shop, quests, rounds — only the ones the genre actually needs), the visual/theme direction, and PC+Mobile targeting. Example: \"build me a city\" becomes \"Build a full playable city map with a gridded street layout, drivable roads, sidewalks, streetlights, traffic props, mixed residential + commercial buildings with interiors, spawn plaza, day/night skybox, ambient sound, mobile-friendly camera and controls — server-authoritative, no placeholders, no invented asset IDs.\" Narrow single-item asks (\"add a jump button\", \"one heal script\", \"insert a tree\", \"make a red part\") are still kept tight and get a scope-lock clause appended — no overbuilding. Model timeout raised to 6s and token cap raised to 400 to fit the richer brief.",
+  },
+  {
+    title: "🖼️ Custom BloxSmith logo asset now renders inside the plugin's purple tile",
+    date: "Jul 8",
+    icon: ImageIcon,
+    body: "Plugin v2.1.27 — the purple square in the plugin header now displays a real ImageLabel pulling rbxassetid://122260441773119 instead of the placeholder ✦ glyph. The asset is fit-scaled inside the gradient tile with 4px inset padding so the logo art breathes correctly against the purple→pink UIGradient background. Re-download BloxSmithPlugin.lua from /plugin and replace the file in your Studio Plugins folder to see it.",
+  },
+  {
+    title: "⚡ Plugin credits card — live credit balance, plan badge, and depletion bar",
+    date: "Jul 8",
+    icon: Zap,
+    body: "Plugin v2.1.26 — added a dedicated credits card between the status card and the Connect button. Shows a ⚡ icon + \"Credits\" caption, a plan pill (Free / Pro / Business / Enterprise / Owner) tinted per tier, the live credit count formatted in kilo notation (e.g. 12.4k / 25k), and a horizontal progress bar that fills green → amber → red as credits deplete. Values are refreshed on every heartbeat poll (setCredits fires with data.credits / data.max_credits / data.plan from the pairing session). Widget height bumped to 700×360 and dock area to 560×320 to fit the new card without cramming the log frame.",
+  },
+  {
+    title: "🎨 Plugin visual redesign — colorful cards, gradient CTAs, per-button accent bars",
+    date: "Jul 8",
+    icon: Palette,
+    body: "Plugin v2.1.25 — a full visual pass on the Studio plugin. The header is now a dark-navy → purple gradient card with a purple→pink logo tile and a navy version pill. The status card shows a live red/amber/green dot that flips based on connection state (red offline, amber waiting, green connected). Connect button switched to a blue → purple 90° gradient with a subtle stroke. The control grid is color-coded per action — sky Reconnect, emerald Sync, indigo Execute, amber Clear Stuck, red View Errors, cyan Open Website, violet Scan Game, pink Send / Auto-Send, teal Organize, green Auto-Fix, red Clean Slate — each with its own left-edge accent stripe. Log frame darkened to (6,7,18) with colored mini-buttons and UIStroke accents. All typography moved to Gotham for consistency.",
+  },
+  {
+    title: "🖼️ BloxSmith logo everywhere — favicon, mascot asset, and AI sidebar mark",
+    date: "Jul 8",
+    icon: ImageIcon,
+    body: "Refreshed public/favicon.png with the new BloxSmith logo, re-pointed src/assets/bloxsmith-logo.png.asset.json and bloxsmith-mascot.png.asset.json to the current CDN pointers, and replaced the generic Sparkles icon placeholder in the /dashboard sidebar with a real <img> tag rendering the BloxSmith mark. The mark now appears consistently in the browser tab, the marketing surfaces that read the mascot asset, and inside the workspace's AI page — no more generic AI sparkles standing in for the brand.",
+  },
+  {
+    title: "💬 Chat history — threaded conversations in the main BloxSmith builder chat",
+    date: "Jul 8",
+    icon: ScrollText,
+    body: "Added multi-thread chat history to the main BloxSmith builder chat, persisted per account in Lovable Cloud. New ChatHistoryButton opens a panel of every previous conversation you've had with the builder, so you can jump back into an old thread, review what BloxSmith proposed, or start a fresh one at any time. Threads store the full UIMessage[] with role/parts (not a flat text field) so tool calls, tool results, and streamed markdown all replay correctly. Wired into the dashboard route and the WorkspaceChat composer via a new server function boundary in src/lib/chat.functions.ts — all reads/writes are auth-scoped to the signed-in user's threads only.",
+  },
   {
     title: "🔒 Project reads narrowed to members-only + storage thumbnail policy fix",
     date: "Jul 3",
