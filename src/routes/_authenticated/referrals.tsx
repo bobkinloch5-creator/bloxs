@@ -36,13 +36,16 @@ function ReferralsPage() {
 
   const applyMut = useMutation({
     mutationFn: (code: string) => applyFn({ data: { code } }),
-    onSuccess: () => {
-      toast.success("Referral applied. Thanks for supporting a friend!");
+    onSuccess: (r: any) => {
+      const bonus = r?.bonus ?? 25;
+      toast.success(`Referral applied — +${bonus} credits added to both accounts!`);
       qc.invalidateQueries({ queryKey: ["my-referral"] });
+      qc.invalidateQueries({ queryKey: ["profile"] });
       setInput("");
     },
     onError: (e) => toast.error(friendlyError(e, { fallback: "Couldn't apply code." })),
   });
+
 
   const shareUrl = useMemo(() => {
     if (typeof window === "undefined" || !data?.code) return "";
