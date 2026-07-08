@@ -11,6 +11,10 @@ BloxSmith turns natural-language game ideas into working Roblox experiences. It 
 - [Roblox Script Generator](/roblox-script-generator): Free AI Luau script generator for Roblox — Scripts, LocalScripts, ModuleScripts, RemoteEvents.
 - [Roblox GUI Maker](/roblox-gui-maker): Free AI GUI maker for Roblox Studio — shops, HUDs, inventories, menus.
 - [Free Roblox Studio AI](/free-roblox-studio-ai): 100% free AI assistant for Roblox Studio.
+- [Best Roblox AI Scripter](/best-roblox-ai-scripter): Free Luau-native AI scripter for Roblox — server-authoritative scripts and RemoteEvents.
+- [Free Roblox Script AI](/free-roblox-script-ai): Free AI Roblox script generator — unlimited Luau scripts.
+- [Roblox Studio AI Helper](/roblox-studio-ai-helper): Free AI helper plugin for Roblox Studio.
+- [AI Roblox Map Generator](/ai-roblox-map-generator): Free AI Roblox map designer — obbys, arenas, dungeons.
 - [UI Templates](/templates/ui): Free ready-made Roblox UI templates (shops, inventories, HUDs, menus).
 - [Guides](/guides): Free step-by-step tutorials for building Roblox games with AI.
 - [Docs](/docs): Help documentation for getting started, using the AI builder, and installing the Roblox Studio plugin.
@@ -24,6 +28,8 @@ BloxSmith turns natural-language game ideas into working Roblox experiences. It 
 - [How to make a Roblox tycoon](/guides/how-to-make-a-roblox-tycoon)
 - [How to make a Roblox obby](/guides/how-to-make-a-roblox-obby)
 - [How to script in Roblox with AI](/guides/how-to-script-in-roblox-with-ai)
+- [How to make a Roblox game with AI](/guides/how-to-make-a-roblox-game-with-ai)
+- [Best AI for Roblox scripting](/guides/best-ai-for-roblox-scripting)
 
 ## Optional
 
