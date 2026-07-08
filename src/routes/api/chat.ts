@@ -3904,12 +3904,28 @@ function buildGenreBrief(userText: string): string {
   if (!trimmed) return "";
   // Fire on any prompt up to 40 words — a "build me a full medieval castle with towers and a village" ask should still get the brief.
   if (trimmed.split(/\s+/).length > 40) return "";
+  // Match against BOTH the raw prompt and the normalized form so that casual
+  // phrasing ("big city", "downtown area", "medieval castle grounds",
+  // "shopping plaza", "high-school", "space rocket", "army camp") all route
+  // to the correct branch.
+  const normalized = normalizeGenrePrompt(trimmed);
   for (const spec of GENRE_SPECS) {
-    if (spec.keys.test(trimmed)) {
+    if (spec.keys.test(normalized) || spec.keys.test(trimmed)) {
       return `\n\n---\nGENRE BRIEF (auto-injected because the user named this kind of world/game — interpret their ask this way and build the FULL thing, not a placeholder):\n\n${spec.brief}`;
     }
   }
   return "";
+}
+
+// Exposed so the placeholder-stub suppression uses the same synonym-aware
+// matching as the brief injector.
+function matchesAnyGenreSpec(userText: string): boolean {
+  if (!userText) return false;
+  const normalized = normalizeGenrePrompt(userText);
+  for (const spec of GENRE_SPECS) {
+    if (spec.keys.test(normalized) || spec.keys.test(userText)) return true;
+  }
+  return false;
 }
 
 
