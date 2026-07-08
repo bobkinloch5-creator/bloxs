@@ -331,10 +331,23 @@ export const seedKnowledgeBase = createServerFn({ method: "POST" })
     };
   });
 
+export type KbSeedAuditEntry = {
+  id: string;
+  action: string;
+  actor_email: string | null;
+  created_at: string;
+  inserted: number;
+  failed: number;
+  remaining: number | null;
+  totalIndexed: number | null;
+  creditExhausted: boolean;
+  firstError: string | null;
+};
+
 // Recent audit log entries for the seeder — for the panel history view.
 export const getKbSeedAuditLog = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .handler(async ({ context }): Promise<{ entries: KbSeedAuditEntry[] }> => {
     const { userId } = context as unknown as { userId: string };
     await requireOwnerOrAdmin(
       context.supabase as unknown as Parameters<typeof requireOwnerOrAdmin>[0],
@@ -366,6 +379,24 @@ export const getKbSeedAuditLog = createServerFn({ method: "GET" })
       .in("action", ["kb_seed.batch", "kb_seed.complete", "kb_seed.oneshot"])
       .order("created_at", { ascending: false })
       .limit(25);
-    if (error) return { entries: [] as [] };
-    return { entries: data ?? [] };
+    if (error || !data) return { entries: [] };
+    const num = (v: unknown, d = 0): number => (typeof v === "number" ? v : d);
+    const numOrNull = (v: unknown): number | null => (typeof v === "number" ? v : null);
+    const entries: KbSeedAuditEntry[] = data.map((r) => {
+      const m = (r.metadata ?? {}) as Record<string, unknown>;
+      return {
+        id: r.id,
+        action: r.action,
+        actor_email: r.actor_email,
+        created_at: r.created_at,
+        inserted: num(m.inserted),
+        failed: num(m.failed),
+        remaining: numOrNull(m.remaining),
+        totalIndexed: numOrNull(m.totalIndexed),
+        creditExhausted: m.creditExhausted === true,
+        firstError: typeof m.firstError === "string" ? m.firstError : null,
+      };
+    });
+    return { entries };
   });
+
