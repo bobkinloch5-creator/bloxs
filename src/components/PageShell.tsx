@@ -5,7 +5,7 @@ import { RobloxBackdrop } from "./RobloxBackdrop";
 import { MobileNavTrigger } from "./MobileNav";
 import { ProfileMenu, DiscordIcon } from "./ProfileMenu";
 import {
-  Folder, Users, Plug, Wand2,
+  Folder, Users, Plug, Wand2, Heart,
   History as HistoryIcon, BookOpen, Settings as SettingsIcon, Crown, Box, LayoutDashboard,
 } from "lucide-react";
 
@@ -63,6 +63,13 @@ export function PageShell({
               {description && <p className="mt-1 truncate text-xs text-muted-foreground sm:text-sm">{description}</p>}
             </div>
             {actions && <div className="hidden shrink-0 items-center gap-2 md:flex">{actions}</div>}
+            <Link
+              to="/donate"
+              title="Support BloxSmith"
+              className="hidden sm:inline-flex shrink-0 items-center gap-1 rounded-full border border-pink-400/30 bg-pink-500/10 px-2.5 py-1 text-[11px] font-semibold text-pink-200 transition hover:border-pink-400/60 hover:bg-pink-500/15 hover:text-white"
+            >
+              <Heart className="h-3 w-3" /> Donate
+            </Link>
             <ProfileMenu />
           </header>
 
