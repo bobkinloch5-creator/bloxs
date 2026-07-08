@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Bell, Bot, Box, Brain, Check, CheckCircle2, ChevronDown, Copy, Gauge, ImageIcon, Lightbulb, Link2, ListChecks, Palette, Rocket, ScrollText, Search, Share2, ShieldCheck, Sparkles, Users, Wrench, X, Zap } from "lucide-react";
 import { checkChangelogCoverage, warnIfIncomplete } from "@/lib/changelog-coverage";
+import bloxsmithLogo from "@/assets/bloxsmith-logo.png.asset.json";
 
 
 const CHANGELOG_VERSION = "2026-07-08-polish-hardened";
