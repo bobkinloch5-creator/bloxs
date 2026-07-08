@@ -11,7 +11,7 @@ import {
   Infinity as InfinityIcon, ChevronDown, Paperclip, Image as ImageIcon,
   Send, Hammer, TrendingUp, Wrench, Gamepad2, Upload, CheckCircle2,
   Code2, Package, Crown, ExternalLink, MoreHorizontal, ArrowRight,
-  Radio, HelpCircle, LayoutDashboard, Server,
+  Radio, HelpCircle, LayoutDashboard, Server, Gift,
 } from "lucide-react";
 import thumbTycoon from "@/assets/thumbs/tycoon.jpg";
 import thumbObby from "@/assets/thumbs/obby.jpg";
@@ -29,6 +29,7 @@ import { WorkspaceChat } from "@/components/WorkspaceChat";
 import { NewProjectModal } from "@/components/NewProjectModal";
 import { ProjectMemoryCard } from "@/components/ProjectMemoryCard";
 import { OnboardingChallenges } from "@/components/OnboardingChallenges";
+import { AiPlaytestCard } from "@/components/AiPlaytestCard";
 import robloxBg from "@/assets/backgrounds/roblox-dashboard.jpg";
 
 
@@ -57,6 +58,7 @@ const NAV: NavItem[] = [
   { key: "plugin",   label: "Studio Plugin", icon: Plug,            to: "/plugin" },
   { key: "mcp",      label: "MCP Servers",   icon: Server,          to: "/mcp-servers" },
   { key: "community",label: "Community",     icon: Users,           to: "/collaborators" },
+  { key: "referrals",label: "Invite Friends",icon: Gift,            to: "/referrals" },
 ];
 
 const QUICK_ACTIONS: { key: string; label: string; desc: string; icon: typeof Box; to: string }[] = [
