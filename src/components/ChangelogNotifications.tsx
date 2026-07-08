@@ -1,9 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Bell, Bot, Box, Brain, Check, CheckCircle2, ChevronDown, Copy, Gauge, ImageIcon, Lightbulb, Link2, ListChecks, Palette, Rocket, ScrollText, Search, Share2, ShieldCheck, Sparkles, Users, Wrench, X, Zap } from "lucide-react";
 
-const CHANGELOG_VERSION = "2026-07-08-profile-account-controls";
+const CHANGELOG_VERSION = "2026-07-08-referral-credit-bonus";
 
 const CHANGELOG_ITEMS = [
+  {
+    title: "🎁 Referral bonus — +25 credits for you AND your friend on every redeem",
+    date: "Jul 8",
+    icon: Sparkles,
+    body: "Every friend that redeems your BSxxxxxxxx invite code now grants +25 credits to both accounts. The reward bumps your max_credits (so the extra credits don't get clipped by the daily reset) and tops up your current credits so they're immediately usable. Owner/Unlimited plans are skipped (already uncapped). Duplicate/self-redeems are still rejected as before. Toast on the Invite friends page now confirms the exact bonus that landed.",
+  },
+
   {
     title: "👤 Full account controls — change username, upload avatar, update password",
     date: "Jul 8",

@@ -78,10 +78,16 @@ export const getMyReferral = createServerFn({ method: "GET" })
     };
   });
 
+// Bonus credits awarded to BOTH the referrer and the new referred user
+// when a valid referral code is applied.
+export const REFERRAL_BONUS_CREDITS = 25;
+
 export const applyReferralCode = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ code: z.string().min(4).max(24) }).parse(d))
   .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
     // Look up the referrer profile by code.
     const { data: refProfile, error } = await context.supabase
       .from("profiles")
@@ -102,5 +108,28 @@ export const applyReferralCode = createServerFn({ method: "POST" })
       if (/duplicate|conflict/i.test(insErr.message)) throw new Error("You've already used a referral code.");
       throw new Error(insErr.message);
     }
-    return { ok: true, referrer: refProfile.id };
+
+    // Grant bonus credits to BOTH sides. Bump max_credits so the extra credits
+    // are not clipped by the daily reset, and top up current credits so the
+    // reward is immediately usable. Owner/Unlimited plans skip the bump.
+    async function grantBonus(uid: string) {
+      const { data: p } = await supabaseAdmin
+        .from("profiles")
+        .select("credits, max_credits, plan")
+        .eq("id", uid)
+        .maybeSingle();
+      if (!p) return;
+      const plan = (p as any).plan ?? "Free";
+      if (plan === "Owner" || plan === "Unlimited") return;
+      const newMax = Number(p.max_credits ?? 0) + REFERRAL_BONUS_CREDITS;
+      const newCredits = Number(p.credits ?? 0) + REFERRAL_BONUS_CREDITS;
+      await supabaseAdmin
+        .from("profiles")
+        .update({ credits: newCredits, max_credits: newMax })
+        .eq("id", uid);
+    }
+    await Promise.all([grantBonus(refProfile.id), grantBonus(context.userId)]);
+
+    return { ok: true, referrer: refProfile.id, bonus: REFERRAL_BONUS_CREDITS };
   });
+
