@@ -20,7 +20,7 @@ local Selection             = game:GetService("Selection")
 
 local API_BASE       = "https://bloxsmith.pro"
 local POLL_INTERVAL  = 0.5
-local PLUGIN_VERSION = "2.1.23"
+local PLUGIN_VERSION = "2.1.24"
 
 ------------------------------------------------------------------- token helpers
 local TOKEN_KEY = "token"
