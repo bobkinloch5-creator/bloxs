@@ -89,6 +89,58 @@ const GUIDES: Record<string, { meta: GuideMeta; body: ReactNode }> = {
       </>
     ),
   },
+  "how-to-make-a-roblox-game-with-ai": {
+    meta: {
+      slug: "how-to-make-a-roblox-game-with-ai",
+      title: "How to make a Roblox game with AI (from idea to published place)",
+      description: "A full walkthrough: turn a game idea into a published Roblox place using AI. Genre picking, systems planning, scripting, GUI, playtest, and publishing — all with BloxSmith.",
+      readMinutes: 9,
+      datePublished: "2026-07-01",
+    },
+    body: (
+      <>
+        <p>You can ship a real Roblox game in an afternoon if you know the pipeline. Here's the exact one BloxSmith creators use to go from blank baseplate to public place.</p>
+        <h3>1. Pick a genre that rewards short prompts</h3>
+        <p>Tycoons, obbys, simulators, and PvP arenas all fit the "one prompt = one system" workflow. RPGs and open-world games work too but take more prompts because they have more systems.</p>
+        <h3>2. Describe the whole game in one paragraph</h3>
+        <p>Prompt example: <em>"A cyberpunk parkour tycoon. Players start on a rooftop, jump between neon buildings to collect Data (currency), unlock better boots for speed/jump. Save inventory + Data. Add a shop, gamepass for 2× Data, and a stage-based leaderboard."</em></p>
+        <h3>3. Let BloxSmith plan the systems</h3>
+        <p>The AI breaks the paragraph into systems: movement, currency, save data, shop, leaderboard, gamepass. You approve or trim before the build starts.</p>
+        <h3>4. Build in Studio (plugin does the heavy lifting)</h3>
+        <p>With the free plugin connected, every script and GUI drops into the right service. Scripts go to ServerScriptService, GUIs to StarterGui, models to Workspace.</p>
+        <h3>5. Playtest and use Autofix</h3>
+        <p>Press F5 in Studio. If something errors, paste the error into BloxSmith or click <strong>Autofix</strong> — it patches most issues in one pass.</p>
+        <h3>6. Publish and share</h3>
+        <p>File → Publish to Roblox → set thumbnail + description → make Public. Share the link and iterate based on how players actually play.</p>
+      </>
+    ),
+  },
+  "best-ai-for-roblox-scripting": {
+    meta: {
+      slug: "best-ai-for-roblox-scripting",
+      title: "The best AI for Roblox scripting in 2026 (honest comparison)",
+      description: "ChatGPT, Claude, Gemini, Roblox Assistant, or BloxSmith — which AI actually writes working Luau? Head-to-head on script quality, Roblox knowledge, workflow, and price.",
+      readMinutes: 7,
+      datePublished: "2026-07-05",
+    },
+    body: (
+      <>
+        <p>Every AI can write Luau. Only a few write Luau that <em>actually runs on Roblox</em>. Here's how the popular options compare when you ship real games.</p>
+        <h3>ChatGPT / GPT-5</h3>
+        <p>Great general reasoning. Hallucinates Roblox services (invents <code>PlayerService</code>, forgets <code>:WaitForChild</code>), and you copy-paste every script into Studio yourself.</p>
+        <h3>Claude</h3>
+        <p>Cleaner code style than GPT. Still no Roblox context — misses server/client boundaries and skips DataStore retry patterns. Copy-paste workflow.</p>
+        <h3>Gemini</h3>
+        <p>Fast and cheap, weakest on Luau specifics. Frequently returns Lua 5.1 instead of Luau.</p>
+        <h3>Roblox Studio Assistant</h3>
+        <p>Built into Studio, so no copy-paste. Writes single functions on demand but doesn't plan multi-file systems, and it's limited to premium tiers for heavy use.</p>
+        <h3>BloxSmith</h3>
+        <p>Purpose-built for Roblox. Plans full systems, wires RemoteEvents, validates scripts before delivery, and ships every file into Studio via the free plugin. Free forever.</p>
+        <h3>Recommendation</h3>
+        <p>Use BloxSmith when you're building a game. Use ChatGPT/Claude when you need a general Lua explanation or a snippet outside a Roblox project.</p>
+      </>
+    ),
+  },
 };
 
 const CANONICAL = (slug: string) => `https://bloxsmith.pro/guides/${slug}`;
