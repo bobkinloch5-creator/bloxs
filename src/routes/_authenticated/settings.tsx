@@ -92,6 +92,93 @@ function SettingsPage() {
     },
   });
 
+  // ===== Username =====
+  const changeUsernameFn = useServerFn(changeMyUsername);
+  const checkUsernameFn = useServerFn(checkUsernameAvailable);
+  const [usernameDraft, setUsernameDraft] = useState("");
+  const [usernameStatus, setUsernameStatus] = useState<"idle" | "checking" | "ok" | "taken" | "format">("idle");
+  const [usernameMsg, setUsernameMsg] = useState<string | null>(null);
+  useEffect(() => { if (profile) setUsernameDraft((profile as any).username ?? ""); }, [profile]);
+  useEffect(() => {
+    const currentUsername = ((profile as any)?.username ?? "").toString();
+    const normalized = usernameDraft.trim().toLowerCase();
+    if (!normalized || normalized === currentUsername) { setUsernameStatus("idle"); return; }
+    if (!/^[a-z0-9_]{3,24}$/.test(normalized)) { setUsernameStatus("format"); return; }
+    setUsernameStatus("checking");
+    const t = setTimeout(async () => {
+      try {
+        const res = await checkUsernameFn({ data: { username: normalized } });
+        setUsernameStatus(res.available ? "ok" : "taken");
+      } catch { setUsernameStatus("idle"); }
+    }, 350);
+    return () => clearTimeout(t);
+  }, [usernameDraft, profile, checkUsernameFn]);
+  const changeUsername = useMutation({
+    mutationFn: () => changeUsernameFn({ data: { username: usernameDraft.trim().toLowerCase() } }),
+    onSuccess: () => { setUsernameMsg("Username updated."); qc.invalidateQueries({ queryKey: ["profile"] }); },
+    onError: (e: any) => setUsernameMsg(e?.message ?? "Failed to change username."),
+  });
+  const usernameChangedAt = (profile as any)?.username_changed_at ? new Date((profile as any).username_changed_at).getTime() : null;
+  const cooldownMs = usernameChangedAt ? (usernameChangedAt + 14 * 86400_000) - Date.now() : 0;
+  const cooldownDays = Math.max(0, Math.ceil(cooldownMs / 86400_000));
+
+  // ===== Avatar =====
+  const setAvatarFn = useServerFn(setMyAvatar);
+  const clearAvatarFn = useServerFn(clearMyAvatar);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  const [avatarMsg, setAvatarMsg] = useState<string | null>(null);
+  async function handleAvatarPick(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!/^image\//.test(file.type)) { setAvatarMsg("Please pick an image."); return; }
+    setAvatarBusy(true); setAvatarMsg(null);
+    try {
+      const jpegBlob = await resizeImageToJpeg(file, 512, 0.85);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not signed in");
+      const path = `${user.id}/avatar-${Date.now()}.jpg`;
+      const { error: upErr } = await supabase.storage.from("avatars").upload(path, jpegBlob, {
+        cacheControl: "31536000", upsert: true, contentType: "image/jpeg",
+      });
+      if (upErr) throw upErr;
+      const { data: signed, error: sErr } = await supabase.storage.from("avatars").createSignedUrl(path, 60 * 60 * 24 * 365);
+      if (sErr || !signed?.signedUrl) throw sErr ?? new Error("Failed to sign avatar URL");
+      await setAvatarFn({ data: { url: signed.signedUrl, storage_path: path } });
+      qc.invalidateQueries({ queryKey: ["profile"] });
+      setAvatarMsg("Avatar updated.");
+    } catch (err: any) { setAvatarMsg(err?.message ?? "Failed to upload avatar."); }
+    finally { setAvatarBusy(false); }
+  }
+  const clearAvatar = useMutation({
+    mutationFn: () => clearAvatarFn(),
+    onSuccess: () => { setAvatarMsg("Avatar removed."); qc.invalidateQueries({ queryKey: ["profile"] }); },
+    onError: (e: any) => setAvatarMsg(e?.message ?? "Failed to remove avatar."),
+  });
+
+  // ===== Password =====
+  const changePwFn = useServerFn(changeMyPassword);
+  const resetPwFn = useServerFn(sendMyPasswordResetEmail);
+  const [pwForm, setPwForm] = useState({ current: "", next: "", confirm: "" });
+  const [pwMsg, setPwMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const changePw = useMutation({
+    mutationFn: () => {
+      if (pwForm.next !== pwForm.confirm) return Promise.reject(new Error("New passwords do not match."));
+      if (pwForm.next.length < 8) return Promise.reject(new Error("New password must be at least 8 characters."));
+      return changePwFn({ data: { current_password: pwForm.current, new_password: pwForm.next } });
+    },
+    onSuccess: () => { setPwMsg({ ok: true, text: "Password updated." }); setPwForm({ current: "", next: "", confirm: "" }); },
+    onError: (e: any) => setPwMsg({ ok: false, text: e?.message ?? "Failed to change password." }),
+  });
+  const sendReset = useMutation({
+    mutationFn: () => resetPwFn({ data: { redirect_to: `${window.location.origin}/auth` } }),
+    onSuccess: (r: any) => setPwMsg({ ok: true, text: `Password reset email sent to ${r?.email ?? "your inbox"}.` }),
+    onError: (e: any) => setPwMsg({ ok: false, text: e?.message ?? "Failed to send reset email." }),
+  });
+
+
+
   const deleteFn = useServerFn(deleteMyAccount);
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [deleteError, setDeleteError] = useState<string | null>(null);
