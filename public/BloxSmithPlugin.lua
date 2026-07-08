@@ -164,9 +164,101 @@ local infoLabel   = label(statusCard, "Place: loading...   Live: 0",
     UDim2.new(0,12,0,44), UDim2.new(1,-24,0,14),
     Enum.Font.Code, 10, Color3.fromRGB(140, 200, 235))
 
-local lastLabel   = label(main, "Last action: (none)",
-    UDim2.new(0,14,0,156), UDim2.new(1,-28,0,14),
+-- ============ credits card ============
+local creditsCard = Instance.new("Frame")
+creditsCard.Position = UDim2.new(0,12,0,156); creditsCard.Size = UDim2.new(1,-24,0,52)
+creditsCard.BackgroundColor3 = Color3.fromRGB(20, 22, 44)
+creditsCard.BorderSizePixel = 0
+creditsCard.Parent = main
+round(creditsCard, 10)
+stroke(creditsCard, Color3.fromRGB(140, 200, 255), 1, 0.85)
+
+local creditsIcon = Instance.new("TextLabel")
+creditsIcon.Position = UDim2.new(0,10,0,8); creditsIcon.Size = UDim2.fromOffset(20,18)
+creditsIcon.BackgroundTransparency = 1
+creditsIcon.Font = Enum.Font.GothamBold; creditsIcon.TextSize = 14
+creditsIcon.TextColor3 = Color3.fromRGB(251, 191, 36); creditsIcon.Text = "⚡"
+creditsIcon.TextXAlignment = Enum.TextXAlignment.Left
+creditsIcon.Parent = creditsCard
+
+local creditsCaption = label(creditsCard, "Credits",
+    UDim2.new(0,32,0,8), UDim2.new(0.5,-32,0,18),
+    Enum.Font.GothamBold, 12, Color3.fromRGB(225, 228, 245))
+
+local planPill = Instance.new("TextLabel")
+planPill.AnchorPoint = Vector2.new(1,0)
+planPill.Position = UDim2.new(1,-10,0,8); planPill.Size = UDim2.fromOffset(60,18)
+planPill.BackgroundColor3 = Color3.fromRGB(40, 60, 110)
+planPill.BorderSizePixel = 0
+planPill.Font = Enum.Font.GothamBold; planPill.TextSize = 10
+planPill.TextColor3 = Color3.fromRGB(190, 220, 255)
+planPill.Text = "Free"
+planPill.Parent = creditsCard
+round(planPill, 6)
+stroke(planPill, Color3.fromRGB(120, 180, 255), 1, 0.5)
+
+local creditsValue = Instance.new("TextLabel")
+creditsValue.AnchorPoint = Vector2.new(1,0)
+creditsValue.Position = UDim2.new(1,-76,0,8); creditsValue.Size = UDim2.fromOffset(90,18)
+creditsValue.BackgroundTransparency = 1
+creditsValue.Font = Enum.Font.Code; creditsValue.TextSize = 12
+creditsValue.TextColor3 = Color3.fromRGB(230, 235, 250)
+creditsValue.Text = "-- / --"
+creditsValue.TextXAlignment = Enum.TextXAlignment.Right
+creditsValue.Parent = creditsCard
+
+-- progress bar
+local creditsTrack = Instance.new("Frame")
+creditsTrack.Position = UDim2.new(0,10,0,32); creditsTrack.Size = UDim2.new(1,-20,0,8)
+creditsTrack.BackgroundColor3 = Color3.fromRGB(12, 14, 30)
+creditsTrack.BorderSizePixel = 0
+creditsTrack.Parent = creditsCard
+round(creditsTrack, 4)
+
+local creditsFill = Instance.new("Frame")
+creditsFill.Size = UDim2.new(0,0,1,0)
+creditsFill.BackgroundColor3 = Color3.fromRGB(74, 222, 128)
+creditsFill.BorderSizePixel = 0
+creditsFill.Parent = creditsTrack
+round(creditsFill, 4)
+gradient(creditsFill, Color3.fromRGB(129, 140, 255), Color3.fromRGB(74, 222, 128), 0)
+
+local lastLabel   = label(main, "Last: (none)",
+    UDim2.new(0,14,0,212), UDim2.new(1,-28,0,14),
     Enum.Font.Gotham, 11, Color3.fromRGB(155, 160, 195))
+
+local function setCredits(credits, maxCredits, plan)
+    credits = tonumber(credits) or 0
+    maxCredits = tonumber(maxCredits) or 0
+    creditsValue.Text = string.format("%s / %s",
+        (credits >= 10000) and (math.floor(credits/1000).."k") or tostring(credits),
+        (maxCredits >= 10000) and (math.floor(maxCredits/1000).."k") or tostring(maxCredits))
+    local pct = 0
+    if maxCredits > 0 then pct = math.clamp(credits / maxCredits, 0, 1) end
+    creditsFill:TweenSize(UDim2.new(pct, 0, 1, 0),
+        Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.35, true)
+    -- color shifts red as it depletes
+    if pct < 0.15 then
+        creditsFill.BackgroundColor3 = Color3.fromRGB(248, 113, 113)
+    elseif pct < 0.4 then
+        creditsFill.BackgroundColor3 = Color3.fromRGB(251, 191, 36)
+    else
+        creditsFill.BackgroundColor3 = Color3.fromRGB(74, 222, 128)
+    end
+    if plan and plan ~= "" then
+        planPill.Text = tostring(plan)
+        if plan == "Owner" then
+            planPill.BackgroundColor3 = Color3.fromRGB(90, 40, 130)
+            planPill.TextColor3 = Color3.fromRGB(240, 210, 255)
+        elseif plan == "Pro" or plan == "Business" or plan == "Enterprise" then
+            planPill.BackgroundColor3 = Color3.fromRGB(50, 90, 60)
+            planPill.TextColor3 = Color3.fromRGB(210, 255, 220)
+        else
+            planPill.BackgroundColor3 = Color3.fromRGB(40, 60, 110)
+            planPill.TextColor3 = Color3.fromRGB(190, 220, 255)
+        end
+    end
+end
 
 -- ============ primary connect button ============
 local connectBtn = Instance.new("TextButton")
