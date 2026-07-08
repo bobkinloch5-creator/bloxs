@@ -4885,7 +4885,10 @@ local map = folder(root, "Map")
 local systems = folder(root, "Gameplay_Objects")
 local spawns = folder(root, "Spawns")
 
-local base = part(map, "Main_Play_Area", Vector3.new(260, 1, 260), CFrame.new(0, 0, 0), Color3.fromRGB(72, 142, 78), Enum.Material.Grass)
+local baseSize = (genre == "city") and Vector3.new(720, 1, 720) or Vector3.new(260, 1, 260)
+local baseColor = (genre == "city") and Color3.fromRGB(58, 62, 70) or Color3.fromRGB(72, 142, 78)
+local baseMat = (genre == "city") and Enum.Material.Asphalt or Enum.Material.Grass
+local base = part(map, "Main_Play_Area", baseSize, CFrame.new(0, 0, 0), baseColor, baseMat)
 base:SetAttribute("BloxSmithRole", "play_area")
 
 local spawn = Instance.new("SpawnLocation")
