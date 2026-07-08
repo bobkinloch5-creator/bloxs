@@ -725,7 +725,14 @@ export function ChangelogNotifications({
     };
   }, [open]);
 
+  const coverage = useMemo(
+    () => checkChangelogCoverage(CHANGELOG_ITEMS.map((i) => i.date)),
+    [],
+  );
+  useEffect(() => { warnIfIncomplete(coverage); }, [coverage]);
+
   const items = useMemo(() => {
+
     const now = Date.now();
     const enriched = CHANGELOG_ITEMS.map((it, i) => {
       const d = parseDate(it.date);
