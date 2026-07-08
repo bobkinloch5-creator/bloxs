@@ -3711,9 +3711,63 @@ function isToolboxMapRequest(userText: string) {
 // full experience instead of a thin approximation. Only fires for short prompts
 // (≤14 tokens) so richer user briefs are left alone.
 type GenreSpec = { keys: RegExp; brief: string };
+
+// Normalize the user's prompt before running genre-brief matching so that
+// casual phrasing, common typos, plurals, hyphens, and size qualifiers all
+// route to the correct branch. Examples that must trigger city:
+//   "big city", "a whole city", "downtown area", "city map", "cyberpunk city",
+//   "urban block", "small town", "make me a metropolis".
+function normalizeGenrePrompt(raw: string): string {
+  let t = " " + raw.toLowerCase() + " ";
+  // Strip common filler / intent verbs so bare nouns still match.
+  t = t.replace(/\b(please|pls|plz|kindly|just|really|actually|literally|basically|maybe|also|too|now|asap|okay|ok|yo|hey|hi|hello|thanks|thank\s*you|ty)\b/g, " ");
+  t = t.replace(/\b(i\s*(?:would|wanna|want|wanted|need|needed|would\s*like|wish|hope)\s*(?:to|for|a|an)?|gimme|give\s*me|make\s*me|build\s*me|create\s*me|generate\s*me|do\s*me|show\s*me|can\s*you\s*(?:please\s*)?(?:make|build|create|generate|do)|could\s*you\s*(?:please\s*)?(?:make|build|create|generate|do)|help\s*me\s*(?:make|build|create)|let'?s\s*(?:make|build|create))\b/g, " ");
+  t = t.replace(/\b(make|build|create|generate|design|construct|produce|whip\s*up|spin\s*up|set\s*up|craft|render|spawn|do)\b/g, " ");
+  t = t.replace(/\b(a|an|the|some|any|one|another|entire|whole|complete|full|proper|real|actual|working|playable|finished|final|polished)\b/g, " ");
+  // Size / vibe qualifiers → drop so "big city" == "city".
+  t = t.replace(/\b(big|small|tiny|huge|large|massive|enormous|giant|mega|super|ultra|mini|little|medium|medium\s*sized|medium-sized|dense|packed|realistic|detailed|open|open\s*world|beautiful|awesome|epic|cool|nice|good|great|amazing)\b/g, " ");
+  // Themes that describe a city/etc but should not block the noun match.
+  t = t.replace(/\b(modern|old|ancient|classic|futuristic|cyberpunk|sci[-\s]?fi|scifi|sci\s*fi|fantasy|medieval|dark|neon|winter|summer|snowy|desert|tropical|coastal|industrial|suburban|rural|luxury|abandoned|haunted|ruined|underwater|space|arctic|volcanic)\b/g, " $& "); // keep them but pad
+  // Common Roblox / spelling normalizations.
+  t = t.replace(/\brblx\b|\broblx\b|\brobloxx\b/g, "roblox");
+  t = t.replace(/\bcitys\b/g, "city");
+  t = t.replace(/\btownes\b|\btownes\b/g, "town");
+  t = t.replace(/\bhouses\b/g, "house");
+  t = t.replace(/\bmansions\b/g, "mansion");
+  t = t.replace(/\bcastles\b/g, "castle");
+  t = t.replace(/\bdungeons\b/g, "dungeon");
+  t = t.replace(/\bfarms\b/g, "farm");
+  t = t.replace(/\bmalls\b/g, "mall");
+  t = t.replace(/\bhospitals\b/g, "hospital");
+  t = t.replace(/\bschools\b/g, "school");
+  t = t.replace(/\bairports\b/g, "airport");
+  t = t.replace(/\bhotels\b/g, "hotel");
+  t = t.replace(/\bchurches\b/g, "church");
+  t = t.replace(/\bislands\b/g, "island");
+  t = t.replace(/\bforests\b/g, "forest");
+  t = t.replace(/\barenas\b/g, "arena");
+  t = t.replace(/\bstadiums\b/g, "stadium");
+  t = t.replace(/\bspaceships\b|\bspace\s*ships\b/g, "spaceship");
+  t = t.replace(/\btemples\b/g, "temple");
+  t = t.replace(/\btombs\b/g, "temple");
+  t = t.replace(/\bmines\b/g, "mine");
+  t = t.replace(/\bpyramids\b/g, "pyramid");
+  t = t.replace(/\bapartments?\b|\bapt\b|\bapts\b/g, "apartment");
+  t = t.replace(/\bcafes\b/g, "cafe");
+  t = t.replace(/\brestaurants\b/g, "restaurant");
+  t = t.replace(/\bshops\b/g, "shop");
+  t = t.replace(/\bplazas\b/g, "plaza");
+  t = t.replace(/\bskyscrapers?\b|\btall\s*building/g, "skyscraper city");
+  // Hyphens → spaces so "high-school", "sci-fi", "shopping-mall" match.
+  t = t.replace(/-/g, " ");
+  // Collapse whitespace.
+  t = t.replace(/\s+/g, " ").trim();
+  return t;
+}
+
 const GENRE_SPECS: GenreSpec[] = [
   {
-    keys: /\b(city|town|downtown|metropolis|neighborhood|urban|village)\b/i,
+    keys: /\b(city|cities|cityscape|skyline|metropolis|megacity|downtown|uptown|midtown|urban(?:\s*area|\s*block|\s*zone|\s*sprawl)?|town(?:\s*center|\s*square)?|village|hamlet|borough|district|suburb|neighborhood|roleplay\s*city|rp\s*city|city\s*(?:map|block|scene|life|rp)|skyscraper\s*city|new\s*york|los\s*angeles|tokyo|london|paris|chicago)\b/i,
     brief: `CITY BUILD BRIEF — the user asked for a city. Build a complete, playable city map that includes ALL of these in one action batch:
 - A gridded street layout (main road + cross streets) with sidewalks, crosswalks, and street lights.
 - A dense mix of buildings (residential houses + apartments + shops + offices + at least one landmark) placed along both sides of every road. Not 5 lonely buildings — a real city block.
@@ -3728,119 +3782,119 @@ const GENRE_SPECS: GenreSpec[] = [
 - Organize under a "City" folder in Workspace with sub-folders (Roads / Buildings / Vehicles / Props / Park / Lighting). End with autofix_project + scan_project + camera_focus on the plaza.`,
   },
   {
-    keys: /\b(tycoon)\b/i,
+    keys: /\b(tycoon|tycoons|money\s*tycoon|business\s*tycoon)\b/i,
     brief: `TYCOON BUILD BRIEF — build a full 1-player tycoon plot: baseplate, dropper → conveyor → collector chain, currency (leaderstats + DataStore save), buttons that unlock upgrades in order, ownership door, cash HUD, and safe Toolbox decor. Use ProximityPrompt or ClickDetector for buttons, server-authoritative purchase validation, and organize under a "Tycoon" folder. End with autofix + scan.`,
   },
   {
-    keys: /\b(obby|parkour)\b/i,
+    keys: /\b(obby|obbys|obbies|obstacle\s*course|parkour|parkour\s*course|jump\s*course|platforming\s*course)\b/i,
     brief: `OBBY BUILD BRIEF — build a real playable obby: SpawnLocation, ≥10 stages that get progressively harder (jumps, tightropes, kill bricks, disappearing platforms, moving parts), checkpoints per stage with DataStore save, stage counter HUD, and a finish trophy. Use TweenService for moving parts, server-authoritative kill/reset, mobile-safe jump distances. Organize under an "Obby" folder. End with autofix + scan.`,
   },
   {
-    keys: /\b(zombie\s*(game|survival)?|zombie\s*apocalypse)\b/i,
+    keys: /\b(zombie(?:s|\s*(?:game|survival|apocalypse|invasion|outbreak|horde|round|wave|shooter))?|undead(?:\s*(?:game|survival))?)\b/i,
     brief: `ZOMBIE SURVIVAL BRIEF — build a full zombie survival: fenced arena/city block map with safe zone, wave spawner with escalating zombie count/HP, zombie PathfindingService AI that chases nearest player, starter melee + a gun with server-side raycast damage, health HUD, currency reward per wave, shop for weapon upgrades, DataStore save, leaderboard. Organize under "ZombieSurvival". End with autofix + scan.`,
   },
   {
-    keys: /\b(racing|race\s*(track|game)|driving\s*game)\b/i,
+    keys: /\b(racing|race(?:\s*(?:track|game|course|circuit))?|driving(?:\s*(?:game|simulator))?|car\s*race|kart|kart\s*race|f1|formula\s*1|nascar|rally|drag\s*race)\b/i,
     brief: `RACING BRIEF — build a real racing game: closed-loop track (start line, checkpoints, finish), 2+ drivable cars with VehicleSeat + constraints, lap counter HUD, best-time DataStore, countdown + start/finish, spectate spawn, ambient decor along the track. Organize under "Racing". End with autofix + scan.`,
   },
   {
-    keys: /\b(simulator)\b/i,
+    keys: /\b(simulator|simulators|sim\s*game|clicker|clicker\s*game|idle\s*game|pet\s*(?:simulator|sim))\b/i,
     brief: `SIMULATOR BRIEF — build a full clicker/collect simulator: SpawnLocation hub, main collection zone with respawning nodes (auto-scaling drops), leaderstats currency + DataStore, shop UI to buy pets/tools that multiply gains, rebirth system, zone teleporters for later-tier zones, mobile-friendly UI. Organize under "Simulator". End with autofix + scan.`,
   },
   {
-    keys: /\b(tower\s*defen[cs]e|td\b)\b/i,
+    keys: /\b(tower\s*defen[cs]e|td\b|td\s*game|defense\s*game|defense\s*tower)\b/i,
     brief: `TOWER DEFENSE BRIEF — build a real TD: map path from spawn to base, enemy waves with escalating HP/speed via PathfindingService or path CFrames, 3+ tower types with different range/damage/fire rate, placement UI on grid, currency + kill rewards, base HP + game-over screen, wave counter HUD. Organize under "TowerDefense". End with autofix + scan.`,
   },
   {
-    keys: /\b(castle|medieval|kingdom|fortress|keep)\b/i,
+    keys: /\b(castle|castles|medieval(?:\s*(?:castle|fort|town|village|kingdom))?|kingdom|fort|fortress|stronghold|citadel|palace|chateau|keep|barbican|castle\s*grounds)\b/i,
     brief: `CASTLE / MEDIEVAL BRIEF — build a full medieval castle map: outer stone walls with battlements and 4 corner towers, a raised gatehouse with a drawbridge, a large keep with interior throne room + torches, a courtyard with barracks/blacksmith/stable/well, a village of 6-10 houses + a market outside the walls, dirt path leading up, a spawn point at the village square, torches with PointLights, medieval skybox + warm lighting. Organize under "Castle" (Walls / Towers / Keep / Courtyard / Village / Props / Lighting). End with autofix + scan.`,
   },
   {
-    keys: /\b(dungeon|crypt|catacomb)\b/i,
+    keys: /\b(dungeon|dungeons|crypt|crypts|catacomb|catacombs|underground\s*lair|underground\s*dungeon|dungeon\s*crawler)\b/i,
     brief: `DUNGEON BRIEF — build a real explorable dungeon: 6-10 stone chambers connected by corridors, torches with PointLights, chests with ProximityPrompt loot, 3+ enemy spawn points with basic Humanoid mobs and PathfindingService, traps (spike floors, swinging blades) via TweenService, a boss chamber at the end, a spawn point at the entrance. Dark ambient lighting + fog. Organize under "Dungeon". End with autofix + scan.`,
   },
   {
-    keys: /\b(mall|shopping\s*mall|shopping\s*center)\b/i,
+    keys: /\b(mall|malls|shopping\s*(?:mall|center|centre|plaza|complex)|outlet\s*mall|strip\s*mall)\b/i,
     brief: `MALL BRIEF — build a full 2-floor shopping mall: outer building shell, tile floor, escalators/stairs to the second floor, 8-12 storefronts (clothing, electronics, food court, arcade, cinema) each with a signed entrance and interior fixtures, central atrium with fountain and benches, parked cars outside, ambient music, spawn at the main entrance. Organize under "Mall". End with autofix + scan.`,
   },
   {
-    keys: /\b(school|high\s*school|university|college|classroom)\b/i,
+    keys: /\b(school|schools|schoolhouse|high\s*school|middle\s*school|elementary(?:\s*school)?|academy|university|college|campus|classroom|schoolroom)\b/i,
     brief: `SCHOOL BRIEF — build a full playable school: main school building with hallways + lockers, 6+ classrooms with desks/chairs/whiteboards, cafeteria with tables and serving line, gym with basketball hoops, principal's office, front entrance with flagpole, parking lot with cars, outdoor courtyard with benches and trees, spawn at the front doors. Organize under "School". End with autofix + scan.`,
   },
   {
-    keys: /\b(hospital|clinic|medical\s*center)\b/i,
+    keys: /\b(hospital|hospitals|clinic|medical\s*(?:center|centre|facility)|emergency\s*room|er\s*room|infirmary)\b/i,
     brief: `HOSPITAL BRIEF — build a full working hospital: reception/lobby with desk, ER with beds and monitors, patient rooms (6+) with beds and IV stands, operating room with surgical table, waiting area with chairs, cafeteria, hallways with signs, ambulance out front, parking lot, spawn at the entrance. Organize under "Hospital". End with autofix + scan.`,
   },
   {
-    keys: /\b(airport|airfield|terminal)\b/i,
+    keys: /\b(airport|airports|airfield|aerodrome|terminal(?:\s*building)?|runway)\b/i,
     brief: `AIRPORT BRIEF — build a full airport: terminal building with check-in desks and seating, security checkpoint, boarding gates with jet bridges, control tower, runway with lane markings and taxiways, 2-3 parked planes, luggage carts and vehicles on the tarmac, parking lot, spawn at the main entrance. Organize under "Airport". End with autofix + scan.`,
   },
   {
-    keys: /\b(farm|ranch|farmland)\b/i,
+    keys: /\b(farm|farms|farmland|farmyard|ranch|homestead|barnyard)\b/i,
     brief: `FARM BRIEF — build a full farm: farmhouse with interior, red barn with hay bales, silo, animal pens (cows, sheep, pigs, chickens) with animal Models, tilled crop rows with corn/wheat, tractor + pickup truck, wooden fence around the perimeter, pond with a dock, dirt path to the road, spawn at the farmhouse porch. Organize under "Farm". End with autofix + scan.`,
   },
   {
-    keys: /\b(restaurant|diner|cafe|coffee\s*shop|pizzeria)\b/i,
+    keys: /\b(restaurant|restaurants|diner|eatery|bistro|cafe|coffee\s*shop|pizzeria|pizza\s*shop|burger\s*joint|fast\s*food|food\s*court|steakhouse|sushi\s*bar)\b/i,
     brief: `RESTAURANT BRIEF — build a full working restaurant: outer building with signage, dining room with tables/chairs/booths, host stand, bar area with stools, open kitchen with stoves/prep counters/oven, restrooms, outdoor patio with umbrellas, parking lot with cars, ambient music, spawn at the front entrance. Organize under "Restaurant". End with autofix + scan.`,
   },
   {
-    keys: /\b(prison|jail|penitentiary)\b/i,
+    keys: /\b(prison|prisons|jail|jails|penitentiary|cell\s*block|prison\s*yard|jailhouse|correctional\s*facility)\b/i,
     brief: `PRISON BRIEF — build a full prison map: outer walls with guard towers, main cell block with 12+ cells (bunks, toilets, bars), cafeteria with metal tables, yard with basketball hoop and weight benches, warden's office, guard station, entrance gate with checkpoint, spawn split between guards and prisoners team pads. Organize under "Prison". End with autofix + scan.`,
   },
   {
-    keys: /\b(mansion|manor|villa|estate)\b/i,
+    keys: /\b(mansion|mansions|manor|manors|villa|villas|estate|estates|penthouse|luxury\s*house)\b/i,
     brief: `MANSION BRIEF — build a full luxury mansion: 2-story main house with grand foyer + double staircase, living room with fireplace, dining room, gourmet kitchen, 4-6 bedrooms + bathrooms, home theater, wine cellar, pool + patio out back, 3-car garage with cars, front driveway with fountain, iron gate + surrounding wall, garden with trees and hedges, spawn at the front gate. Organize under "Mansion". End with autofix + scan.`,
   },
   {
-    keys: /\b(house|home|cabin|cottage)\b/i,
+    keys: /\b(house|houses|home|homes|cabin|cabins|cottage|cottages|bungalow|apartment(?:\s*building)?|log\s*cabin|tiny\s*house)\b/i,
     brief: `HOUSE BRIEF — build a fully furnished house: exterior with door + windows + roof, living room with couch + TV + coffee table, kitchen with counters + stove + fridge + table, 2 bedrooms with beds + dressers + lamps, bathroom with toilet + sink + shower, front yard with fence + path, backyard with trees, spawn at the front door. Organize under "House". End with autofix + scan.`,
   },
   {
-    keys: /\b(forest|woods|jungle)\b/i,
+    keys: /\b(forest|forests|woods|woodland|jungle|jungles|rainforest|treehouse\s*forest|pine\s*forest)\b/i,
     brief: `FOREST BRIEF — build a real explorable forest: dense terrain floor with grass, 60+ trees of varying sizes and species, rocks and bushes scattered, a winding dirt path, a clearing with a campfire + logs, a small pond or stream, ambient forest sound, soft foggy lighting, spawn at the trailhead. Organize under "Forest". End with autofix + scan.`,
   },
   {
-    keys: /\b(island|beach|tropical|resort)\b/i,
+    keys: /\b(island|islands|beach|beaches|tropical(?:\s*(?:island|beach|resort))?|atoll|shore|shoreline|resort(?:\s*island)?)\b/i,
     brief: `ISLAND BRIEF — build a real tropical island: sand shoreline surrounded by water, palm trees + tropical foliage, a wooden dock with a small boat, a beach hut / tiki bar, sunbeds + umbrellas, a rocky lookout point, a bonfire ring, ambient wave sound + warm sunset lighting, spawn at the dock. Organize under "Island". End with autofix + scan.`,
   },
   {
-    keys: /\b(arena|coliseum|stadium)\b/i,
+    keys: /\b(arena|arenas|coliseum|colosseum|stadium|stadiums|amphitheater|amphitheatre|fighting\s*pit|battle\s*arena|combat\s*arena)\b/i,
     brief: `ARENA BRIEF — build a full combat arena / stadium: circular or oval fighting pit with stone/sand floor, tiered stone/metal seating around the perimeter (fill with a few NPC spectators), entrance tunnels for both teams, torches / floodlights, scoreboard, VIP box, spawn split between two team pads. Organize under "Arena". End with autofix + scan.`,
   },
   {
-    keys: /\b(space\s*ship|spaceship|starship|space\s*station)\b/i,
+    keys: /\b(space\s*ship|spaceship|spaceships|starship|space\s*station|space\s*base|rocket\s*ship|spacecraft|shuttle|space\s*shuttle|mothership)\b/i,
     brief: `SPACESHIP BRIEF — build a full explorable spaceship interior + exterior: hull shell with viewports, bridge with captain's chair + control consoles + main viewscreen, corridors, crew quarters, engineering room with reactor and pipes, med bay, cargo hold, airlock, exterior thrusters + wings. Neon accent lighting, ambient hum, spawn on the bridge. Organize under "Spaceship". End with autofix + scan.`,
   },
   {
-    keys: /\b(military\s*base|army\s*base|army\s*camp|military\s*camp)\b/i,
+    keys: /\b(military\s*(?:base|camp|outpost|compound)|army\s*(?:base|camp|outpost)|marine\s*base|war\s*base|combat\s*outpost|forward\s*operating\s*base|fob)\b/i,
     brief: `MILITARY BASE BRIEF — build a full military base: chain-link perimeter with guard towers + front gate, barracks buildings, mess hall, armory, command HQ with radio antenna, helipad with a helicopter, motor pool with jeeps + trucks, obstacle course, flagpole with flag, sandbag walls, spawn at the main gate. Organize under "MilitaryBase". End with autofix + scan.`,
   },
   {
-    keys: /\b(pirate|pirate\s*(ship|cove|bay|island))\b/i,
+    keys: /\b(pirate|pirates|pirate\s*(?:ship|cove|bay|island|port|harbor)|buccaneer|shipwreck\s*island)\b/i,
     brief: `PIRATE BRIEF — build a full pirate cove: sandy beach with palm trees, a large wooden pirate ship with sails + cannons + mast + crow's nest floating in the water, a smaller shipwreck, a rocky cave with treasure chests, a wooden dock leading to shore, campfire + tents on the beach, tropical lighting, spawn on the beach. Organize under "PirateCove". End with autofix + scan.`,
   },
   {
-    keys: /\b(mine|mining|cave|caves)\b/i,
+    keys: /\b(mine|mines|mining(?:\s*(?:site|shaft|tunnel|camp))?|cave|caves|cavern|caverns|quarry|coal\s*mine|gold\s*mine)\b/i,
     brief: `MINE / CAVE BRIEF — build a real mine: entrance shed with a wooden headframe, tracks leading in, 6+ interior tunnels branching underground, ore veins (gold/coal/gems) embedded in the walls, wooden support beams + hanging lanterns, minecart on rails, water pool, exit at the surface, spawn at the entrance. Organize under "Mine". End with autofix + scan.`,
   },
   {
-    keys: /\b(temple|shrine|ruins|pyramid)\b/i,
+    keys: /\b(temple|temples|shrine|shrines|ruins|pyramid|pyramids|monastery|ancient\s*ruins|aztec\s*temple|egyptian\s*temple|jungle\s*temple|tomb|tombs)\b/i,
     brief: `TEMPLE / RUINS BRIEF — build a full ancient temple: outer stone steps up to a grand entrance with columns, main hall with a central altar + idol, side chambers with treasure and traps (spike floors, dart walls) via TweenService, hieroglyph-textured walls, torches with PointLights, a hidden inner sanctum, spawn at the base of the steps. Organize under "Temple". End with autofix + scan.`,
   },
   {
-    keys: /\b(hotel|resort\s*hotel)\b/i,
+    keys: /\b(hotel|hotels|motel|inn|resort\s*hotel|lodge|bed\s*and\s*breakfast|b&b)\b/i,
     brief: `HOTEL BRIEF — build a full 3-story hotel: lobby with reception desk + seating + elevators, hallway with 8+ numbered guest rooms (bed, TV, bathroom), restaurant/bar on ground floor, pool + patio out back, front driveway with valet car, parking lot, spawn at the front entrance. Organize under "Hotel". End with autofix + scan.`,
   },
   {
-    keys: /\b(church|cathedral|chapel)\b/i,
+    keys: /\b(church|churches|cathedral|cathedrals|chapel|chapels|basilica|mosque|synagogue)\b/i,
     brief: `CHURCH BRIEF — build a full stone church: tall nave with pews + central aisle + altar, stained-glass windows, bell tower with a bell, side chapels, wooden doors, exterior path + garden with benches, organ, warm ambient lighting, spawn at the front doors. Organize under "Church". End with autofix + scan.`,
   },
   {
-    keys: /\b(gym|fitness\s*center|workout)\b/i,
+    keys: /\b(gym|gyms|fitness(?:\s*(?:center|centre|club))?|workout(?:\s*(?:room|studio))?|boxing\s*gym|weight\s*room|yoga\s*studio)\b/i,
     brief: `GYM BRIEF — build a full gym: main floor with treadmills + bikes + weight racks + benches, free-weight area, boxing ring, yoga studio with mirrored wall, locker rooms, reception desk with tablet, TVs on the walls, ambient music, spawn at the entrance. Organize under "Gym". End with autofix + scan.`,
   },
   {
-    keys: /\b(map|world|island|game\s*world|open\s*world)\b/i,
+    keys: /\b(map|maps|world|worlds|open\s*world|game\s*world|game\s*map|playable\s*map|explorable\s*world)\b/i,
     brief: `WORLD / MAP BRIEF — the user asked for a world/map. Build a REAL playable map, not a placeholder pad. Include: SpawnLocation, terrain (Terrain or Parts) sized ≥ 500×500, ≥ 20 environment props relevant to the theme, ≥ 4 named landmarks/points of interest, ambient sound + skybox, lighting matched to the theme, mobile-friendly camera. Organize under a themed top-level folder (e.g. "AdventureMap"). End with autofix + scan.`,
   },
 ];
@@ -3850,12 +3904,28 @@ function buildGenreBrief(userText: string): string {
   if (!trimmed) return "";
   // Fire on any prompt up to 40 words — a "build me a full medieval castle with towers and a village" ask should still get the brief.
   if (trimmed.split(/\s+/).length > 40) return "";
+  // Match against BOTH the raw prompt and the normalized form so that casual
+  // phrasing ("big city", "downtown area", "medieval castle grounds",
+  // "shopping plaza", "high-school", "space rocket", "army camp") all route
+  // to the correct branch.
+  const normalized = normalizeGenrePrompt(trimmed);
   for (const spec of GENRE_SPECS) {
-    if (spec.keys.test(trimmed)) {
+    if (spec.keys.test(normalized) || spec.keys.test(trimmed)) {
       return `\n\n---\nGENRE BRIEF (auto-injected because the user named this kind of world/game — interpret their ask this way and build the FULL thing, not a placeholder):\n\n${spec.brief}`;
     }
   }
   return "";
+}
+
+// Exposed so the placeholder-stub suppression uses the same synonym-aware
+// matching as the brief injector.
+function matchesAnyGenreSpec(userText: string): boolean {
+  if (!userText) return false;
+  const normalized = normalizeGenrePrompt(userText);
+  for (const spec of GENRE_SPECS) {
+    if (spec.keys.test(normalized) || spec.keys.test(userText)) return true;
+  }
+  return false;
 }
 
 
@@ -4928,7 +4998,7 @@ function broadPlayableGameStudioActions(userText: string, languageName: string) 
   // + Toolbox pipeline (driven by the injected Genre Brief) will build the
   // real thing, and stacking the stub on top produces the tiny grass pad
   // with an "ADVENTURE SYSTEM" HUD instead of the actual map.
-  if (/\b(city|town|downtown|metropolis|neighborhood|urban|village|castle|medieval|kingdom|fortress|keep|dungeon|crypt|catacomb|mall|shopping\s*mall|shopping\s*center|school|high\s*school|university|college|classroom|hospital|clinic|medical\s*center|airport|airfield|terminal|farm|ranch|farmland|restaurant|diner|cafe|coffee\s*shop|pizzeria|prison|jail|penitentiary|mansion|manor|villa|estate|house|home|cabin|cottage|forest|woods|jungle|island|beach|tropical|resort|arena|coliseum|stadium|space\s*ship|spaceship|starship|space\s*station|military\s*base|army\s*base|army\s*camp|military\s*camp|pirate|mine|mining|cave|caves|temple|shrine|ruins|pyramid|hotel|resort\s*hotel|church|cathedral|chapel|gym|fitness\s*center|workout|map|world|open\s*world|game\s*world)\b/i.test(userText)) {
+  if (matchesAnyGenreSpec(userText)) {
     return [];
   }
   const safePrompt = userText.trim().slice(0, 260) || "Roblox playable game system";
