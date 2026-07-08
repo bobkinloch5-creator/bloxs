@@ -158,6 +158,75 @@ export const listMessages = createServerFn({ method: "GET" })
     return rows ?? [];
   });
 
+// Chat history: one entry per project the signed-in user has chatted in,
+// with the most-recent message snippet and total message count. Powers the
+// History dropdown in the workspace composer so users can jump back into
+// any past conversation.
+export const listChatThreads = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data: msgs, error } = await context.supabase
+      .from("chat_messages")
+      .select("project_id, role, content, created_at")
+      .eq("user_id", context.userId)
+      .order("created_at", { ascending: false })
+      .limit(1000);
+    if (error) throw new Error(error.message);
+
+    type Agg = {
+      projectId: string;
+      lastMessage: string;
+      lastRole: string;
+      lastAt: string;
+      count: number;
+    };
+    const byProject = new Map<string, Agg>();
+    for (const m of msgs ?? []) {
+      if (!m.project_id) continue;
+      const existing = byProject.get(m.project_id);
+      if (existing) {
+        existing.count += 1;
+      } else {
+        const raw = typeof m.content === "string" ? m.content : "";
+        const snippet = raw
+          .replace(/```[\s\S]*?```/g, " [code] ")
+          .replace(/\s+/g, " ")
+          .trim()
+          .slice(0, 140);
+        byProject.set(m.project_id, {
+          projectId: m.project_id,
+          lastMessage: snippet,
+          lastRole: String(m.role ?? ""),
+          lastAt: m.created_at,
+          count: 1,
+        });
+      }
+    }
+
+    const ids = Array.from(byProject.keys());
+    if (ids.length === 0) return [] as Array<Agg & { name: string; gameType: string | null }>;
+
+    const { data: projects, error: pErr } = await context.supabase
+      .from("projects")
+      .select("id, name, game_type")
+      .in("id", ids);
+    if (pErr) throw new Error(pErr.message);
+
+    const nameMap = new Map<string, { name: string; game_type: string | null }>();
+    for (const p of projects ?? []) nameMap.set(p.id, { name: p.name, game_type: p.game_type ?? null });
+
+    return Array.from(byProject.values())
+      .map((agg) => {
+        const p = nameMap.get(agg.projectId);
+        return {
+          ...agg,
+          name: p?.name ?? "Untitled project",
+          gameType: p?.game_type ?? null,
+        };
+      })
+      .sort((a, b) => new Date(b.lastAt).getTime() - new Date(a.lastAt).getTime());
+
+
 export const listProjectActions = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) => z.object({ projectId: z.string().uuid() }).parse(input))
