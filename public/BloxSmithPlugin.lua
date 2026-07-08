@@ -166,7 +166,9 @@ local function miniBtn(text, xOff)
     b.TextColor3 = Color3.fromRGB(210,215,225)
     b.Font = Enum.Font.BuilderSans; b.TextSize = 11
     b.Text = text; b.BorderSizePixel = 0
-    b.Parent = logBar; return b
+    b.Parent = logBar
+    round(b, 4)
+    return b
 end
 local copyLogBtn  = miniBtn("Copy", 0)
 local clearLogBtn = miniBtn("Clear", -66)
@@ -177,6 +179,8 @@ logFrame.Position = UDim2.new(0,12,0,378); logFrame.Size = UDim2.new(1,-24,1,-39
 logFrame.BackgroundColor3 = Color3.fromRGB(14,16,22); logFrame.BorderSizePixel = 0
 logFrame.CanvasSize = UDim2.new(0,0,0,0); logFrame.ScrollBarThickness = 4
 logFrame.Parent = main
+round(logFrame, 6)
+
 local lp = Instance.new("UIPadding", logFrame)
 lp.PaddingTop = UDim.new(0,6); lp.PaddingBottom = UDim.new(0,6)
 lp.PaddingLeft = UDim.new(0,6); lp.PaddingRight = UDim.new(0,6)
