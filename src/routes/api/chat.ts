@@ -5197,7 +5197,7 @@ statsLabel.Font = Enum.Font.GothamSemibold
 statsLabel.TextScaled = true
 statsLabel.TextXAlignment = Enum.TextXAlignment.Left
 statsLabel.TextColor3 = Color3.fromRGB(190, 205, 235)
-statsLabel.Text = "Stage: 1   Coins: 0   Wins: 0"
+statsLabel.Text = (genre == "city") and "Explore the city — spawn plaza, park, streets, buildings" or "Stage: 1   Coins: 0   Wins: 0"
 statsLabel.Parent = hud
 
 local toast = Instance.new("TextLabel")
