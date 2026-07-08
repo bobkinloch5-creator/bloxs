@@ -5081,8 +5081,8 @@ elseif genre == "city" then
       local col = CAR_COLORS[rng:NextInteger(1, #CAR_COLORS)]
       local body = part(vehiclesF, string.format("Car_%d_%d_body", i, j), Vector3.new(12, 3, 5), CFrame.new(cx, 2.5, cz), col, Enum.Material.SmoothPlastic)
       part(vehiclesF, string.format("Car_%d_%d_cabin", i, j), Vector3.new(6, 2.2, 4.6), CFrame.new(cx - 0.5, 5, cz), Color3.fromRGB(30, 40, 60), Enum.Material.Glass)
-      for _, wpos in ipairs({{-4, -2.6}, {-4, 2.6}, {4, -2.6}, {4, 2.6}}) do
-        part(vehiclesF, string.format("Wheel_%d_%d_%d_%d", i, j, wpos[1], wpos[2]), Vector3.new(1.6, 1.6, 1.6), CFrame.new(cx + wpos[1], 1.6, cz + wpos[2]), Color3.fromRGB(20, 20, 25), Enum.Material.SmoothPlastic)
+      for wi, wpos in ipairs({{-4, -2.6}, {-4, 2.6}, {4, -2.6}, {4, 2.6}}) do
+        part(vehiclesF, string.format("Wheel_%d_%d_%d", i, j, wi), Vector3.new(1.6, 1.6, 1.6), CFrame.new(cx + wpos[1], 1.6, cz + wpos[2]), Color3.fromRGB(20, 20, 25), Enum.Material.SmoothPlastic)
       end
       body:SetAttribute("BloxSmithVehicle", true)
     end
