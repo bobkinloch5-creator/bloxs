@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { BookOpen, Loader2, CheckCircle2, RefreshCw, AlertCircle, ScrollText, XCircle, Zap, Infinity as InfinityIcon } from "lucide-react";
+import { BookOpen, Loader2, CheckCircle2, RefreshCw, AlertCircle, ScrollText, XCircle, Zap, Infinity as InfinityIcon, Download } from "lucide-react";
 import { toast } from "sonner";
 import { useCallback, useRef, useState } from "react";
 import {
@@ -111,6 +111,45 @@ export function KnowledgeBaseCard() {
   }, [batchFn, queryClient, refetchAudit, running]);
 
   const cancel = useCallback(() => { cancelRef.current = true; }, []);
+
+  const exportAuditCsv = useCallback(async () => {
+    try {
+      const res = await auditFn({});
+      const entries = res?.entries ?? [];
+      if (entries.length === 0) {
+        toast("No seeding events to export yet.");
+        return;
+      }
+      const esc = (v: unknown): string => {
+        const s = v === null || v === undefined ? "" : String(v);
+        return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+      };
+      const header = [
+        "id", "created_at", "action", "actor_email",
+        "inserted", "failed", "remaining", "totalIndexed",
+        "creditExhausted", "firstError",
+      ];
+      const rows = entries.map((e) => [
+        e.id, e.created_at, e.action, e.actor_email ?? "",
+        e.inserted, e.failed, e.remaining ?? "", e.totalIndexed ?? "",
+        e.creditExhausted, e.firstError ?? "",
+      ].map(esc).join(","));
+      const csv = [header.join(","), ...rows].join("\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+      a.href = url;
+      a.download = `kb-seed-audit-${stamp}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast.success(`Exported ${entries.length} audit ${entries.length === 1 ? "entry" : "entries"}.`);
+    } catch (e) {
+      toast.error(friendlyError(e));
+    }
+  }, [auditFn]);
 
   const oneShot = useMutation({
     mutationFn: () => runSeeding(),
@@ -231,14 +270,24 @@ export function KnowledgeBaseCard() {
         </div>
       )}
 
-      <button
-        type="button"
-        onClick={() => setShowLog((v) => !v)}
-        className="mt-3 inline-flex items-center gap-1.5 text-[11px] text-white/50 hover:text-white/80 transition"
-      >
-        <ScrollText className="w-3 h-3" />
-        {showLog ? "Hide audit log" : "Show audit log"}
-      </button>
+      <div className="mt-3 flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => setShowLog((v) => !v)}
+          className="inline-flex items-center gap-1.5 text-[11px] text-white/50 hover:text-white/80 transition"
+        >
+          <ScrollText className="w-3 h-3" />
+          {showLog ? "Hide audit log" : "Show audit log"}
+        </button>
+        <button
+          type="button"
+          onClick={exportAuditCsv}
+          className="inline-flex items-center gap-1.5 text-[11px] text-white/50 hover:text-white/80 transition"
+        >
+          <Download className="w-3 h-3" />
+          Export audit logs
+        </button>
+      </div>
 
       {showLog && (
         <div className="mt-2 max-h-56 overflow-y-auto rounded-md border border-white/5 bg-black/30 p-2 space-y-1">
