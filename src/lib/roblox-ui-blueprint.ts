@@ -402,7 +402,9 @@ local gui = make("ScreenGui", {
   Name = "BloxSmithExactUI",
   IgnoreGuiInset = true,
   ResetOnSpawn = false,
+  DisplayOrder = 10,
   ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+  AutoLocalize = false,
 }, playerGui)
 
 local root = make("Frame", {
