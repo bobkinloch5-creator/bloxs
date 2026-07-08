@@ -16,19 +16,27 @@ import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import {
+  AtSign,
   BadgeCheck,
   Bot,
   Boxes,
+  Camera,
   CheckCircle2,
   Globe2,
+  KeyRound,
   Loader2,
   LockKeyhole,
+  Mail,
   Save,
   ShieldCheck,
   Trash2,
+  Upload,
   UserRound,
+  Users,
   Wand2,
+  X as XIcon,
 } from "lucide-react";
+
 import { LANGUAGES, useLang, type LangCode } from "@/lib/i18n";
 
 
