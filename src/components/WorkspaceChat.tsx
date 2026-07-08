@@ -937,11 +937,11 @@ export function WorkspaceChat({
             onClick={enhance}
             disabled={!prompt.trim() || enhancing || busy}
             className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg border border-indigo-400/40 bg-indigo-500/10 px-3 py-2 text-xs font-semibold text-indigo-100 transition hover:bg-indigo-500/20 hover:border-indigo-400/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
-            title="Improve prompt — expand into a detailed build brief"
-            aria-label="Improve prompt"
+            title="Polish prompt — refine wording, grammar, and clarity into a premium build request"
+            aria-label="Polish prompt"
           >
             {enhancing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
-            <span className="hidden sm:inline">{enhancing ? "Improving…" : "Improve"}</span>
+            <span className="hidden sm:inline">{enhancing ? "Polishing…" : "Polish"}</span>
           </button>
         </div>
 
