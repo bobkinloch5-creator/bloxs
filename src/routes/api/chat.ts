@@ -4943,6 +4943,177 @@ elseif genre == "racing" then
     cp:SetAttribute("BloxSmithCheckpoint", true)
     cp:SetAttribute("Stage", i)
   end
+elseif genre == "city" then
+  local city = folder(systems, "City")
+  local roadsF = folder(city, "Roads")
+  local sidewalksF = folder(city, "Sidewalks")
+  local buildingsF = folder(city, "Buildings")
+  local propsF = folder(city, "Props")
+  local vehiclesF = folder(city, "Vehicles")
+  local parkF = folder(city, "Park")
+  local lightingF = folder(city, "Lighting")
+
+  local BLOCK = 120           -- distance between road centers
+  local ROAD_W = 24           -- road width
+  local SIDE_W = 6            -- sidewalk width
+  local GRID = 3              -- => (2*GRID+1) = 7 roads per axis
+  local extent = GRID * BLOCK + BLOCK / 2
+
+  -- Roads (asphalt strips) with lane markings
+  for i = -GRID, GRID do
+    local c = i * BLOCK
+    -- North-South road
+    part(roadsF, "Road_NS_" .. i, Vector3.new(ROAD_W, 0.6, extent * 2), CFrame.new(c, 0.8, 0), Color3.fromRGB(38, 40, 46), Enum.Material.Asphalt)
+    -- East-West road
+    part(roadsF, "Road_EW_" .. i, Vector3.new(extent * 2, 0.6, ROAD_W), CFrame.new(0, 0.8, c), Color3.fromRGB(38, 40, 46), Enum.Material.Asphalt)
+    -- Center yellow lane paint (segments)
+    for s = -GRID, GRID do
+      if s ~= i or true then
+        local sc = s * BLOCK
+        for k = -2, 2 do
+          part(roadsF, string.format("Lane_NS_%d_%d_%d", i, s, k), Vector3.new(0.8, 0.7, 8), CFrame.new(c, 0.95, sc + k * 18), Color3.fromRGB(240, 210, 60), Enum.Material.SmoothPlastic)
+          part(roadsF, string.format("Lane_EW_%d_%d_%d", i, s, k), Vector3.new(8, 0.7, 0.8), CFrame.new(sc + k * 18, 0.95, c), Color3.fromRGB(240, 210, 60), Enum.Material.SmoothPlastic)
+        end
+      end
+    end
+  end
+
+  -- Sidewalks alongside each road
+  for i = -GRID, GRID do
+    local c = i * BLOCK
+    part(sidewalksF, "Side_NS_L_" .. i, Vector3.new(SIDE_W, 0.8, extent * 2), CFrame.new(c - ROAD_W / 2 - SIDE_W / 2, 0.9, 0), Color3.fromRGB(190, 190, 195), Enum.Material.Concrete)
+    part(sidewalksF, "Side_NS_R_" .. i, Vector3.new(SIDE_W, 0.8, extent * 2), CFrame.new(c + ROAD_W / 2 + SIDE_W / 2, 0.9, 0), Color3.fromRGB(190, 190, 195), Enum.Material.Concrete)
+    part(sidewalksF, "Side_EW_T_" .. i, Vector3.new(extent * 2, 0.8, SIDE_W), CFrame.new(0, 0.9, c - ROAD_W / 2 - SIDE_W / 2), Color3.fromRGB(190, 190, 195), Enum.Material.Concrete)
+    part(sidewalksF, "Side_EW_B_" .. i, Vector3.new(extent * 2, 0.8, SIDE_W), CFrame.new(0, 0.9, c + ROAD_W / 2 + SIDE_W / 2), Color3.fromRGB(190, 190, 195), Enum.Material.Concrete)
+  end
+
+  local rng = Random.new(1337)
+  local BUILDING_COLORS = {
+    Color3.fromRGB(200, 205, 215), Color3.fromRGB(150, 120, 100),
+    Color3.fromRGB(90, 110, 140),  Color3.fromRGB(180, 165, 140),
+    Color3.fromRGB(110, 90, 80),   Color3.fromRGB(220, 220, 225),
+    Color3.fromRGB(80, 100, 120),  Color3.fromRGB(160, 100, 90),
+    Color3.fromRGB(70, 80, 95),    Color3.fromRGB(230, 190, 140),
+  }
+  local WINDOW_COLOR = Color3.fromRGB(120, 190, 255)
+
+  local function addBuilding(px, pz, w, d, h, col)
+    local body = part(buildingsF, string.format("Bldg_%d_%d", px, pz), Vector3.new(w, h, d), CFrame.new(px, h / 2 + 1, pz), col, Enum.Material.Concrete)
+    -- Window strips (each floor)
+    local floors = math.max(1, math.floor(h / 8))
+    for f = 1, floors do
+      local y = 1 + (f - 0.5) * (h / floors)
+      part(buildingsF, string.format("Win_%d_%d_%d_F", px, pz, f), Vector3.new(w - 4, 2.2, 0.4), CFrame.new(px, y, pz + d / 2 + 0.05), WINDOW_COLOR, Enum.Material.Neon)
+      part(buildingsF, string.format("Win_%d_%d_%d_B", px, pz, f), Vector3.new(w - 4, 2.2, 0.4), CFrame.new(px, y, pz - d / 2 - 0.05), WINDOW_COLOR, Enum.Material.Neon)
+      part(buildingsF, string.format("Win_%d_%d_%d_L", px, pz, f), Vector3.new(0.4, 2.2, d - 4), CFrame.new(px - w / 2 - 0.05, y, pz), WINDOW_COLOR, Enum.Material.Neon)
+      part(buildingsF, string.format("Win_%d_%d_%d_R", px, pz, f), Vector3.new(0.4, 2.2, d - 4), CFrame.new(px + w / 2 + 0.05, y, pz), WINDOW_COLOR, Enum.Material.Neon)
+    end
+    -- Roof cap
+    part(buildingsF, string.format("Roof_%d_%d", px, pz), Vector3.new(w + 1, 1.2, d + 1), CFrame.new(px, h + 1.6, pz), Color3.fromRGB(45, 48, 55), Enum.Material.Slate)
+    return body
+  end
+
+  -- Fill each city block (between roads) with 4 buildings, leaving one for park
+  local parkBlockX, parkBlockZ = 1, -1
+  for bx = -GRID, GRID - 1 do
+    for bz = -GRID, GRID - 1 do
+      local cx = bx * BLOCK + BLOCK / 2
+      local cz = bz * BLOCK + BLOCK / 2
+      if bx == parkBlockX and bz == parkBlockZ then
+        -- Park block
+        part(parkF, "Park_Ground", Vector3.new(BLOCK - ROAD_W - SIDE_W * 2, 0.6, BLOCK - ROAD_W - SIDE_W * 2), CFrame.new(cx, 0.9, cz), Color3.fromRGB(90, 160, 90), Enum.Material.Grass)
+        for t = 1, 8 do
+          local tx = cx + rng:NextNumber(-40, 40)
+          local tz = cz + rng:NextNumber(-40, 40)
+          part(parkF, "Tree_Trunk_" .. t, Vector3.new(2, 8, 2), CFrame.new(tx, 5, tz), Color3.fromRGB(90, 60, 40), Enum.Material.Wood)
+          part(parkF, "Tree_Leaves_" .. t, Vector3.new(9, 8, 9), CFrame.new(tx, 12, tz), Color3.fromRGB(60, 140, 60), Enum.Material.Grass)
+        end
+        part(parkF, "Fountain_Base", Vector3.new(14, 1.4, 14), CFrame.new(cx, 1.4, cz), Color3.fromRGB(210, 210, 215), Enum.Material.Marble)
+        part(parkF, "Fountain_Water", Vector3.new(10, 0.8, 10), CFrame.new(cx, 2.4, cz), Color3.fromRGB(90, 180, 230), Enum.Material.ForceField)
+        for b = 1, 4 do
+          local a = (b - 1) * math.pi / 2
+          part(parkF, "Bench_" .. b, Vector3.new(6, 1, 1.6), CFrame.new(cx + math.cos(a) * 22, 1.6, cz + math.sin(a) * 22) * CFrame.Angles(0, -a, 0), Color3.fromRGB(90, 60, 40), Enum.Material.Wood)
+        end
+      else
+        -- Buildings — 4 quadrants inside the block
+        for qx = 0, 1 do
+          for qz = 0, 1 do
+            local w = rng:NextNumber(28, 40)
+            local d = rng:NextNumber(28, 40)
+            local h = rng:NextNumber(18, 90)
+            local col = BUILDING_COLORS[rng:NextInteger(1, #BUILDING_COLORS)]
+            local ox = (qx == 0) and -1 or 1
+            local oz = (qz == 0) and -1 or 1
+            local px = cx + ox * (BLOCK / 4)
+            local pz = cz + oz * (BLOCK / 4)
+            addBuilding(px, pz, w, d, h, col)
+          end
+        end
+      end
+    end
+  end
+
+  -- Streetlights at every intersection
+  for i = -GRID, GRID do
+    for j = -GRID, GRID do
+      local x, z = i * BLOCK + ROAD_W / 2 + 4, j * BLOCK + ROAD_W / 2 + 4
+      local pole = part(propsF, string.format("Pole_%d_%d", i, j), Vector3.new(0.8, 18, 0.8), CFrame.new(x, 9, z), Color3.fromRGB(40, 40, 45), Enum.Material.Metal)
+      local arm = part(propsF, string.format("Arm_%d_%d", i, j), Vector3.new(4, 0.6, 0.6), CFrame.new(x - 2, 18, z), Color3.fromRGB(40, 40, 45), Enum.Material.Metal)
+      local bulb = part(lightingF, string.format("Bulb_%d_%d", i, j), Vector3.new(1.4, 0.8, 1.4), CFrame.new(x - 4, 17.6, z), Color3.fromRGB(255, 235, 180), Enum.Material.Neon)
+      local pl = Instance.new("PointLight")
+      pl.Brightness = 1.4
+      pl.Range = 22
+      pl.Color = Color3.fromRGB(255, 230, 170)
+      pl.Parent = bulb
+    end
+  end
+
+  -- Parked cars along the sidewalks
+  local CAR_COLORS = {
+    Color3.fromRGB(220, 60, 60),  Color3.fromRGB(60, 120, 220),
+    Color3.fromRGB(240, 220, 90), Color3.fromRGB(40, 40, 45),
+    Color3.fromRGB(230, 230, 230), Color3.fromRGB(90, 170, 90),
+  }
+  for i = -GRID, GRID - 1 do
+    for j = -GRID, GRID do
+      local cz = j * BLOCK + ROAD_W / 2 + SIDE_W + 3.5
+      local cx = i * BLOCK + BLOCK / 2 + rng:NextNumber(-20, 20)
+      local col = CAR_COLORS[rng:NextInteger(1, #CAR_COLORS)]
+      local body = part(vehiclesF, string.format("Car_%d_%d_body", i, j), Vector3.new(12, 3, 5), CFrame.new(cx, 2.5, cz), col, Enum.Material.SmoothPlastic)
+      part(vehiclesF, string.format("Car_%d_%d_cabin", i, j), Vector3.new(6, 2.2, 4.6), CFrame.new(cx - 0.5, 5, cz), Color3.fromRGB(30, 40, 60), Enum.Material.Glass)
+      for _, wpos in ipairs({{-4, -2.6}, {-4, 2.6}, {4, -2.6}, {4, 2.6}}) do
+        part(vehiclesF, string.format("Wheel_%d_%d_%d_%d", i, j, wpos[1], wpos[2]), Vector3.new(1.6, 1.6, 1.6), CFrame.new(cx + wpos[1], 1.6, cz + wpos[2]), Color3.fromRGB(20, 20, 25), Enum.Material.SmoothPlastic)
+      end
+      body:SetAttribute("BloxSmithVehicle", true)
+    end
+  end
+
+  -- Central spawn plaza (replace default spawn placement)
+  spawn.Size = Vector3.new(18, 1, 18)
+  spawn.Position = Vector3.new(0, 2, 0)
+  local plaza = part(propsF, "Plaza_Ring", Vector3.new(36, 0.4, 36), CFrame.new(0, 1.2, 0), Color3.fromRGB(230, 220, 200), Enum.Material.Marble)
+  plaza:SetAttribute("BloxSmithRole", "plaza")
+
+  -- Lighting / sky polish
+  Lighting.ClockTime = 15
+  Lighting.Brightness = 2
+  Lighting.EnvironmentDiffuseScale = 0.6
+  Lighting.EnvironmentSpecularScale = 0.4
+  local existingBloom = Lighting:FindFirstChildOfClass("BloomEffect")
+  if not existingBloom then
+    local bloom = Instance.new("BloomEffect")
+    bloom.Intensity = 0.35
+    bloom.Size = 24
+    bloom.Threshold = 0.9
+    bloom.Parent = Lighting
+  end
+  local existingCC = Lighting:FindFirstChildOfClass("ColorCorrectionEffect")
+  if not existingCC then
+    local cc = Instance.new("ColorCorrectionEffect")
+    cc.Saturation = 0.08
+    cc.Contrast = 0.05
+    cc.Parent = Lighting
+  end
 else
   local goals = folder(systems, "Objectives")
   for i, data in ipairs({{-58, -28, "Collect_Zone"}, {58, -24, "Reward_Zone"}, {0, 58, "Final_Objective"}}) do
