@@ -3699,6 +3699,65 @@ function isToolboxMapRequest(userText: string) {
   return /\b(map|world|city|town|village|lobby|hub|spawn|obby|parkour|race\s*track|racing|forest|island|beach|roleplay|rp|tycoon|horror|dungeon|rpg|street|road|neighborhood|theme\s*park|arena)\b/i.test(userText);
 }
 
+// Genre brief expansion — when the user gives a short bare-genre ask, tell the
+// model exactly what a player expects that genre to include so it builds the
+// full experience instead of a thin approximation. Only fires for short prompts
+// (≤14 tokens) so richer user briefs are left alone.
+type GenreSpec = { keys: RegExp; brief: string };
+const GENRE_SPECS: GenreSpec[] = [
+  {
+    keys: /\b(city|town|downtown|metropolis|neighborhood|urban)\b/i,
+    brief: `CITY BUILD BRIEF — the user asked for a city. Build a complete, playable city map that includes ALL of these in one action batch:
+- A gridded street layout (main road + cross streets) with sidewalks, crosswalks, and street lights.
+- A dense mix of buildings (residential houses + apartments + shops + offices + at least one landmark) placed along both sides of every road. Not 5 lonely buildings — a real city block.
+- A spawn plaza / SpawnLocation set with team-agnostic PVP off.
+- Street props (benches, trash bins, hydrants, traffic signs, parked cars).
+- Ambient traffic: at least a handful of drivable / decorative city vehicles distributed on the roads.
+- A small park zone (trees, bushes, fountain or benches) inside the map.
+- Day/night skybox + subtle atmosphere for depth (Bloom + soft ColorCorrection).
+- Ambient city sound at a comfortable volume.
+- Mobile-friendly camera; server-authoritative anywhere gameplay logic lives.
+- Prefer safe Toolbox packs (city road kit, city building pack, street props, city vehicles). Never invent asset IDs.
+- Organize under a "City" folder in Workspace with sub-folders (Roads / Buildings / Vehicles / Props / Park / Lighting). End with autofix_project + scan_project + camera_focus on the plaza.`,
+  },
+  {
+    keys: /\b(tycoon)\b/i,
+    brief: `TYCOON BUILD BRIEF — build a full 1-player tycoon plot: baseplate, dropper → conveyor → collector chain, currency (leaderstats + DataStore save), buttons that unlock upgrades in order, ownership door, cash HUD, and safe Toolbox decor. Use ProximityPrompt or ClickDetector for buttons, server-authoritative purchase validation, and organize under a "Tycoon" folder. End with autofix + scan.`,
+  },
+  {
+    keys: /\b(obby|parkour)\b/i,
+    brief: `OBBY BUILD BRIEF — build a real playable obby: SpawnLocation, ≥10 stages that get progressively harder (jumps, tightropes, kill bricks, disappearing platforms, moving parts), checkpoints per stage with DataStore save, stage counter HUD, and a finish trophy. Use TweenService for moving parts, server-authoritative kill/reset, mobile-safe jump distances. Organize under an "Obby" folder. End with autofix + scan.`,
+  },
+  {
+    keys: /\b(zombie\s*(game|survival)?|zombie\s*apocalypse)\b/i,
+    brief: `ZOMBIE SURVIVAL BRIEF — build a full zombie survival: fenced arena/city block map with safe zone, wave spawner with escalating zombie count/HP, zombie PathfindingService AI that chases nearest player, starter melee + a gun with server-side raycast damage, health HUD, currency reward per wave, shop for weapon upgrades, DataStore save, leaderboard. Organize under "ZombieSurvival". End with autofix + scan.`,
+  },
+  {
+    keys: /\b(racing|race\s*(track|game)|driving\s*game)\b/i,
+    brief: `RACING BRIEF — build a real racing game: closed-loop track (start line, checkpoints, finish), 2+ drivable cars with VehicleSeat + constraints, lap counter HUD, best-time DataStore, countdown + start/finish, spectate spawn, ambient decor along the track. Organize under "Racing". End with autofix + scan.`,
+  },
+  {
+    keys: /\b(simulator)\b/i,
+    brief: `SIMULATOR BRIEF — build a full clicker/collect simulator: SpawnLocation hub, main collection zone with respawning nodes (auto-scaling drops), leaderstats currency + DataStore, shop UI to buy pets/tools that multiply gains, rebirth system, zone teleporters for later-tier zones, mobile-friendly UI. Organize under "Simulator". End with autofix + scan.`,
+  },
+  {
+    keys: /\b(tower\s*defen[cs]e|td\b)\b/i,
+    brief: `TOWER DEFENSE BRIEF — build a real TD: map path from spawn to base, enemy waves with escalating HP/speed via PathfindingService or path CFrames, 3+ tower types with different range/damage/fire rate, placement UI on grid, currency + kill rewards, base HP + game-over screen, wave counter HUD. Organize under "TowerDefense". End with autofix + scan.`,
+  },
+];
+function buildGenreBrief(userText: string): string {
+  if (!userText) return "";
+  const trimmed = userText.trim();
+  if (!trimmed || trimmed.split(/\s+/).length > 14) return "";
+  for (const spec of GENRE_SPECS) {
+    if (spec.keys.test(trimmed)) {
+      return `\n\n---\nGENRE BRIEF (auto-injected because the user asked for this genre in a short prompt — interpret their ask this way):\n\n${spec.brief}`;
+    }
+  }
+  return "";
+}
+
+
 const CITY_VARIANTS = [
   {
     name: "modern downtown",
@@ -6286,6 +6345,11 @@ export const Route = createFileRoute("/api/chat")({
           const uiConceptRequested = mode === "build" && imageGenerationRequested && /(\bgenerate ui\b|\bimage to roblox ui\b|\bimage-to-roblox ui\b|loading screen|main menu|play button|settings menu|shop ui|inventory ui|gamepass ui|quest ui|\bhud\b|health bar|xp bar|currency display|mobile controls)/i.test(userText);
 
           let contextBlock = "";
+          // Genre brief: when the user gives a short bare-genre ask ("build me a city",
+          // "make a tycoon", "zombie game"), inject an explicit specification so the
+          // model builds the full expected experience instead of a thin approximation.
+          const genreBrief = mode === "build" ? buildGenreBrief(userText) : "";
+          if (genreBrief) contextBlock = genreBrief;
           let generatedUiConceptUrl: string | null = null;
           try {
             const [
