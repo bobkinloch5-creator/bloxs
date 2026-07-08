@@ -1,6 +1,7 @@
 // Knowledge-base seeder + status. Owner/admin-only. Batched for progress UI.
 // Each batch writes to admin_audit_logs so seeding is auditable.
 import { createServerFn } from "@tanstack/react-start";
+import { getRequest } from "@tanstack/react-start/server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { KB_CORPUS } from "@/lib/kb-corpus";
 
