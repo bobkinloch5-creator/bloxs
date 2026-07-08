@@ -248,6 +248,8 @@ export function KnowledgeBaseCard() {
             <span>+{livePos.inserted} indexed · {livePos.failed} failed</span>
           </div>
         )}
+      </div>
+
 
       {/* Pre-flight preview: chunks-to-process + credits available */}
       {!ready && !running && (
