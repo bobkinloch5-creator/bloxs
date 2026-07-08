@@ -103,7 +103,7 @@ function paletteFor(style: string): Palette {
   if (s.includes("cartoon") || s.includes("cute")) {
     return { bg: "#fff1f7", bg2: "#fff7cc", panel: "#ffe0ef", panel2: "#ffffff", card: "#fff8fb", accent: "#ff5fa2", accent2: "#ffb347", text: "#36172b", muted: "#73475f", good: "#38d9a9", warn: "#ffb347", danger: "#ff4f4f" };
   }
-  if (s.includes("premium") || s.includes("vip")) {
+  if (s.includes("premium") || s.includes("vip") || s.includes("luxur")) {
     return { bg: "#07070b", bg2: "#17131d", panel: "#121018", panel2: "#231a2d", card: "#1b1726", accent: "#d4af37", accent2: "#8b5cf6", text: "#fff7df", muted: "#c7b98a", good: "#22c55e", warn: "#d4af37", danger: "#ef4444" };
   }
   if (s.includes("horror")) {
@@ -112,9 +112,28 @@ function paletteFor(style: string): Palette {
   if (s.includes("rpg") || s.includes("fantasy")) {
     return { bg: "#15082e", bg2: "#241047", panel: "#21103d", panel2: "#34185d", card: "#2c1650", accent: "#c084fc", accent2: "#facc15", text: "#fff7ed", muted: "#d8c8ff", good: "#34d399", warn: "#facc15", danger: "#fb7185" };
   }
-  if (s.includes("sci") || s.includes("futur") || s.includes("neon")) {
+  if (s.includes("neon")) {
+    return { bg: "#04040a", bg2: "#0a0620", panel: "#0d0925", panel2: "#150e38", card: "#100c2f", accent: "#00ffa3", accent2: "#ff2ecc", text: "#eafffb", muted: "#8fb7ff", good: "#00ffa3", warn: "#ffe83d", danger: "#ff3d6b" };
+  }
+  if (s.includes("sci") || s.includes("futur")) {
     return { bg: "#050a1d", bg2: "#0a1640", panel: "#0f1a46", panel2: "#1c2a62", card: "#13215a", accent: "#38f2ff", accent2: "#a855f7", text: "#f8fafc", muted: "#a9c6ff", good: "#2dd4bf", warn: "#facc15", danger: "#fb7185" };
   }
+  if (s.includes("anime")) {
+    return { bg: "#0f0f2d", bg2: "#22103d", panel: "#181543", panel2: "#2a1a5c", card: "#1e1852", accent: "#ff6ec7", accent2: "#7cf9ff", text: "#ffffff", muted: "#c9b9ff", good: "#5cf7c2", warn: "#ffd166", danger: "#ff5c8a" };
+  }
+  if (s.includes("pirate") || s.includes("nautic")) {
+    return { bg: "#0b2624", bg2: "#123634", panel: "#153d3a", panel2: "#1e5450", card: "#194742", accent: "#e0b060", accent2: "#7a4f2f", text: "#f5e6c8", muted: "#c7b98a", good: "#4ecdc4", warn: "#e0b060", danger: "#c0392b" };
+  }
+  if (s.includes("retro") || s.includes("arcade") || s.includes("80")) {
+    return { bg: "#160b2e", bg2: "#2a1152", panel: "#1f1043", panel2: "#31165e", card: "#25124b", accent: "#ff3ea5", accent2: "#00e0ff", text: "#ffffff", muted: "#c8a9ff", good: "#7cf7a3", warn: "#ffd23f", danger: "#ff5470" };
+  }
+  if (s.includes("simulator") || s.includes("obby")) {
+    return { bg: "#0b0f24", bg2: "#101636", panel: "#141c3e", panel2: "#1e2856", card: "#182148", accent: "#00ffaa", accent2: "#ff6b00", text: "#ffffff", muted: "#a8b8e0", good: "#00ffaa", warn: "#ffb84d", danger: "#ff5c5c" };
+  }
+  if (s.includes("modern")) {
+    return { bg: "#0a0f1c", bg2: "#111a30", panel: "#141d33", panel2: "#1c2949", card: "#18223c", accent: "#5b8def", accent2: "#22d3ee", text: "#f8fafc", muted: "#94a3b8", good: "#34d399", warn: "#fbbf24", danger: "#f87171" };
+  }
+  // Dark / default
   return { bg: "#080817", bg2: "#11142b", panel: "#151735", panel2: "#22244f", card: "#1c2048", accent: "#6d5dfc", accent2: "#2dd4bf", text: "#ffffff", muted: "#b7c2e8", good: "#2dd4bf", warn: "#facc15", danger: "#fb7185" };
 }
 
