@@ -313,6 +313,31 @@ function Dashboard() {
               </section>
             )}
 
+            {/* AI Playtest — the AI reads your scripts and reports back what it sees */}
+            <section id="ai-playtest">
+              <AiPlaytestCard projectId={activeProjectId} projectName={activeProject?.name} />
+            </section>
+
+            {/* Invite friends prompt — visible on every dashboard load */}
+            <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-indigo-400/30 bg-gradient-to-r from-indigo-500/10 via-fuchsia-500/5 to-indigo-500/10 p-4 sm:p-5">
+              <div className="flex items-center gap-3">
+                <span className="grid h-10 w-10 place-items-center rounded-xl bg-indigo-500/20 text-indigo-200">
+                  <Gift className="h-5 w-5" />
+                </span>
+                <div>
+                  <div className="text-sm font-bold text-white">Invite friends to BloxSmith</div>
+                  <div className="text-xs text-slate-400">Share your code — get shouted out on the community leaderboard.</div>
+                </div>
+              </div>
+              <Link
+                to="/referrals"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-500 px-3.5 py-2 text-xs font-bold text-white hover:bg-indigo-400"
+              >
+                <Gift className="h-3.5 w-3.5" /> Get your invite link
+              </Link>
+            </section>
+
+
 
 
             {/* Quick Actions */}
