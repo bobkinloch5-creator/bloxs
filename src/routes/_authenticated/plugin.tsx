@@ -188,6 +188,11 @@ function PluginPage() {
           <li><b className="text-foreground">Clear Stuck</b> — drops stuck actions safely</li>
           <li><b className="text-foreground">View Errors</b> — recent failures inline</li>
           <li><b className="text-foreground">Open Website</b> — copies BloxSmith URL</li>
+          <li><b className="text-foreground">Scan Game</b> — uploads a snapshot of your place so the AI sees your tree</li>
+          <li><b className="text-foreground">Send Errors</b> — pushes queued Studio errors to the AI for auto-fix</li>
+          <li><b className="text-foreground">Auto-Send</b> — toggles automatic error uploads</li>
+          <li><b className="text-foreground">Organize</b> — moves scripts/remotes into the correct services</li>
+          <li><b className="text-foreground">Auto-Fix</b> — runs Organize plus quick-fix passes on your place</li>
           <li><b className="text-foreground">Verbose</b> — log every HTTP request</li>
           <li><b className="text-foreground">Copy / Clear log</b> — share logs in Discord</li>
         </ul>
