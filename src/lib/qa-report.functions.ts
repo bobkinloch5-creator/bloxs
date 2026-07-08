@@ -45,8 +45,8 @@ export const generateQaReport = createServerFn({ method: "POST" })
       sb.from("projects").select("name, description, game_type, build_count").eq("id", data.project_id).maybeSingle(),
       sb.from("plugin_actions").select("kind, payload, status, error").eq("project_id", data.project_id).order("created_at", { ascending: false }).limit(40),
       sb.from("chat_messages").select("role, content").eq("project_id", data.project_id).order("created_at", { ascending: false }).limit(20),
-      sb.from("studio_errors").select("message, source, severity").eq("project_id", data.project_id).order("created_at", { ascending: false }).limit(20),
-      sb.from("plugin_sessions").select("plugin_version, last_scan_at, scene_digest").eq("project_id", data.project_id).order("last_seen", { ascending: false }).limit(1).maybeSingle(),
+      sb.from("studio_errors").select("message, source, level").eq("project_id", data.project_id).order("created_at", { ascending: false }).limit(20),
+      sb.from("plugin_sessions").select("plugin_version, last_scan_at, last_scan").eq("project_id", data.project_id).order("last_seen", { ascending: false }).limit(1).maybeSingle(),
     ]);
 
     if (!project) throw new Error("Project not found");
