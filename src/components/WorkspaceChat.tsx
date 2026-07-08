@@ -322,7 +322,10 @@ export function WorkspaceChat({
         // send instead of leaking the previous render's mode.
         mode: liveModeRef.current,
         modelId: selectedModel === "auto"
-          ? pickModelForTask(liveModeRef.current === "build" ? "scripting" : "planning").modelId
+          ? pickModelForTask(
+              liveModeRef.current === "build" ? "scripting" : "planning",
+              estimateDifficulty(promptRef.current),
+            ).modelId
           : selectedModel,
         buildQuality: buildMode === "Deep Build" ? "full_game" : buildMode === "Fast Build" ? "basic" : "premium",
         executionMode: buildMode === "Fast Build" ? "fast" : "safe",
