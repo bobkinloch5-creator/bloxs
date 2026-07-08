@@ -68,7 +68,26 @@ export function KnowledgeBaseCard() {
     staleTime: 15_000,
   });
 
-  const indexed = progress?.totalIndexed ?? status?.indexed ?? 0;
+  // Real-time seeding progress — polls every 700ms while a run is active so
+  // the UI shows per-chunk updates (title, inserted/failed counts) instead of
+  // only updating between full batches.
+  useQuery({
+    queryKey: ["kb-seed-progress"],
+    queryFn: async () => {
+      const p = await progressFn({});
+      setLivePos(p);
+      return p;
+    },
+    enabled: running,
+    refetchInterval: 700,
+    refetchIntervalInBackground: false,
+    staleTime: 0,
+  });
+
+  const liveIndexed = running && livePos?.status === "running"
+    ? livePos.current_index
+    : (progress?.totalIndexed ?? status?.indexed ?? 0);
+  const indexed = liveIndexed;
   const target = status?.target ?? progress?.target ?? 0;
   const remaining = Math.max(0, target - indexed);
   const ready = target > 0 && indexed >= target && !running;
