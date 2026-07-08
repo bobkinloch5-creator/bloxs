@@ -1,15 +1,28 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Bell, Bot, Box, Brain, Check, CheckCircle2, ChevronDown, Copy, Gauge, ImageIcon, Lightbulb, Link2, ListChecks, Palette, Rocket, ScrollText, Search, Share2, ShieldCheck, Sparkles, Users, Wrench, X, Zap } from "lucide-react";
 
-const CHANGELOG_VERSION = "2026-07-07-auto-camera-focus";
+const CHANGELOG_VERSION = "2026-07-08-referral-code-fix";
 
 const CHANGELOG_ITEMS = [
+  {
+    title: "🎟️ Invite code no longer stuck on \"loading…\" — every account gets a real code",
+    date: "Jul 8",
+    icon: Wrench,
+    body: "Fixed the Invite friends page where 'Your invite code' and the personal invite link would sit on 'loading…' forever for anyone whose profile was created before the referral system launched. Every existing profile has been backfilled with a unique BSxxxxxxxx code, a new before-insert database trigger auto-mints a code for every new signup so this can't regress, and the getMyReferral server function now double-checks at read time — if it ever finds a null code (trigger race, older account, restored profile), it mints one on the spot and persists it before returning. Result: the code, the personal invite link, Share/Post on X/WhatsApp/Copy for Discord buttons all populate immediately on first render.",
+  },
+  {
+    title: "🔒 Tightened SELECT policies on project_activity / project_assets / project_comments",
+    date: "Jul 8",
+    icon: ShieldCheck,
+    body: "Rescoped the 'read members only' SELECT policies on project_activity, project_assets, and project_comments from the ambiguous 'public' role to explicit 'authenticated'. Behavior is unchanged (they already required is_project_member(project_id, auth.uid()) which is always false for anon), but the intent is now explicit — defense-in-depth against a future policy edit accidentally widening anonymous access.",
+  },
   {
     title: "🎥 Auto camera focus — Studio snaps to whatever just got built",
     date: "Jul 7",
     icon: Sparkles,
     body: "Every build turn now auto-appends a camera_focus action targeting the most recent Workspace-scoped named object (insert_asset, part, model, folder, mesh, spawn_asset) so Roblox Studio automatically pans and zooms to the thing BloxSmith just created. Skipped when the model already emitted its own camera_focus / focus_camera / camera_zoom_to. The target resolves via the existing _bs_resolve path helper, defaults to a 45-stud offset, and also selects the object so it's highlighted in the Explorer.",
   },
+
   {
     title: "⚡ Improve & Enhance no longer spin — instant prompt polish + 4.5s fallback",
     date: "Jul 7",
