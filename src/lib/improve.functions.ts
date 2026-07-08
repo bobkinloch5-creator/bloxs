@@ -59,13 +59,13 @@ export const improvePrompt = createServerFn({ method: "POST" })
     try {
       const { model } = getProviderModel(FALLBACK_MODEL_ID);
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort("Improve timed out"), 3500);
+      const timeout = setTimeout(() => controller.abort("Improve timed out"), 6000);
       const { text } = await generateText({
         model,
         system: IMPROVE_SYSTEM,
         prompt: data.text,
         temperature: 0.3,
-        maxOutputTokens: 180,
+        maxOutputTokens: 400,
         abortSignal: controller.signal,
       });
       clearTimeout(timeout);
@@ -73,8 +73,8 @@ export const improvePrompt = createServerFn({ method: "POST" })
       // Strip any accidental preamble like "Improved prompt:" or "Here is..."
       cleaned = cleaned.replace(/^(improved prompt|here(?:'s| is)[^:]*|prompt)\s*[:\-–]\s*/i, "").trim();
       if (!cleaned || cleaned.length < 3) return { ok: true as const, text: fallback };
-      // Guardrail: if the model ballooned it into a full brief, fall back.
-      if (cleaned.split(/\s+/).length > 90 || /\n\s*(goal|scope|systems|ui|world|polish|constraints)\s*:/i.test(cleaned)) {
+      // Guardrail: block only obvious labeled-brief format (Enhance's job, not Polish's).
+      if (cleaned.split(/\s+/).length > 180 || /\n\s*(goal|scope|systems|ui|world|polish|constraints)\s*:/i.test(cleaned)) {
         return { ok: true as const, text: fallback };
       }
       return { ok: true as const, text: cleaned };
