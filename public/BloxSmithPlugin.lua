@@ -1095,17 +1095,19 @@ Exec.insert_asset = function(a, p)
         end
     end
 
-    local inserted, loadErr, usedId = nil, nil, nil
+    local noScripts = payload.no_scripts ~= false and payload.allow_scripts ~= true
+    local inserted, loadErr, usedId, safetyReport = nil, nil, nil, nil
     local attempted = {}
     for index, candidateId in ipairs(candidates) do
         table.insert(attempted, candidateId)
         inserted, loadErr = loadAssetCandidate(candidateId, a.name or ("Asset_" .. candidateId), p)
         if inserted then
-            local proof = inspectInsertedAsset(inserted, { no_scripts = true })
-            if not proof.has_visible_content then
+            -- Single scan: checks visibility AND quarantines suspicious scripts.
+            safetyReport = inspectInsertedAsset(inserted, { no_scripts = noScripts })
+            if not safetyReport.has_visible_content then
                 inserted:Destroy()
                 blockedAssetIds[candidateId] = true
-                inserted = nil
+                inserted = nil; safetyReport = nil
                 loadErr = "loaded asset has no visible 3D content"
                 log(("Skipped empty/invisible asset id=%d. Trying another free model."):format(candidateId), "warn")
             else
@@ -1180,8 +1182,7 @@ Exec.insert_asset = function(a, p)
         if payload.category then inserted:SetAttribute("BloxSmithCategory", tostring(payload.category)) end
         inserted:SetAttribute("BloxSmithStudioVerified", true)
     end)
-    local noScripts = payload.no_scripts ~= false and payload.allow_scripts ~= true
-    local safetyReport = inspectInsertedAsset(inserted, { no_scripts = noScripts })
+    safetyReport = safetyReport or inspectInsertedAsset(inserted, { no_scripts = noScripts })
     if safetyReport.quarantined > 0 then
         log(("Asset safety scan quarantined %d suspicious script(s) from id=%d."):format(safetyReport.quarantined, usedId), "warn")
     elseif safetyReport.scripts > 0 then
