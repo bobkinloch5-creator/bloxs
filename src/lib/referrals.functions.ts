@@ -6,11 +6,35 @@ import { z } from "zod";
 export const getMyReferral = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data: profile } = await context.supabase
+    let { data: profile } = await context.supabase
       .from("profiles")
       .select("referral_code")
       .eq("id", context.userId)
       .single();
+
+    // Safety net: if the code is still null (older accounts / trigger race),
+    // mint one now so the UI never sits on "loading…".
+    if (!profile?.referral_code) {
+      const gen = "BS" + Math.random().toString(36).slice(2, 10).toUpperCase();
+      const { data: updated } = await context.supabase
+        .from("profiles")
+        .update({ referral_code: gen })
+        .eq("id", context.userId)
+        .is("referral_code", null)
+        .select("referral_code")
+        .maybeSingle();
+      if (updated?.referral_code) profile = updated;
+      else {
+        // Someone else beat us to it — re-read.
+        const { data: reread } = await context.supabase
+          .from("profiles")
+          .select("referral_code")
+          .eq("id", context.userId)
+          .single();
+        profile = reread ?? profile;
+      }
+    }
+
     const { data: mine } = await context.supabase
       .from("referrals")
       .select("referred_user_id,created_at")
