@@ -41,7 +41,7 @@ local toggleButton = toolbar:CreateButton("BloxSmith", "Open BloxSmith builder",
     "rbxasset://textures/StudioSharedUI/services/plugin@2x.png")
 
 local widget = plugin:CreateDockWidgetPluginGui("BloxSmithWidget",
-    DockWidgetPluginGuiInfo.new(Enum.InitialDockState.Right, true, false, 360, 640, 320, 520))
+    DockWidgetPluginGuiInfo.new(Enum.InitialDockState.Right, true, false, 360, 700, 320, 560))
 widget.Title = "BloxSmith"
 
 -- ============ tiny visual helpers ============
@@ -262,7 +262,7 @@ end
 
 -- ============ primary connect button ============
 local connectBtn = Instance.new("TextButton")
-connectBtn.Position = UDim2.new(0,12,0,178); connectBtn.Size = UDim2.new(1,-24,0,40)
+connectBtn.Position = UDim2.new(0,12,0,234); connectBtn.Size = UDim2.new(1,-24,0,40)
 connectBtn.BackgroundColor3 = Color3.fromRGB(99, 102, 241)
 connectBtn.TextColor3 = Color3.fromRGB(255,255,255)
 connectBtn.Font = Enum.Font.GothamBold; connectBtn.TextSize = 14
@@ -275,7 +275,7 @@ stroke(connectBtn, Color3.fromRGB(255,255,255), 1, 0.65)
 
 -- ============ approval link box (hidden by default) ============
 local linkBox = Instance.new("TextBox")
-linkBox.Position = UDim2.new(0,12,0,226); linkBox.Size = UDim2.new(1,-24,0,28)
+linkBox.Position = UDim2.new(0,12,0,282); linkBox.Size = UDim2.new(1,-24,0,28)
 linkBox.BackgroundColor3 = Color3.fromRGB(22, 24, 44)
 linkBox.TextColor3 = Color3.fromRGB(210, 220, 245)
 linkBox.Font = Enum.Font.Code; linkBox.TextSize = 11
@@ -288,7 +288,7 @@ stroke(linkBox, Color3.fromRGB(129, 140, 240), 1, 0.7)
 
 -- ============ control buttons grid ============
 local controls = Instance.new("Frame")
-controls.Position = UDim2.new(0,12,0,262); controls.Size = UDim2.new(1,-24,0,152)
+controls.Position = UDim2.new(0,12,0,318); controls.Size = UDim2.new(1,-24,0,152)
 controls.BackgroundTransparency = 1; controls.Parent = main
 local grid = Instance.new("UIGridLayout", controls)
 grid.CellPadding = UDim2.new(0,6,0,6)
@@ -348,7 +348,7 @@ local cleanBtn     = ctrlBtn("Clean Slate",  12, {
 
 ------------------------------------------------------------------- log
 local logBar = Instance.new("Frame")
-logBar.Position = UDim2.new(0,12,0,424); logBar.Size = UDim2.new(1,-24,0,24)
+logBar.Position = UDim2.new(0,12,0,480); logBar.Size = UDim2.new(1,-24,0,24)
 logBar.BackgroundTransparency = 1; logBar.Parent = main
 
 local logTitle = Instance.new("TextLabel")
@@ -381,7 +381,7 @@ local clearLogBtn = miniBtn("Clear",   -66,   Color3.fromRGB(248, 113, 113))
 local verboseBtn  = miniBtn("Verbose", -132,  Color3.fromRGB(129, 140, 255))
 
 local logFrame = Instance.new("ScrollingFrame")
-logFrame.Position = UDim2.new(0,12,0,452); logFrame.Size = UDim2.new(1,-24,1,-464)
+logFrame.Position = UDim2.new(0,12,0,508); logFrame.Size = UDim2.new(1,-24,1,-520)
 logFrame.BackgroundColor3 = Color3.fromRGB(6, 7, 18); logFrame.BorderSizePixel = 0
 logFrame.CanvasSize = UDim2.new(0,0,0,0); logFrame.ScrollBarThickness = 4
 logFrame.ScrollBarImageColor3 = Color3.fromRGB(120, 130, 200)
