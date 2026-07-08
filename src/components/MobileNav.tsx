@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import bloxsmithMascot from "@/assets/bloxsmith-mascot.png.asset.json";
 import { useEffect, useState } from "react";
 import {
   Users, Plug, Folder, Wand2, Gift,

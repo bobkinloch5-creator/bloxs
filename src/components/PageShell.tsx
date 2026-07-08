@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import bloxsmithMascot from "@/assets/bloxsmith-mascot.png.asset.json";
 import { ReactNode } from "react";
 import { RobloxBackdrop } from "./RobloxBackdrop";
 import { MobileNavTrigger } from "./MobileNav";
