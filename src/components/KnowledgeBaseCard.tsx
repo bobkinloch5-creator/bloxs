@@ -162,6 +162,38 @@ export function KnowledgeBaseCard() {
         </div>
       </div>
 
+      {/* Pre-flight preview: chunks-to-process + credits available */}
+      {!ready && !running && (
+        <div className="mb-3 grid grid-cols-2 gap-2">
+          <div className="rounded-lg border border-white/10 bg-black/20 px-2.5 py-2">
+            <div className="text-[10px] uppercase tracking-wider text-white/40">Chunks to process</div>
+            <div className="mt-0.5 text-sm font-semibold text-white">
+              {remaining} <span className="text-[10px] font-normal text-white/40">of {target}</span>
+            </div>
+            <div className="mt-0.5 text-[10px] text-white/40">
+              {remaining === 0 ? "Nothing new to embed" : `~${estCreditCost} embedding call${estCreditCost === 1 ? "" : "s"}`}
+            </div>
+          </div>
+          <div className={`rounded-lg border px-2.5 py-2 ${notEnoughCredits ? "border-rose-400/40 bg-rose-500/10" : "border-white/10 bg-black/20"}`}>
+            <div className="text-[10px] uppercase tracking-wider text-white/40 flex items-center gap-1">
+              <Zap className="w-3 h-3" /> Your credits
+            </div>
+            <div className="mt-0.5 text-sm font-semibold text-white flex items-center gap-1">
+              {isOwner ? (
+                <><InfinityIcon className="w-3.5 h-3.5" /> <span className="text-[10px] font-normal text-white/40">Owner</span></>
+              ) : (
+                <>{credits}<span className="text-[10px] font-normal text-white/40">/{maxCredits}</span></>
+              )}
+            </div>
+            <div className={`mt-0.5 text-[10px] ${notEnoughCredits ? "text-rose-200" : "text-white/40"}`}>
+              {isOwner ? "Unmetered" : notEnoughCredits ? `Short ~${estCreditCost - credits} credit${estCreditCost - credits === 1 ? "" : "s"}` : "Enough to finish"}
+            </div>
+          </div>
+        </div>
+      )}
+
+
+
       <div className="flex gap-2">
         <button
           type="button"
