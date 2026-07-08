@@ -1,6 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { convertToModelMessages, streamText, type UIMessage } from "ai";
-import { getFallbackModel } from "@/lib/ai-gateway.server";
+import { getProviderModel } from "@/lib/ai-gateway.server";
+
+// Fast, small NVIDIA chat model — this widget answers short website questions,
+// not code generation, so we deliberately avoid the heavy coder model.
+const HELPER_MODEL_ID = "nvidia/nemotron-nano-9b-v2";
 
 const SYSTEM_PROMPT = `You are the BloxSmith Help Assistant — a friendly, knowledgeable guide for the BloxSmith website (https://bloxsmith.pro).
 
