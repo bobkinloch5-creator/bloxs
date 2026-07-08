@@ -78,14 +78,26 @@ export function estimateDifficulty(text: string): Difficulty {
   return "normal";
 }
 
+// Stronger models to prefer for hard requests, per task. First Working id wins.
+// Kept separate from the fast defaults so "hard" reliably escalates instead of
+// just reversing the fast list (which used to pick a smaller model).
+const HARD_PREF: Partial<Record<AutoTask, string[]>> = {
+  planning: ["nvidia/llama-3.3-nemotron-super-49b", "nvidia/qwen-2.5-72b", "nvidia/mistral-large-2", "nvidia/llama-3.3-70b"],
+  scripting: ["nvidia/mistral-large-2", "nvidia/qwen-2.5-72b", "nvidia/llama-3.3-nemotron-super-49b", "nvidia/qwen-2.5-coder-32b"],
+  ui: ["nvidia/mistral-large-2", "nvidia/llama-3.3-nemotron-super-49b", "nvidia/gemma-3-27b"],
+  bugfix: ["nvidia/mistral-large-2", "nvidia/qwen-2.5-72b", "nvidia/llama-3.3-nemotron-super-49b", "nvidia/qwen-2.5-coder-32b"],
+  performance: ["nvidia/mistral-large-2", "nvidia/qwen-2.5-72b", "nvidia/qwen-2.5-coder-32b"],
+  testing: ["nvidia/llama-3.3-70b", "nvidia/qwen-2.5-72b", "nvidia/nemotron-nano-9b-v2"],
+  assets: ["nvidia/llama-3.3-70b", "nvidia/mixtral-8x22b", "nvidia/llama-3.1-70b"],
+  shortedit: ["nvidia/qwen-2.5-coder-32b", "nvidia/ministral-14b", "nvidia/llama-3.1-8b"],
+  vision: ["nvidia/mistral-large-2", "nvidia/gemma-3-27b"],
+};
+
 export function pickModelForTask(task: AutoTask, difficulty: Difficulty = "normal"): ModelPick {
   const pref = TASK_PREF[task];
-  // For hard tasks, prefer the strongest (last) candidate; for easy, the fastest (first).
   const ids = difficulty === "hard"
-    ? [...pref.ids].reverse()
-    : difficulty === "easy"
-      ? pref.ids
-      : pref.ids;
+    ? [...(HARD_PREF[task] ?? []), ...pref.ids]
+    : pref.ids;
   let chosen: ModelOption | null = null;
   let fellBack = false;
   for (const id of ids) {
