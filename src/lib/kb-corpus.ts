@@ -188,4 +188,265 @@ export const KB_CORPUS: KbSeedChunk[] = [
       "Hover example: button.MouseEnter:Connect(function() TS:Create(button, TweenInfo.new(0.15), {Size = UDim2.fromOffset(132, 48)}):Play() end). " +
       "Always provide a MouseLeave inverse tween so the button returns to rest.",
   },
+
+  // ── Scripter: Game systems (tycoon, obby, simulator, etc.) ─────────
+  {
+    topic: "scripter",
+    title: "Tycoon system architecture",
+    source: "system:tycoon",
+    source_hash: "system/tycoon/v1",
+    content:
+      "Tycoon = plot claim + droppers + collector + purchase buttons + save. " +
+      "PLOT CLAIM: SurfaceGui sign, .Touched binds plot.Owner = player.UserId, unclaim on PlayerRemoving. " +
+      "DROPPER: task.spawn loop every X seconds, Part cloned with IntValue 'Cash' attribute, .Parent = plot.Drops. " +
+      "CONVEYOR: Part with Velocity set on Heartbeat OR AssemblyLinearVelocity for CanCollide=false parts. " +
+      "COLLECTOR: .Touched checks IntValue attribute, awards leaderstats.Cash, drop:Destroy(). " +
+      "BUTTONS: Part + BillboardGui showing price, .Touched checks Cash >= price, deducts, fires unlock, saves bought list. " +
+      "SAVE: DataStore stores {Cash, Bought = {btnId, ...}}. On load, replay bought buttons before showing shop.",
+  },
+  {
+    topic: "scripter",
+    title: "Obby stage + checkpoint system",
+    source: "system:obby",
+    source_hash: "system/obby/v1",
+    content:
+      "Structure: Stages folder with SpawnLocation named '1','2',...'N'. Enabled=false except Stage 1. " +
+      "leaderstats.Stage (IntValue) tracks progress. On SpawnLocation.Touched: " +
+      "if tonumber(spawn.Name) > player.leaderstats.Stage.Value then Stage.Value = tonumber(spawn.Name) end. " +
+      "On CharacterAdded, teleport HumanoidRootPart.CFrame to Stages[Stage.Value].CFrame + Vector3.new(0,3,0). " +
+      "KILL BRICKS: BrickColor.new('Really red'), .Touched -> humanoid:TakeDamage(100). " +
+      "Save Stage in DataStore keyed by UserId.",
+  },
+  {
+    topic: "scripter",
+    title: "Simulator (click / rebirth) core loop",
+    source: "system:simulator",
+    source_hash: "system/simulator/v1",
+    content:
+      "leaderstats: Coins (IntValue), Rebirths (IntValue), Multiplier = 1 + Rebirths. " +
+      "Tool with LocalScript: tool.Activated fires ClickRemote:FireServer(). " +
+      "Server rate-limits (last-fire table, min 0.05s), then leaderstats.Coins += Multiplier. " +
+      "Rebirth pad: requires Coins >= threshold(Rebirths+1), resets Coins to 0, Rebirths += 1. " +
+      "Threshold curve: 1000 * (10 ^ Rebirths). Save both to DataStore.",
+  },
+  {
+    topic: "scripter",
+    title: "Combat: hitbox + damage RemoteEvent",
+    source: "system:combat",
+    source_hash: "system/combat/v1",
+    content:
+      "Client (LocalScript in Tool): tool.Activated fires SwingRemote:FireServer(). " +
+      "Server validates cooldown (0.5s per player), creates hitbox: " +
+      "OverlapParams + workspace:GetPartBoundsInBox(hrp.CFrame * CFrame.new(0,0,-3), Vector3.new(6,6,6), params). " +
+      "For each Part with Humanoid parent != attacker's character, target.Humanoid:TakeDamage(dmg). " +
+      "Debounce PER-TARGET to prevent multi-hit within one swing. Never trust client hit reports.",
+  },
+  {
+    topic: "scripter",
+    title: "Ranged weapon (raycast gun) pattern",
+    source: "system:ranged",
+    source_hash: "system/ranged-weapon/v1",
+    content:
+      "Client fires FireRemote:FireServer(mouseHitPos). Server validates cooldown + line-of-sight. " +
+      "local params = RaycastParams.new(); params.FilterDescendantsInstances = {character}; params.FilterType = Enum.RaycastFilterType.Exclude. " +
+      "local result = workspace:Raycast(muzzle.Position, (target - muzzle.Position).Unit * range, params). " +
+      "If result.Instance's ancestor has Humanoid -> :TakeDamage. Show tracer via Beam on client via FireAllClients.",
+  },
+  {
+    topic: "scripter",
+    title: "Shop + gamepass integration",
+    source: "system:shop",
+    source_hash: "system/shop/v1",
+    content:
+      "local MPS = game:GetService('MarketplaceService'). " +
+      "MPS:PromptGamePassPurchase(player, gamepassId) opens the purchase UI. " +
+      "MPS.PromptGamePassPurchaseFinished:Connect(function(player, id, purchased) if purchased then grant() end end). " +
+      "To check ownership on join: MPS:UserOwnsGamePassAsync(player.UserId, id) — wrap in pcall, cache the result per session. " +
+      "Developer products (consumable): MPS:PromptProductPurchase + MPS.ProcessReceipt callback returns Enum.ProductPurchaseDecision.PurchaseGranted.",
+  },
+  {
+    topic: "scripter",
+    title: "Inventory + equip pattern",
+    source: "system:inventory",
+    source_hash: "system/inventory/v1",
+    content:
+      "Server owns inventory as a table {[itemId] = count} stored per player, saved in DataStore. " +
+      "EquipRemote:FireServer(itemId): server verifies ownership, clones template Tool from ServerStorage.ItemTemplates, parents to player.Backpack. " +
+      "Unequip = tool:Destroy() (or move back to StarterGear for persistence across respawn). " +
+      "NEVER let the client clone tools directly — always go through the server.",
+  },
+  {
+    topic: "scripter",
+    title: "ProximityPrompt for interactions",
+    source: "roblox-api:ProximityPrompt",
+    source_hash: "api/proximityprompt/v1",
+    content:
+      "Modern interaction API — replaces ClickDetector for most doors, chests, NPCs. " +
+      "local prompt = Instance.new('ProximityPrompt'); prompt.ActionText = 'Open'; prompt.HoldDuration = 0.5; prompt.Parent = part. " +
+      "prompt.Triggered:Connect(function(player) ... end). Runs on the server. " +
+      "Set MaxActivationDistance (default 10) and RequiresLineOfSight for cover-based interactions.",
+  },
+  {
+    topic: "scripter",
+    title: "CollectionService for tagged behavior",
+    source: "roblox-api:CollectionService",
+    source_hash: "api/collectionservice/v1",
+    content:
+      "Prefer tags over hierarchy for shared behavior. Set tag in Studio via Tag Editor or CollectionService:AddTag(part, 'KillBrick'). " +
+      "Runtime: local CS = game:GetService('CollectionService'); for _, part in CS:GetTagged('KillBrick') do wire(part) end. " +
+      "CS:GetInstanceAddedSignal('KillBrick'):Connect(wire) picks up new tagged parts. One handler covers every instance with the tag.",
+  },
+  {
+    topic: "scripter",
+    title: "Attributes for lightweight state",
+    source: "roblox-api:Attributes",
+    source_hash: "api/attributes/v1",
+    content:
+      "Prefer Attributes over Value objects for simple per-instance state. " +
+      "part:SetAttribute('Health', 100); part:GetAttribute('Health'); part:GetAttributeChangedSignal('Health'):Connect(fn). " +
+      "Types: string, number, bool, Vector3, Color3, UDim2, BrickColor, and more. Replicates automatically. " +
+      "Use for: door open/closed, drop values, item rarity, cooldown timestamps.",
+  },
+  {
+    topic: "scripter",
+    title: "PathfindingService for NPC AI",
+    source: "roblox-api:PathfindingService",
+    source_hash: "api/pathfinding/v1",
+    content:
+      "local PS = game:GetService('PathfindingService'). " +
+      "local path = PS:CreatePath({AgentRadius=2, AgentHeight=5, AgentCanJump=true}); path:ComputeAsync(start, goal). " +
+      "if path.Status == Enum.PathStatus.Success then for _, wp in path:GetWaypoints() do humanoid:MoveTo(wp.Position); humanoid.MoveToFinished:Wait() end end. " +
+      "Handle path.Blocked signal for dynamic obstacles — recompute the path.",
+  },
+  {
+    topic: "scripter",
+    title: "DataStore v2 with UpdateAsync + retries",
+    source: "roblox-api:DataStoreV2",
+    source_hash: "api/datastore-v2/v1",
+    content:
+      "UpdateAsync is safer than SetAsync — atomic read-modify-write, prevents overwrite races. " +
+      "local ok = false; for attempt = 1, 5 do local success, err = pcall(function() store:UpdateAsync(key, function(old) return merge(old, new) end) end); if success then ok = true; break end; task.wait(2 ^ attempt) end. " +
+      "Wrap every DataStore call. Always call in game:BindToClose(function() ... end) with timeout so writes flush before shutdown. " +
+      "For high-value saves consider ProfileService (open-source module) which handles session-locking.",
+  },
+  {
+    topic: "scripter",
+    title: "BadgeService for achievements",
+    source: "roblox-api:BadgeService",
+    source_hash: "api/badges/v1",
+    content:
+      "local BS = game:GetService('BadgeService'). " +
+      "Award: pcall(BS.AwardBadge, BS, player.UserId, badgeId) — only awards if not already owned. " +
+      "Check: BS:UserHasBadgeAsync(player.UserId, badgeId) (wrap in pcall). " +
+      "Badge must be created on the Creator Dashboard for THIS place and have AwardingEnabled=true.",
+  },
+  {
+    topic: "scripter",
+    title: "Chat commands (/give, /tp)",
+    source: "system:chat-commands",
+    source_hash: "system/chat-commands/v1",
+    content:
+      "Modern chat: TextChatService. Register a TextChatCommand under TextChatService: PrimaryAlias='/tp'. " +
+      "cmd.Triggered:Connect(function(source, msg) local player = Players:GetPlayerByUserId(source.UserId); local args = msg:split(' '); handle(player, args) end). " +
+      "For admin-only, check has_role (UserId in AdminList). Never let arbitrary players run mutations without a role check.",
+  },
+  {
+    topic: "scripter",
+    title: "Server-authoritative rule (read this first)",
+    source: "style:server-auth",
+    source_hash: "style/server-auth/v1",
+    content:
+      "GOLDEN RULE: currency, inventory, health, positions-that-matter, and saves live ONLY on the server. " +
+      "Clients FIRE intent (RemoteEvent). Server VALIDATES cooldowns, distance, ownership, and cost — then mutates state. " +
+      "Never accept 'damage this player by X' from a client. Never accept 'give me item X'. " +
+      "Client-side is for INPUT and PRESENTATION (particles, sounds, camera). Anything gameplay-affecting = server.",
+  },
+
+  // ── World Builder: environment + game world systems ────────────────
+  {
+    topic: "world_builder",
+    title: "StreamingEnabled for large maps",
+    source: "roblox-api:StreamingEnabled",
+    source_hash: "api/streaming/v1",
+    content:
+      "workspace.StreamingEnabled=true streams parts near each player (huge memory + join-time win for open worlds). " +
+      "Set ModelStreamingMode=Persistent on gameplay-critical models (bosses, quest NPCs) so they never unload for players who need them. " +
+      "StreamingMinRadius (min guaranteed loaded radius), StreamingTargetRadius (target). " +
+      "When on, server scripts should use WaitForChild — parts may not exist for a given player yet.",
+  },
+  {
+    topic: "world_builder",
+    title: "Rojo-friendly folder layout",
+    source: "style:folder-layout",
+    source_hash: "style/folder-layout/v1",
+    content:
+      "Standard project tree: " +
+      "ServerScriptService/{Systems, Services}. ServerStorage/{Templates, Modules}. " +
+      "ReplicatedStorage/{Remotes (RemoteEvents/Functions), Shared (ModuleScripts), Assets}. " +
+      "StarterPlayer/StarterPlayerScripts (LocalScripts). StarterGui (ScreenGuis). " +
+      "Workspace/{Map, Spawns, Interactables}. Never dump loose scripts in workspace.",
+  },
+  {
+    topic: "world_builder",
+    title: "Zone triggers (invisible region parts)",
+    source: "system:zones",
+    source_hash: "system/zones/v1",
+    content:
+      "Invisible Part with CanCollide=false, Transparency=1, tagged 'Zone_Lobby'. " +
+      "Server: for tagged zone, connect .Touched -> if partAncestor has Humanoid, enterZone(player, zone). " +
+      "Debounce per-player-per-zone to avoid spam. Fire ZoneEntered RemoteEvent to client for music swap / UI change. " +
+      "For overlapping zones use a stack: entering pushes zone, leaving pops.",
+  },
+  {
+    topic: "world_builder",
+    title: "Day/night cycle",
+    source: "system:daynight",
+    source_hash: "system/daynight/v1",
+    content:
+      "Server loop: task.spawn(function() while true do game.Lighting:SetMinutesAfterMidnight(game.Lighting:GetMinutesAfterMidnight() + 1); task.wait(cycleSeconds/1440) end end). " +
+      "Full cycle in cycleSeconds real seconds (1440 minutes = 1 in-game day). " +
+      "Swap Skybox + Atmosphere.Color at dusk/dawn via ClockTime thresholds for cinematic look.",
+  },
+
+  // ── UI Designer: HUDs, menus, notifications ─────────────────────────
+  {
+    topic: "ui_designer",
+    title: "HUD skeleton (Coins + XP)",
+    source: "system:hud",
+    source_hash: "system/hud/v1",
+    content:
+      "ScreenGui in StarterGui, ResetOnSpawn=false. Top-right Frame with UIListLayout Horizontal, Padding=8. " +
+      "TextLabel bound to leaderstats: player:WaitForChild('leaderstats').Coins:GetPropertyChangedSignal('Value'):Connect(function() label.Text = 'Coins: '..player.leaderstats.Coins.Value end). " +
+      "XP bar = Frame with inner Frame Size = UDim2.fromScale(xp/maxXp, 1). Tween size on change for smooth fill.",
+  },
+  {
+    topic: "ui_designer",
+    title: "Notification toast system",
+    source: "system:toast",
+    source_hash: "system/toast/v1",
+    content:
+      "ScreenGui with a container Frame anchored top-center. NotifyRemote from server: server:FireClient(player, {text, color, duration}). " +
+      "Client clones a template TextLabel, parents to container, tweens in (slide down + fade), waits duration, tweens out, :Destroy(). " +
+      "Stack multiple toasts using UIListLayout (Vertical, VerticalAlignment=Top).",
+  },
+  {
+    topic: "ui_designer",
+    title: "Shop UI grid pattern",
+    source: "system:shop-ui",
+    source_hash: "system/shop-ui/v1",
+    content:
+      "ScrollingFrame with UIGridLayout (CellSize = UDim2.fromOffset(140,180), CellPadding = UDim2.fromOffset(10,10)). " +
+      "For each item: TextButton template with ImageLabel (icon), TextLabel (name + price), UICorner + UIStroke. " +
+      "button.Activated -> BuyRemote:FireServer(itemId). Grey out (BackgroundTransparency=0.7) when Coins < price by listening to leaderstats.",
+  },
+  {
+    topic: "ui_designer",
+    title: "Mobile detection + adaptive UI",
+    source: "style:mobile-detect",
+    source_hash: "style/mobile-detect/v1",
+    content:
+      "local UIS = game:GetService('UserInputService'); local isMobile = UIS.TouchEnabled and not UIS.KeyboardEnabled. " +
+      "Show on-screen action buttons only when isMobile. Larger tap targets (>= 48px). " +
+      "Use UIAspectRatioConstraint for square icons and UIScale with a device-based factor so 4K + phone both look right.",
+  },
 ];
