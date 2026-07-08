@@ -74,6 +74,11 @@ local subStatus   = label(main, "Click Connect to link this Studio session.", UD
 local infoLabel   = label(main, "Place: loading...    Live: 0    v" .. PLUGIN_VERSION, UDim2.new(0,12,0,98), UDim2.new(1,-24,0,16), nil, 12, Color3.fromRGB(160,165,180))
 local lastLabel   = label(main, "Last action: (none)", UDim2.new(0,12,0,116), UDim2.new(1,-24,0,16), nil, 12, Color3.fromRGB(160,165,180))
 
+local function round(inst, r)
+    local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, r or 6); c.Parent = inst
+    return inst
+end
+
 -- primary connect button
 local connectBtn = Instance.new("TextButton")
 connectBtn.Position = UDim2.new(0,12,0,142); connectBtn.Size = UDim2.new(1,-24,0,34)
@@ -81,7 +86,9 @@ connectBtn.BackgroundColor3 = Color3.fromRGB(70,130,240)
 connectBtn.TextColor3 = Color3.fromRGB(255,255,255)
 connectBtn.Font = Enum.Font.BuilderSansBold; connectBtn.TextSize = 14
 connectBtn.Text = "Connect"; connectBtn.BorderSizePixel = 0
+connectBtn.AutoButtonColor = true
 connectBtn.Parent = main
+round(connectBtn, 8)
 
 -- approval link box (hidden by default)
 local linkBox = Instance.new("TextBox")
@@ -93,6 +100,7 @@ linkBox.Text = ""; linkBox.PlaceholderText = "Approval link appears here"
 linkBox.ClearTextOnFocus = false; linkBox.TextEditable = false
 linkBox.BorderSizePixel = 0; linkBox.Visible = false
 linkBox.Parent = main
+round(linkBox, 6)
 
 -- control buttons grid (4 rows x 3 cols)
 local controls = Instance.new("Frame")
@@ -103,13 +111,20 @@ grid.CellPadding = UDim2.new(0,6,0,6)
 grid.CellSize = UDim2.new(0.333, -4, 0, 28)
 grid.SortOrder = Enum.SortOrder.LayoutOrder
 
-local function ctrlBtn(text, order)
+local function ctrlBtn(text, order, opts)
+    opts = opts or {}
+    local baseColor = opts.color or Color3.fromRGB(45,48,58)
+    local hoverColor = opts.hover or Color3.fromRGB(60,64,78)
     local b = Instance.new("TextButton")
-    b.BackgroundColor3 = Color3.fromRGB(45,48,58)
-    b.TextColor3 = Color3.fromRGB(220,225,235)
+    b.BackgroundColor3 = baseColor
+    b.TextColor3 = opts.textColor or Color3.fromRGB(220,225,235)
     b.Font = Enum.Font.BuilderSansMedium; b.TextSize = 12
     b.Text = text; b.BorderSizePixel = 0
+    b.AutoButtonColor = false
     b.LayoutOrder = order; b.Parent = controls
+    round(b, 6)
+    b.MouseEnter:Connect(function() b.BackgroundColor3 = hoverColor end)
+    b.MouseLeave:Connect(function() b.BackgroundColor3 = baseColor end)
     return b
 end
 
@@ -124,6 +139,12 @@ local sendErrBtn   = ctrlBtn("Send Errors", 8)
 local autoErrBtn   = ctrlBtn("Auto-Send: ON", 9)
 local organizeBtn  = ctrlBtn("Organize", 10)
 local autoFixBtn   = ctrlBtn("Auto-Fix", 11)
+local cleanBtn     = ctrlBtn("Clean Slate", 12, {
+    color = Color3.fromRGB(120, 55, 55),
+    hover = Color3.fromRGB(150, 70, 70),
+    textColor = Color3.fromRGB(255, 235, 235),
+})
+
 
 ------------------------------------------------------------------- log
 local logBar = Instance.new("Frame")
