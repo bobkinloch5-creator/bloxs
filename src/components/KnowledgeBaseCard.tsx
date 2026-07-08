@@ -112,6 +112,45 @@ export function KnowledgeBaseCard() {
 
   const cancel = useCallback(() => { cancelRef.current = true; }, []);
 
+  const exportAuditCsv = useCallback(async () => {
+    try {
+      const res = await auditFn({});
+      const entries = res?.entries ?? [];
+      if (entries.length === 0) {
+        toast("No seeding events to export yet.");
+        return;
+      }
+      const esc = (v: unknown): string => {
+        const s = v === null || v === undefined ? "" : String(v);
+        return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+      };
+      const header = [
+        "id", "created_at", "action", "actor_email",
+        "inserted", "failed", "remaining", "totalIndexed",
+        "creditExhausted", "firstError",
+      ];
+      const rows = entries.map((e) => [
+        e.id, e.created_at, e.action, e.actor_email ?? "",
+        e.inserted, e.failed, e.remaining ?? "", e.totalIndexed ?? "",
+        e.creditExhausted, e.firstError ?? "",
+      ].map(esc).join(","));
+      const csv = [header.join(","), ...rows].join("\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+      a.href = url;
+      a.download = `kb-seed-audit-${stamp}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast.success(`Exported ${entries.length} audit ${entries.length === 1 ? "entry" : "entries"}.`);
+    } catch (e) {
+      toast.error(friendlyError(e));
+    }
+  }, [auditFn]);
+
   const oneShot = useMutation({
     mutationFn: () => runSeeding(),
   });
