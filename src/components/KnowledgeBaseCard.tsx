@@ -37,11 +37,13 @@ export function KnowledgeBaseCard() {
   const batchFn = useServerFn(seedKnowledgeBaseBatch);
   const auditFn = useServerFn(getKbSeedAuditLog);
   const profileFn = useServerFn(getMyProfile);
+  const cancelFn = useServerFn(cancelKbSeed);
 
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState<SeedBatchResult | null>(null);
   const [showLog, setShowLog] = useState(false);
   const cancelRef = useRef(false);
+  const abortRef = useRef<AbortController | null>(null);
 
   const { data: status, isLoading, error: statusError } = useQuery({
     queryKey: ["kb-status"],
