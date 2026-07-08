@@ -1797,11 +1797,20 @@ local lastHeartbeat, queueLen, lastAction = 0, 0, "--"
 
 local function setStatus(text, color, sub)
     statusLabel.Text = "Status: " .. text
-    statusLabel.TextColor3 = color or Color3.fromRGB(200,200,210)
+    statusLabel.TextColor3 = color or Color3.fromRGB(230,232,245)
     if sub then subStatus.Text = sub end
+    -- colored dot mirrors state
+    local t = text:lower()
+    if t:find("connected") and not t:find("not") and not t:find("disconn") then
+        statusDot.BackgroundColor3 = Color3.fromRGB(74, 222, 128)
+    elseif t:find("waiting") or t:find("pair") or t:find("approve") then
+        statusDot.BackgroundColor3 = Color3.fromRGB(251, 191, 36)
+    else
+        statusDot.BackgroundColor3 = Color3.fromRGB(248, 113, 113)
+    end
 end
 local function refreshInfo()
-    infoLabel.Text = ("Place: %s    Live: %d    v%s"):format(tostring(game.PlaceId or 0), queueLen, PLUGIN_VERSION)
+    infoLabel.Text = ("Place: %s    Live: %d"):format(tostring(game.PlaceId or 0), queueLen)
     lastLabel.Text = "Last: " .. lastAction
 end
 
