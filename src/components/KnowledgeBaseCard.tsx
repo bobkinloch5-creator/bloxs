@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { BookOpen, Loader2, CheckCircle2, RefreshCw, AlertCircle, ScrollText, XCircle } from "lucide-react";
+import { BookOpen, Loader2, CheckCircle2, RefreshCw, AlertCircle, ScrollText, XCircle, Zap, Infinity as InfinityIcon } from "lucide-react";
 import { toast } from "sonner";
 import { useCallback, useRef, useState } from "react";
 import {
@@ -10,6 +10,7 @@ import {
   type SeedBatchResult,
   type KbSeedAuditEntry,
 } from "@/lib/kb.functions";
+import { getMyProfile } from "@/lib/profile.functions";
 
 function friendlyError(err: unknown): string {
   const msg = err instanceof Error ? err.message : String(err ?? "Unknown error");
@@ -34,6 +35,7 @@ export function KnowledgeBaseCard() {
   const statusFn = useServerFn(getKbStatus);
   const batchFn = useServerFn(seedKnowledgeBaseBatch);
   const auditFn = useServerFn(getKbSeedAuditLog);
+  const profileFn = useServerFn(getMyProfile);
 
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState<SeedBatchResult | null>(null);
@@ -53,10 +55,25 @@ export function KnowledgeBaseCard() {
     staleTime: 10_000,
   });
 
+  const { data: profile } = useQuery({
+    queryKey: ["profile"],
+    queryFn: () => profileFn(),
+    staleTime: 15_000,
+  });
+
   const indexed = progress?.totalIndexed ?? status?.indexed ?? 0;
   const target = status?.target ?? progress?.target ?? 0;
+  const remaining = Math.max(0, target - indexed);
   const ready = target > 0 && indexed >= target && !running;
   const percent = target > 0 ? Math.min(100, Math.round((indexed / target) * 100)) : 0;
+
+  const isOwner = profile?.plan === "Owner" || !!profile?.is_admin;
+  const credits = profile?.credits ?? 0;
+  const maxCredits = profile?.max_credits ?? 0;
+  // ~1 embedding call per chunk. NVIDIA embeddings on the gateway bill ~1 credit
+  // per call — treat as a conservative upper bound for the preview.
+  const estCreditCost = remaining;
+  const notEnoughCredits = !isOwner && !ready && estCreditCost > credits;
 
   const runSeeding = useCallback(async () => {
     if (running) return;
