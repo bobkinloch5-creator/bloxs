@@ -3711,9 +3711,63 @@ function isToolboxMapRequest(userText: string) {
 // full experience instead of a thin approximation. Only fires for short prompts
 // (≤14 tokens) so richer user briefs are left alone.
 type GenreSpec = { keys: RegExp; brief: string };
+
+// Normalize the user's prompt before running genre-brief matching so that
+// casual phrasing, common typos, plurals, hyphens, and size qualifiers all
+// route to the correct branch. Examples that must trigger city:
+//   "big city", "a whole city", "downtown area", "city map", "cyberpunk city",
+//   "urban block", "small town", "make me a metropolis".
+function normalizeGenrePrompt(raw: string): string {
+  let t = " " + raw.toLowerCase() + " ";
+  // Strip common filler / intent verbs so bare nouns still match.
+  t = t.replace(/\b(please|pls|plz|kindly|just|really|actually|literally|basically|maybe|also|too|now|asap|okay|ok|yo|hey|hi|hello|thanks|thank\s*you|ty)\b/g, " ");
+  t = t.replace(/\b(i\s*(?:would|wanna|want|wanted|need|needed|would\s*like|wish|hope)\s*(?:to|for|a|an)?|gimme|give\s*me|make\s*me|build\s*me|create\s*me|generate\s*me|do\s*me|show\s*me|can\s*you\s*(?:please\s*)?(?:make|build|create|generate|do)|could\s*you\s*(?:please\s*)?(?:make|build|create|generate|do)|help\s*me\s*(?:make|build|create)|let'?s\s*(?:make|build|create))\b/g, " ");
+  t = t.replace(/\b(make|build|create|generate|design|construct|produce|whip\s*up|spin\s*up|set\s*up|craft|render|spawn|do)\b/g, " ");
+  t = t.replace(/\b(a|an|the|some|any|one|another|entire|whole|complete|full|proper|real|actual|working|playable|finished|final|polished)\b/g, " ");
+  // Size / vibe qualifiers → drop so "big city" == "city".
+  t = t.replace(/\b(big|small|tiny|huge|large|massive|enormous|giant|mega|super|ultra|mini|little|medium|medium\s*sized|medium-sized|dense|packed|realistic|detailed|open|open\s*world|beautiful|awesome|epic|cool|nice|good|great|amazing)\b/g, " ");
+  // Themes that describe a city/etc but should not block the noun match.
+  t = t.replace(/\b(modern|old|ancient|classic|futuristic|cyberpunk|sci[-\s]?fi|scifi|sci\s*fi|fantasy|medieval|dark|neon|winter|summer|snowy|desert|tropical|coastal|industrial|suburban|rural|luxury|abandoned|haunted|ruined|underwater|space|arctic|volcanic)\b/g, " $& "); // keep them but pad
+  // Common Roblox / spelling normalizations.
+  t = t.replace(/\brblx\b|\broblx\b|\brobloxx\b/g, "roblox");
+  t = t.replace(/\bcitys\b/g, "city");
+  t = t.replace(/\btownes\b|\btownes\b/g, "town");
+  t = t.replace(/\bhouses\b/g, "house");
+  t = t.replace(/\bmansions\b/g, "mansion");
+  t = t.replace(/\bcastles\b/g, "castle");
+  t = t.replace(/\bdungeons\b/g, "dungeon");
+  t = t.replace(/\bfarms\b/g, "farm");
+  t = t.replace(/\bmalls\b/g, "mall");
+  t = t.replace(/\bhospitals\b/g, "hospital");
+  t = t.replace(/\bschools\b/g, "school");
+  t = t.replace(/\bairports\b/g, "airport");
+  t = t.replace(/\bhotels\b/g, "hotel");
+  t = t.replace(/\bchurches\b/g, "church");
+  t = t.replace(/\bislands\b/g, "island");
+  t = t.replace(/\bforests\b/g, "forest");
+  t = t.replace(/\barenas\b/g, "arena");
+  t = t.replace(/\bstadiums\b/g, "stadium");
+  t = t.replace(/\bspaceships\b|\bspace\s*ships\b/g, "spaceship");
+  t = t.replace(/\btemples\b/g, "temple");
+  t = t.replace(/\btombs\b/g, "temple");
+  t = t.replace(/\bmines\b/g, "mine");
+  t = t.replace(/\bpyramids\b/g, "pyramid");
+  t = t.replace(/\bapartments?\b|\bapt\b|\bapts\b/g, "apartment");
+  t = t.replace(/\bcafes\b/g, "cafe");
+  t = t.replace(/\brestaurants\b/g, "restaurant");
+  t = t.replace(/\bshops\b/g, "shop");
+  t = t.replace(/\bplazas\b/g, "plaza");
+  t = t.replace(/\bskyscrapers?\b|\btall\s*building/g, "skyscraper city");
+  // Hyphens → spaces so "high-school", "sci-fi", "shopping-mall" match.
+  t = t.replace(/-/g, " ");
+  // Collapse whitespace.
+  t = t.replace(/\s+/g, " ").trim();
+  return t;
+}
+
 const GENRE_SPECS: GenreSpec[] = [
   {
-    keys: /\b(city|town|downtown|metropolis|neighborhood|urban|village)\b/i,
+    keys: /\b(city|cities|cityscape|skyline|metropolis|megacity|downtown|uptown|midtown|urban(?:\s*area|\s*block|\s*zone|\s*sprawl)?|town(?:\s*center|\s*square)?|village|hamlet|borough|district|suburb|neighborhood|roleplay\s*city|rp\s*city|city\s*(?:map|block|scene|life|rp)|skyscraper\s*city|new\s*york|los\s*angeles|tokyo|london|paris|chicago)\b/i,
     brief: `CITY BUILD BRIEF — the user asked for a city. Build a complete, playable city map that includes ALL of these in one action batch:
 - A gridded street layout (main road + cross streets) with sidewalks, crosswalks, and street lights.
 - A dense mix of buildings (residential houses + apartments + shops + offices + at least one landmark) placed along both sides of every road. Not 5 lonely buildings — a real city block.
