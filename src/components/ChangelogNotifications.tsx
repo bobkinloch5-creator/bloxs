@@ -7,6 +7,12 @@ const CHANGELOG_VERSION = "2026-07-08-referral-code-read-path";
 
 const CHANGELOG_ITEMS = [
   {
+    title: "🔒 Project reads narrowed to members-only + storage thumbnail policy fix",
+    date: "Jul 3",
+    icon: ShieldCheck,
+    body: "Narrowed the SELECT policies on project_activity, project_assets, and project_comments from can_access_project (which allowed any authenticated user for public projects) to is_project_member — only the project owner and explicit collaborators can read activity, assets, and comments now. Also fixed the storage.objects policy for the project-thumbnails bucket: the join previously referenced the projects table's name column instead of the storage object's name, so the policy never matched correctly. Rewritten to gate reads by the actual storage path.",
+  },
+  {
     title: "🎟️ Invite code loading fixed for locked-down profile reads",
     date: "Jul 8",
     icon: Wrench,
