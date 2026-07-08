@@ -1081,6 +1081,8 @@ function OwnerToolsTab() {
         </div>
       </Card>
 
+      <KnowledgeBaseCard />
+
       <Card>
         <SectionTitle icon={ShieldAlert} title="Danger Zone" tint="rose" />
         <p className="text-xs text-slate-400">Additional owner-only tools (impersonate, backup/restore, force plugin update) will be enabled per-request. Every action here is written to the audit log.</p>
