@@ -1,5 +1,5 @@
 -- BloxSmithPlugin.lua
--- BloxSmith Roblox Studio Plugin ??? execution & connection bridge.
+-- BloxSmith Roblox Studio Plugin -- execution & connection bridge.
 -- Install: Plugins > Open Plugins Folder, drop this file in, restart Studio.
 
 local HttpService           = game:GetService("HttpService")
@@ -71,8 +71,8 @@ label(main, "Execution bridge for Roblox Studio", UDim2.new(0,12,0,32), UDim2.ne
 local statusLabel = label(main, "Status: not connected", UDim2.new(0,12,0,58), UDim2.new(1,-24,0,18), Enum.Font.GothamMedium, 13)
 local subStatus   = label(main, "Click Connect to link this Studio session.", UDim2.new(0,12,0,78), UDim2.new(1,-24,0,16), nil, 12, Color3.fromRGB(150,155,170))
 
-local infoLabel   = label(main, "Place: ???    Live: 0    v" .. PLUGIN_VERSION, UDim2.new(0,12,0,98), UDim2.new(1,-24,0,16), nil, 12, Color3.fromRGB(160,165,180))
-local lastLabel   = label(main, "Last action: ???", UDim2.new(0,12,0,116), UDim2.new(1,-24,0,16), nil, 12, Color3.fromRGB(160,165,180))
+local infoLabel   = label(main, "Place: --    Live: 0    v" .. PLUGIN_VERSION, UDim2.new(0,12,0,98), UDim2.new(1,-24,0,16), nil, 12, Color3.fromRGB(160,165,180))
+local lastLabel   = label(main, "Last action: --", UDim2.new(0,12,0,116), UDim2.new(1,-24,0,16), nil, 12, Color3.fromRGB(160,165,180))
 
 -- primary connect button
 local connectBtn = Instance.new("TextButton")
@@ -325,7 +325,7 @@ local function ensureProjectFolders()
         ensureFolder(ServerStorage, "BloxSmith_Quarantine"),
     }
     -- StarterPlayerScripts is a protected Roblox service container.
-    -- Never attempt to create or re-parent it ??? just look it up if it exists.
+    -- Never attempt to create or re-parent it -- just look it up if it exists.
     local starterScripts = StarterPlayer:FindFirstChild("StarterPlayerScripts")
     if starterScripts then
         table.insert(folders, starterScripts)
@@ -574,7 +574,7 @@ local function ud2(t, defScale, defOffset)
 end
 
 local function ensureUnique(parent, name)
-    -- avoid duplicate child names by suffixing _2, _3???
+    -- avoid duplicate child names by suffixing _2, _3--
     if not parent:FindFirstChild(name) then return name end
     local i = 2
     while parent:FindFirstChild(name .. "_" .. i) do i += 1 end
@@ -932,13 +932,13 @@ end
 
 Exec.organize_project = function(_, _)
     local result = organizeProject()
-    log(("Organized project ??? moved %d item(s)."):format(result.moved_count or 0), "success")
+    log(("Organized project -- moved %d item(s)."):format(result.moved_count or 0), "success")
     return result
 end
 
 Exec.autofix_project = function(_, _)
     local result = autoFixProject()
-    log(("Auto-fix complete ??? %d moved, %d fixed."):format(result.moved_count or 0, result.fixed_count or 0), "success")
+    log(("Auto-fix complete -- %d moved, %d fixed."):format(result.moved_count or 0, result.fixed_count or 0), "success")
     return result
 end
 
@@ -1211,7 +1211,7 @@ Exec.insert_asset = function(a, p)
             size = { size.X, size.Y, size.Z },
         }
     end
-    log(("??? inserted verified asset id=%d as '%s' under %s (%d visible part(s), %d texture/mesh signal(s))"):format(
+    log(("-- inserted verified asset id=%d as '%s' under %s (%d visible part(s), %d texture/mesh signal(s))"):format(
         usedId,
         inserted.Name,
         p:GetFullName(),
@@ -1273,15 +1273,15 @@ Exec.toolbox_assets = function(a, p)
                     path = placed:GetFullName(), class = placed.ClassName,
                     creator = asset.creator, safety = safety,
                 })
-                log(("??? asset id=%d '%s'"):format(id, placed.Name), "success")
+                log(("-- asset id=%d '%s'"):format(id, placed.Name), "success")
             else
                 skipped += 1
                 table.insert(failed, { id = id, name = asset.name, reason = err })
-                log(("??? asset id=%d unauthorized or missing (%s) ??? skipped; no hardcoded fallback inserted"):format(id, tostring(err)), "warn")
+                log(("-- asset id=%d unauthorized or missing (%s) -- skipped; no hardcoded fallback inserted"):format(id, tostring(err)), "warn")
             end
         end
     end
-    log(("Toolbox batch ??? %d inserted, %d skipped, %d failed."):format(
+    log(("Toolbox batch -- %d inserted, %d skipped, %d failed."):format(
         #inserted, skipped, #failed), #failed > 0 and "warn" or "success")
     return { inserted = inserted, failed = failed, skipped = skipped, source = payload.source or "live" }
 end
@@ -1299,7 +1299,7 @@ Exec.set_properties = function(a, _)
             inst = parent and parent:FindFirstChild(a.name)
         end
         if not inst then
-            log(("set_properties skipped ??? target not found: %s"):format(tostring(path)), "warn")
+            log(("set_properties skipped -- target not found: %s"):format(tostring(path)), "warn")
             return { skipped = true, reason = "target_not_found", target_path = path }
         end
     end
@@ -1361,8 +1361,8 @@ end
 -- run_lua: execute a Luau builder script INSIDE the plugin context.
 -- Two extra helpers are exposed to the builder so the AI doesn't have to
 -- guard every property write itself:
---   safeSet(inst, key, value)            ??? pcall-wrapped single property set
---   safeSetProps(inst, { K = V, ... })   ??? pcall-wrapped bulk set
+--   safeSet(inst, key, value)            -- pcall-wrapped single property set
+--   safeSetProps(inst, { K = V, ... })   -- pcall-wrapped bulk set
 -- Both swallow errors with a [BloxSmith] warn so one hallucinated property
 -- (e.g. workspace.Terrain.Decoration) can't kill the whole build.
 Exec.run_lua = function(a, p)
@@ -1456,7 +1456,7 @@ local function describeAction(a)
         )
     end
     local mode = meta.execution_mode and (" [" .. tostring(meta.execution_mode) .. "]") or ""
-    return ("%s%s '%s' ??? %s%s"):format(a.kind, mode, tostring(a.name), tostring(a.parent_path or "auto"), extra)
+    return ("%s%s '%s' -- %s%s"):format(a.kind, mode, tostring(a.name), tostring(a.parent_path or "auto"), extra)
 end
 
 local function executeAction(action)
@@ -1464,7 +1464,7 @@ local function executeAction(action)
     local handler = Exec[kind]
     if not handler then error("Unknown action kind: " .. tostring(kind)) end
     local parent = resolveParent(action.parent_path, kind)
-    log("??? " .. describeAction(action), "debug")
+    log("-- " .. describeAction(action), "debug")
     return handler(action, parent)
 end
 
@@ -1609,7 +1609,7 @@ local function post(path, body, opts)
     opts = opts or {}
     local verbose = opts.verbose ~= false and (VERBOSE or opts.force)
     local t0 = os.clock()
-    if verbose then log("??? POST " .. API_BASE .. path, "net") end
+    if verbose then log("-- POST " .. API_BASE .. path, "net") end
     body = body or {}
     local headers = { ["Content-Type"] = "application/json" }
     -- Forward token in both header and body for defense-in-depth.
@@ -1626,17 +1626,17 @@ local function post(path, body, opts)
     end)
     local dt = math.floor((os.clock() - t0) * 1000)
     if not ok then
-        log(("??? POST %s failed after %dms ??? %s"):format(path, dt, tostring(res)), "error")
+        log(("-- POST %s failed after %dms -- %s"):format(path, dt, tostring(res)), "error")
         return nil, tostring(res), 0
     end
     if not res.Success then
         local short = tostring(res.Body or "")
-        if #short > 240 then short = short:sub(1,240) .. "???" end
-        log(("??? POST %s ??? HTTP %s in %dms ??? %s"):format(path, tostring(res.StatusCode), dt, short), "error")
+        if #short > 240 then short = short:sub(1,240) .. "--" end
+        log(("-- POST %s -- HTTP %s in %dms -- %s"):format(path, tostring(res.StatusCode), dt, short), "error")
         return nil, "HTTP " .. tostring(res.StatusCode) .. ": " .. tostring(res.Body), tonumber(res.StatusCode) or 0
     end
     local decoded; pcall(function() decoded = HttpService:JSONDecode(res.Body) end)
-    if verbose then log(("??? POST %s ??? %s in %dms"):format(path, tostring(res.StatusCode), dt), "net") end
+    if verbose then log(("-- POST %s -- %s in %dms"):format(path, tostring(res.StatusCode), dt), "net") end
     return decoded or {}, nil, tonumber(res.StatusCode) or 200
 end
 
@@ -1667,7 +1667,7 @@ end
 
 ------------------------------------------------------------------- state
 local connected, pairingCode = false, nil
-local lastHeartbeat, queueLen, lastAction = 0, 0, "???"
+local lastHeartbeat, queueLen, lastAction = 0, 0, "--"
 
 local function setStatus(text, color, sub)
     statusLabel.Text = "Status: " .. text
@@ -1705,7 +1705,7 @@ local function pollOnce(force)
         connected = false
         setStatus("not connected", Color3.fromRGB(255,180,80),
             "Plugin not connected. Please reconnect from bloxsmith.pro.")
-        if force then log("No saved token ??? click Connect to link.", "warn") end
+        if force then log("No saved token -- click Connect to link.", "warn") end
         return
     end
     if force then log(("token found: yes  ??  API: %s  ??  place: %s  ??  v%s")
@@ -1720,11 +1720,11 @@ local function pollOnce(force)
             connectBtn.Text = "Connect"; connectBtn.BackgroundColor3 = Color3.fromRGB(70,130,240)
             setStatus("not connected", Color3.fromRGB(255,180,80),
                 "Plugin not connected. Please reconnect from bloxsmith.pro.")
-            log("Token rejected by server (401) ??? cleared. Click Connect to reconnect.", "error")
+            log("Token rejected by server (401) -- cleared. Click Connect to reconnect.", "error")
             return
         end
         setStatus("error", Color3.fromRGB(255,120,120), err)
-        log("Poll failed ??? will retry.", "error"); return
+        log("Poll failed -- will retry.", "error"); return
     end
     if data and data.user_id then
         -- userId surfaced only on first successful poll after (re)connect
@@ -1734,7 +1734,7 @@ local function pollOnce(force)
     local actions = data.actions or {}
     queueLen = #actions; refreshInfo()
     if os.clock() - lastHeartbeat > 60 then
-        log(("Heartbeat ??? %d pending"):format(#actions), "debug")
+        log(("Heartbeat -- %d pending"):format(#actions), "debug")
         lastHeartbeat = os.clock()
     end
     if #actions == 0 then return 0 end
@@ -1787,12 +1787,12 @@ local function pollOnce(force)
         local ok, errOrInst = executeActionWithTimeout(a)
         if ok then
             okN += 1; lastAction = describeAction(a)
-            log("??? " .. lastAction, "action")
+            log("-- " .. lastAction, "action")
             results[#results+1] = { action_id = a.id, status = "done", result = reportableResult(errOrInst) }
             pcall(collectInstancesFromResult, focusTargets, errOrInst)
         else
             failN += 1
-            log("??? " .. a.kind .. " '" .. tostring(a.name) .. "': " .. tostring(errOrInst), "error")
+            log("-- " .. a.kind .. " '" .. tostring(a.name) .. "': " .. tostring(errOrInst), "error")
             results[#results+1] = { action_id = a.id, status = "failed", error = tostring(errOrInst) }
         end
     end
@@ -1805,7 +1805,7 @@ local function pollOnce(force)
             local moved = fixResult.moved_count or 0
             local fixed = fixResult.fixed_count or 0
             if moved > 0 or fixed > 0 then
-                log(("Auto-cleanup after batch ??? %d moved, %d fixed."):format(moved, fixed), "success")
+                log(("Auto-cleanup after batch -- %d moved, %d fixed."):format(moved, fixed), "success")
             end
         elseif not fixOk then
             log("Auto-cleanup skipped: " .. tostring(fixResult), "warn")
@@ -1823,14 +1823,14 @@ local function pollOnce(force)
     else
         setStatus("Build complete", Color3.fromRGB(120,220,160), ("Built %d thing(s). Camera focused."):format(okN))
     end
-    log(("Batch complete ??? %d ok, %d failed."):format(okN, failN), failN > 0 and "warn" or "success")
+    log(("Batch complete -- %d ok, %d failed."):format(okN, failN), failN > 0 and "warn" or "success")
     return #actions
 end
 
 local function startPairing()
-    setStatus("connecting", Color3.fromRGB(160,200,255), "Creating one-time approval link???")
+    setStatus("connecting", Color3.fromRGB(160,200,255), "Creating one-time approval link--")
     connectBtn.Text = "Cancel"; connectBtn.BackgroundColor3 = Color3.fromRGB(220,90,90)
-    log("Requesting pair code???", "info")
+    log("Requesting pair code--", "info")
     local data, err = post("/api/public/plugin/pair/start", { plugin_version = PLUGIN_VERSION }, { verbose = true })
     if err or not data or not data.code then
         log("Pair start failed: " .. tostring(err or "no data"), "error")
@@ -1855,7 +1855,7 @@ local function startPairing()
         elseif poll and poll.status == "approved" and poll.plugin_token then
             plugin:SetSetting("token", poll.plugin_token)
             pairingCode = nil; linkBox.Visible = false
-            log("Approved ??? ??? token saved.", "success")
+            log("Approved -- -- token saved.", "success")
             connected = true
             connectBtn.Text = "Disconnect"; connectBtn.BackgroundColor3 = Color3.fromRGB(220,90,90)
             pollOnce(true); return
@@ -1875,7 +1875,7 @@ local function disconnect()
     connectBtn.Text = "Connect"; connectBtn.BackgroundColor3 = Color3.fromRGB(70,130,240)
     linkBox.Visible = false
     setStatus("not connected", Color3.fromRGB(200,200,210), "Click Connect to link.")
-    log("Disconnected ??? token removed.", "warn")
+    log("Disconnected -- token removed.", "warn")
 end
 
 ------------------------------------------------------------------- buttons
@@ -1891,11 +1891,11 @@ end)
 
 reconnectBtn.MouseButton1Click:Connect(function()
     if not validToken() then
-        log("No saved token ??? starting fresh connect.", "warn")
+        log("No saved token -- starting fresh connect.", "warn")
         clearToken(); connected = false
         task.spawn(startPairing); return
     end
-    log("Reconnecting???", "info"); connected = true; pollOnce(true)
+    log("Reconnecting--", "info"); connected = true; pollOnce(true)
 end)
 
 syncBtn.MouseButton1Click:Connect(function()
@@ -1905,13 +1905,13 @@ end)
 
 execBtn.MouseButton1Click:Connect(function()
     if not connected then log("Not connected.", "warn"); return end
-    log("Executing now???", "info"); pollOnce(true)
+    log("Executing now--", "info"); pollOnce(true)
 end)
 
 clearBtn.MouseButton1Click:Connect(function()
     local token = validToken()
-    if not token then log("Not connected ??? click Connect first.", "warn"); return end
-    log("Clearing stuck queue???", "info")
+    if not token then log("Not connected -- click Connect first.", "warn"); return end
+    log("Clearing stuck queue--", "info")
     local data, err = post("/api/public/plugin/clear", { token = token }, { verbose = true })
     if err then log("Clear failed: " .. err, "error")
     else log(("Cleared %d action(s)."):format((data and data.cleared) or 0), "success"); queueLen = 0; refreshInfo() end
@@ -1925,7 +1925,7 @@ end)
 
 openWebBtn.MouseButton1Click:Connect(function()
     if tryCopy(API_BASE .. "/plugin") then
-        log("Copied " .. API_BASE .. "/plugin to clipboard ??? paste into your browser.", "info")
+        log("Copied " .. API_BASE .. "/plugin to clipboard -- paste into your browser.", "info")
     else
         log("Open " .. API_BASE .. "/plugin in your browser.", "info")
     end
@@ -2067,24 +2067,24 @@ Exec.scan_project = function(_, _)
         token = token, place_id = tostring(game.PlaceId or 0), scan = scan,
     }, { verbose = false })
     if err then error("scan upload failed: " .. tostring(err)) end
-    log(("Workspace scan uploaded ??? %d instance(s), %d issue(s)."):format(scan.sampled or 0, #(scan.awareness and scan.awareness.issues or {})), "success")
+    log(("Workspace scan uploaded -- %d instance(s), %d issue(s)."):format(scan.sampled or 0, #(scan.awareness and scan.awareness.issues or {})), "success")
     return { scanned = scan.sampled, issues = scan.awareness and scan.awareness.issues or {}, uploaded = data and data.ok == true }
 end
 
 scanBtn.MouseButton1Click:Connect(function()
     local token = validToken()
-    if not token then log("Not connected ??? click Connect first.", "warn"); return end
-    log("Scanning game tree???", "info")
+    if not token then log("Not connected -- click Connect first.", "warn"); return end
+    log("Scanning game tree--", "info")
     local scan = buildScan()
     log(("Scanned %d instance(s) across %d service(s)."):format(scan.sampled, #scan.roots), "debug")
     local data, err = post("/api/public/plugin/scan", {
         token = token, place_id = tostring(game.PlaceId or 0), scan = scan,
     }, { verbose = true })
     if err then log("Scan upload failed: " .. err, "error")
-    else log("??? Scan uploaded. AI will see this on your next message.", "success") end
+    else log("-- Scan uploaded. AI will see this on your next message.", "success") end
 end)
 
-------------------------------------------------------------------- error capture (LogService ??? API)
+------------------------------------------------------------------- error capture (LogService -- API)
 local LogService = game:GetService("LogService")
 local AUTO_SEND_ERRORS = true
 local errorQueue, lastErrFlush = {}, 0
@@ -2117,7 +2117,7 @@ local function flushErrors(manual)
         -- requeue so we can retry
         for _, e in ipairs(batch) do table.insert(errorQueue, e) end
     else
-        log(("??? Sent %d Studio error(s) ??? AI will use these to fix on next message."):format(#batch), "success")
+        log(("-- Sent %d Studio error(s) -- AI will use these to fix on next message."):format(#batch), "success")
     end
 end
 
@@ -2134,7 +2134,7 @@ organizeBtn.MouseButton1Click:Connect(function()
     local ok, result = pcall(organizeProject)
     ChangeHistoryService:SetWaypoint("BloxSmith organize done")
     if ok then
-        log(("Organized project ??? moved %d item(s)."):format((result and result.moved_count) or 0), "success")
+        log(("Organized project -- moved %d item(s)."):format((result and result.moved_count) or 0), "success")
     else
         log("Organize failed: " .. tostring(result), "error")
     end
@@ -2145,7 +2145,7 @@ autoFixBtn.MouseButton1Click:Connect(function()
     local ok, result = pcall(autoFixProject)
     ChangeHistoryService:SetWaypoint("BloxSmith auto-fix done")
     if ok then
-        log(("Auto-fix complete ??? %d moved, %d fixed."):format((result and result.moved_count) or 0, (result and result.fixed_count) or 0), "success")
+        log(("Auto-fix complete -- %d moved, %d fixed."):format((result and result.moved_count) or 0, (result and result.fixed_count) or 0), "success")
     else
         log("Auto-fix failed: " .. tostring(result), "error")
     end
@@ -2166,7 +2166,7 @@ task.spawn(function()
     if validToken() then
         connected = true
         connectBtn.Text = "Disconnect"; connectBtn.BackgroundColor3 = Color3.fromRGB(220,90,90)
-        log("Restoring previous session???", "info"); pollOnce(true)
+        log("Restoring previous session--", "info"); pollOnce(true)
     else
         clearToken() -- scrub any stale empty/garbage value
         connected = false
@@ -2213,5 +2213,5 @@ end)
 
 log("BloxSmith v" .. PLUGIN_VERSION .. " loaded.", "success")
 log("API: " .. API_BASE, "debug")
-log("Studio " .. studioVersion() .. " ??? place " .. tostring(game.PlaceId or 0), "debug")
-log("Use Connect ??? approve in browser ??? builds execute here automatically.", "info")
+log("Studio " .. studioVersion() .. " -- place " .. tostring(game.PlaceId or 0), "debug")
+log("Use Connect -- approve in browser -- builds execute here automatically.", "info")
