@@ -64,7 +64,7 @@ export const generateQaReport = createServerFn({ method: "POST" })
         text: String(c.content ?? "").slice(0, 300),
       })),
       studio_errors: (errors ?? []).slice(0, 10),
-      scene_hint: session?.scene_digest ? { has_digest: true, last_scan_at: session.last_scan_at } : { has_digest: false },
+      scene_hint: session?.last_scan ? { has_digest: true, last_scan_at: session.last_scan_at } : { has_digest: false },
     };
 
     const { model, meta } = getProviderModel(FALLBACK_MODEL_ID);
