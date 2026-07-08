@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
-  Users, Plug, Folder, Wand2,
+  Users, Plug, Folder, Wand2, Gift,
   History as HistoryIcon, BookOpen, Settings as SettingsIcon, Crown, Box, LayoutDashboard,
   Menu, X, Home as HomeIcon, CreditCard,
 } from "lucide-react";
@@ -16,6 +16,7 @@ const CORE: Item[] = [
   { label: "Studio Plugin", to: "/plugin",        icon: Plug },
   { label: "MCP / Tools",   to: "/mcp",           icon: Wand2 },
   { label: "Community",     to: "/collaborators", icon: Users },
+  { label: "Invite Friends",to: "/referrals",     icon: Gift },
 ];
 const INT: Item[] = [
   { label: "History",       to: "/history",  icon: HistoryIcon },
