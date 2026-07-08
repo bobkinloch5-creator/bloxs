@@ -261,7 +261,15 @@ function UiGenerator() {
             </button>
           </div>
           {generated.map((g) => (
-            <ResultCard key={g.id} result={g} onDelete={(id) => del.mutate(id)} deleting={del.isPending} />
+            <ResultCard
+              key={g.id}
+              result={g}
+              onDelete={(id) => del.mutate(id)}
+              deleting={del.isPending}
+              onRegenerate={() => { setPrompt(g.prompt); setStyle(g.style); gen.mutate({ prompt: g.prompt, style: g.style }); }}
+              onRemix={() => { setPrompt(g.prompt); setStyle(g.style); }}
+              regenerating={gen.isPending}
+            />
           ))}
         </div>
       )}
