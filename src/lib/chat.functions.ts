@@ -107,17 +107,19 @@ async function repairPreparedScriptActions<T extends { kind?: string; name?: str
   // errors — those are already regenerated above. Cap concurrency.
   try {
     const { repairLuauWithNvidia } = await import("@/lib/nvidia-critique.server");
-    const polishTargets = cleanedActions
-      .map((action) => {
-        if (!SCRIPT_ACTION_KINDS.has(String(action.kind ?? ""))) return null;
-        const src = stripCodeFences(String(action.payload?.source ?? ""));
-        if (!src || src.length < 60 || src.length > 20_000) return null;
-        const warnings = validateLuau(src).filter((i) => i.severity === "warn");
-        if (warnings.length === 0) return null;
-        return { action, source: src, warnings };
-      })
-      .filter((entry): entry is { action: typeof cleanedActions[number]; source: string; warnings: Array<{ severity: string; message: string }> } => entry !== null)
-      .slice(0, 4);
+    type PolishTarget = { action: typeof cleanedActions[number]; source: string; warnings: Array<{ severity: string; message: string }> };
+    const polishTargets: PolishTarget[] = [];
+    for (const action of cleanedActions) {
+      if (!SCRIPT_ACTION_KINDS.has(String(action.kind ?? ""))) continue;
+      const src = stripCodeFences(String(action.payload?.source ?? ""));
+      if (!src || src.length < 60 || src.length > 20_000) continue;
+      const warnings = validateLuau(src)
+        .filter((i) => i.severity === "warn")
+        .map((i) => ({ severity: String(i.severity), message: i.message }));
+      if (warnings.length === 0) continue;
+      polishTargets.push({ action, source: src, warnings });
+      if (polishTargets.length >= 4) break;
+    }
     if (polishTargets.length > 0) {
       const polished = await Promise.allSettled(polishTargets.map((t) =>
         repairLuauWithNvidia({
