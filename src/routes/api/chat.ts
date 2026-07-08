@@ -5185,7 +5185,7 @@ title.Font = Enum.Font.GothamBold
 title.TextScaled = true
 title.TextXAlignment = Enum.TextXAlignment.Left
 title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.Text = string.upper(genre) .. " SYSTEM"
+title.Text = (genre == "city") and "CITY MAP" or (string.upper(genre) .. " SYSTEM")
 title.Parent = hud
 
 local statsLabel = Instance.new("TextLabel")
