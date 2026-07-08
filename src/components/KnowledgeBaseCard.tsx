@@ -141,6 +141,7 @@ export function KnowledgeBaseCard() {
       toast.error(friendlyError(e));
     } finally {
       setRunning(false);
+      setLivePos(null);
       abortRef.current = null;
       queryClient.invalidateQueries({ queryKey: ["kb-status"] });
       refetchAudit();
