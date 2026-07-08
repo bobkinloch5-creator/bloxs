@@ -31,6 +31,7 @@ import { ProjectMemoryCard } from "@/components/ProjectMemoryCard";
 import { OnboardingChallenges } from "@/components/OnboardingChallenges";
 import { AiPlaytestCard } from "@/components/AiPlaytestCard";
 import robloxBg from "@/assets/backgrounds/roblox-dashboard.jpg";
+import bloxsmithLogo from "@/assets/bloxsmith-logo.png.asset.json";
 
 
 const THUMBS: Record<string, string> = {
@@ -518,9 +519,7 @@ function Sidebar({ isOwner, isAdmin, profile, credits, maxCredits }: {
   return (
     <aside className="sticky top-0 hidden h-screen w-[240px] shrink-0 flex-col border-r border-white/5 bg-[#080818] p-4 lg:flex">
       <Link to="/dashboard" className="mb-8 flex items-center gap-2.5 px-2">
-        <span className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br from-indigo-500 to-fuchsia-500 text-white shadow-[0_8px_24px_-8px_rgba(99,102,241,0.8)]">
-          <Sparkles className="h-4 w-4" />
-        </span>
+        <img src={bloxsmithLogo.url} alt="BloxSmith" className="h-8 w-8 rounded-lg shadow-[0_8px_24px_-8px_rgba(99,102,241,0.8)]" />
         <span className="text-[15px] font-bold tracking-wide text-white">BLOXSMITH</span>
       </Link>
 
