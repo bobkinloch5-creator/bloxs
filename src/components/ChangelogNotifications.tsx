@@ -3,9 +3,15 @@ import { AlertTriangle, Bell, Bot, Box, Brain, Check, CheckCircle2, ChevronDown,
 import { checkChangelogCoverage, warnIfIncomplete } from "@/lib/changelog-coverage";
 
 
-const CHANGELOG_VERSION = "2026-07-08-referral-audit-page";
+const CHANGELOG_VERSION = "2026-07-08-avatars-likes-privacy";
 
 const CHANGELOG_ITEMS = [
+  {
+    title: "🔒 Privacy hardening — avatars folder-scoped, showcase likes no longer public",
+    date: "Jul 8",
+    icon: ShieldCheck,
+    body: "Two SELECT policies tightened after a security scan. Avatars storage bucket: the old 'read all authenticated' policy let any signed-in user list/download any other user's avatar file directly by guessing the path — replaced with an owner-only read policy that matches the existing insert/update/delete rules ((storage.foldername(name))[1] = auth.uid()::text). App display is unaffected because avatars are served through server-generated signed URLs (1-year TTL), which bypass RLS. showcase_likes: the previous public SELECT policy (USING true) let anonymous visitors enumerate which specific users liked which showcase posts — replaced with a self-only read policy (user_id = auth.uid()). Public like counts should be read from the denormalized like_count field on showcase_posts, not by joining the likes table.",
+  },
   {
     title: "🔍 Referral code audit page — one-click backfill + coverage report",
     date: "Jul 8",
