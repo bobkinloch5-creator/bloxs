@@ -463,12 +463,12 @@ export function WorkspaceChat({
       const res = await improveFn({ data: { text } });
       if (res.ok && res.text) {
         setPrompt(res.text);
-        toast.success("Prompt improved");
+        toast.success("Prompt polished");
       } else {
-        toast.error("Couldn't improve the prompt.");
+        toast.error("Couldn't polish the prompt.");
       }
     } catch (e) {
-      toast.error(friendlyError(e, { fallback: "Improve failed." }));
+      toast.error(friendlyError(e, { fallback: "Polish failed." }));
     } finally {
       setEnhancing(false);
     }
