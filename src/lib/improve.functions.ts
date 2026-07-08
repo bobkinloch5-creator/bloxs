@@ -102,7 +102,7 @@ export const improvePrompt = createServerFn({ method: "POST" })
     const rawIn = data.text.trim();
     const rawInLower = rawIn.toLowerCase();
     const hasGenre = /\b(city|town|metropolis|downtown|tycoon|obby|obstacle course|zombie|racing|race track|racetrack|simulator|dungeon|farm|rpg|tower defense|game|map|world|experience)\b/i.test(rawIn);
-    const inputWordCount = rawIn.split(/\s+/).filter(Boolean).length;
+    
 
     function tooSimilar(a: string, b: string): boolean {
       const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9\s]/g, "").split(/\s+/).filter(Boolean);
