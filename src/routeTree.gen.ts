@@ -41,6 +41,7 @@ import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as AuthenticatedUiGeneratorRouteImport } from './routes/_authenticated/ui-generator'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedReferralsRouteImport } from './routes/_authenticated/referrals'
+import { Route as AuthenticatedReferralAuditRouteImport } from './routes/_authenticated/referral-audit'
 import { Route as AuthenticatedProjectsRouteImport } from './routes/_authenticated/projects'
 import { Route as AuthenticatedPluginRouteImport } from './routes/_authenticated/plugin'
 import { Route as AuthenticatedModelsRouteImport } from './routes/_authenticated/models'
@@ -233,6 +234,12 @@ const AuthenticatedReferralsRoute = AuthenticatedReferralsRouteImport.update({
   path: '/referrals',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedReferralAuditRoute =
+  AuthenticatedReferralAuditRouteImport.update({
+    id: '/referral-audit',
+    path: '/referral-audit',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedProjectsRoute = AuthenticatedProjectsRouteImport.update({
   id: '/projects',
   path: '/projects',
@@ -431,6 +438,7 @@ export interface FileRoutesByFullPath {
   '/models': typeof AuthenticatedModelsRouteWithChildren
   '/plugin': typeof AuthenticatedPluginRoute
   '/projects': typeof AuthenticatedProjectsRoute
+  '/referral-audit': typeof AuthenticatedReferralAuditRoute
   '/referrals': typeof AuthenticatedReferralsRoute
   '/settings': typeof AuthenticatedSettingsRouteWithChildren
   '/ui-generator': typeof AuthenticatedUiGeneratorRoute
@@ -495,6 +503,7 @@ export interface FileRoutesByTo {
   '/models': typeof AuthenticatedModelsRouteWithChildren
   '/plugin': typeof AuthenticatedPluginRoute
   '/projects': typeof AuthenticatedProjectsRoute
+  '/referral-audit': typeof AuthenticatedReferralAuditRoute
   '/referrals': typeof AuthenticatedReferralsRoute
   '/settings': typeof AuthenticatedSettingsRouteWithChildren
   '/ui-generator': typeof AuthenticatedUiGeneratorRoute
@@ -561,6 +570,7 @@ export interface FileRoutesById {
   '/_authenticated/models': typeof AuthenticatedModelsRouteWithChildren
   '/_authenticated/plugin': typeof AuthenticatedPluginRoute
   '/_authenticated/projects': typeof AuthenticatedProjectsRoute
+  '/_authenticated/referral-audit': typeof AuthenticatedReferralAuditRoute
   '/_authenticated/referrals': typeof AuthenticatedReferralsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRouteWithChildren
   '/_authenticated/ui-generator': typeof AuthenticatedUiGeneratorRoute
@@ -627,6 +637,7 @@ export interface FileRouteTypes {
     | '/models'
     | '/plugin'
     | '/projects'
+    | '/referral-audit'
     | '/referrals'
     | '/settings'
     | '/ui-generator'
@@ -691,6 +702,7 @@ export interface FileRouteTypes {
     | '/models'
     | '/plugin'
     | '/projects'
+    | '/referral-audit'
     | '/referrals'
     | '/settings'
     | '/ui-generator'
@@ -756,6 +768,7 @@ export interface FileRouteTypes {
     | '/_authenticated/models'
     | '/_authenticated/plugin'
     | '/_authenticated/projects'
+    | '/_authenticated/referral-audit'
     | '/_authenticated/referrals'
     | '/_authenticated/settings'
     | '/_authenticated/ui-generator'
@@ -1065,6 +1078,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedReferralsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/referral-audit': {
+      id: '/_authenticated/referral-audit'
+      path: '/referral-audit'
+      fullPath: '/referral-audit'
+      preLoaderRoute: typeof AuthenticatedReferralAuditRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/projects': {
       id: '/_authenticated/projects'
       path: '/projects'
@@ -1320,6 +1340,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedModelsRoute: typeof AuthenticatedModelsRouteWithChildren
   AuthenticatedPluginRoute: typeof AuthenticatedPluginRoute
   AuthenticatedProjectsRoute: typeof AuthenticatedProjectsRoute
+  AuthenticatedReferralAuditRoute: typeof AuthenticatedReferralAuditRoute
   AuthenticatedReferralsRoute: typeof AuthenticatedReferralsRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRouteWithChildren
   AuthenticatedUiGeneratorRoute: typeof AuthenticatedUiGeneratorRoute
@@ -1337,6 +1358,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedModelsRoute: AuthenticatedModelsRouteWithChildren,
   AuthenticatedPluginRoute: AuthenticatedPluginRoute,
   AuthenticatedProjectsRoute: AuthenticatedProjectsRoute,
+  AuthenticatedReferralAuditRoute: AuthenticatedReferralAuditRoute,
   AuthenticatedReferralsRoute: AuthenticatedReferralsRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRouteWithChildren,
   AuthenticatedUiGeneratorRoute: AuthenticatedUiGeneratorRoute,
@@ -1398,13 +1420,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
