@@ -7,42 +7,85 @@ import { FALLBACK_MODEL_ID } from "./models";
 
 const Input = z.object({ text: z.string().min(1).max(4000) });
 
-const IMPROVE_SYSTEM = `You are a senior prompt editor for the BloxSmith AI Roblox builder. Rewrite the user's build request so it reads like a confident, precise Roblox studio brief the builder can execute end-to-end — while preserving the user's exact intent and scope.
+const IMPROVE_SYSTEM = `You are a senior prompt editor for the BloxSmith AI Roblox builder. Rewrite the user's build request into a confident, precise, studio-grade Roblox brief the builder can execute end-to-end — preserving the user's exact intent and scope but ALWAYS fixing spelling, grammar, and duplicated words.
+
+MANDATORY CLEANUP (do this every time):
+- Fix ALL misspellings (e.g. "everythign" → "everything", "toolboxx" → "toolbox", "biuld" → "build").
+- Remove duplicated words/phrases ("everything and everything" → "everything").
+- Fix capitalization and punctuation. Never return the user's text nearly unchanged if it has errors.
 
 INTERPRETATION (critical):
-- Read the user's request the way an experienced Roblox developer would. A short noun like "a city", "a tycoon", "a zombie game", "a shop", "a sword", "an obby", "a racing game", "a farm", "a dungeon", "a pet system" already IMPLIES the full expected build — infer and name what a player would recognize as that thing.
-- For GAME / GENRE / SYSTEM / FEATURE-PACKAGE asks, expand the request into an unambiguous brief that spells out: the world/map, the core gameplay loop, the systems the genre requires (spawns, HUD, currency, save, combat, shop, quests, rounds — only ones the genre actually needs), the visual/theme direction, and the target device (PC + Mobile by default).
-- Example: "build me a city" → "Build a full playable city map with a gridded street layout, drivable roads, sidewalks, streetlights, traffic props, a mix of residential + commercial buildings with interiors, spawn plaza, day/night skybox, ambient sound, mobile-friendly camera and controls — server-authoritative, no placeholders, no invented asset IDs."
-- For NARROW single-item asks ("add a jump button", "one script that heals the player", "insert a tree", "make a red part"), do NOT expand. Return a tight one-sentence brief and append a scope-lock clause ("— only this, no extras, plus minimum required wiring").
+- Read the request the way an experienced Roblox developer would. Short nouns like "a city", "a tycoon", "a zombie game", "an obby", "a racing game", "a farm", "a dungeon" already IMPLY the full expected build — infer and name what a player would recognize as that thing.
+- For GAME / GENRE / SYSTEM / MAP asks (anything containing city, town, tycoon, obby, simulator, racing, zombie, tower defense, rpg, dungeon, farm, world, map, game, experience), EXPAND into an unambiguous multi-sentence brief that spells out: the world/map layout, core gameplay loop, required systems (spawns, HUD, currency, save, combat, shop, quests, rounds — only what the genre needs), visual/theme direction, Toolbox usage where appropriate, and PC + Mobile targeting.
+- CITY example → "Build a massive playable city map with a gridded street layout, drivable roads, sidewalks, streetlights and traffic props, a mix of residential and commercial buildings with enterable interiors, a central spawn plaza, day/night skybox and ambient sound, mobile-friendly camera and controls, populated with safe free Roblox Toolbox assets — server-authoritative, no placeholders, no invented asset IDs."
+- TYCOON example → "Build a full solo tycoon plot with a claim pad, dropper→conveyor→collector economy, upgrade buttons gated by cash, a leaderstats currency, DataStore save/load, a sellable stack, and a themed baseplate — server-authoritative, no placeholders."
+- For NARROW single-item asks ("add a jump button", "insert a tree", "one heal script", "make a red part"), do NOT expand. Return a tight one-sentence brief and append "— only this, no extras, plus minimum required wiring."
 
 Rewrite goals:
-- Fix all grammar, spelling, capitalization, and punctuation.
-- Replace vague wording ("stuff", "thingy", "kinda", "some", "like a") with concrete Roblox-native vocabulary.
-- Upgrade weak verbs to strong developer verbs (build, spawn, wire, mount, configure, script, place, hook up).
+- Replace vague wording ("stuff", "thingy", "kinda", "some") with concrete Roblox-native vocabulary.
+- Use strong developer verbs (build, spawn, wire, mount, configure, script, place, hook up, populate).
 - Make subject, action, quantity, scope, and location explicit.
-- Keep the voice crisp and professional — no fluff, no marketing adjectives ("amazing", "awesome", "epic"), no emoji.
+- Crisp professional voice — no fluff, no "amazing/awesome/epic", no emoji.
 
 Scope discipline:
-- Never invent a totally unrelated genre, mechanic, or asset the user did not imply.
-- Never downscope a full-game/system ask into a single part.
-- If the request is already clear and specific, tighten grammar only.
+- Never invent a totally unrelated genre or mechanic.
+- Never downscope a full-game/map ask into a single part.
 
 Format:
-- Plain prose. 1 sentence for narrow asks, up to 4 sentences for full-game / system asks.
-- No bullets, no headers, no labels, no quotes, no code fences, no preamble.
-- Under 120 words.
-- Output the polished prompt only. No "Here is", no explanation.`;
+- Plain prose. 1 sentence for narrow asks, 2-5 sentences for full-game / map / system asks.
+- No bullets, no headers, no labels, no quotes, no code fences, no preamble ("Here is", "Improved:").
+- Under 160 words.
+- Output the polished prompt only.`;
+
+function fixCommonTypos(input: string): string {
+  const fixes: Array<[RegExp, string]> = [
+    [/\beverythign\b/gi, "everything"],
+    [/\banythign\b/gi, "anything"],
+    [/\bsomethign\b/gi, "something"],
+    [/\bnothign\b/gi, "nothing"],
+    [/\btoolboxx\b/gi, "toolbox"],
+    [/\bbiuld\b/gi, "build"],
+    [/\brblox\b/gi, "Roblox"],
+    [/\broblx\b/gi, "Roblox"],
+    [/\b(and\s+everything)(\s+and\s+everything)+\b/gi, "$1"],
+    [/\b(\w+)\s+\1\b/gi, "$1"],
+  ];
+  let out = input;
+  for (const [re, rep] of fixes) out = out.replace(re, rep);
+  return out;
+}
 
 function deterministicImprove(input: string): string {
-  let cleaned = input.trim().replace(/\s+/g, " ").replace(/^["'`]+|["'`]+$/g, "");
+  let cleaned = fixCommonTypos(input.trim().replace(/\s+/g, " ").replace(/^["'`]+|["'`]+$/g, ""));
   if (!cleaned) return "";
   cleaned = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
   if (!/[.!?)]$/.test(cleaned)) cleaned += ".";
   const lower = cleaned.toLowerCase();
-  const singleAsset = /\b(add|insert|spawn|make|create|get|place|put)\b/.test(lower)
-    && /\b(tree|house|car|vehicle|sword|gun|weapon|pet|npc|zombie|road|building|furniture|chair|table|rock|bush|flower|shop|store|castle|boat|plane|door|window|sign|lamp)\b/.test(lower)
-    && !/\b(game|system|map|city|world|full|complete|entire)\b/.test(lower);
-  if (singleAsset && !/toolbox|creator store|safe|free|public|no extras|just this/i.test(cleaned)) {
+
+  const genreExpansions: Array<[RegExp, string]> = [
+    [/\b(city|town|metropolis|downtown)\b/i,
+     "Build a massive playable city map with a gridded street layout, drivable roads, sidewalks, streetlights and traffic props, a mix of residential and commercial buildings with enterable interiors, a central spawn plaza, day/night skybox and ambient sound, mobile-friendly camera and controls, populated with safe free Roblox Toolbox assets — server-authoritative, no placeholders, no invented asset IDs."],
+    [/\btycoon\b/i,
+     "Build a full solo tycoon plot with a claim pad, a dropper→conveyor→collector economy, upgrade buttons gated by cash, a leaderstats currency, DataStore save and load, a sellable stack, and a themed baseplate — server-authoritative, no placeholders, no invented asset IDs."],
+    [/\bobby|obstacle course\b/i,
+     "Build a full obby with 15+ progressively harder stages across a themed course, checkpoints between stages, a spawn lobby, a win zone with a reward, kill bricks and moving parts wired server-side, and a mobile-friendly jump button and camera — server-authoritative, no placeholders, no invented asset IDs."],
+    [/\bzombie\b/i,
+     "Build a zombie survival round with wave-based spawning, server-authoritative zombie AI that chases and damages players, a starter weapon, a health and ammo HUD, a round timer, and a themed map with cover — server-authoritative, no placeholders, no invented asset IDs."],
+    [/\bracing|race track|racetrack\b/i,
+     "Build a full racing experience with a closed drivable track, driveable vehicles, a lap counter, a timer, checkpoints, a spawn grid, a finish line, and a leaderboard HUD — server-authoritative, no placeholders, no invented asset IDs."],
+    [/\bsimulator\b/i,
+     "Build a simulator loop with a clear gather action, a leaderstats currency that grows with each gather, an upgrade shop that boosts gather rate, a rebirth option for prestige, DataStore save and load, and a themed spawn area — server-authoritative, no placeholders, no invented asset IDs."],
+  ];
+  const isNarrow = /\b(add|insert|spawn|make|create|place|put|one)\b/.test(lower)
+    && /\b(tree|house|car|sword|gun|pet|npc|road|chair|table|rock|bush|flower|door|window|sign|lamp|button|script|part)\b/.test(lower)
+    && !/\b(game|system|map|city|town|world|full|complete|entire|massive|tycoon|obby|zombie|racing|simulator|dungeon|farm)\b/.test(lower);
+  if (!isNarrow) {
+    for (const [re, expansion] of genreExpansions) {
+      if (re.test(lower)) return expansion;
+    }
+  }
+
+  if (isNarrow && !/toolbox|creator store|safe|free|public|no extras|just this/i.test(cleaned)) {
     cleaned = `${cleaned.replace(/[.!?]$/, "")} from the Roblox Toolbox (safe, free, public model) — just this, no extras.`;
   } else if (/\b(script|button|remoteevent|localscript|modulescript)\b/i.test(cleaned) && !/no extras|only|just this|system|game|full|complete/i.test(cleaned)) {
     cleaned = `${cleaned.replace(/[.!?]$/, "")} — only the requested item and required wiring, no extras.`;
@@ -69,12 +112,12 @@ export const improvePrompt = createServerFn({ method: "POST" })
         abortSignal: controller.signal,
       });
       clearTimeout(timeout);
-      let cleaned = (text || "").trim().replace(/^["'`]+|["'`]+$/g, "").replace(/\s+\n/g, "\n");
+      let cleaned = fixCommonTypos((text || "").trim().replace(/^["'`]+|["'`]+$/g, "").replace(/\s+\n/g, "\n"));
       // Strip any accidental preamble like "Improved prompt:" or "Here is..."
       cleaned = cleaned.replace(/^(improved prompt|here(?:'s| is)[^:]*|prompt)\s*[:\-–]\s*/i, "").trim();
       if (!cleaned || cleaned.length < 3) return { ok: true as const, text: fallback };
       // Guardrail: block only obvious labeled-brief format (Enhance's job, not Polish's).
-      if (cleaned.split(/\s+/).length > 180 || /\n\s*(goal|scope|systems|ui|world|polish|constraints)\s*:/i.test(cleaned)) {
+      if (cleaned.split(/\s+/).length > 200 || /\n\s*(goal|scope|systems|ui|world|polish|constraints)\s*:/i.test(cleaned)) {
         return { ok: true as const, text: fallback };
       }
       return { ok: true as const, text: cleaned };
