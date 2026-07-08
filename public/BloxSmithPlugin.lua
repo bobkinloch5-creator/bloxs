@@ -2194,7 +2194,7 @@ task.spawn(function()
         task.wait(POLL_INTERVAL)
         if connected then
             -- Drain: keep polling immediately while the server has work ready.
-            for _ = 1, 20 do
+            for _ = 1, 5 do
                 local ok, errOrCount = pcall(pollOnce)
                 if not ok then
                     log("Poll loop crashed: " .. tostring(errOrCount), "error")
