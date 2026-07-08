@@ -41,22 +41,40 @@ local toggleButton = toolbar:CreateButton("BloxSmith", "Open BloxSmith builder",
     "rbxasset://textures/StudioSharedUI/services/plugin@2x.png")
 
 local widget = plugin:CreateDockWidgetPluginGui("BloxSmithWidget",
-    DockWidgetPluginGuiInfo.new(Enum.InitialDockState.Right, true, false, 340, 560, 300, 460))
+    DockWidgetPluginGuiInfo.new(Enum.InitialDockState.Right, true, false, 360, 640, 320, 520))
 widget.Title = "BloxSmith"
 
-local main = Instance.new("Frame")
-main.Size = UDim2.fromScale(1,1)
-main.BackgroundColor3 = Color3.fromRGB(20, 22, 28)
-main.BorderSizePixel = 0
-main.Parent = widget
-
+-- ============ tiny visual helpers ============
+local function round(inst, r)
+    local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, r or 8); c.Parent = inst
+    return inst
+end
+local function stroke(inst, color, thickness, transparency)
+    local s = Instance.new("UIStroke")
+    s.Color = color or Color3.fromRGB(255,255,255)
+    s.Thickness = thickness or 1
+    s.Transparency = transparency or 0.8
+    s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    s.Parent = inst
+    return s
+end
+local function gradient(parent, c1, c2, rotation)
+    local g = Instance.new("UIGradient")
+    g.Rotation = rotation or 90
+    g.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, c1),
+        ColorSequenceKeypoint.new(1, c2),
+    }
+    g.Parent = parent
+    return g
+end
 local function label(parent, text, pos, size, font, ts, color)
     local l = Instance.new("TextLabel")
     l.Position = pos; l.Size = size
     l.BackgroundTransparency = 1
-    l.Font = font or Enum.Font.BuilderSans
-    l.TextSize = ts or 13
-    l.TextColor3 = color or Color3.fromRGB(220,220,230)
+    l.Font = font or Enum.Font.Gotham
+    l.TextSize = ts or 12
+    l.TextColor3 = color or Color3.fromRGB(225,225,240)
     l.TextXAlignment = Enum.TextXAlignment.Left
     l.TextYAlignment = Enum.TextYAlignment.Top
     l.TextWrapped = true
@@ -65,125 +83,223 @@ local function label(parent, text, pos, size, font, ts, color)
     return l
 end
 
-local title = label(main, "BloxSmith", UDim2.new(0,12,0,10), UDim2.new(1,-24,0,22), Enum.Font.BuilderSansBold, 16)
-label(main, "Execution bridge for Roblox Studio", UDim2.new(0,12,0,32), UDim2.new(1,-24,0,16), nil, 12, Color3.fromRGB(150,155,170))
+-- ============ root ============
+local main = Instance.new("Frame")
+main.Size = UDim2.fromScale(1,1)
+main.BackgroundColor3 = Color3.fromRGB(10, 11, 26)
+main.BorderSizePixel = 0
+main.Parent = widget
+gradient(main, Color3.fromRGB(16, 14, 36), Color3.fromRGB(7, 8, 20), 160)
 
-local statusLabel = label(main, "Status: not connected", UDim2.new(0,12,0,58), UDim2.new(1,-24,0,18), Enum.Font.BuilderSansMedium, 13)
-local subStatus   = label(main, "Click Connect to link this Studio session.", UDim2.new(0,12,0,78), UDim2.new(1,-24,0,16), nil, 12, Color3.fromRGB(150,155,170))
+-- ============ header card ============
+local header = Instance.new("Frame")
+header.Position = UDim2.new(0,12,0,12); header.Size = UDim2.new(1,-24,0,66)
+header.BackgroundColor3 = Color3.fromRGB(24, 22, 54)
+header.BorderSizePixel = 0
+header.Parent = main
+round(header, 12)
+gradient(header, Color3.fromRGB(60, 42, 130), Color3.fromRGB(22, 20, 48), 135)
+stroke(header, Color3.fromRGB(160, 140, 255), 1, 0.7)
 
-local infoLabel   = label(main, "Place: loading...    Live: 0    v" .. PLUGIN_VERSION, UDim2.new(0,12,0,98), UDim2.new(1,-24,0,16), nil, 12, Color3.fromRGB(160,165,180))
-local lastLabel   = label(main, "Last action: (none)", UDim2.new(0,12,0,116), UDim2.new(1,-24,0,16), nil, 12, Color3.fromRGB(160,165,180))
+-- logo mark
+local logo = Instance.new("Frame")
+logo.Position = UDim2.new(0,12,0.5,-19); logo.Size = UDim2.fromOffset(38,38)
+logo.BackgroundColor3 = Color3.fromRGB(129, 92, 255)
+logo.BorderSizePixel = 0
+logo.Parent = header
+round(logo, 11)
+gradient(logo, Color3.fromRGB(139, 102, 255), Color3.fromRGB(236, 72, 190), 135)
+stroke(logo, Color3.fromRGB(255,255,255), 1, 0.6)
 
-local function round(inst, r)
-    local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, r or 6); c.Parent = inst
-    return inst
-end
+local spark = Instance.new("TextLabel")
+spark.Size = UDim2.fromScale(1,1); spark.BackgroundTransparency = 1
+spark.Font = Enum.Font.GothamBold; spark.TextSize = 22
+spark.TextColor3 = Color3.fromRGB(255,255,255); spark.Text = "✦"
+spark.TextXAlignment = Enum.TextXAlignment.Center
+spark.TextYAlignment = Enum.TextYAlignment.Center
+spark.Parent = logo
 
--- primary connect button
+local title = label(header, "BloxSmith", UDim2.new(0,62,0,12), UDim2.new(1,-72,0,22),
+    Enum.Font.GothamBold, 17, Color3.fromRGB(248, 244, 255))
+label(header, "Execution bridge for Roblox Studio", UDim2.new(0,62,0,34), UDim2.new(1,-72,0,18),
+    Enum.Font.Gotham, 11, Color3.fromRGB(190, 185, 220))
+
+-- version pill top-right
+local vPill = Instance.new("TextLabel")
+vPill.AnchorPoint = Vector2.new(1,0)
+vPill.Position = UDim2.new(1,-10,0,10); vPill.Size = UDim2.fromOffset(52,18)
+vPill.BackgroundColor3 = Color3.fromRGB(50, 40, 100)
+vPill.BorderSizePixel = 0
+vPill.Font = Enum.Font.GothamBold; vPill.TextSize = 10
+vPill.TextColor3 = Color3.fromRGB(215, 205, 255)
+vPill.Text = "v" .. PLUGIN_VERSION
+vPill.Parent = header
+round(vPill, 6)
+stroke(vPill, Color3.fromRGB(180, 160, 255), 1, 0.5)
+
+-- ============ status card ============
+local statusCard = Instance.new("Frame")
+statusCard.Position = UDim2.new(0,12,0,86); statusCard.Size = UDim2.new(1,-24,0,64)
+statusCard.BackgroundColor3 = Color3.fromRGB(18, 20, 40)
+statusCard.BorderSizePixel = 0
+statusCard.Parent = main
+round(statusCard, 10)
+stroke(statusCard, Color3.fromRGB(120, 120, 200), 1, 0.85)
+
+local statusDot = Instance.new("Frame")
+statusDot.Position = UDim2.new(0,12,0,14); statusDot.Size = UDim2.fromOffset(10,10)
+statusDot.BackgroundColor3 = Color3.fromRGB(248, 113, 113)
+statusDot.BorderSizePixel = 0
+statusDot.Parent = statusCard
+round(statusDot, 8)
+stroke(statusDot, Color3.fromRGB(255, 180, 180), 1, 0.4)
+
+local statusLabel = label(statusCard, "Status: not connected",
+    UDim2.new(0,28,0,8), UDim2.new(1,-40,0,18),
+    Enum.Font.GothamBold, 13, Color3.fromRGB(240,240,250))
+local subStatus   = label(statusCard, "Click Connect to link this Studio session.",
+    UDim2.new(0,12,0,28), UDim2.new(1,-24,0,14),
+    Enum.Font.Gotham, 11, Color3.fromRGB(165, 170, 200))
+local infoLabel   = label(statusCard, "Place: loading...   Live: 0",
+    UDim2.new(0,12,0,44), UDim2.new(1,-24,0,14),
+    Enum.Font.Code, 10, Color3.fromRGB(140, 200, 235))
+
+local lastLabel   = label(main, "Last action: (none)",
+    UDim2.new(0,14,0,156), UDim2.new(1,-28,0,14),
+    Enum.Font.Gotham, 11, Color3.fromRGB(155, 160, 195))
+
+-- ============ primary connect button ============
 local connectBtn = Instance.new("TextButton")
-connectBtn.Position = UDim2.new(0,12,0,142); connectBtn.Size = UDim2.new(1,-24,0,34)
-connectBtn.BackgroundColor3 = Color3.fromRGB(70,130,240)
+connectBtn.Position = UDim2.new(0,12,0,178); connectBtn.Size = UDim2.new(1,-24,0,40)
+connectBtn.BackgroundColor3 = Color3.fromRGB(99, 102, 241)
 connectBtn.TextColor3 = Color3.fromRGB(255,255,255)
-connectBtn.Font = Enum.Font.BuilderSansBold; connectBtn.TextSize = 14
+connectBtn.Font = Enum.Font.GothamBold; connectBtn.TextSize = 14
 connectBtn.Text = "Connect"; connectBtn.BorderSizePixel = 0
 connectBtn.AutoButtonColor = true
 connectBtn.Parent = main
-round(connectBtn, 8)
+round(connectBtn, 10)
+gradient(connectBtn, Color3.fromRGB(139, 116, 255), Color3.fromRGB(236, 89, 190), 90)
+stroke(connectBtn, Color3.fromRGB(255,255,255), 1, 0.65)
 
--- approval link box (hidden by default)
+-- ============ approval link box (hidden by default) ============
 local linkBox = Instance.new("TextBox")
-linkBox.Position = UDim2.new(0,12,0,182); linkBox.Size = UDim2.new(1,-24,0,26)
-linkBox.BackgroundColor3 = Color3.fromRGB(35,38,48)
-linkBox.TextColor3 = Color3.fromRGB(220,220,230)
-linkBox.Font = Enum.Font.Code; linkBox.TextSize = 12
+linkBox.Position = UDim2.new(0,12,0,226); linkBox.Size = UDim2.new(1,-24,0,28)
+linkBox.BackgroundColor3 = Color3.fromRGB(22, 24, 44)
+linkBox.TextColor3 = Color3.fromRGB(210, 220, 245)
+linkBox.Font = Enum.Font.Code; linkBox.TextSize = 11
 linkBox.Text = ""; linkBox.PlaceholderText = "Approval link appears here"
 linkBox.ClearTextOnFocus = false; linkBox.TextEditable = false
 linkBox.BorderSizePixel = 0; linkBox.Visible = false
 linkBox.Parent = main
-round(linkBox, 6)
+round(linkBox, 8)
+stroke(linkBox, Color3.fromRGB(129, 140, 240), 1, 0.7)
 
--- control buttons grid (4 rows x 3 cols)
+-- ============ control buttons grid ============
 local controls = Instance.new("Frame")
-controls.Position = UDim2.new(0,12,0,216); controls.Size = UDim2.new(1,-24,0,140)
+controls.Position = UDim2.new(0,12,0,262); controls.Size = UDim2.new(1,-24,0,152)
 controls.BackgroundTransparency = 1; controls.Parent = main
 local grid = Instance.new("UIGridLayout", controls)
 grid.CellPadding = UDim2.new(0,6,0,6)
-grid.CellSize = UDim2.new(0.333, -4, 0, 28)
+grid.CellSize = UDim2.new(0.333, -4, 0, 34)
 grid.SortOrder = Enum.SortOrder.LayoutOrder
 
 local function ctrlBtn(text, order, opts)
     opts = opts or {}
-    local baseColor = opts.color or Color3.fromRGB(45,48,58)
-    local hoverColor = opts.hover or Color3.fromRGB(60,64,78)
+    local baseColor  = opts.color     or Color3.fromRGB(26, 28, 50)
+    local hoverColor = opts.hover     or Color3.fromRGB(40, 44, 74)
+    local accent     = opts.accent    or Color3.fromRGB(150, 160, 220)
     local b = Instance.new("TextButton")
     b.BackgroundColor3 = baseColor
-    b.TextColor3 = opts.textColor or Color3.fromRGB(220,225,235)
-    b.Font = Enum.Font.BuilderSansMedium; b.TextSize = 12
+    b.TextColor3 = opts.textColor or Color3.fromRGB(232, 234, 248)
+    b.Font = Enum.Font.GothamMedium; b.TextSize = 11
     b.Text = text; b.BorderSizePixel = 0
     b.AutoButtonColor = false
     b.LayoutOrder = order; b.Parent = controls
-    round(b, 6)
-    b.MouseEnter:Connect(function() b.BackgroundColor3 = hoverColor end)
-    b.MouseLeave:Connect(function() b.BackgroundColor3 = baseColor end)
+    round(b, 8)
+    local s = Instance.new("UIStroke")
+    s.Color = accent; s.Thickness = 1; s.Transparency = 0.55
+    s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    s.Parent = b
+    -- left accent bar
+    local bar = Instance.new("Frame")
+    bar.Size = UDim2.new(0,3,1,-12); bar.Position = UDim2.new(0,0,0,6)
+    bar.BackgroundColor3 = accent; bar.BorderSizePixel = 0
+    bar.Parent = b
+    local bc = Instance.new("UICorner"); bc.CornerRadius = UDim.new(1,0); bc.Parent = bar
+    b.MouseEnter:Connect(function()
+        b.BackgroundColor3 = hoverColor; s.Transparency = 0.2
+    end)
+    b.MouseLeave:Connect(function()
+        b.BackgroundColor3 = baseColor; s.Transparency = 0.55
+    end)
     return b
 end
 
-local reconnectBtn = ctrlBtn("Reconnect", 1)
-local syncBtn      = ctrlBtn("Sync", 2)
-local execBtn      = ctrlBtn("Execute Now", 3)
-local clearBtn     = ctrlBtn("Clear Stuck", 4)
-local errorsBtn    = ctrlBtn("View Errors", 5)
-local openWebBtn   = ctrlBtn("Open Website", 6)
-local scanBtn      = ctrlBtn("Scan Game", 7)
-local sendErrBtn   = ctrlBtn("Send Errors", 8)
-local autoErrBtn   = ctrlBtn("Auto-Send: ON", 9)
-local organizeBtn  = ctrlBtn("Organize", 10)
-local autoFixBtn   = ctrlBtn("Auto-Fix", 11)
-local cleanBtn     = ctrlBtn("Clean Slate", 12, {
-    color = Color3.fromRGB(120, 55, 55),
-    hover = Color3.fromRGB(150, 70, 70),
-    textColor = Color3.fromRGB(255, 235, 235),
+local reconnectBtn = ctrlBtn("Reconnect",    1,  { accent = Color3.fromRGB( 96, 165, 250) })
+local syncBtn      = ctrlBtn("Sync",         2,  { accent = Color3.fromRGB( 52, 211, 153) })
+local execBtn      = ctrlBtn("Execute Now",  3,  { accent = Color3.fromRGB(129, 140, 255) })
+local clearBtn     = ctrlBtn("Clear Stuck",  4,  { accent = Color3.fromRGB(251, 191,  36) })
+local errorsBtn    = ctrlBtn("View Errors",  5,  { accent = Color3.fromRGB(248, 113, 113) })
+local openWebBtn   = ctrlBtn("Open Website", 6,  { accent = Color3.fromRGB(103, 232, 249) })
+local scanBtn      = ctrlBtn("Scan Game",    7,  { accent = Color3.fromRGB(167, 139, 250) })
+local sendErrBtn   = ctrlBtn("Send Errors",  8,  { accent = Color3.fromRGB(244, 114, 182) })
+local autoErrBtn   = ctrlBtn("Auto-Send: ON",9,  { accent = Color3.fromRGB(236,  72, 153) })
+local organizeBtn  = ctrlBtn("Organize",     10, { accent = Color3.fromRGB( 45, 212, 191) })
+local autoFixBtn   = ctrlBtn("Auto-Fix",     11, { accent = Color3.fromRGB( 74, 222, 128) })
+local cleanBtn     = ctrlBtn("Clean Slate",  12, {
+    color = Color3.fromRGB(130, 40, 60),
+    hover = Color3.fromRGB(170, 55, 80),
+    accent = Color3.fromRGB(255, 130, 150),
+    textColor = Color3.fromRGB(255, 235, 240),
 })
 
 
 ------------------------------------------------------------------- log
 local logBar = Instance.new("Frame")
-logBar.Position = UDim2.new(0,12,0,352); logBar.Size = UDim2.new(1,-24,0,22)
+logBar.Position = UDim2.new(0,12,0,424); logBar.Size = UDim2.new(1,-24,0,24)
 logBar.BackgroundTransparency = 1; logBar.Parent = main
 
 local logTitle = Instance.new("TextLabel")
 logTitle.Size = UDim2.new(1,-220,1,0); logTitle.BackgroundTransparency = 1
-logTitle.Font = Enum.Font.BuilderSansBold; logTitle.TextSize = 12
-logTitle.TextColor3 = Color3.fromRGB(200,205,215)
+logTitle.Font = Enum.Font.GothamBold; logTitle.TextSize = 12
+logTitle.TextColor3 = Color3.fromRGB(215, 215, 240)
 logTitle.TextXAlignment = Enum.TextXAlignment.Left
-logTitle.Text = "Activity log"; logTitle.Parent = logBar
+logTitle.Text = "◆  Activity log"; logTitle.Parent = logBar
 
-local function miniBtn(text, xOff)
+local function miniBtn(text, xOff, accent)
     local b = Instance.new("TextButton")
     b.AnchorPoint = Vector2.new(1,0.5)
-    b.Position = UDim2.new(1,xOff,0.5,0); b.Size = UDim2.new(0,60,0,20)
-    b.BackgroundColor3 = Color3.fromRGB(45,48,58)
-    b.TextColor3 = Color3.fromRGB(210,215,225)
-    b.Font = Enum.Font.BuilderSans; b.TextSize = 11
+    b.Position = UDim2.new(1,xOff,0.5,0); b.Size = UDim2.new(0,60,0,22)
+    b.BackgroundColor3 = Color3.fromRGB(26, 28, 50)
+    b.TextColor3 = Color3.fromRGB(225, 228, 245)
+    b.Font = Enum.Font.GothamMedium; b.TextSize = 11
     b.Text = text; b.BorderSizePixel = 0
+    b.AutoButtonColor = false
     b.Parent = logBar
-    round(b, 4)
+    round(b, 6)
+    local s = Instance.new("UIStroke")
+    s.Color = accent or Color3.fromRGB(120,130,200); s.Thickness = 1; s.Transparency = 0.5
+    s.Parent = b
+    b.MouseEnter:Connect(function() s.Transparency = 0.15 end)
+    b.MouseLeave:Connect(function() s.Transparency = 0.5 end)
     return b
 end
-local copyLogBtn  = miniBtn("Copy", 0)
-local clearLogBtn = miniBtn("Clear", -66)
-local verboseBtn  = miniBtn("Verbose", -132)
+local copyLogBtn  = miniBtn("Copy",     0,    Color3.fromRGB(103, 232, 249))
+local clearLogBtn = miniBtn("Clear",   -66,   Color3.fromRGB(248, 113, 113))
+local verboseBtn  = miniBtn("Verbose", -132,  Color3.fromRGB(129, 140, 255))
 
 local logFrame = Instance.new("ScrollingFrame")
-logFrame.Position = UDim2.new(0,12,0,378); logFrame.Size = UDim2.new(1,-24,1,-390)
-logFrame.BackgroundColor3 = Color3.fromRGB(14,16,22); logFrame.BorderSizePixel = 0
+logFrame.Position = UDim2.new(0,12,0,452); logFrame.Size = UDim2.new(1,-24,1,-464)
+logFrame.BackgroundColor3 = Color3.fromRGB(6, 7, 18); logFrame.BorderSizePixel = 0
 logFrame.CanvasSize = UDim2.new(0,0,0,0); logFrame.ScrollBarThickness = 4
+logFrame.ScrollBarImageColor3 = Color3.fromRGB(120, 130, 200)
 logFrame.Parent = main
-round(logFrame, 6)
+round(logFrame, 10)
+stroke(logFrame, Color3.fromRGB(120, 130, 220), 1, 0.8)
 
 local lp = Instance.new("UIPadding", logFrame)
 lp.PaddingTop = UDim.new(0,6); lp.PaddingBottom = UDim.new(0,6)
-lp.PaddingLeft = UDim.new(0,6); lp.PaddingRight = UDim.new(0,6)
+lp.PaddingLeft = UDim.new(0,8); lp.PaddingRight = UDim.new(0,8)
 local ll = Instance.new("UIListLayout", logFrame)
 ll.SortOrder = Enum.SortOrder.LayoutOrder; ll.Padding = UDim.new(0,2)
 
