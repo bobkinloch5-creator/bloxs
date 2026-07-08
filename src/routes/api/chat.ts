@@ -6286,6 +6286,11 @@ export const Route = createFileRoute("/api/chat")({
           const uiConceptRequested = mode === "build" && imageGenerationRequested && /(\bgenerate ui\b|\bimage to roblox ui\b|\bimage-to-roblox ui\b|loading screen|main menu|play button|settings menu|shop ui|inventory ui|gamepass ui|quest ui|\bhud\b|health bar|xp bar|currency display|mobile controls)/i.test(userText);
 
           let contextBlock = "";
+          // Genre brief: when the user gives a short bare-genre ask ("build me a city",
+          // "make a tycoon", "zombie game"), inject an explicit specification so the
+          // model builds the full expected experience instead of a thin approximation.
+          const genreBrief = mode === "build" ? buildGenreBrief(userText) : "";
+          if (genreBrief) contextBlock = genreBrief;
           let generatedUiConceptUrl: string | null = null;
           try {
             const [
