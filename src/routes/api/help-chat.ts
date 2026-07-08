@@ -40,11 +40,16 @@ export const Route = createFileRoute("/api/help-chat")({
             return new Response("Messages are required", { status: 400 });
           }
           const messages = body.messages as UIMessage[];
-          const { model } = getFallbackModel();
+          // Trim the transcript so old turns don't slow every reply.
+          const recent = messages.slice(-12);
+          const { model } = getProviderModel(HELPER_MODEL_ID);
           const result = streamText({
             model,
             system: SYSTEM_PROMPT,
-            messages: await convertToModelMessages(messages),
+            messages: await convertToModelMessages(recent),
+            temperature: 0.4,
+            maxOutputTokens: 500,
+            abortSignal: request.signal,
           });
           return result.toUIMessageStreamResponse({ originalMessages: messages });
         } catch (err) {
