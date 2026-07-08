@@ -7,6 +7,12 @@ const CHANGELOG_VERSION = "2026-07-08-genre-brief";
 
 const CHANGELOG_ITEMS = [
   {
+    title: "🏙️ Build mode now understands \"build me a city\" (and 6 other short genre asks)",
+    date: "Jul 8",
+    icon: Sparkles,
+    body: "Added a Genre Brief injector to the Build pipeline. When you send a short prompt (≤14 words) that names a common genre — city, town, downtown, neighborhood, tycoon, obby, parkour, zombie survival, racing, driving, simulator, or tower defense — BloxSmith now auto-injects an explicit specification into the system prompt so the model builds the full expected experience instead of a thin approximation. Example: \"build me a city\" now tells the model to produce a gridded street layout with sidewalks/crosswalks/street lights, a dense mix of residential + apartments + shops + offices + a landmark on both sides of every road, a spawn plaza, street props (benches, hydrants, signs, parked cars), ambient traffic, a park zone, day/night skybox + Bloom, ambient city sound, mobile-friendly camera, safe Toolbox packs, an organized \"City\" folder (Roads / Buildings / Vehicles / Props / Park / Lighting), and a final autofix + scan + camera_focus. Tycoon, obby, zombie survival, racing, simulator, and tower defense each got their own equivalent brief covering the required systems (droppers/currency/save/upgrades for tycoons, stages/checkpoints/DataStore for obbies, waves/PathfindingService/shop for zombies, drivable cars/laps/DataStore for racing, respawning nodes/rebirth/pets for simulators, waves/tower types/placement/base HP for TD). Longer/detailed prompts are left untouched — the brief only fires when the ask is short enough to actually need interpretation.",
+  },
+  {
     title: "✨ Polish button is now context-aware — \"build me a city\" expands to a full brief",
     date: "Jul 8",
     icon: Sparkles,
