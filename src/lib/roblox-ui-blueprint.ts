@@ -95,7 +95,7 @@ function inferKind(prompt: string): UiKind {
   return "main-menu";
 }
 
-function paletteFor(style: string): Palette {
+export function paletteFor(style: string): Palette {
   const s = style.toLowerCase();
   if (s.includes("light") || s.includes("minimal")) {
     return { bg: "#f3f7ff", bg2: "#dbeafe", panel: "#ffffff", panel2: "#e6edf8", card: "#f8fbff", accent: "#3b82f6", accent2: "#06b6d4", text: "#0f172a", muted: "#516075", good: "#16a34a", warn: "#f59e0b", danger: "#ef4444" };
