@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import bloxsmithMascot from "@/assets/bloxsmith-mascot.png.asset.json";
 import { ReactNode } from "react";
 import { RobloxBackdrop } from "./RobloxBackdrop";
 import { MobileNavTrigger } from "./MobileNav";
@@ -83,7 +84,7 @@ function VaporSidebar({ isAdmin, activeKey }: { isAdmin: boolean; activeKey?: st
   return (
     <aside className="sticky top-0 hidden h-screen w-[272px] shrink-0 flex-col border-r border-indigo-500/15 bg-[#0a0a1a]/85 backdrop-blur-xl lg:flex">
       <Link to="/dashboard" className="flex items-center gap-3 p-7">
-        <div className="vapor-diamond"><i /></div>
+        <img src={bloxsmithMascot.url} alt="BloxSmith" className="h-10 w-10 shrink-0 rounded-xl object-contain drop-shadow-[0_0_14px_rgba(99,102,241,0.55)]" />
         <span
           className="text-2xl font-bold uppercase italic tracking-tighter text-white"
           style={{ fontFamily: "Space Mono, monospace" }}
