@@ -92,7 +92,7 @@ async function repairPreparedScriptActions<T extends { kind?: string; name?: str
     console.warn("[chat.functions] prepared script repair failed", error);
   }
 
-  return actions.filter((action) => {
+  const cleanedActions = actions.filter((action) => {
     const errors = scriptValidationErrors(action);
     if (errors.length > 0) {
       console.error("[chat.functions] blocked invalid prepared script before Studio queue", { kind: action.kind, name: action.name, errors });
@@ -100,6 +100,49 @@ async function repairPreparedScriptActions<T extends { kind?: string; name?: str
     }
     return true;
   });
+
+  // Auto-critique polish pass: for scripts that pass validation but have
+  // warning-level issues (unbalanced brackets, stripped fences, etc.), run
+  // one NVIDIA repair pass so the code shipped to Studio is cleaner. Skip
+  // errors — those are already regenerated above. Cap concurrency.
+  try {
+    const { repairLuauWithNvidia } = await import("@/lib/nvidia-critique.server");
+    type PolishTarget = { action: typeof cleanedActions[number]; source: string; warnings: Array<{ severity: string; message: string }> };
+    const polishTargets: PolishTarget[] = [];
+    for (const action of cleanedActions) {
+      if (!SCRIPT_ACTION_KINDS.has(String(action.kind ?? ""))) continue;
+      const src = stripCodeFences(String(action.payload?.source ?? ""));
+      if (!src || src.length < 60 || src.length > 20_000) continue;
+      const warnings = validateLuau(src)
+        .filter((i) => i.severity === "warn")
+        .map((i) => ({ severity: String(i.severity), message: i.message }));
+      if (warnings.length === 0) continue;
+      polishTargets.push({ action, source: src, warnings });
+      if (polishTargets.length >= 4) break;
+    }
+    if (polishTargets.length > 0) {
+      const polished = await Promise.allSettled(polishTargets.map((t) =>
+        repairLuauWithNvidia({
+          source: t.source,
+          issues: t.warnings,
+          actionName: t.action.name,
+          actionKind: t.action.kind,
+          parentPath: t.action.parent_path,
+          userRequest: String(t.action.payload?.request ?? t.action.payload?.userRequest ?? t.action.name ?? "Roblox Studio script"),
+        })
+      ));
+      polished.forEach((result, index) => {
+        if (result.status === "fulfilled" && result.value) {
+          polishTargets[index].action.payload = { ...(polishTargets[index].action.payload ?? {}), source: result.value };
+          console.info("[chat.functions] auto-critique polished script", { name: polishTargets[index].action.name });
+        }
+      });
+    }
+  } catch (error) {
+    console.warn("[chat.functions] auto-critique polish pass failed", error);
+  }
+
+  return cleanedActions;
 }
 
 export const listMessages = createServerFn({ method: "GET" })

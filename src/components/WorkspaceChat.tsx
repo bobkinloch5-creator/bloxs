@@ -25,7 +25,7 @@ import { VoiceBuildButton } from "@/components/VoiceBuildButton";
 import { useBloxSmithSpeaker } from "@/components/VoiceControls";
 import { friendlyError } from "@/lib/friendly-error";
 import { MODELS, isSelectable } from "@/lib/models";
-import { pickModelForTask } from "@/lib/model-router";
+import { pickModelForTask, estimateDifficulty } from "@/lib/model-router";
 
 
 // Strip internal machinery from what the user sees in chat.
@@ -190,6 +190,10 @@ export function WorkspaceChat({
   );
 
   const [prompt, setPrompt] = useState("");
+  // Live mirror of `prompt` so the memoized transport body always sees the
+  // latest text without recreating the transport on every keystroke.
+  const promptRef = useRef("");
+  useEffect(() => { promptRef.current = prompt; }, [prompt]);
   const [mode, setMode] = useState<Mode>("build");
   // Live mirror of `mode` — read by the transport body and by submit()'s
   // plugin/project gates so a synchronous flip (e.g. the Image button) takes
@@ -318,7 +322,10 @@ export function WorkspaceChat({
         // send instead of leaking the previous render's mode.
         mode: liveModeRef.current,
         modelId: selectedModel === "auto"
-          ? pickModelForTask(liveModeRef.current === "build" ? "scripting" : "planning").modelId
+          ? pickModelForTask(
+              liveModeRef.current === "build" ? "scripting" : "planning",
+              estimateDifficulty(promptRef.current),
+            ).modelId
           : selectedModel,
         buildQuality: buildMode === "Deep Build" ? "full_game" : buildMode === "Fast Build" ? "basic" : "premium",
         executionMode: buildMode === "Fast Build" ? "fast" : "safe",
