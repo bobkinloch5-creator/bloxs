@@ -270,14 +270,24 @@ export function KnowledgeBaseCard() {
         </div>
       )}
 
-      <button
-        type="button"
-        onClick={() => setShowLog((v) => !v)}
-        className="mt-3 inline-flex items-center gap-1.5 text-[11px] text-white/50 hover:text-white/80 transition"
-      >
-        <ScrollText className="w-3 h-3" />
-        {showLog ? "Hide audit log" : "Show audit log"}
-      </button>
+      <div className="mt-3 flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => setShowLog((v) => !v)}
+          className="inline-flex items-center gap-1.5 text-[11px] text-white/50 hover:text-white/80 transition"
+        >
+          <ScrollText className="w-3 h-3" />
+          {showLog ? "Hide audit log" : "Show audit log"}
+        </button>
+        <button
+          type="button"
+          onClick={exportAuditCsv}
+          className="inline-flex items-center gap-1.5 text-[11px] text-white/50 hover:text-white/80 transition"
+        >
+          <Download className="w-3 h-3" />
+          Export audit logs
+        </button>
+      </div>
 
       {showLog && (
         <div className="mt-2 max-h-56 overflow-y-auto rounded-md border border-white/5 bg-black/30 p-2 space-y-1">
