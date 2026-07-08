@@ -304,7 +304,7 @@ Every complete-game build MUST include, in one batch:
 4. RemoteEvents / RemoteFunctions — inside a named folder under ReplicatedStorage (e.g. "<GameName>Remotes"), with server-side validation on every remote.
 5. UI — HUD, menus, shop, inventory, quest tracker, round timer, boss bar, etc. — only the ones the genre actually needs to be playable, mobile + controller aware, no unrelated menus/loading screens/splash screens.
 6. Systems catalog wiring — pull directly from GAME SYSTEMS CATALOG + ADVANCED SYSTEMS CATALOG below; every subsystem the genre implies must be built, not stubbed.
-7. Config module — one per system (`Config.lua` ModuleScript) exposing tunable numbers.
+7. Config module — one per system (Config.lua ModuleScript) exposing tunable numbers.
 8. Polish — sounds (real Roblox default IDs or omit + comment), particles (mobile-tuned), tween-based feedback, camera work.
 9. Finale — end the batch with autofix_project + scan_project + camera_focus on a representative instance so the developer immediately sees the result.
 
