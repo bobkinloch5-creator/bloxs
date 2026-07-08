@@ -474,25 +474,6 @@ export function WorkspaceChat({
     }
   }
 
-  async function enhancePro() {
-    const text = prompt.trim();
-    if (!text) { toast.error("Type a prompt first."); return; }
-    if (enhancingPro) return;
-    setEnhancingPro(true);
-    try {
-      const res = await enhanceFn({ data: { text } });
-      if (res.ok && res.text) {
-        setPrompt(res.text);
-        toast.success("Prompt enhanced into build brief");
-      } else {
-        toast.error("Couldn't enhance the prompt.");
-      }
-    } catch (e) {
-      toast.error(friendlyError(e, { fallback: "Enhance failed." }));
-    } finally {
-      setEnhancingPro(false);
-    }
-  }
 
   const handleVoiceUtterance = useCallback((text: string) => {
     // Voice utterances always go to Build mode so they execute in Studio
