@@ -3,9 +3,16 @@ import { AlertTriangle, Bell, Bot, Box, Brain, Check, CheckCircle2, ChevronDown,
 import { checkChangelogCoverage, warnIfIncomplete } from "@/lib/changelog-coverage";
 
 
-const CHANGELOG_VERSION = "2026-07-08-genre-brief";
+const CHANGELOG_VERSION = "2026-07-08-polish-hardened";
 
 const CHANGELOG_ITEMS = [
+  {
+    title: "🧼 Polish button now actually polishes — typo fixes, dedupe, and forced genre expansion",
+    date: "Jul 8",
+    icon: Sparkles,
+    body: "Fixed the Polish button ignoring messy prompts. It now runs a mandatory cleanup pass on every result (both the model output and the fallback): common Roblox typos are corrected (\"everythign\" → \"everything\", \"biuld\" → \"build\", \"toolboxx\" → \"toolbox\", \"rblox/roblx\" → \"Roblox\"), duplicated words are collapsed (\"everything and everything and everything\" → \"everything\"), and capitalization + punctuation are normalized. Added a similarity guard: if the model returns text that's >85% word-overlap with your input and barely longer, Polish now discards it and uses the deterministic rewrite instead — so you never get a \"polished\" prompt that's basically the same string back. Added a genre-expansion fallback so short game asks always come back as a real studio brief even if the model bails: \"a city / town / metropolis\" → gridded street map, sidewalks, streetlights, mixed buildings with interiors, spawn plaza, day/night skybox, mobile controls; \"a tycoon\" → claim pad, dropper→conveyor→collector, upgrade buttons, leaderstats, DataStore save/load, sellable stack; \"an obby\" → 15+ progressive stages, checkpoints, lobby, win zone, kill bricks, mobile jump button; \"a zombie game\" → wave spawning, server-side AI, starter weapon, HUD, round timer; \"a racing game\" → closed track, drivable vehicles, lap counter, checkpoints, leaderboard; \"a simulator\" → gather action, currency, upgrade shop, rebirth, DataStore. If your ask contains a genre keyword and the model returns fewer than 25 words, Polish automatically falls back to the full genre brief. Model output word cap also raised to 200 to fit the richer briefs.",
+  },
+
   {
     title: "🏙️ Build mode now understands \"build me a city\" (and 6 other short genre asks)",
     date: "Jul 8",
