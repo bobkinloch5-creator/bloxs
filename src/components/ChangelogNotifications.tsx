@@ -3,7 +3,7 @@ import { AlertTriangle, Bell, Bot, Box, Brain, Check, CheckCircle2, ChevronDown,
 import { checkChangelogCoverage, warnIfIncomplete } from "@/lib/changelog-coverage";
 
 
-const CHANGELOG_VERSION = "2026-07-08-polish-smart-city";
+const CHANGELOG_VERSION = "2026-07-08-genre-brief";
 
 const CHANGELOG_ITEMS = [
   {
