@@ -943,17 +943,6 @@ export function WorkspaceChat({
             {enhancing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
             <span className="hidden sm:inline">{enhancing ? "Improving…" : "Improve"}</span>
           </button>
-          <button
-            type="button"
-            onClick={enhancePro}
-            disabled={!prompt.trim() || enhancingPro || busy}
-            className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg border border-fuchsia-400/40 bg-fuchsia-500/10 px-3 py-2 text-xs font-semibold text-fuchsia-100 transition hover:bg-fuchsia-500/20 hover:border-fuchsia-400/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
-            title="Enhance prompt — expand vague idea into a full build brief (genre, mechanics, systems, UI, polish)"
-            aria-label="Enhance prompt"
-          >
-            {enhancingPro ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-            <span className="hidden sm:inline">{enhancingPro ? "Enhancing…" : "Enhance"}</span>
-          </button>
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
