@@ -30,6 +30,7 @@ import { NewProjectModal } from "@/components/NewProjectModal";
 import { ProjectMemoryCard } from "@/components/ProjectMemoryCard";
 import { OnboardingChallenges } from "@/components/OnboardingChallenges";
 import { AiPlaytestCard } from "@/components/AiPlaytestCard";
+import { LivePlaytestCard } from "@/components/LivePlaytestCard";
 import robloxBg from "@/assets/backgrounds/roblox-dashboard.jpg";
 import bloxsmithLogo from "@/assets/bloxsmith-logo.png.asset.json";
 
