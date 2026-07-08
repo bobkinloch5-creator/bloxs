@@ -126,3 +126,134 @@ export const deleteMyAccount = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+// ============ Username ============
+export const changeMyUsername = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) =>
+    z.object({ username: z.string().trim().toLowerCase().regex(/^[a-z0-9_]{3,24}$/, "3–24 chars, a–z 0–9 _ only") }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // Explicit validation because we update via admin (bypasses trigger)
+    const { data: cur, error: cErr } = await supabaseAdmin
+      .from("profiles").select("username, username_changed_at").eq("id", context.userId).maybeSingle();
+    if (cErr) throw new Error(cErr.message);
+    if (cur?.username_changed_at) {
+      const last = new Date(cur.username_changed_at).getTime();
+      const daysLeft = Math.ceil((last + 14 * 86400_000 - Date.now()) / 86400_000);
+      if (daysLeft > 0) throw new Error(`You can change your username again in ${daysLeft} day${daysLeft === 1 ? "" : "s"}.`);
+    }
+    const { data: dup } = await supabaseAdmin
+      .from("profiles").select("id").ilike("username", data.username).neq("id", context.userId).maybeSingle();
+    if (dup) throw new Error("That username is already taken.");
+    const { data: row, error } = await supabaseAdmin
+      .from("profiles")
+      .update({ username: data.username, username_changed_at: new Date().toISOString() } as never)
+      .eq("id", context.userId)
+      .select("id, username, username_changed_at")
+      .single();
+    if (error) throw new Error(error.message);
+    return row;
+  });
+
+
+export const checkUsernameAvailable = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) => z.object({ username: z.string().trim().toLowerCase() }).parse(input))
+  .handler(async ({ data, context }) => {
+    if (!/^[a-z0-9_]{3,24}$/.test(data.username)) return { available: false, reason: "format" };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: existing } = await supabaseAdmin
+      .from("profiles")
+      .select("id")
+      .ilike("username", data.username)
+      .neq("id", context.userId)
+      .maybeSingle();
+    return { available: !existing, reason: existing ? "taken" : null };
+  });
+
+// ============ Avatar ============
+export const setMyAvatar = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) => z.object({ url: z.string().url().max(2000), storage_path: z.string().max(400).nullable().optional() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const settings_patch: Record<string, unknown> = {};
+    if (data.storage_path !== undefined) settings_patch.avatar_storage_path = data.storage_path;
+    let patch: Record<string, unknown> = { avatar_url: data.url };
+    if (Object.keys(settings_patch).length) {
+      const { data: cur } = await supabaseAdmin.from("profiles").select("settings").eq("id", context.userId).maybeSingle();
+      const s = (cur?.settings && typeof cur.settings === "object" ? cur.settings : {}) as Record<string, unknown>;
+      patch.settings = { ...s, ...settings_patch };
+    }
+    const { error } = await supabaseAdmin.from("profiles").update(patch as never).eq("id", context.userId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const clearMyAvatar = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: cur } = await supabaseAdmin.from("profiles").select("settings").eq("id", context.userId).maybeSingle();
+    const s = (cur?.settings && typeof cur.settings === "object" ? cur.settings : {}) as Record<string, unknown>;
+    const path = s.avatar_storage_path as string | undefined;
+    if (path) {
+      try { await supabaseAdmin.storage.from("avatars").remove([path]); } catch {}
+    }
+    delete s.avatar_storage_path;
+    const { error } = await supabaseAdmin.from("profiles").update({ avatar_url: null, settings: s } as never).eq("id", context.userId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+// ============ Password ============
+export const changeMyPassword = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) =>
+    z.object({
+      current_password: z.string().min(1).max(200),
+      new_password: z.string().min(8, "Password must be at least 8 characters").max(200),
+    }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // Get user's email to verify current password
+    const { data: userRes, error: uErr } = await supabaseAdmin.auth.admin.getUserById(context.userId);
+    if (uErr) throw new Error(uErr.message);
+    const email = userRes?.user?.email;
+    if (!email) throw new Error("This account has no email — use Reset password instead.");
+
+    // Verify current password by attempting a sign-in on a fresh client
+    const { createClient } = await import("@supabase/supabase-js");
+    const verify = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_PUBLISHABLE_KEY!, {
+      auth: { persistSession: false, autoRefreshToken: false, storage: undefined as any },
+    });
+    const { error: signInErr } = await verify.auth.signInWithPassword({ email, password: data.current_password });
+    if (signInErr) throw new Error("Current password is incorrect");
+    try { await verify.auth.signOut(); } catch {}
+
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(context.userId, { password: data.new_password });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const sendMyPasswordResetEmail = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) => z.object({ redirect_to: z.string().url() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: userRes, error: uErr } = await supabaseAdmin.auth.admin.getUserById(context.userId);
+    if (uErr) throw new Error(uErr.message);
+    const email = userRes?.user?.email;
+    if (!email) throw new Error("This account has no email on file.");
+    const { createClient } = await import("@supabase/supabase-js");
+    const anon = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_PUBLISHABLE_KEY!, {
+      auth: { persistSession: false, autoRefreshToken: false, storage: undefined as any },
+    });
+    const { error } = await anon.auth.resetPasswordForEmail(email, { redirectTo: data.redirect_to });
+    if (error) throw new Error(error.message);
+    return { ok: true, email };
+  });
+
+
