@@ -20,7 +20,7 @@ local Selection             = game:GetService("Selection")
 
 local API_BASE       = "https://bloxsmith.pro"
 local POLL_INTERVAL  = 0.5
-local PLUGIN_VERSION = "2.1.26"
+local PLUGIN_VERSION = "2.1.27"
 
 ------------------------------------------------------------------- token helpers
 local TOKEN_KEY = "token"
@@ -111,13 +111,13 @@ round(logo, 11)
 gradient(logo, Color3.fromRGB(139, 102, 255), Color3.fromRGB(236, 72, 190), 135)
 stroke(logo, Color3.fromRGB(255,255,255), 1, 0.6)
 
-local spark = Instance.new("TextLabel")
-spark.Size = UDim2.fromScale(1,1); spark.BackgroundTransparency = 1
-spark.Font = Enum.Font.GothamBold; spark.TextSize = 22
-spark.TextColor3 = Color3.fromRGB(255,255,255); spark.Text = "✦"
-spark.TextXAlignment = Enum.TextXAlignment.Center
-spark.TextYAlignment = Enum.TextYAlignment.Center
-spark.Parent = logo
+local sparkImg = Instance.new("ImageLabel")
+sparkImg.Size = UDim2.new(1,-8,1,-8)
+sparkImg.Position = UDim2.new(0,4,0,4)
+sparkImg.BackgroundTransparency = 1
+sparkImg.Image = "rbxassetid://122260441773119"
+sparkImg.ScaleType = Enum.ScaleType.Fit
+sparkImg.Parent = logo
 
 local title = label(header, "BloxSmith", UDim2.new(0,62,0,12), UDim2.new(1,-72,0,22),
     Enum.Font.GothamBold, 17, Color3.fromRGB(248, 244, 255))
