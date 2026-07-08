@@ -1,15 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Bell, Bot, Box, Brain, Check, CheckCircle2, ChevronDown, Copy, Gauge, ImageIcon, Lightbulb, Link2, ListChecks, Palette, Rocket, ScrollText, Search, Share2, ShieldCheck, Sparkles, Users, Wrench, X, Zap } from "lucide-react";
 
-const CHANGELOG_VERSION = "2026-07-08-referral-code-fix";
+const CHANGELOG_VERSION = "2026-07-08-profile-account-controls";
 
 const CHANGELOG_ITEMS = [
+  {
+    title: "👤 Full account controls — change username, upload avatar, update password",
+    date: "Jul 8",
+    icon: Users,
+    body: "Settings now has an Account section with three brand-new tools. Change username — pick any lowercase a–z / 0–9 / underscore handle (3–24 chars), with live availability check and a 14-day cooldown between changes. Upload avatar — pick a photo, we resize to 512×512 JPEG (<200 KB) client-side, upload to the private avatars storage bucket under your own uid folder, and refresh the signed URL (1-year TTL) for header + profile menu everywhere. Change password — enter your current password + a new one (min 8 chars); we verify the old one on the server before rolling it. OAuth-only accounts (Google/Apple) get a 'Send password reset email' button instead. Team collaboration is already live at /collaborators — invite by username, editor/viewer roles, real-time team chat, activity feed and comments per project.",
+  },
   {
     title: "🎟️ Invite code no longer stuck on \"loading…\" — every account gets a real code",
     date: "Jul 8",
     icon: Wrench,
     body: "Fixed the Invite friends page where 'Your invite code' and the personal invite link would sit on 'loading…' forever for anyone whose profile was created before the referral system launched. Every existing profile has been backfilled with a unique BSxxxxxxxx code, a new before-insert database trigger auto-mints a code for every new signup so this can't regress, and the getMyReferral server function now double-checks at read time — if it ever finds a null code (trigger race, older account, restored profile), it mints one on the spot and persists it before returning. Result: the code, the personal invite link, Share/Post on X/WhatsApp/Copy for Discord buttons all populate immediately on first render.",
   },
+
   {
     title: "🔒 Tightened SELECT policies on project_activity / project_assets / project_comments",
     date: "Jul 8",
