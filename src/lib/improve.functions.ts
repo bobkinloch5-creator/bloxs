@@ -99,6 +99,22 @@ export const improvePrompt = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const fallback = deterministicImprove(data.text);
     if (!fallback) return { ok: false as const, error: "empty" };
+    const rawIn = data.text.trim();
+    const rawInLower = rawIn.toLowerCase();
+    const hasGenre = /\b(city|town|metropolis|downtown|tycoon|obby|obstacle course|zombie|racing|race track|racetrack|simulator|dungeon|farm|rpg|tower defense|game|map|world|experience)\b/i.test(rawIn);
+    
+
+    function tooSimilar(a: string, b: string): boolean {
+      const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9\s]/g, "").split(/\s+/).filter(Boolean);
+      const aw = norm(a); const bw = norm(b);
+      if (!aw.length || !bw.length) return false;
+      const setA = new Set(aw);
+      const overlap = bw.filter((w) => setA.has(w)).length;
+      const ratio = overlap / Math.max(aw.length, bw.length);
+      // Nearly identical AND barely longer = model didn't polish.
+      return ratio > 0.85 && bw.length <= aw.length + 3;
+    }
+
     try {
       const { model } = getProviderModel(FALLBACK_MODEL_ID);
       const controller = new AbortController();
@@ -113,11 +129,18 @@ export const improvePrompt = createServerFn({ method: "POST" })
       });
       clearTimeout(timeout);
       let cleaned = fixCommonTypos((text || "").trim().replace(/^["'`]+|["'`]+$/g, "").replace(/\s+\n/g, "\n"));
-      // Strip any accidental preamble like "Improved prompt:" or "Here is..."
       cleaned = cleaned.replace(/^(improved prompt|here(?:'s| is)[^:]*|prompt)\s*[:\-–]\s*/i, "").trim();
       if (!cleaned || cleaned.length < 3) return { ok: true as const, text: fallback };
-      // Guardrail: block only obvious labeled-brief format (Enhance's job, not Polish's).
       if (cleaned.split(/\s+/).length > 200 || /\n\s*(goal|scope|systems|ui|world|polish|constraints)\s*:/i.test(cleaned)) {
+        return { ok: true as const, text: fallback };
+      }
+      const cleanedWords = cleaned.split(/\s+/).length;
+      // If it's a genre/game ask and the model barely expanded it, use the deterministic genre brief.
+      if (hasGenre && cleanedWords < 25) {
+        return { ok: true as const, text: fallback };
+      }
+      // If the model output is nearly identical to the input, use fallback (which fixes typos + may expand).
+      if (tooSimilar(rawIn, cleaned) && (fallback.toLowerCase() !== rawInLower)) {
         return { ok: true as const, text: fallback };
       }
       return { ok: true as const, text: cleaned };
