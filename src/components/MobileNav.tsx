@@ -55,7 +55,7 @@ export function MobileNavTrigger({ isAdmin, className = "" }: { isAdmin?: boolea
           <aside className="absolute left-0 top-0 flex h-full w-[86vw] max-w-[320px] flex-col overflow-y-auto border-r border-indigo-500/20 bg-[#0a0a1a]/95 p-5 backdrop-blur-xl">
             <div className="flex items-center justify-between">
               <Link to="/dashboard" onClick={() => setOpen(false)} className="flex items-center gap-3">
-                <div className="vapor-diamond"><i /></div>
+                <img src={bloxsmithMascot.url} alt="BloxSmith" className="h-9 w-9 shrink-0 rounded-lg object-contain drop-shadow-[0_0_12px_rgba(99,102,241,0.5)]" />
                 <span className="text-lg font-bold uppercase italic tracking-tighter text-white" style={{ fontFamily: "Space Mono, monospace" }}>
                   BloxSmith
                 </span>

@@ -6,6 +6,7 @@ import {
   Plug, FileCode, Wand2, Shield, Heart,
 } from "lucide-react";
 import heroBg from "@/assets/hero-roblox-background.jpg";
+import bloxsmithMascot from "@/assets/bloxsmith-mascot.png.asset.json";
 
 const HOME_FAQS = [
   { q: "Is BloxSmith really free?", a: "Yes — BloxSmith is 100% free to use. Generate scripts, GUIs, maps, and full Roblox games with no credit card and no trial." },
@@ -96,12 +97,11 @@ function Header() {
 
 function BrandMark({ className = "" }: { className?: string }) {
   return (
-    <span
-      aria-hidden="true"
-      className={`grid shrink-0 place-items-center bg-gradient-to-br from-sky-400 via-blue-500 to-indigo-500 text-white shadow-[0_0_22px_rgba(59,130,246,0.35)] ${className}`}
-    >
-      <Sparkles className="h-1/2 w-1/2" />
-    </span>
+    <img
+      src={bloxsmithMascot.url}
+      alt="BloxSmith"
+      className={`shrink-0 object-contain drop-shadow-[0_0_18px_rgba(99,102,241,0.55)] ${className}`}
+    />
   );
 }
 

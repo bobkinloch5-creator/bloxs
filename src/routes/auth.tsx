@@ -2,7 +2,8 @@ import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router"
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
-import { Hammer, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import bloxsmithMascot from "@/assets/bloxsmith-mascot.png.asset.json";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -80,10 +81,8 @@ function AuthPage() {
   return (
     <div className="surface-grad flex min-h-screen items-center justify-center px-4">
       <div className="glass w-full max-w-md rounded-2xl p-8">
-        <div className="mb-6 flex items-center justify-center gap-2">
-          <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary text-primary-foreground">
-            <Hammer className="h-5 w-5" />
-          </div>
+        <div className="mb-6 flex flex-col items-center justify-center gap-2">
+          <img src={bloxsmithMascot.url} alt="BloxSmith" className="h-20 w-20 object-contain drop-shadow-[0_0_22px_rgba(99,102,241,0.55)]" />
           <span className="font-display text-2xl font-semibold">BloxSmith</span>
         </div>
         <h1 className="font-display text-center text-xl font-semibold">
