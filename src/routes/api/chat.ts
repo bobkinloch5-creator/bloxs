@@ -3021,6 +3021,7 @@ function proceduralEnvironmentStudioActions(userText: string, languageName: stri
     road: /\b(road|roads|path|paths|trail|street|sidewalk)\b/i.test(text),
     house: /\b(house|houses|home|cabin|hut)\b/i.test(text),
     building: /\b(building|buildings|shop|store|tower|skyscraper|base)\b/i.test(text),
+    restaurant: /\b(restaurants?|resturants?|restraunts?|resteraunts?|diner|eatery|bistro|caf[eé]|coffee\s*shop|pizzeria|pizza\s*shop|burger\s*joint|fast\s*food|food\s*court|steakhouse|sushi\s*bar|grill|bakery|ice\s*cream\s*shop|taqueria|noodle\s*shop|ramen\s*shop)\b/i.test(text),
     fence: /\b(fence|fences|gate|wall)\b/i.test(text),
     light: /\b(street\s*light|streetlight|lamp|lantern|light\s*post|torch)\b/i.test(text),
     bridge: /\b(bridge|bridges|dock|pier)\b/i.test(text),
@@ -3045,6 +3046,12 @@ function proceduralEnvironmentStudioActions(userText: string, languageName: stri
   if (wants.broadEnvironment) {
     wants.grass = wants.grass || wants.tree || wants.bush || wants.rock || wants.mountain || wants.water || wants.road;
     wants.spawn = true;
+  }
+  if (wants.restaurant) {
+    wants.spawn = true;
+    wants.road = true;
+    wants.light = true;
+    wants.vehicle = true;
   }
 
 
