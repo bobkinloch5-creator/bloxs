@@ -2372,6 +2372,7 @@ const TOOLBOX_ASSET_FINDER_CATEGORIES = [
   { label: "pet", role: "character", folder: "Characters", test: /\b(pet|dog|cat)\b/i, keyword: "pet model" },
   { label: "police station", role: "building", folder: "Buildings", test: /\bpolice\s*station\b/i, keyword: "police station building model" },
   { label: "hospital", role: "building", folder: "Buildings", test: /\bhospital\b/i, keyword: "hospital building model" },
+  { label: "restaurant", role: "building", folder: "Buildings", test: /\b(restaurants?|resturants?|restraunts?|resteraunts?|diner|eatery|bistro|caf[eé]|coffee\s*shop|pizzeria|pizza\s*shop|burger\s*joint|fast\s*food|food\s*court|steakhouse|sushi\s*bar|grill|bakery|ice\s*cream\s*shop|taqueria|noodle\s*shop|ramen\s*shop)\b/i, keyword: "restaurant diner cafe building model" },
   { label: "modern house", role: "building", folder: "Buildings", test: /\b(modern|contemporary)\s*house\b/i, keyword: "modern house building model" },
   { label: "house", role: "building", folder: "Buildings", test: /\bhouse\b/i, keyword: "house building model" },
   { label: "shop", role: "building", folder: "Buildings", test: /\b(shop|store|storefront)\b/i, keyword: "shop storefront building model" },
