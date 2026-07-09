@@ -65,7 +65,8 @@ export const MODELS: ModelOption[] = [
     status: "Working",
     bestFor: "High-quality reasoning fallback for larger Roblox plans when faster models need help.",
     description: "NVIDIA Nemotron Super 49B via build.nvidia.com.",
-    modelSettings: { temperature: 0.45, topP: 0.9, maxOutputTokens: 4096 },
+    modelSettings: { temperature: 0.5, topP: 0.92, maxOutputTokens: 8192 },
+
   },
   {
     id: "nvidia/llama-3.1-nemotron-70b",
