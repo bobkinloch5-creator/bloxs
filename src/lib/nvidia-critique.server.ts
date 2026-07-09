@@ -156,6 +156,6 @@ export async function generateLuauReplacementWithNvidia(input: GenerateInput): P
   if (cleaned.length < 40) return null;
   if (/^(i\s|sorry|as an ai|cannot|i can't|i'm unable)/i.test(cleaned)) return null;
   if (/TODO|placeholder|add your code here/i.test(cleaned)) return null;
-  if (validateLuau(cleaned).some((i) => i.severity === "error")) return null;
+  // Caller (repair loop) re-validates and retries; don't gate on residual errors.
   return cleaned;
 }
