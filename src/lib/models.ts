@@ -65,7 +65,8 @@ export const MODELS: ModelOption[] = [
     status: "Working",
     bestFor: "High-quality reasoning fallback for larger Roblox plans when faster models need help.",
     description: "NVIDIA Nemotron Super 49B via build.nvidia.com.",
-    modelSettings: { temperature: 0.45, topP: 0.9, maxOutputTokens: 4096 },
+    modelSettings: { temperature: 0.5, topP: 0.92, maxOutputTokens: 8192 },
+
   },
   {
     id: "nvidia/llama-3.1-nemotron-70b",
@@ -147,7 +148,8 @@ export const MODELS: ModelOption[] = [
     status: "Working",
     bestFor: "Meta Llama 3.3 70B — solid all-around Roblox builder.",
     description: "Meta Llama 3.3 70B via NVIDIA build.nvidia.com.",
-    modelSettings: { temperature: 0.45, topP: 0.9, maxOutputTokens: 4096 },
+    modelSettings: { temperature: 0.5, topP: 0.92, maxOutputTokens: 8192 },
+
   },
   {
     id: "nvidia/llama-3.1-70b",
@@ -197,7 +199,7 @@ export const MODELS: ModelOption[] = [
     status: "Working",
     bestFor: "Fast general-purpose Qwen model — strong Luau generation, bug fixes, and build actions.",
     description: "Qwen 3 Next 80B via NVIDIA build.nvidia.com.",
-    modelSettings: { temperature: 0.35, topP: 0.85, maxOutputTokens: 3072 },
+    modelSettings: { temperature: 0.4, topP: 0.9, maxOutputTokens: 8192 },
   },
   {
     id: "nvidia/qwen-2.5-72b",
@@ -213,7 +215,8 @@ export const MODELS: ModelOption[] = [
     status: "Working",
     bestFor: "Qwen 3.5 122B general instruction model for Roblox builds.",
     description: "Qwen 3.5 122B via NVIDIA build.nvidia.com.",
-    modelSettings: { temperature: 0.45, topP: 0.9, maxOutputTokens: 4096 },
+    modelSettings: { temperature: 0.5, topP: 0.92, maxOutputTokens: 8192 },
+
   },
 
   // ─── DeepSeek on NVIDIA ────────────────────────────────────────────────────
@@ -297,7 +300,8 @@ export const MODELS: ModelOption[] = [
     status: "Working",
     bestFor: "Mistral Medium 3.5 general fallback for Roblox builds.",
     description: "Mistral Medium 3.5 128B via NVIDIA build.nvidia.com.",
-    modelSettings: { temperature: 0.45, topP: 0.9, maxOutputTokens: 4096 },
+    modelSettings: { temperature: 0.5, topP: 0.92, maxOutputTokens: 6144 },
+
   },
   {
     id: "nvidia/mistral-large-2",
@@ -313,7 +317,8 @@ export const MODELS: ModelOption[] = [
     status: "Working",
     bestFor: "Mistral Small 4 for high-quality Luau + planning.",
     description: "Mistral Small 4 119B via NVIDIA build.nvidia.com.",
-    modelSettings: { temperature: 0.45, topP: 0.9, maxOutputTokens: 4096 },
+    modelSettings: { temperature: 0.5, topP: 0.92, maxOutputTokens: 8192 },
+
   },
   {
     id: "nvidia/ministral-14b",

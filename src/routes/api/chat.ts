@@ -5777,7 +5777,36 @@ export const Route = createFileRoute("/api/chat")({
 
           const requestedId = body.modelId || DEFAULT_MODEL_ID;
           const requestedCandidate = findModel(requestedId);
-          const activeModelId = isSelectable(requestedCandidate) ? requestedId : DEFAULT_MODEL_ID;
+          let activeModelId = isSelectable(requestedCandidate) ? requestedId : DEFAULT_MODEL_ID;
+
+          // Auto-upgrade to a stronger NVIDIA model for hard/broad builds so
+          // full games / worlds / named venues aren't underserved by the fast
+          // default. Only kicks in when the user hasn't explicitly picked a
+          // different model.
+          if (mode === "build" && (!body.modelId || body.modelId === DEFAULT_MODEL_ID)) {
+            const wc = (userText || "").trim().split(/\s+/).filter(Boolean).length;
+            const heavy =
+              buildQuality === "premium" ||
+              buildQuality === "full_game" ||
+              (typeof isBroadPlayableGameRequest === "function" && isBroadPlayableGameRequest(userText)) ||
+              (typeof matchesAnyGenreSpec === "function" && matchesAnyGenreSpec(userText)) ||
+              (typeof isRobloxSystemRequest === "function" && isRobloxSystemRequest(userText)) ||
+              wc >= 30;
+            if (heavy) {
+              const upgradeChain = [
+                "nvidia/qwen-2.5-72b",           // Qwen 3.5 122B
+                "nvidia/llama-3.3-nemotron-super-49b",
+                "nvidia/mistral-large-2",        // Mistral Small 4 119B
+                "nvidia/llama-3.3-70b",
+              ];
+              for (const upId of upgradeChain) {
+                const cand = findModel(upId);
+                if (isSelectable(cand)) { activeModelId = upId; break; }
+              }
+            }
+          }
+
+
           const supabase = createClient(
             process.env.SUPABASE_URL!,
             process.env.SUPABASE_PUBLISHABLE_KEY!,
