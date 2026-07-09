@@ -4163,7 +4163,18 @@ function toolboxMapRequests(userText: string): ToolboxSetRequest[] {
     return requests;
   }
 
-  if (/\b(city|town|roleplay|rp|neighborhood|street|road|downtown|metropolis)\b/.test(text)) {
+  const wantsRestaurantVenue = /\b(restaurants?|resturants?|restraunts?|resteraunts?|diner|eatery|bistro|caf[eé]|coffee\s*shop|pizzeria|pizza\s*shop|burger\s*joint|fast\s*food|food\s*court|steakhouse|sushi\s*bar|grill|bakery|ice\s*cream\s*shop|taqueria|noodle\s*shop|ramen\s*shop)\b/.test(text);
+
+  if (wantsRestaurantVenue) {
+    const isBig = /\b(full|whole|entire|complete|big|huge|massive|large|dense|packed|realistic|proper|real|premium|detailed)\b/.test(text);
+    add("restaurant building", "restaurant diner cafe building", true, isBig ? 12 : 8);
+    add("restaurant interior", "restaurant interior dining room", true, isBig ? 10 : 7);
+    add("dining furniture", "restaurant table chair booth furniture", true, isBig ? 10 : 7);
+    add("kitchen equipment", "restaurant kitchen stove counter oven", false, 7);
+    add("restaurant signs", "restaurant sign menu board", false, 6);
+    add("patio decor", "restaurant patio umbrella table", false, 6);
+    add("parking lot", "parking lot car restaurant", false, 5);
+  } else if (/\b(city|town|roleplay|rp|neighborhood|street|road|downtown|metropolis)\b/.test(text)) {
     const variant = pickMapVariant(userText);
     const isBig = /\b(full|whole|entire|complete|big|huge|massive|large|dense|packed|realistic)\b/.test(text);
     add(`${variant.name} map kit`, `${variant.name} city map kit`, true, isBig ? 12 : 8);
@@ -4299,7 +4310,7 @@ async function toolboxMapStudioActions(userText: string) {
       if (/vehicle|car|truck/.test(s)) return "vehicle";
       if (/prop|light|sign|decor|bench|tree|park|beach|camp/.test(s)) return "decor";
       if (/shop|store|mall/.test(s)) return "shop";
-      if (/house|building|tower|warehouse|factory|town|city|village|map/.test(s)) return "building";
+      if (/restaurant|diner|cafe|building|house|tower|warehouse|factory|town|city|village|map/.test(s)) return "building";
       return "map_core";
     };
 
