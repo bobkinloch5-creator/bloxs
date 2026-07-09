@@ -748,7 +748,7 @@ function isExplicitFullSystemRequest(userText: string) {
 function isBroadPlayableGameRequest(userText: string) {
   const text = userText.toLowerCase().trim();
   if (!text || isNarrowFeatureRequest(text)) return false;
-  return /\b(game|experience|course|level|map|world|mode|mechanic|system|framework|obby|parkour|tycoon|simulator|rpg|dungeon|quest|combat|fighting|weapon|gun|sword|shooter|arena|battle|zombie|survival|horror|tower\s*defen[cs]e|role\s*play|roleplay|city\s*rp|racing|race\s*track|pet\s*(simulator|game|system)|inventory|shop|trading|farming|fishing|minigame|round[-\s]*based|police\s*chase|cooking|restaurant|puzzle|escape)\b/i.test(text) &&
+  return /\b(game|experience|course|level|map|world|mode|mechanic|system|framework|obby|parkour|tycoon|simulator|rpg|dungeon|quest|combat|fighting|weapon|gun|sword|shooter|arena|battle|zombie|survival|horror|tower\s*defen[cs]e|role\s*play|roleplay|city\s*rp|racing|race\s*track|pet\s*(simulator|game|system)|inventory|shop|trading|farming|fishing|minigame|round[-\s]*based|police\s*chase|cooking|restaurant|resturant|restraunt|resteraunt|diner|cafe|pizzeria|puzzle|escape)\b/i.test(text) &&
     /\b(add|make|create|build|generate|give|setup|set\s*up|need|want|course|game|system|mechanic|mode|map|world|experience)\b/i.test(text);
 }
 
@@ -3864,7 +3864,7 @@ root:SetAttribute("LastBloxSmithVisibilityGuard", os.time())
 
 function isToolboxMapRequest(userText: string) {
   if (detectSingleAssetIntent(userText)) return false;
-  return /\b(map|world|city|town|village|lobby|hub|spawn|obby|parkour|race\s*track|racing|forest|island|beach|roleplay|rp|tycoon|horror|dungeon|rpg|street|road|neighborhood|theme\s*park|arena)\b/i.test(userText);
+  return /\b(map|world|city|town|village|lobby|hub|spawn|obby|parkour|race\s*track|racing|forest|island|beach|roleplay|rp|tycoon|horror|dungeon|rpg|street|road|neighborhood|theme\s*park|arena|restaurant|resturant|restraunt|resteraunt|diner|cafe|pizzeria)\b/i.test(userText);
 }
 
 // Genre brief expansion — when the user gives a short bare-genre ask, tell the
