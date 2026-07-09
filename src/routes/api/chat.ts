@@ -3914,7 +3914,8 @@ function normalizeGenrePrompt(raw: string): string {
   t = t.replace(/\bmines\b/g, "mine");
   t = t.replace(/\bpyramids\b/g, "pyramid");
   t = t.replace(/\bapartments?\b|\bapt\b|\bapts\b/g, "apartment");
-  t = t.replace(/\bcafes\b/g, "cafe");
+  t = t.replace(/\bcaf[eé]s\b/g, "cafe");
+  t = t.replace(/\b(resturants?|restraunts?|resteraunts?)\b/g, "restaurant");
   t = t.replace(/\brestaurants\b/g, "restaurant");
   t = t.replace(/\bshops\b/g, "shop");
   t = t.replace(/\bplazas\b/g, "plaza");
@@ -3995,7 +3996,7 @@ const GENRE_SPECS: GenreSpec[] = [
     brief: `FARM BRIEF — build a full farm: farmhouse with interior, red barn with hay bales, silo, animal pens (cows, sheep, pigs, chickens) with animal Models, tilled crop rows with corn/wheat, tractor + pickup truck, wooden fence around the perimeter, pond with a dock, dirt path to the road, spawn at the farmhouse porch. Organize under "Farm". End with autofix + scan.`,
   },
   {
-    keys: /\b(restaurant|restaurants|diner|eatery|bistro|cafe|coffee\s*shop|pizzeria|pizza\s*shop|burger\s*joint|fast\s*food|food\s*court|steakhouse|sushi\s*bar)\b/i,
+    keys: /\b(restaurant|restaurants|resturant|resturants|restraunt|restraunts|resteraunt|resteraunts|diner|eatery|bistro|caf[eé]|coffee\s*shop|pizzeria|pizza\s*shop|burger\s*joint|fast\s*food|food\s*court|steakhouse|sushi\s*bar|grill|bakery|ice\s*cream\s*shop|taqueria|noodle\s*shop|ramen\s*shop|cafeteria)\b/i,
     brief: `RESTAURANT BRIEF — build a full working restaurant: outer building with signage, dining room with tables/chairs/booths, host stand, bar area with stools, open kitchen with stoves/prep counters/oven, restrooms, outdoor patio with umbrellas, parking lot with cars, ambient music, spawn at the front entrance. Organize under "Restaurant". End with autofix + scan.`,
   },
   {
