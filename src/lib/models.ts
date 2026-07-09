@@ -317,7 +317,8 @@ export const MODELS: ModelOption[] = [
     status: "Working",
     bestFor: "Mistral Small 4 for high-quality Luau + planning.",
     description: "Mistral Small 4 119B via NVIDIA build.nvidia.com.",
-    modelSettings: { temperature: 0.45, topP: 0.9, maxOutputTokens: 4096 },
+    modelSettings: { temperature: 0.5, topP: 0.92, maxOutputTokens: 8192 },
+
   },
   {
     id: "nvidia/ministral-14b",
