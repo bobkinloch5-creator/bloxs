@@ -7464,12 +7464,13 @@ export const Route = createFileRoute("/api/chat")({
                     if (rescueActions.length === 0 && isRobloxSystemRequest(userText)) {
                       rescueActions = robloxSystemStudioActions(userText, languageName);
                     }
-                    if (rescueActions.length === 0 && proceduralFallbackAllowed) {
+                    if (rescueActions.length === 0 && (proceduralFallbackAllowed || proceduralModeActive)) {
                       rescueActions = proceduralEnvironmentStudioActions(userText, languageName);
                     }
-                    if (rescueActions.length === 0 && !proceduralFallbackAllowed) {
+                    if (rescueActions.length === 0 && !proceduralModeActive) {
                       rescueActions = await toolboxAssetFinderStudioActions(userText);
                     }
+
 
                     const normalizedRescue = rescueActions
                       .map(normalizePluginAction)
