@@ -267,6 +267,21 @@ async function fetchToolboxDetails(
         item.fiatProduct?.isFree ??
         (item.fiatProduct?.purchasePrice?.quantity?.significand === 0 || item.fiatProduct?.purchasePrice == null);
       const classicFree = item.product?.isFree ?? (item.product?.price === 0 || item.product?.price == null);
+      // Quality score: 0-100 combining vote % (0-60), endorsed (+15),
+      // verified creator (+15), no-scripts bonus (+10 for models). Used
+      // downstream to sort out low-quality free-model junk before it reaches
+      // the model or Studio insert list.
+      const vote = typeof item.voting?.upVotePercent === "number" ? item.voting.upVotePercent : 50;
+      const query = sourceQueryById.get(id) ?? "";
+      const nameLower = name.toLowerCase();
+      const queryTokens = query.toLowerCase().split(/\s+/).filter((t) => t.length >= 3);
+      const nameMatchHits = queryTokens.filter((t) => nameLower.includes(t)).length;
+      const nameMatch = queryTokens.length > 0 ? (nameMatchHits / queryTokens.length) * 20 : 0;
+      const scoreBase = Math.max(0, Math.min(60, (vote / 100) * 60))
+        + (item.asset?.isEndorsed ? 15 : 0)
+        + (item.creator?.isVerifiedCreator ? 15 : 0)
+        + (category === "Model" && !item.asset?.hasScripts ? 10 : 0)
+        + nameMatch;
       rows.push({
         id,
         name,
@@ -280,9 +295,14 @@ async function fetchToolboxDetails(
         hasScripts: item.asset?.hasScripts,
         scriptCount: item.asset?.scriptCount,
         upVotePercent: item.voting?.upVotePercent,
+        score: Math.round(scoreBase),
+        qualityTier: scoreBase >= 70 ? "excellent" : scoreBase >= 45 ? "good" : "usable",
       });
     }
   }
+  // Rank by quality score descending so downstream slice(top N) keeps the best
+  // matches and drops the low-vote/unverified junk assets.
+  rows.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
   return rows;
 }
 
