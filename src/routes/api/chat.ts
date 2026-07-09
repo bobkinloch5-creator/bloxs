@@ -3260,10 +3260,10 @@ end
 local function makeBooth(parent, name, x, z)
   local m = model(parent, name)
   part(m, "Booth_Table", Vector3.new(7, 0.7, 4), CFrame.new(x, 3, z), Color3.fromRGB(95, 58, 36), Enum.Material.Wood)
-  part(m, "Booth_Left_Seat", Vector3.new(8, 1, 3), CFrame.new(x, 1.8, z - 4.2), Color3.fromRGB(146, 38, 42), Enum.Material.Leather)
-  part(m, "Booth_Left_Back", Vector3.new(8, 4.2, 0.7), CFrame.new(x, 4, z - 5.8), Color3.fromRGB(126, 28, 34), Enum.Material.Leather)
-  part(m, "Booth_Right_Seat", Vector3.new(8, 1, 3), CFrame.new(x, 1.8, z + 4.2), Color3.fromRGB(146, 38, 42), Enum.Material.Leather)
-  part(m, "Booth_Right_Back", Vector3.new(8, 4.2, 0.7), CFrame.new(x, 4, z + 5.8), Color3.fromRGB(126, 28, 34), Enum.Material.Leather)
+  part(m, "Booth_Left_Seat", Vector3.new(8, 1, 3), CFrame.new(x, 1.8, z - 4.2), Color3.fromRGB(146, 38, 42), Enum.Material.Fabric)
+  part(m, "Booth_Left_Back", Vector3.new(8, 4.2, 0.7), CFrame.new(x, 4, z - 5.8), Color3.fromRGB(126, 28, 34), Enum.Material.Fabric)
+  part(m, "Booth_Right_Seat", Vector3.new(8, 1, 3), CFrame.new(x, 1.8, z + 4.2), Color3.fromRGB(146, 38, 42), Enum.Material.Fabric)
+  part(m, "Booth_Right_Back", Vector3.new(8, 4.2, 0.7), CFrame.new(x, 4, z + 5.8), Color3.fromRGB(126, 28, 34), Enum.Material.Fabric)
   return m
 end
 
@@ -3310,7 +3310,7 @@ local function makeRestaurant(parent, name, x, z)
   part(m, "Bar_Counter", Vector3.new(4, 4, 34), CFrame.new(x + 32, 2.7, z - 2), Color3.fromRGB(88, 50, 34), Enum.Material.Wood)
   part(m, "Bar_Top", Vector3.new(5.2, 0.6, 36), CFrame.new(x + 32, 5, z - 2), Color3.fromRGB(150, 96, 52), Enum.Material.WoodPlanks)
   for i, sz in ipairs({-17, -9, -1, 7, 15}) do
-    part(m, "Bar_Stool_Seat_" .. i, Vector3.new(3.2, 0.7, 3.2), CFrame.new(x + 25.5, 3, z + sz), Color3.fromRGB(126, 34, 38), Enum.Material.Leather, Enum.PartType.Cylinder)
+    part(m, "Bar_Stool_Seat_" .. i, Vector3.new(3.2, 0.7, 3.2), CFrame.new(x + 25.5, 3, z + sz), Color3.fromRGB(126, 34, 38), Enum.Material.Fabric, Enum.PartType.Cylinder)
     part(m, "Bar_Stool_Post_" .. i, Vector3.new(0.7, 3, 0.7), CFrame.new(x + 25.5, 1.7, z + sz), Color3.fromRGB(60, 60, 60), Enum.Material.Metal, Enum.PartType.Cylinder)
   end
   part(m, "Back_Bar_Shelves", Vector3.new(1, 10, 28), CFrame.new(x + 38.2, 7, z - 2), Color3.fromRGB(66, 39, 28), Enum.Material.Wood)
