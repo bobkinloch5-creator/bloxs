@@ -300,7 +300,8 @@ export const MODELS: ModelOption[] = [
     status: "Working",
     bestFor: "Mistral Medium 3.5 general fallback for Roblox builds.",
     description: "Mistral Medium 3.5 128B via NVIDIA build.nvidia.com.",
-    modelSettings: { temperature: 0.45, topP: 0.9, maxOutputTokens: 4096 },
+    modelSettings: { temperature: 0.5, topP: 0.92, maxOutputTokens: 6144 },
+
   },
   {
     id: "nvidia/mistral-large-2",
