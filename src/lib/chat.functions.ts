@@ -177,6 +177,52 @@ async function repairPreparedScriptActions<T extends { kind?: string; name?: str
     console.warn("[chat.functions] auto-critique polish pass failed", error);
   }
 
+  // Cross-script reference validator: scan every generated script for
+  // ReplicatedStorage / ServerStorage children it will WaitForChild at
+  // runtime and auto-inject any missing RemoteEvent / RemoteFunction /
+  // ModuleScript / Folder create actions. Kills the #1 runtime failure
+  // ("attempt to index nil") when the model writes a client script that
+  // fires a remote no server action created.
+  try {
+    const missing = findMissingCrossRefs(cleanedActions as CrossRefAction[]);
+    if (missing.length > 0) {
+      const synth = synthesiseMissingCreateActions(missing) as typeof cleanedActions;
+      // Insert Folder creates first, then Remotes/Modules, so parents land
+      // before children. Prepend to the list so they execute early.
+      const folders = synth.filter((a) => a.kind === "folder");
+      const rest = synth.filter((a) => a.kind !== "folder");
+      cleanedActions.unshift(...folders, ...rest);
+      console.info("[chat.functions] cross-ref repair injected", {
+        count: synth.length,
+        names: missing.map((m) => `${m.parent_path}.${m.name} (${m.kind})`),
+      });
+    }
+  } catch (error) {
+    console.warn("[chat.functions] cross-ref pass failed", error);
+  }
+
+  // Finale gate: for builds with 3+ meaningful actions, guarantee the
+  // autofix_project + scan_project pair as the last two actions so any
+  // remaining wiring issues get repaired inside Studio. This enforces the
+  // Pro Studio Quality Charter at the server level instead of relying on
+  // the model to remember the finale.
+  const MEANINGFUL_KINDS = new Set([
+    "script", "localscript", "modulescript", "run_lua",
+    "remoteevent", "remotefunction", "screengui", "part", "insert_asset",
+    "set_properties", "terrain", "folder", "instance", "sound",
+  ]);
+  const meaningful = cleanedActions.filter((a) => MEANINGFUL_KINDS.has(String(a.kind ?? ""))).length;
+  if (meaningful >= 3) {
+    // Strip any pre-existing finale actions so we don't double-append.
+    const trimmed = cleanedActions.filter((a) => {
+      const k = String(a.kind ?? "");
+      return k !== "autofix_project" && k !== "scan_project";
+    });
+    trimmed.push({ kind: "autofix_project", name: "FixAll", parent_path: "Workspace", payload: {} } as typeof cleanedActions[number]);
+    trimmed.push({ kind: "scan_project", name: "Scan", parent_path: "Workspace", payload: {} } as typeof cleanedActions[number]);
+    return trimmed;
+  }
+
   return cleanedActions;
 }
 
