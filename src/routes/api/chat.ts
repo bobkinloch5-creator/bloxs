@@ -3226,6 +3226,155 @@ local function makeFurniture(parent, name, x, z)
   return m
 end
 
+local function addSurfaceText(partObj, text, face, color, bgTransparency)
+  local sg = Instance.new("SurfaceGui")
+  sg.Face = face or Enum.NormalId.Front
+  sg.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+  sg.PixelsPerStud = 32
+  sg.LightInfluence = 0
+  sg.Parent = partObj
+  local label = Instance.new("TextLabel")
+  label.BackgroundTransparency = bgTransparency or 1
+  label.Size = UDim2.fromScale(1, 1)
+  label.Font = Enum.Font.GothamBlack
+  label.Text = text
+  label.TextScaled = true
+  label.TextWrapped = true
+  label.TextColor3 = color or Color3.fromRGB(255, 244, 210)
+  label.Parent = sg
+  return label
+end
+
+local function makeDiningSet(parent, name, x, z)
+  local m = model(parent, name)
+  part(m, "Table_Top", Vector3.new(8, 0.7, 6), CFrame.new(x, 3.2, z), Color3.fromRGB(116, 74, 43), Enum.Material.Wood)
+  part(m, "Table_Leg", Vector3.new(1, 3, 1), CFrame.new(x, 1.7, z), Color3.fromRGB(68, 44, 29), Enum.Material.Wood)
+  for i, data in ipairs({{-6,0,90},{6,0,-90},{0,-5,0},{0,5,180}}) do
+    local cx, cz, yaw = x + data[1], z + data[2], data[3]
+    part(m, "Chair_Seat_" .. i, Vector3.new(3.2, 0.55, 3.2), CFrame.new(cx, 1.8, cz) * CFrame.Angles(0, math.rad(yaw), 0), Color3.fromRGB(92, 55, 35), Enum.Material.Wood)
+    part(m, "Chair_Back_" .. i, Vector3.new(3.2, 3.6, 0.45), CFrame.new(cx, 3.6, cz) * CFrame.Angles(0, math.rad(yaw), 0) * CFrame.new(0, 0, 1.55), Color3.fromRGB(92, 55, 35), Enum.Material.Wood)
+  end
+  return m
+end
+
+local function makeBooth(parent, name, x, z)
+  local m = model(parent, name)
+  part(m, "Booth_Table", Vector3.new(7, 0.7, 4), CFrame.new(x, 3, z), Color3.fromRGB(95, 58, 36), Enum.Material.Wood)
+  part(m, "Booth_Left_Seat", Vector3.new(8, 1, 3), CFrame.new(x, 1.8, z - 4.2), Color3.fromRGB(146, 38, 42), Enum.Material.Leather)
+  part(m, "Booth_Left_Back", Vector3.new(8, 4.2, 0.7), CFrame.new(x, 4, z - 5.8), Color3.fromRGB(126, 28, 34), Enum.Material.Leather)
+  part(m, "Booth_Right_Seat", Vector3.new(8, 1, 3), CFrame.new(x, 1.8, z + 4.2), Color3.fromRGB(146, 38, 42), Enum.Material.Leather)
+  part(m, "Booth_Right_Back", Vector3.new(8, 4.2, 0.7), CFrame.new(x, 4, z + 5.8), Color3.fromRGB(126, 28, 34), Enum.Material.Leather)
+  return m
+end
+
+local function makeKitchenAppliance(parent, name, x, z, color)
+  local m = model(parent, name)
+  part(m, "Body", Vector3.new(6, 5, 5), CFrame.new(x, 2.8, z), color or Color3.fromRGB(142, 148, 150), Enum.Material.Metal)
+  part(m, "Door", Vector3.new(5.3, 3.5, 0.2), CFrame.new(x, 2.9, z - 2.65), Color3.fromRGB(34, 38, 40), Enum.Material.SmoothPlastic)
+  part(m, "Handle", Vector3.new(3, 0.25, 0.35), CFrame.new(x, 3.8, z - 2.9), Color3.fromRGB(230, 230, 220), Enum.Material.Metal)
+  return m
+end
+
+local function makeRestaurant(parent, name, x, z)
+  local m = model(parent, name)
+  local floor = part(m, "Dining_Room_Tile_Floor", Vector3.new(78, 1, 58), CFrame.new(x, 0.6, z), Color3.fromRGB(206, 196, 178), Enum.Material.Marble)
+  m.PrimaryPart = floor
+  part(m, "Back_Wall", Vector3.new(78, 17, 1), CFrame.new(x, 9, z + 29), Color3.fromRGB(181, 112, 72), Enum.Material.Brick)
+  part(m, "Left_Wall", Vector3.new(1, 17, 58), CFrame.new(x - 39, 9, z), Color3.fromRGB(168, 96, 63), Enum.Material.Brick)
+  part(m, "Right_Wall", Vector3.new(1, 17, 58), CFrame.new(x + 39, 9, z), Color3.fromRGB(168, 96, 63), Enum.Material.Brick)
+  part(m, "Front_Wall_Left", Vector3.new(27, 17, 1), CFrame.new(x - 25.5, 9, z - 29), Color3.fromRGB(181, 112, 72), Enum.Material.Brick)
+  part(m, "Front_Wall_Right", Vector3.new(27, 17, 1), CFrame.new(x + 25.5, 9, z - 29), Color3.fromRGB(181, 112, 72), Enum.Material.Brick)
+  part(m, "Glass_Double_Door", Vector3.new(12, 12, 0.5), CFrame.new(x, 6.6, z - 29.35), Color3.fromRGB(120, 198, 232), Enum.Material.Glass)
+  for i, dx in ipairs({-29, -17, 17, 29}) do
+    part(m, "Front_Window_" .. i, Vector3.new(8, 6, 0.35), CFrame.new(x + dx, 8.2, z - 29.45), Color3.fromRGB(125, 205, 240), Enum.Material.Glass)
+  end
+  part(m, "Flat_Black_Roof", Vector3.new(84, 2, 64), CFrame.new(x, 18.6, z), Color3.fromRGB(35, 35, 38), Enum.Material.Metal)
+  local sign = part(m, "Neon_RESTAURANT_Sign", Vector3.new(34, 7, 0.8), CFrame.new(x, 16.5, z - 30.2), Color3.fromRGB(38, 25, 18), Enum.Material.Neon)
+  addSurfaceText(sign, "RESTAURANT", Enum.NormalId.Front, Color3.fromRGB(255, 214, 126), 1)
+  for i, dx in ipairs({-18, 18}) do
+    local lamp = part(m, "Warm_Exterior_Lamp_" .. i, Vector3.new(2, 2, 1), CFrame.new(x + dx, 13.5, z - 30.6), Color3.fromRGB(255, 210, 120), Enum.Material.Neon)
+    local l = Instance.new("PointLight"); l.Brightness = 2.5; l.Range = 18; l.Color = Color3.fromRGB(255, 210, 150); l.Parent = lamp
+  end
+  part(m, "Host_Stand", Vector3.new(10, 4, 4), CFrame.new(x, 2.6, z - 20), Color3.fromRGB(86, 48, 31), Enum.Material.Wood)
+  local hostSign = part(m, "Please_Wait_To_Be_Seated_Sign", Vector3.new(8, 3.4, 0.35), CFrame.new(x, 6.2, z - 22.3), Color3.fromRGB(38, 32, 28), Enum.Material.Wood)
+  addSurfaceText(hostSign, "WAIT TO BE SEATED", Enum.NormalId.Front, Color3.fromRGB(255, 245, 210), 1)
+  for row, rz in ipairs({-10, 4, 18}) do
+    for col, dx in ipairs({-22, 0, 22}) do
+      makeDiningSet(m, "Dining_Table_R" .. row .. "_C" .. col, x + dx, z + rz)
+    end
+  end
+  for i, bz in ipairs({-12, 2, 16}) do
+    makeBooth(m, "Window_Booth_Left_" .. i, x - 31, z + bz)
+    makeBooth(m, "Window_Booth_Right_" .. i, x + 31, z + bz)
+  end
+  part(m, "Bar_Counter", Vector3.new(4, 4, 34), CFrame.new(x + 32, 2.7, z - 2), Color3.fromRGB(88, 50, 34), Enum.Material.Wood)
+  part(m, "Bar_Top", Vector3.new(5.2, 0.6, 36), CFrame.new(x + 32, 5, z - 2), Color3.fromRGB(150, 96, 52), Enum.Material.WoodPlanks)
+  for i, sz in ipairs({-17, -9, -1, 7, 15}) do
+    part(m, "Bar_Stool_Seat_" .. i, Vector3.new(3.2, 0.7, 3.2), CFrame.new(x + 25.5, 3, z + sz), Color3.fromRGB(126, 34, 38), Enum.Material.Leather, Enum.PartType.Cylinder)
+    part(m, "Bar_Stool_Post_" .. i, Vector3.new(0.7, 3, 0.7), CFrame.new(x + 25.5, 1.7, z + sz), Color3.fromRGB(60, 60, 60), Enum.Material.Metal, Enum.PartType.Cylinder)
+  end
+  part(m, "Back_Bar_Shelves", Vector3.new(1, 10, 28), CFrame.new(x + 38.2, 7, z - 2), Color3.fromRGB(66, 39, 28), Enum.Material.Wood)
+  for i, sz in ipairs({-12, -6, 0, 6, 12}) do
+    part(m, "Bottle_Glow_" .. i, Vector3.new(0.8, 2.8, 0.8), CFrame.new(x + 37.3, 6.1, z + sz), Color3.fromRGB(120, 180, 130), Enum.Material.Glass)
+  end
+  part(m, "Kitchen_Back_Floor", Vector3.new(72, 0.25, 17), CFrame.new(x, 1.14, z + 21.5), Color3.fromRGB(172, 178, 176), Enum.Material.Metal)
+  part(m, "Open_Kitchen_Service_Wall", Vector3.new(42, 10, 0.7), CFrame.new(x - 9, 6.2, z + 13), Color3.fromRGB(156, 104, 76), Enum.Material.Brick)
+  part(m, "Service_Pass_Counter", Vector3.new(28, 3, 3), CFrame.new(x - 9, 2.8, z + 11.2), Color3.fromRGB(95, 66, 46), Enum.Material.Wood)
+  makeKitchenAppliance(m, "Commercial_Stove", x - 30, z + 24, Color3.fromRGB(120, 124, 124))
+  makeKitchenAppliance(m, "Double_Oven", x - 20, z + 24, Color3.fromRGB(132, 132, 130))
+  makeKitchenAppliance(m, "Walk_In_Fridge", x + 27, z + 24, Color3.fromRGB(190, 198, 200))
+  part(m, "Prep_Counter_01", Vector3.new(16, 4, 4), CFrame.new(x, 2.7, z + 24), Color3.fromRGB(178, 178, 172), Enum.Material.Metal)
+  part(m, "Sink_Counter", Vector3.new(12, 4, 4), CFrame.new(x + 13, 2.7, z + 24), Color3.fromRGB(160, 166, 168), Enum.Material.Metal)
+  part(m, "Sink_Basin", Vector3.new(5, 0.35, 2.6), CFrame.new(x + 13, 5.05, z + 24), Color3.fromRGB(75, 132, 170), Enum.Material.Glass)
+  for i, hx in ipairs({-31, -28, -25, -22, -19}) do
+    local heat = part(m, "Stove_Burner_Glow_" .. i, Vector3.new(2, 0.15, 2), CFrame.new(x + hx, 5.35, z + 21.8), Color3.fromRGB(255, 112, 42), Enum.Material.Neon, Enum.PartType.Cylinder)
+    local light = Instance.new("PointLight"); light.Brightness = 1.2; light.Range = 8; light.Color = Color3.fromRGB(255, 126, 64); light.Parent = heat
+  end
+  for i, data in ipairs({{"Men", -31}, {"Women", -20}}) do
+    local label, rx = data[1], data[2]
+    part(m, label .. "_Restroom_Back", Vector3.new(9, 8, 0.7), CFrame.new(x + rx, 5, z - 2), Color3.fromRGB(198, 188, 170), Enum.Material.SmoothPlastic)
+    part(m, label .. "_Restroom_Side", Vector3.new(0.7, 8, 13), CFrame.new(x + rx - 4.5, 5, z - 8), Color3.fromRGB(198, 188, 170), Enum.Material.SmoothPlastic)
+    local door = part(m, label .. "_Restroom_Door", Vector3.new(5, 7, 0.5), CFrame.new(x + rx, 4.5, z - 14.6), Color3.fromRGB(80, 50, 34), Enum.Material.Wood)
+    addSurfaceText(door, label, Enum.NormalId.Front, Color3.fromRGB(255, 255, 255), 1)
+    part(m, label .. "_Sink", Vector3.new(3.2, 1, 2), CFrame.new(x + rx - 1.8, 3, z - 4.5), Color3.fromRGB(230, 230, 220), Enum.Material.SmoothPlastic)
+    part(m, label .. "_Toilet", Vector3.new(2.2, 1.8, 2.8), CFrame.new(x + rx + 2, 2.1, z - 7.5), Color3.fromRGB(240, 240, 235), Enum.Material.SmoothPlastic)
+  end
+  part(m, "Outdoor_Patio_Deck", Vector3.new(46, 0.55, 26), CFrame.new(x - 8, 0.9, z - 51), Color3.fromRGB(145, 101, 64), Enum.Material.WoodPlanks)
+  for i, data in ipairs({{-24,-51}, {-8,-51}, {8,-51}}) do
+    local px, pz = x + data[1], z + data[2]
+    makeDiningSet(m, "Patio_Table_" .. i, px, pz)
+    part(m, "Patio_Umbrella_Pole_" .. i, Vector3.new(0.7, 8, 0.7), CFrame.new(px, 5.4, pz), Color3.fromRGB(70, 70, 70), Enum.Material.Metal)
+    part(m, "Patio_Umbrella_Canopy_" .. i, Vector3.new(11, 2.2, 11), CFrame.new(px, 9.2, pz), Color3.fromRGB(214, 54, 62), Enum.Material.Fabric, Enum.PartType.Ball)
+  end
+  part(m, "Parking_Lot_Asphalt", Vector3.new(84, 0.35, 34), CFrame.new(x + 2, 0.7, z - 88), Color3.fromRGB(40, 42, 44), Enum.Material.Asphalt)
+  for i, px in ipairs({-30, -15, 0, 15, 30}) do
+    part(m, "Parking_Line_" .. i, Vector3.new(0.4, 0.08, 22), CFrame.new(x + px, 0.95, z - 88), Color3.fromRGB(245, 226, 112), Enum.Material.Neon)
+  end
+  makeVehicle(m, "Parked_Car_01", x - 24, z - 90)
+  makeVehicle(m, "Parked_Car_02", x + 18, z - 90)
+  part(m, "Front_Walkway", Vector3.new(14, 0.25, 31), CFrame.new(x, 1.03, z - 44), Color3.fromRGB(214, 208, 196), Enum.Material.Concrete)
+  for i, dx in ipairs({-42, 42}) do
+    makeTree(m, "Entrance_Tree_" .. i, x + dx, z - 42, 10, 11)
+  end
+  local spawn = Instance.new("SpawnLocation")
+  spawn.Name = "Restaurant_Front_Entrance_Spawn"
+  spawn.Anchored = true
+  spawn.Neutral = true
+  spawn.Size = Vector3.new(8, 1, 8)
+  spawn.Position = Vector3.new(x, 2, z - 40)
+  spawn.Color = Color3.fromRGB(255, 205, 105)
+  spawn.Parent = m
+  created += 1
+  local ambience = Instance.new("Sound")
+  ambience.Name = "Restaurant_Ambient_Music"
+  ambience.SoundId = "rbxassetid://9046862941"
+  ambience.Volume = 0.22
+  ambience.Looped = true
+  ambience.Parent = m
+  created += 1
+  return m
+end
+
 pcall(function()
   Terrain:SetMaterialColor(Enum.Material.Grass, Color3.fromRGB(76, 150, 72))
   Terrain:SetMaterialColor(Enum.Material.Ground, Color3.fromRGB(116, 94, 67))
