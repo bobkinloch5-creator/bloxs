@@ -7304,22 +7304,33 @@ export const Route = createFileRoute("/api/chat")({
                   });
                   if (!hasCreation) {
                     try {
-                      const rescue = (await toolboxAssetFinderStudioActions(userText)).map(normalizePluginAction);
-                      if (rescue.length > 0) {
-                        actions = [...rescue, ...actions];
-                        cleanContent = `${cleanContent.trim()}\n\n_Rescue: the plan only contained cleanup actions and would not have created anything visible, so BloxSmith sent a safe free Toolbox asset for your request instead._`;
-                        console.warn("[chat] no-creation rescue triggered", { projectId, userId, model: usedModelId });
-                      } else if (proceduralFallbackAllowed) {
+                      if (proceduralModeActive) {
+                        // From Scratch is ON — never fall back to Toolbox here.
                         const proc = proceduralEnvironmentStudioActions(userText, languageName).map(normalizePluginAction);
                         if (proc.length > 0) {
                           actions = [...proc, ...actions];
-                          cleanContent = `${cleanContent.trim()}\n\n_Rescue: no Toolbox match found, so BloxSmith sent a procedural build so your request is not silently skipped._`;
+                          cleanContent = `${cleanContent.trim()}\n\n_Rescue: From Scratch is ON, so BloxSmith built the requested content from primitives + terrain instead of using Toolbox._`;
+                          console.warn("[chat] no-creation rescue (procedural) triggered", { projectId, userId, model: usedModelId });
+                        }
+                      } else {
+                        const rescue = (await toolboxAssetFinderStudioActions(userText)).map(normalizePluginAction);
+                        if (rescue.length > 0) {
+                          actions = [...rescue, ...actions];
+                          cleanContent = `${cleanContent.trim()}\n\n_Rescue: the plan only contained cleanup actions and would not have created anything visible, so BloxSmith sent a safe free Toolbox asset for your request instead._`;
+                          console.warn("[chat] no-creation rescue triggered", { projectId, userId, model: usedModelId });
+                        } else if (proceduralFallbackAllowed) {
+                          const proc = proceduralEnvironmentStudioActions(userText, languageName).map(normalizePluginAction);
+                          if (proc.length > 0) {
+                            actions = [...proc, ...actions];
+                            cleanContent = `${cleanContent.trim()}\n\n_Rescue: no Toolbox match found, so BloxSmith sent a procedural build so your request is not silently skipped._`;
+                          }
                         }
                       }
                     } catch (rescueErr) {
                       console.warn("[chat] no-creation rescue failed", rescueErr);
                     }
                   }
+
                 }
 
                 // Self-critique repair pass. When the local Luau validator
@@ -7453,12 +7464,13 @@ export const Route = createFileRoute("/api/chat")({
                     if (rescueActions.length === 0 && isRobloxSystemRequest(userText)) {
                       rescueActions = robloxSystemStudioActions(userText, languageName);
                     }
-                    if (rescueActions.length === 0 && proceduralFallbackAllowed) {
+                    if (rescueActions.length === 0 && (proceduralFallbackAllowed || proceduralModeActive)) {
                       rescueActions = proceduralEnvironmentStudioActions(userText, languageName);
                     }
-                    if (rescueActions.length === 0 && !proceduralFallbackAllowed) {
+                    if (rescueActions.length === 0 && !proceduralModeActive) {
                       rescueActions = await toolboxAssetFinderStudioActions(userText);
                     }
+
 
                     const normalizedRescue = rescueActions
                       .map(normalizePluginAction)
