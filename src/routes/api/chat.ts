@@ -748,8 +748,8 @@ function isExplicitFullSystemRequest(userText: string) {
 function isBroadPlayableGameRequest(userText: string) {
   const text = userText.toLowerCase().trim();
   if (!text || isNarrowFeatureRequest(text)) return false;
-  return /\b(game|experience|course|level|map|world|mode|mechanic|system|framework|obby|parkour|tycoon|simulator|rpg|dungeon|quest|combat|fighting|weapon|gun|sword|shooter|arena|battle|zombie|survival|horror|tower\s*defen[cs]e|role\s*play|roleplay|city\s*rp|racing|race\s*track|pet\s*(simulator|game|system)|inventory|shop|trading|farming|fishing|minigame|round[-\s]*based|police\s*chase|cooking|restaurant|resturant|restraunt|resteraunt|diner|cafe|pizzeria|puzzle|escape)\b/i.test(text) &&
-    /\b(add|make|create|build|generate|give|setup|set\s*up|need|want|course|game|system|mechanic|mode|map|world|experience)\b/i.test(text);
+  return /\b(game|experience|course|level|map|world|mode|mechanic|system|framework|obby|parkour|tycoon|simulator|rpg|dungeon|quest|combat|fighting|weapon|gun|sword|shooter|arena|battle|zombie|survival|horror|tower\s*defen[cs]e|role\s*play|roleplay|city\s*rp|racing|race\s*track|pet\s*(simulator|game|system)|inventory|shop|trading|farming|fishing|minigame|round[-\s]*based|police\s*chase|cooking|restaurant|resturant|restraunt|resteraunt|diner|cafe|coffee\s*shop|pizzeria|bakery|puzzle|escape|hospital|clinic|school|university|college|library|museum|bank|prison|jail|police\s*station|fire\s*station|gas\s*station|airport|train\s*station|mall|hotel|motel|resort|casino|arcade|bowling|theater|cinema|stadium|gym|dojo|church|cathedral|farm|ranch|zoo|aquarium|theme\s*park|amusement\s*park|water\s*park|factory|warehouse|shipyard|harbor|marina|lighthouse|space\s*station|spaceship|bunker|military\s*base|mansion|manor|estate|villa|apartment|skyscraper|office\s*tower|castle|fortress|palace|temple|pyramid|dungeon|tomb|graveyard|cemetery|island|beach|forest|jungle|desert|volcano|mountain|cave|neighborhood|village|town|city|metropolis|downtown|street|highway|bar|pub|nightclub|club|store|shop|market|salon|barber\s*shop)\b/i.test(text) &&
+    /\b(add|make|create|build|generate|give|setup|set\s*up|need|want|design|construct|open|run|start|new|course|game|system|mechanic|mode|map|world|experience)\b/i.test(text);
 }
 
 function isHumanoidVfxRequest(userText: string) {
@@ -3864,7 +3864,7 @@ root:SetAttribute("LastBloxSmithVisibilityGuard", os.time())
 
 function isToolboxMapRequest(userText: string) {
   if (detectSingleAssetIntent(userText)) return false;
-  return /\b(map|world|city|town|village|lobby|hub|spawn|obby|parkour|race\s*track|racing|forest|island|beach|roleplay|rp|tycoon|horror|dungeon|rpg|street|road|neighborhood|theme\s*park|arena|restaurant|resturant|restraunt|resteraunt|diner|cafe|pizzeria)\b/i.test(userText);
+  return /\b(map|world|city|cities|town|village|hamlet|borough|district|suburb|neighborhood|lobby|hub|spawn|plaza|square|obby|parkour|race\s*track|racing|circuit|forest|jungle|island|beach|coast|desert|tundra|arctic|volcano|mountain|cave|cavern|mines?|dungeon|castle|fortress|palace|temple|shrine|pyramid|ruins?|tomb|graveyard|cemetery|haunted|horror|hospital|clinic|school|university|college|classroom|library|museum|gallery|bank|prison|jail|police\s*station|fire\s*station|gas\s*station|airport|train\s*station|subway|mall|shopping\s*center|store|shop|market|bakery|barber\s*shop|salon|hotel|motel|resort|casino|arcade|bowling|theater|cinema|stadium|arena|coliseum|gym|fitness|dojo|church|cathedral|mosque|synagogue|monastery|farm|ranch|barn|greenhouse|garden|park|zoo|aquarium|carnival|theme\s*park|amusement\s*park|water\s*park|factory|warehouse|refinery|shipyard|dock|harbor|port|marina|lighthouse|space\s*station|spaceship|spacecraft|bunker|military\s*base|camp|campsite|tent|cabin|cottage|mansion|manor|estate|villa|apartment|condo|dorm|penthouse|skyscraper|office|tower|street|road|highway|freeway|bridge|tunnel|roleplay|rp|tycoon|rpg|restaurant|resturant|restraunt|resteraunt|diner|cafe|coffee\s*shop|pizzeria|bar|pub|nightclub|club)\b/i.test(userText);
 }
 
 // Genre brief expansion — when the user gives a short bare-genre ask, tell the
@@ -4197,7 +4197,94 @@ function toolboxMapRequests(userText: string): ToolboxSetRequest[] {
       add("cars", "city car pack vehicle", false, 6);
     }
   } else {
-    add("complete map kit", `${userText.slice(0, 80)} map kit`, true, 6);
+    // Generic named-venue matcher — hospital / school / mall / mansion / castle /
+    // hotel / church / gym / airport / factory / warehouse / museum / bank / gas
+    // station / farm / zoo / stadium / spaceship / apartment / office etc.
+    // Each venue produces its own building + interior + furniture + decor searches
+    // so the toolbox map path builds a real named place instead of one lonely model.
+    const VENUE_MAP: Array<{ match: RegExp; label: string; searches: Array<[string, string, boolean, number]> }> = [
+      { match: /\b(hospital|clinic|infirmary|medical\s*center|emergency\s*room)\b/, label: "hospital",
+        searches: [["hospital building","hospital building exterior",true,10],["hospital interior","hospital interior hallway",true,8],["hospital beds","hospital bed patient room",true,8],["medical equipment","medical equipment mri xray",false,7],["reception desk","hospital reception desk",false,6],["ambulance","ambulance vehicle",false,5]] },
+      { match: /\b(school|classroom|university|college|high\s*school|middle\s*school|elementary\s*school|academy)\b/, label: "school",
+        searches: [["school building","school building exterior",true,10],["classroom","classroom desks chairs",true,8],["hallway lockers","school hallway lockers",true,7],["gym","school gymnasium",false,6],["cafeteria","school cafeteria tables",false,7],["playground","school playground",false,6],["school bus","school bus vehicle",false,5]] },
+      { match: /\b(mall|shopping\s*center|department\s*store|shopping\s*plaza)\b/, label: "mall",
+        searches: [["mall building","shopping mall building",true,10],["mall interior","shopping mall interior",true,8],["storefronts","mall storefront shop",true,8],["food court","food court mall",true,7],["escalator","mall escalator",false,5],["mall benches","mall bench planter",false,6],["parking lot","parking lot mall",false,6]] },
+      { match: /\b(hotel|motel|resort|inn|lodge)\b/, label: "hotel",
+        searches: [["hotel building","hotel building exterior",true,10],["lobby","hotel lobby reception",true,8],["hotel room","hotel room bed",true,8],["pool","hotel swimming pool",false,7],["restaurant","hotel restaurant bar",false,6],["elevators","hotel elevator",false,5]] },
+      { match: /\b(mansion|manor|estate|villa|penthouse|luxury\s*house)\b/, label: "mansion",
+        searches: [["mansion","luxury mansion exterior",true,10],["mansion interior","mansion interior living room",true,8],["luxury furniture","luxury furniture pack",true,8],["chandelier","chandelier lighting",false,6],["staircase","grand staircase mansion",false,6],["pool","mansion swimming pool",false,6],["garden","mansion garden fountain",false,6],["luxury car","luxury car pack",false,5]] },
+      { match: /\b(castle|fortress|palace|keep|citadel)\b/, label: "castle",
+        searches: [["castle","medieval castle exterior",true,10],["castle interior","castle throne room hall",true,8],["castle walls","castle wall tower",true,8],["medieval furniture","medieval furniture pack",false,7],["torches","medieval torch",false,6],["knight armor","knight armor stand",false,6],["catapult","catapult trebuchet",false,5]] },
+      { match: /\b(temple|shrine|pyramid|ruins?|tomb|monastery|cathedral|church|mosque|synagogue)\b/, label: "temple",
+        searches: [["temple","temple exterior",true,10],["temple interior","temple altar interior",true,8],["religious statues","statue religious pack",false,7],["pews benches","church pew bench",false,6],["stained glass","stained glass window",false,6],["torches","temple torch",false,5]] },
+      { match: /\b(gym|fitness|dojo|training\s*center)\b/, label: "gym",
+        searches: [["gym building","gym building exterior",true,8],["gym equipment","gym equipment weights treadmill",true,10],["lockers","gym lockers",false,6],["boxing ring","boxing ring",false,5],["dojo mats","dojo tatami mat",false,6]] },
+      { match: /\b(airport|airplane|hangar|terminal|runway)\b/, label: "airport",
+        searches: [["airport terminal","airport terminal building",true,10],["runway","airport runway",true,8],["airplane","passenger airplane",true,8],["control tower","airport control tower",false,6],["baggage claim","airport baggage carousel",false,6],["gate seats","airport gate seats",false,6]] },
+      { match: /\b(train\s*station|subway|railway)\b/, label: "train station",
+        searches: [["train station","train station building",true,10],["train","passenger train",true,8],["train tracks","train tracks rails",true,8],["platform benches","train platform bench",false,6]] },
+      { match: /\b(factory|refinery|industrial|warehouse|shipyard)\b/, label: "factory",
+        searches: [["factory","factory warehouse building",true,10],["factory interior","factory interior machinery",true,8],["crates","warehouse crates pallets",true,8],["conveyor","factory conveyor belt",false,6],["forklift","forklift industrial",false,5],["barrels","industrial barrels drums",false,6]] },
+      { match: /\b(museum|gallery|exhibit)\b/, label: "museum",
+        searches: [["museum building","museum building exterior",true,10],["museum interior","museum interior hall",true,8],["exhibits","museum exhibit display case",true,8],["statues","statue pedestal",false,7],["dinosaur skeleton","dinosaur skeleton exhibit",false,6]] },
+      { match: /\b(library)\b/, label: "library",
+        searches: [["library building","library building",true,8],["bookshelves","bookshelf library",true,10],["reading tables","library reading table",false,7]] },
+      { match: /\b(bank|vault)\b/, label: "bank",
+        searches: [["bank building","bank building exterior",true,10],["bank interior","bank lobby interior",true,8],["vault","bank vault",true,8],["atm","atm machine",false,5],["desks","bank teller desk",false,6]] },
+      { match: /\b(prison|jail)\b/, label: "prison",
+        searches: [["prison building","prison building exterior",true,10],["prison cells","prison cell bars",true,10],["prison yard","prison yard fence",false,6],["guard tower","prison guard tower",false,5]] },
+      { match: /\b(police\s*station|fire\s*station|gas\s*station|convenience\s*store)\b/, label: "civic building",
+        searches: [["civic building","civic municipal building",true,8],["service vehicles","service vehicle pack",false,6],["signs","civic sign pack",false,5]] },
+      { match: /\b(bar|pub|nightclub|club|casino|arcade)\b/, label: "nightlife",
+        searches: [["venue building","bar nightclub building",true,10],["venue interior","bar nightclub interior",true,8],["bar counter","bar counter stools",true,7],["dj booth","dj booth speakers",false,6],["neon signs","neon sign pack",false,6],["arcade cabinets","arcade cabinet machine",false,6]] },
+      { match: /\b(stadium|coliseum|amphitheater|theater|cinema|concert\s*hall)\b/, label: "venue",
+        searches: [["stadium","stadium arena exterior",true,10],["stadium seating","stadium seats bleachers",true,8],["stage","concert stage speakers",false,7],["cinema seats","cinema theater seats",false,6]] },
+      { match: /\b(farm|ranch|barn|greenhouse)\b/, label: "farm",
+        searches: [["farm buildings","farm barn silo",true,10],["farm animals","farm animal pack cow chicken",true,8],["crops","crop field wheat corn",true,7],["tractor","tractor farm vehicle",false,6],["fences","farm fence wooden",false,6]] },
+      { match: /\b(zoo|aquarium|safari)\b/, label: "zoo",
+        searches: [["zoo enclosure","zoo enclosure fence",true,10],["zoo animals","zoo animal pack",true,10],["zoo signs","zoo sign pack",false,6]] },
+      { match: /\b(theme\s*park|amusement\s*park|carnival|water\s*park|bowling)\b/, label: "amusement park",
+        searches: [["rides","theme park ride pack",true,10],["ferris wheel","ferris wheel carnival",true,8],["roller coaster","roller coaster",true,8],["carnival games","carnival game stand",false,6],["food stalls","carnival food stall",false,6]] },
+      { match: /\b(space\s*station|spaceship|spacecraft|sci[-\s]?fi\s*base)\b/, label: "spaceship",
+        searches: [["spaceship","spaceship interior sci fi",true,10],["space station","space station module",true,8],["sci fi props","sci fi props panel console",true,7],["astronaut","astronaut model",false,5]] },
+      { match: /\b(bunker|military\s*base|army\s*base|camp|barracks)\b/, label: "military base",
+        searches: [["military base","military base building",true,10],["barracks","army barracks interior",true,8],["military vehicles","military tank humvee",true,8],["weapons crate","weapons crate ammo",false,6],["watchtower","military watch tower",false,6]] },
+      { match: /\b(marina|harbor|port|dock|lighthouse|shipyard)\b/, label: "harbor",
+        searches: [["docks","dock harbor pier",true,10],["boats","boat ship pack",true,8],["lighthouse","lighthouse",false,6],["shipping containers","shipping container",false,6]] },
+      { match: /\b(cabin|cottage|tent|campsite)\b/, label: "cabin",
+        searches: [["cabin","log cabin cottage",true,10],["campfire","campfire firepit",true,7],["tent","camping tent",false,6],["outdoor furniture","picnic table bench outdoor",false,6]] },
+      { match: /\b(apartment|condo|dorm)\b/, label: "apartment",
+        searches: [["apartment building","apartment building exterior",true,10],["apartment interior","apartment interior furniture",true,8],["kitchen","modern kitchen furniture",false,7],["bedroom","modern bedroom furniture",false,7],["living room","living room furniture",false,7]] },
+      { match: /\b(office|skyscraper|corporate|business\s*building)\b/, label: "office",
+        searches: [["office building","office skyscraper building",true,10],["office interior","office interior cubicles",true,8],["office furniture","office desk chair pack",true,8],["meeting room","meeting room conference table",false,6]] },
+      { match: /\b(cave|cavern|mines?)\b/, label: "cave",
+        searches: [["cave","cave rock interior",true,10],["mine cart","mine cart rail",true,7],["crystals","crystal rock pack",false,6],["mining props","mining pickaxe tool",false,5]] },
+      { match: /\b(forest|woods|jungle)\b/, label: "forest",
+        searches: [["forest kit","forest map kit",true,10],["tree pack","tree pack pine oak",true,10],["rocks bushes","rock bush nature pack",false,7],["wildlife","forest animal pack",false,6]] },
+      { match: /\b(desert|dune|sahara|arid)\b/, label: "desert",
+        searches: [["desert map","desert sand map",true,10],["cactus","cactus desert plant",true,8],["desert rocks","desert rock pack",false,7],["desert village","desert village hut",false,6]] },
+      { match: /\b(volcano|volcanic|lava)\b/, label: "volcano",
+        searches: [["volcano","volcano mountain",true,10],["lava","lava rock",true,8],["ash props","volcanic ash rock",false,6]] },
+      { match: /\b(mountain|alpine|snow(?:y)?|arctic|tundra)\b/, label: "mountain",
+        searches: [["mountain terrain","mountain snow terrain",true,10],["pine trees","pine tree snow pack",true,8],["cabin","mountain cabin",false,7]] },
+      { match: /\b(island|beach|coast|tropical|ocean)\b/, label: "island",
+        searches: [["island map","island tropical map",true,10],["palm trees","palm tree beach",true,8],["beach props","beach umbrella chair",false,7],["boats","small boat sailboat",false,6]] },
+      { match: /\b(swamp|marsh|bayou)\b/, label: "swamp",
+        searches: [["swamp map","swamp marsh terrain",true,10],["mangrove","mangrove tree swamp",true,7],["swamp props","swamp log moss",false,6]] },
+    ];
+
+    let matched = false;
+    for (const venue of VENUE_MAP) {
+      if (venue.match.test(text)) {
+        matched = true;
+        for (const [label, keyword, required, limit] of venue.searches) {
+          add(label, keyword, required, limit);
+        }
+      }
+    }
+    if (!matched) {
+      add("complete map kit", `${userText.slice(0, 80)} map kit`, true, 6);
+    }
   }
 
 
