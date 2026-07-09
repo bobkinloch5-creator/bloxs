@@ -7154,14 +7154,13 @@ export const Route = createFileRoute("/api/chat")({
 
                 if (mode === "build" && proceduralModeActive) {
                   const proceduralActions = proceduralEnvironmentStudioActions(userText, languageName).map(normalizePluginAction);
-                  const existingProcedural = actions.some((a) => a.name === "BloxSmith_Generate_Procedural_Assets");
                   actions = [
                     ...actions.filter((a) => a.kind !== "insert_asset" && ![
                       "BloxSmith_Generate_Procedural_Assets",
                       "BloxSmith_Organize_Procedural_Assets",
                       "BloxSmith_Scan_Procedural_Assets",
                     ].includes(a.name)),
-                    ...(existingProcedural ? [] : proceduralActions),
+                    ...proceduralActions,
                   ];
                   if (!/Procedural Generation (queued|sent)/i.test(cleanContent)) {
                     cleanContent = `${cleanContent.trim()}\n\n_Procedural Generation sent: original terrain, foliage, buildings/props/NPCs/roads/water requested in your prompt will be created directly in Studio. Toolbox is bypassed unless you explicitly ask for it._`;
