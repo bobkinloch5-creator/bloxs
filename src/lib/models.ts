@@ -148,7 +148,8 @@ export const MODELS: ModelOption[] = [
     status: "Working",
     bestFor: "Meta Llama 3.3 70B — solid all-around Roblox builder.",
     description: "Meta Llama 3.3 70B via NVIDIA build.nvidia.com.",
-    modelSettings: { temperature: 0.45, topP: 0.9, maxOutputTokens: 4096 },
+    modelSettings: { temperature: 0.5, topP: 0.92, maxOutputTokens: 8192 },
+
   },
   {
     id: "nvidia/llama-3.1-70b",
