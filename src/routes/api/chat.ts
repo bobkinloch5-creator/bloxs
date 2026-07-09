@@ -3383,7 +3383,7 @@ pcall(function()
 end)
 
 local terrainFolder = folder("Terrain")
-if wants.grass or wants.broadEnvironment or wants.tree or wants.bush or wants.rock or wants.house or wants.building or wants.road or wants.spawn then
+if wants.grass or wants.broadEnvironment or wants.tree or wants.bush or wants.rock or wants.house or wants.building or wants.restaurant or wants.road or wants.spawn then
   part(terrainFolder, "Procedural_Ground", Vector3.new(260, 1, 260), CFrame.new(0, 0, 0), Color3.fromRGB(76, 153, 72), Enum.Material.Grass)
   pcall(function() Terrain:FillBlock(CFrame.new(0, -3, 0), Vector3.new(260, 6, 260), Enum.Material.Grass) end)
 end
@@ -3436,6 +3436,10 @@ if wants.building then
   local f = folder("Buildings")
   makeBuilding(f, "Procedural_Building_01", -48, -42, 2)
   makeBuilding(f, "Procedural_Building_02", 48, -42, 3)
+end
+if wants.restaurant then
+  local f = folder("Restaurant")
+  makeRestaurant(f, "Premium_Restaurant_From_Scratch", 0, 8)
 end
 if wants.fence then makeFence(folder("Fences"), "Procedural_Fence_01", 104) end
 if wants.light then
