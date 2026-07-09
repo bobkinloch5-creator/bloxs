@@ -1213,4 +1213,502 @@ export const KB_CORPUS: KbSeedChunk[] = [
       "Horizontal ScrollingFrame with tier cards. Each: locked (grey) or unlocked (color) with reward icon. Progress bar between cards fills as XP toward next tier accumulates. " +
       "Free vs Premium row. Claim button on unlocked tiers -> ClaimRemote, server validates + grants + marks claimed in profile.",
   },
+
+  // ══════════ v2 EXPANSION: deep Roblox API coverage ══════════
+  // Adds ~50 more chunks covering physics, replication, security,
+  // performance, Studio quirks, and modern services the model tends
+  // to hallucinate or forget.
+
+  {
+    topic: "scripter",
+    title: "FilteringEnabled is the ONLY replication model",
+    source: "style:filtering",
+    source_hash: "style/filtering-enabled/v2",
+    content:
+      "As of 2018 all games use FilteringEnabled. Client changes to workspace NEVER replicate to server or other players. " +
+      "Rule: mutate world state ONLY on the server. Client can create local visual effects (particles, gun tracers) but they're invisible to others. " +
+      "To let a client affect the world, send a RemoteEvent, validate server-side, then apply.",
+  },
+  {
+    topic: "scripter",
+    title: "RemoteEvent security — validate EVERYTHING",
+    source: "style:remote-security",
+    source_hash: "style/remote-security/v2",
+    content:
+      "Every OnServerEvent handler must: (1) check types with typeof/type(); (2) clamp numeric ranges; (3) verify the player has the right to do the action (owns the item, is in the right zone, cooldown expired); (4) rate-limit per-player (last-fire table). " +
+      "Common exploit: client sends `damage = math.huge`. Fix: hardcode damage on the server, ignore any client-sent damage value.",
+  },
+  {
+    topic: "scripter",
+    title: "BindableEvent vs RemoteEvent",
+    source: "roblox-api:BindableEvent",
+    source_hash: "api/bindable/v2",
+    content:
+      "BindableEvent: same side only (script-to-script on server, or script-to-script on client). Use for decoupling modules. " +
+      "RemoteEvent: crosses server<->client boundary. " +
+      "BindableFunction: synchronous return like RemoteFunction but same-side. Never use RemoteFunction for client-invoked server calls — a yielding client can hang the server; use RemoteEvent + ack pattern.",
+  },
+  {
+    topic: "scripter",
+    title: "ModuleScript pattern",
+    source: "roblox-api:ModuleScript",
+    source_hash: "api/modulescript/v2",
+    content:
+      "local M = {}; function M.foo(x) ... end; return M. " +
+      "require(script.Parent.MyModule) returns the SAME table across all requires on that side — great for singletons, dangerous for per-caller state. " +
+      "Server and client have separate module caches; a server require and client require of ReplicatedStorage module get different tables. " +
+      "Never yield at the top level of a ModuleScript — it blocks every subsequent require.",
+  },
+  {
+    topic: "scripter",
+    title: "task library — modern scheduler",
+    source: "roblox-api:task",
+    source_hash: "api/task/v2",
+    content:
+      "task.wait(t): resumes on next Heartbeat after t seconds (min ~1/60s). task.spawn(fn, ...): runs fn immediately in a new thread. " +
+      "task.defer(fn): runs fn at end of current resumption cycle (safer than spawn — avoids re-entrancy). " +
+      "task.delay(t, fn, ...): fires fn after t seconds. task.cancel(thread): stops a coroutine. " +
+      "task.synchronize()/task.desynchronize(): parallel Luau (Actors).",
+  },
+  {
+    topic: "scripter",
+    title: "ContextActionService for input binding",
+    source: "roblox-api:ContextActionService",
+    source_hash: "api/cas/v2",
+    content:
+      "Preferred over raw UserInputService for game actions. LocalScript only. " +
+      "local CAS = game:GetService('ContextActionService'); CAS:BindAction('Sprint', handler, false, Enum.KeyCode.LeftShift, Enum.KeyCode.ButtonL3). " +
+      "handler(actionName, inputState, inputObject) — inputState is Begin/Change/End/Cancel. " +
+      "Automatic touch button on mobile via CAS:SetTitle + CAS:SetImage. Unbind with CAS:UnbindAction.",
+  },
+  {
+    topic: "scripter",
+    title: "Sound service and 3D audio",
+    source: "roblox-api:Sound",
+    source_hash: "api/sound/v2",
+    content:
+      "Sound.Parent = part -> 3D positional audio (attenuates with distance, RollOffMode = InverseTapered). " +
+      "Sound.Parent = SoundService or in nil-parent -> global 2D. " +
+      "SoundGroup for grouped volume control (Music, SFX, UI). Assign Sound.SoundGroup. " +
+      "Preload: ContentProvider:PreloadAsync({sound}) to avoid first-play stutter. " +
+      "TimePosition to seek; PlayOnRemove to fire on Destroy (for explosions).",
+  },
+  {
+    topic: "scripter",
+    title: "MemoryStoreService (real-time cross-server)",
+    source: "roblox-api:MemoryStore",
+    source_hash: "api/memorystore/v2",
+    content:
+      "Ephemeral shared state across servers (max 45 days retention). Use for matchmaking, live leaderboards, global events. " +
+      "local MSS = game:GetService('MemoryStoreService'); local queue = MSS:GetQueue('MatchQueue', 30). " +
+      "queue:AddAsync(player.UserId, 60). queue:ReadAsync(4, false, 30) returns up to 4 items + id to remove. " +
+      "MSS:GetSortedMap('GlobalScores') for leaderboards — SetAsync/GetRangeAsync. Wrap in pcall; throttled.",
+  },
+  {
+    topic: "scripter",
+    title: "TeleportService — servers, reserved, party",
+    source: "roblox-api:TeleportService",
+    source_hash: "api/teleport/v2",
+    content:
+      "local TS = game:GetService('TeleportService'). " +
+      "TS:Teleport(placeId, player) — public server. TS:TeleportAsync(placeId, {players}, teleportOptions) modern API. " +
+      "Reserved (private lobby): local code = TS:ReserveServer(placeId); TS:TeleportToPrivateServer(placeId, code, {players}). " +
+      "Pass data with TeleportData (client) or SetTeleportSetting (server). Handle TS:TeleportInitFailed for retry UX. " +
+      "Same-universe places only unless you own both.",
+  },
+  {
+    topic: "scripter",
+    title: "HttpService — JSON + external requests",
+    source: "roblox-api:HttpService",
+    source_hash: "api/httpservice/v2",
+    content:
+      "HttpService:JSONEncode(t) / :JSONDecode(s) — always available, use for any serialization. " +
+      "HttpService:GenerateGUID(false) for unique ids. " +
+      "External HTTP: HttpService:RequestAsync({Url, Method, Headers, Body}) — must enable HttpEnabled in game settings; wrap in pcall. " +
+      "Cannot call roblox.com from RequestAsync. Rate-limited ~500 req/min per server.",
+  },
+  {
+    topic: "scripter",
+    title: "Debounce patterns done right",
+    source: "style:debounce",
+    source_hash: "style/debounce/v2",
+    content:
+      "Per-touch debounce (single object): local db = false; part.Touched:Connect(function(hit) if db then return end; db = true; task.delay(0.5, function() db = false end); handle(hit) end). " +
+      "Per-player debounce (combat): local lastHit = {}; if os.clock() - (lastHit[player] or 0) < 0.5 then return end; lastHit[player] = os.clock(). " +
+      "Per-target-in-swing (AOE): swingId table {[humanoid]=true}, cleared when swing ends.",
+  },
+  {
+    topic: "scripter",
+    title: "Character loading — WaitForChild order",
+    source: "style:character-loading",
+    source_hash: "style/character-loading/v2",
+    content:
+      "player.CharacterAdded fires before all children exist. Always: local char = player.Character or player.CharacterAdded:Wait(); local hum = char:WaitForChild('Humanoid'); local hrp = char:WaitForChild('HumanoidRootPart'). " +
+      "For appearance-dependent code: player.CharacterAppearanceLoaded:Wait() after CharacterAdded. " +
+      "In a Tool script: script.Parent (the Tool) → .Parent is Character when equipped, Backpack when not.",
+  },
+  {
+    topic: "scripter",
+    title: "Anchoring, mass, and physics gotchas",
+    source: "style:physics",
+    source_hash: "style/physics/v2",
+    content:
+      "Environment parts: Anchored=true, else they drift from ContinuousCollision. " +
+      "Player-interactive dynamic parts: Anchored=false, Massless can be true if attached to character. " +
+      "AssemblyLinearVelocity replaces .Velocity — set for a moving assembly. " +
+      "CustomPhysicalProperties (density, friction, elasticity) override the Material defaults. " +
+      "For conveyors: Anchored=true + set .AssemblyLinearVelocity in Heartbeat (no physics needed), or CanCollide=true with a script setting HumanoidRootPart velocity offset.",
+  },
+  {
+    topic: "scripter",
+    title: "Constraints — HingeConstraint, PrismaticConstraint",
+    source: "roblox-api:Constraint",
+    source_hash: "api/constraints/v2",
+    content:
+      "Modern joint system. Two Attachments on two Parts + the Constraint links them. " +
+      "HingeConstraint: rotational axis (doors, wheels). Set ActuatorType=Motor + AngularVelocity for powered rotation, or Servo + TargetAngle for positioned. " +
+      "PrismaticConstraint: linear slide (pistons, elevators). AlignPosition/AlignOrientation: soft goals for physics-based movement without full constraint chain.",
+  },
+  {
+    topic: "scripter",
+    title: "Camera control — CameraType and CFrame",
+    source: "roblox-api:Camera",
+    source_hash: "api/camera/v2",
+    content:
+      "workspace.CurrentCamera. LocalScript only. " +
+      "CameraType.Scriptable + set CFrame each RenderStepped for full control. " +
+      "CameraType.Custom is default follow. CameraSubject = character.Humanoid restores default follow. " +
+      "First-person: hum.CameraOffset = Vector3.new(0,0,0); StarterPlayer.CameraMode = Enum.CameraMode.LockFirstPerson. " +
+      "Shake: RenderStepped, apply small random CFrame offset to CoordinateFrame.",
+  },
+  {
+    topic: "scripter",
+    title: "AI NPC — Humanoid + Pathfinding + state",
+    source: "system:npc-ai",
+    source_hash: "system/npc-ai/v2",
+    content:
+      "Rig with Humanoid. State machine: Idle → Patrol → Chase → Attack → Return. " +
+      "Detect players: workspace:GetPartBoundsInRadius(hrp.Position, sightRadius, params) filtered to Humanoid ancestors. " +
+      "Chase: PathfindingService:CreatePath, compute to target, iterate waypoints with MoveTo + MoveToFinished:Wait(). " +
+      "Attack: proximity check, cooldown, hum:TakeDamage on target. " +
+      "Recompute path every 0.5s or on path.Blocked. Cleanup on Died.",
+  },
+  {
+    topic: "scripter",
+    title: "Explosion, ForceField, and safe damage",
+    source: "roblox-api:Explosion",
+    source_hash: "api/explosion/v2",
+    content:
+      "local e = Instance.new('Explosion'); e.Position = pos; e.BlastRadius = 10; e.BlastPressure = 500000; e.Parent = workspace. " +
+      "Hits: e.Hit:Connect(function(part, dist) local h = part.Parent:FindFirstChildOfClass('Humanoid'); if h then h:TakeDamage(60 * (1 - dist/e.BlastRadius)) end end). " +
+      "ForceField: Instance.new('ForceField', character); auto-cleanup with Debris:AddItem(ff, 5). Spawns get ForceField from SpawnLocation.Duration.",
+  },
+  {
+    topic: "scripter",
+    title: "Debris service — auto-cleanup",
+    source: "roblox-api:Debris",
+    source_hash: "api/debris/v2",
+    content:
+      "game:GetService('Debris'):AddItem(instance, seconds). Instance is destroyed after seconds elapse. " +
+      "Use for: projectiles, temporary effects, dropped items, chat bubbles. Cheaper than task.delay(...):Destroy() and safe if the instance is destroyed earlier.",
+  },
+  {
+    topic: "scripter",
+    title: "ParticleEmitter and effect layering",
+    source: "roblox-api:ParticleEmitter",
+    source_hash: "api/particles/v2",
+    content:
+      "Parent to Attachment (or Part) for effects. Key props: Rate (per second), Lifetime (NumberRange), Speed, Size (NumberSequence), Color (ColorSequence), Transparency (NumberSequence), Rotation, LightEmission (glow). " +
+      "Burst: pe:Emit(50) then set Enabled=false. " +
+      "Trail: Trail instance between two Attachments — for swords, bullets, cars.",
+  },
+  {
+    topic: "scripter",
+    title: "AnimationTrack playback",
+    source: "roblox-api:Animation",
+    source_hash: "api/animation/v2",
+    content:
+      "local anim = Instance.new('Animation'); anim.AnimationId = 'rbxassetid://<id>'. " +
+      "local track = humanoid.Animator:LoadAnimation(anim). Use Animator (child of Humanoid), NOT Humanoid:LoadAnimation (deprecated). " +
+      "track:Play(fadeTime, weight, speed). track:Stop(fadeTime). track.Looped = anim.Looped; :AdjustSpeed(n). " +
+      "Priority order: Idle < Movement < Action < Action4. Set track.Priority to control which stacks over which.",
+  },
+  {
+    topic: "scripter",
+    title: "MarketplaceService dev product receipt",
+    source: "roblox-api:ProcessReceipt",
+    source_hash: "api/processreceipt/v2",
+    content:
+      "MPS.ProcessReceipt = function(info) local player = Players:GetPlayerByUserId(info.PlayerId); if not player then return Enum.ProductPurchaseDecision.NotProcessedYet end; " +
+      "-- IDEMPOTENT: check receiptId in DataStore, if already granted return PurchaseGranted. " +
+      "grant(player, info.ProductId); saveReceipt(info.PurchaseId); return Enum.ProductPurchaseDecision.PurchaseGranted end. " +
+      "MUST be idempotent — Roblox retries on failure and will double-grant if you don't dedupe by PurchaseId.",
+  },
+  {
+    topic: "scripter",
+    title: "Region-based zones with Zone+ pattern",
+    source: "style:zones",
+    source_hash: "style/zones/v2",
+    content:
+      "For 'is player inside zone X' logic: use invisible Part with CanCollide=false, Anchored=true, .Touched + .TouchEnded with debounce, OR workspace:GetPartBoundsInBox(zone.CFrame, zone.Size, params) polled every Heartbeat. " +
+      "Multiple zones per player: track set {[player]=true} per zone, emit Entered/Left events. Never trust client to report zone entry.",
+  },
+  {
+    topic: "scripter",
+    title: "Player tags: safe custom data",
+    source: "roblox-api:PlayerAttributes",
+    source_hash: "api/playerattrs/v2",
+    content:
+      "player:SetAttribute('Class', 'Warrior'); player:GetAttribute('Class'). " +
+      "Replicates to all clients automatically. Great for cosmetic state, roles, team affiliations. " +
+      "DO NOT store sensitive data in attributes (visible to all clients). Use ServerStorage table keyed by UserId for private state.",
+  },
+  {
+    topic: "scripter",
+    title: "Chat and TextChatService (2024+)",
+    source: "roblox-api:TextChatService",
+    source_hash: "api/textchat/v2",
+    content:
+      "Legacy Chat service is deprecated. TextChatService (default new). " +
+      "Send system message: TextChatService.TextChannels.RBXGeneral:DisplaySystemMessage('Round starting'). " +
+      "Register command: create TextChatCommand under TextChatService, set PrimaryAlias '/mycmd', :Connect(function(source, unfiltered) end). " +
+      "Filter user text: TextService:FilterStringAsync(text, userId) then get result:GetChatForUserAsync(userId).",
+  },
+  {
+    topic: "scripter",
+    title: "Round-based game loop (arena / FFA / round)",
+    source: "system:round-loop",
+    source_hash: "system/round/v2",
+    content:
+      "Loop: Intermission (10s) → TeleportPlayers to arena → StartRound → wait until 1 alive or timer 0 → AwardWinner → return to lobby → repeat. " +
+      "Use a StatusBillboardGui BindableEvent to update HUD. " +
+      "Store spectators separately; on player Died, add to spectators; on Character return, re-teleport if round active. " +
+      "Track round state in a ModuleScript so multiple systems (HUD, music, spawns) can read the same status.",
+  },
+  {
+    topic: "scripter",
+    title: "PhysicsService collision groups",
+    source: "roblox-api:PhysicsService",
+    source_hash: "api/physicsservice/v2",
+    content:
+      "local PhS = game:GetService('PhysicsService'); PhS:RegisterCollisionGroup('Enemies'); PhS:RegisterCollisionGroup('Bullets'). " +
+      "PhS:CollisionGroupSetCollidable('Bullets', 'Bullets', false). " +
+      "Assign per-part: part.CollisionGroup = 'Enemies'. " +
+      "Use for: bullets that pass through allies, players that don't collide with each other, NPCs that phase through world.",
+  },
+  {
+    topic: "scripter",
+    title: "Beam and Trail for effects",
+    source: "roblox-api:Beam",
+    source_hash: "api/beam-trail/v2",
+    content:
+      "Beam: between two Attachments — for lasers, ropes, connection lines. Beam.Texture, TextureSpeed for scrolling. " +
+      "Trail: attached to a moving assembly between two Attachments — for sword arcs, motion streaks. Trail.Lifetime, LightEmission, Color (ColorSequence). " +
+      "Both are visual only (no collision). Cheap and replicate to clients if server-created.",
+  },
+  {
+    topic: "scripter",
+    title: "Ragdoll on death",
+    source: "system:ragdoll",
+    source_hash: "system/ragdoll/v2",
+    content:
+      "On Humanoid.Died: for each Motor6D in character, save/remove and replace with BallSocketConstraint (or Rope for limbs). " +
+      "Set hum:ChangeState(Enum.HumanoidStateType.Physics). Character parts become dynamic. " +
+      "Use Debris:AddItem(character, 6) to auto-cleanup. Preserve HumanoidRootPart's velocity for realistic tumbling.",
+  },
+  {
+    topic: "scripter",
+    title: "Common Instance API traps",
+    source: "style:instance-api",
+    source_hash: "style/instance-api/v2",
+    content:
+      ":FindFirstChild(name, recursive?) — recursive is second BOOL arg. :FindFirstDescendant is REMOVED, use FindFirstChild(name, true). " +
+      ":GetChildren() and :GetDescendants() return arrays; iterate with `for _, c in`. " +
+      ":IsA('BasePart') checks class hierarchy — Part, MeshPart, WedgePart, TrussPart all pass. " +
+      ":Clone() copies subtree including Scripts (but Scripts inside a Clone don't run until Parent is set to a running location).",
+  },
+  {
+    topic: "scripter",
+    title: "ProfileService — session-locked DataStore",
+    source: "style:profileservice",
+    source_hash: "style/profileservice/v2",
+    content:
+      "Recommended over raw DataStore for player saves. Open-source module by loleris. " +
+      "Prevents duplicate loads across servers (session lock). Auto-migration with template. " +
+      "local ProfileStore = ProfileService.GetProfileStore('PlayerData', TEMPLATE); local profile = ProfileStore:LoadProfileAsync('Player_'..userId, 'ForceLoad'). " +
+      "profile:AddUserId(userId); profile:Reconcile(); profile:ListenToRelease(function() ... end). Manipulate profile.Data — auto-saves periodically and on release.",
+  },
+  {
+    topic: "scripter",
+    title: "Server memory + perf best practices",
+    source: "style:perf",
+    source_hash: "style/perf/v2",
+    content:
+      "Avoid: :GetChildren() every Heartbeat (cache). String concat in loops (table.concat). Creating/Destroying instances every frame (pool). " +
+      "Prefer: workspace:GetPartBoundsInBox over per-part iteration. Attributes over Value objects. Connections stored + Disconnected on cleanup (memory leaks). " +
+      "SetPartCollisionGroup once, not per-frame. Never poll — use signals.",
+  },
+  {
+    topic: "world_builder",
+    title: "Model:PivotTo — modern positioning",
+    source: "roblox-api:Model",
+    source_hash: "api/model-pivot/v2",
+    content:
+      "model:PivotTo(CFrame.new(x,y,z)) — moves entire model preserving relative offsets. Replaces deprecated :SetPrimaryPartCFrame. " +
+      "Works whether model has a PrimaryPart or not (uses model's bounding pivot). " +
+      "model:GetPivot() returns current pivot CFrame. Combine: model:PivotTo(model:GetPivot() * CFrame.Angles(0, math.rad(90), 0)) to rotate in place.",
+  },
+  {
+    topic: "world_builder",
+    title: "Rooms, buildings, and modular kits",
+    source: "style:modular-builds",
+    source_hash: "style/modular-builds/v2",
+    content:
+      "Build a room from 6 sides: Floor, Ceiling, 4 Walls (each anchored). Use UDim2 helpers no — this is 3D: Vector3 sizes, CFrame positions. " +
+      "For a repeating layout: loop through grid, math.floor placement, Model:Clone() + :PivotTo(). " +
+      "Doorways: cut wall into 2 side segments + top lintel, don't try to subtract a hole from a single Part.",
+  },
+  {
+    topic: "world_builder",
+    title: "SurfaceGui / BillboardGui usage",
+    source: "roblox-api:SurfaceGui",
+    source_hash: "api/surfaceGui/v2",
+    content:
+      "SurfaceGui: 2D UI stuck to a Part face. Set .Adornee to the part, .Face to which side. Great for signs, monitors, ATMs. " +
+      "BillboardGui: floating UI that always faces camera. Set .Adornee, .Size (UDim2), .StudsOffset. Great for nameplates, damage numbers, prompts. " +
+      "Both need child Frames/TextLabels. Server-created replicates to all; put in StarterGui only for personal HUDs.",
+  },
+  {
+    topic: "world_builder",
+    title: "Skybox / Atmosphere / time-of-day",
+    source: "style:sky",
+    source_hash: "style/sky/v2",
+    content:
+      "Sky instance (child of Lighting): SkyboxUp/Dn/Lf/Rt/Ft/Bk texture IDs for cube. Enum.SkyboxType. " +
+      "Atmosphere: Density (haze), Offset, Color, Decay, Glare, Haze. Realistic outdoor look. " +
+      "Clouds (child of Terrain): Density, Cover, Color. " +
+      "Day/night: tween Lighting.ClockTime 0-24 in a loop; ClockTime 6=dawn, 12=noon, 18=dusk, 0=midnight.",
+  },
+  {
+    topic: "world_builder",
+    title: "Streaming — StreamingEnabled behavior",
+    source: "style:streaming",
+    source_hash: "style/streaming/v2",
+    content:
+      "workspace.StreamingEnabled = true → parts load/unload around each player. Reduces memory and network for large maps. " +
+      "Set important-always parts (spawns, gameplay triggers) to Persistent via ModelStreamingMode = Persistent. " +
+      "Client scripts must WaitForChild or listen for DescendantAdded — parts may not exist yet. Use ContentStreamingBehavior for smooth reveal.",
+  },
+  {
+    topic: "ui_designer",
+    title: "UIListLayout + UIGridLayout auto-flow",
+    source: "roblox-api:UIListLayout",
+    source_hash: "api/uilayouts/v2",
+    content:
+      "UIListLayout as child of a Frame arranges children in a stack. .FillDirection = Vertical/Horizontal, .Padding = UDim.new(0,8), .HorizontalAlignment, .SortOrder = LayoutOrder (respect each child's LayoutOrder). " +
+      "UIGridLayout: fixed cell size grid — .CellSize UDim2, .CellPadding. " +
+      "For scrolling lists: parent = ScrollingFrame, UIListLayout + AutomaticCanvasSize = Y so canvas grows with content.",
+  },
+  {
+    topic: "ui_designer",
+    title: "UIScale / UIAspectRatioConstraint for responsive UI",
+    source: "roblox-api:UIScale",
+    source_hash: "api/uiscale/v2",
+    content:
+      "Mobile-safe scaling: UIScale (child of ScreenGui) with Scale = math.min(camera.ViewportSize.X/1920, camera.ViewportSize.Y/1080), listen to Camera.ViewportSizeChanged to update. " +
+      "UIAspectRatioConstraint: locks a Frame's aspect ratio — great for square buttons that stay square on any screen. " +
+      "UITextSizeConstraint: clamp Text auto-size within min/max.",
+  },
+  {
+    topic: "ui_designer",
+    title: "Modern GUI polish — corner, stroke, gradient, padding",
+    source: "style:ui-polish",
+    source_hash: "style/ui-polish/v2",
+    content:
+      "UICorner (child of Frame/Button): CornerRadius = UDim.new(0, 12) or UDim.new(1, 0) for pill. " +
+      "UIStroke: Color, Thickness, ApplyStrokeMode = Border. LineJoinMode = Round for smooth. " +
+      "UIGradient: Color = ColorSequence.new({...}), Rotation for angle. Combine with Transparency NumberSequence for fade. " +
+      "UIPadding on containers: PaddingTop/Bottom/Left/Right = UDim.new(0, 16). Always pad, never let text touch edges.",
+  },
+  {
+    topic: "ui_designer",
+    title: "GuiObject.MouseEnter/Leave hover effects",
+    source: "style:ui-hover",
+    source_hash: "style/ui-hover/v2",
+    content:
+      "Hover in/out with TweenService for smooth. Track original size/color in a closure so nested hovers don't stack. " +
+      "For mobile: :GetPropertyChangedSignal('GuiState') and check button.GuiState == Enum.GuiState.Hover. " +
+      "Prefer :Activated over MouseButton1Click — works on both touch and mouse.",
+  },
+  {
+    topic: "ui_designer",
+    title: "Notifications / toast pattern",
+    source: "system:toast",
+    source_hash: "system/toast/v2",
+    content:
+      "ToastFrame at bottom-right of ScreenGui. NotifyRemote:FireClient(player, {text, kind, duration=3}). " +
+      "Client: clone toast template, set text/color per kind (info/warn/error/success), UIListLayout stacks them, tween in from right, task.delay(duration) → tween out → :Destroy(). " +
+      "Cap max visible (e.g. 4) and remove oldest when new arrives.",
+  },
+  {
+    topic: "ui_designer",
+    title: "Confirm dialog modal pattern",
+    source: "system:modal",
+    source_hash: "system/modal/v2",
+    content:
+      "Full-screen dim Frame (BackgroundTransparency 0.5, Modal=true on child TextButton for touch focus). " +
+      "Center Frame with title, body, [Cancel] [Confirm] buttons. " +
+      "Return via BindableFunction or Promise-like: local result = openModal({title, body, confirmText}); if result then proceed(). " +
+      "Handle Enter/Esc via UserInputService.InputBegan when open; unbind on close.",
+  },
+  {
+    topic: "scripter",
+    title: "Instance.new — parent last for performance",
+    source: "style:instance-parent-last",
+    source_hash: "style/instance-parent-last/v2",
+    content:
+      "local p = Instance.new('Part'); p.Size = Vector3.new(4,1,4); p.Anchored = true; p.Position = pos; p.Parent = workspace. " +
+      "Setting properties BEFORE parenting is significantly faster because Roblox doesn't fire property-changed replication events until Parent is set. " +
+      "For bulk creation (100+ parts), always Parent last. For 1-2 parts the difference is negligible but keep the habit.",
+  },
+  {
+    topic: "scripter",
+    title: "Connection cleanup — avoiding memory leaks",
+    source: "style:connections",
+    source_hash: "style/connections/v2",
+    content:
+      "Every :Connect returns a RBXScriptConnection. Store it if you'll need to disconnect. " +
+      "local conn = event:Connect(fn); ... conn:Disconnect(); conn = nil. " +
+      "PlayerRemoving: disconnect any per-player connections you stored. " +
+      "Character-scoped: hook character:GetPropertyChangedSignal('Parent') to auto-disconnect when character despawns, or use trove/Maid pattern (open-source Maid class).",
+  },
+  {
+    topic: "scripter",
+    title: "typeof vs type — Roblox datatype checking",
+    source: "style:typeof",
+    source_hash: "style/typeof/v2",
+    content:
+      "type(x) returns Lua base type: 'string','number','boolean','table','function','userdata','nil'. " +
+      "typeof(x) is Roblox-extended: returns 'Vector3','CFrame','Instance','Color3','UDim2','EnumItem','RBXScriptSignal', etc. " +
+      "For RemoteEvent validation: `if typeof(dmg) ~= 'number' or dmg ~= dmg or dmg < 0 or dmg > 100 then return end` (dmg ~= dmg catches NaN).",
+  },
+  {
+    topic: "scripter",
+    title: "Vector3 and CFrame math cheatsheet",
+    source: "style:vectors",
+    source_hash: "style/vectors/v2",
+    content:
+      "Vector3.new(x,y,z); Vector3.zero, Vector3.one; :Magnitude, :Unit, :Dot(v), :Cross(v), :Lerp(v, alpha). " +
+      "CFrame.new(pos); CFrame.new(pos, lookAt) — position + facing; CFrame.Angles(rx,ry,rz) radians; * (multiply combines transforms). " +
+      "part.CFrame * CFrame.new(0, 0, -5) = 5 studs forward in part's local space. Useful for spawning projectiles, positioning attachments.",
+  },
+  {
+    topic: "scripter",
+    title: "Common typos / wrong service names",
+    source: "style:service-names",
+    source_hash: "style/service-names/v2",
+    content:
+      "Correct: game:GetService('Players'), 'ReplicatedStorage', 'ServerScriptService', 'ServerStorage', 'StarterGui', 'StarterPlayer', 'Workspace' or workspace (global), 'Lighting', 'RunService', 'UserInputService', 'TweenService', 'HttpService', 'DataStoreService', 'MarketplaceService', 'TeleportService', 'PathfindingService', 'CollectionService', 'PhysicsService', 'SoundService', 'ContentProvider', 'Debris', 'Chat' (legacy), 'TextChatService', 'ProximityPromptService', 'MemoryStoreService'. " +
+      "WRONG: 'PlayersService', 'GameSettings', 'StarterCharacter' as a service — StarterCharacter is a folder under StarterPlayer.",
+  },
 ];

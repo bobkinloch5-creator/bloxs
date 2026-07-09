@@ -16,6 +16,7 @@ import { searchRoblox, fetchDocPage } from "@/lib/roblox-research.server";
 import { productionSystemsStudioActions, detectLuaTemplates } from "@/lib/lua-templates";
 import { classifyIntent, renderIntentBlock } from "@/lib/intent-classifier.server";
 import { rerankMemories } from "@/lib/semantic-memory";
+import { retrieveKnowledge } from "@/lib/kb-retrieve.server";
 
 function jsonError(message: string, status: number, code?: string) {
   return new Response(JSON.stringify({ error: message, code }), {
@@ -8404,6 +8405,27 @@ export const Route = createFileRoute("/api/chat")({
           );
 
 
+          // RAG: retrieve top Roblox knowledge chunks ONCE per turn (outside
+          // tryStream so fallback retries reuse the same block). Best-effort.
+          let ragBlock = "";
+          if (mode !== "chat") {
+            try {
+              const q = (userText || "").slice(0, 1200);
+              const [scr, world, uid] = await Promise.all([
+                retrieveKnowledge(supabase, "scripter", q, 5),
+                retrieveKnowledge(supabase, "world_builder", q, 2),
+                retrieveKnowledge(supabase, "ui_designer", q, 2),
+              ]);
+              const merged = [scr, world, uid].filter(Boolean).join("\n\n");
+              if (merged) {
+                ragBlock =
+                  "\n\n=== ROBLOX KNOWLEDGE (verified API + patterns — prefer these over memory) ===\n" +
+                  merged +
+                  "\n=== END KNOWLEDGE ===\n";
+              }
+            } catch { /* retrieval is best-effort */ }
+          }
+
           const tryStream = (
             model: typeof modelChoice.model,
             usedModelId: string,
@@ -8462,7 +8484,7 @@ export const Route = createFileRoute("/api/chat")({
               : { roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch }) as ToolSet;
             return streamText({
               model,
-              system: (mode === "chat" ? FAST_CHAT_SYSTEM_PROMPT : FAST_BUILD_SYSTEM_PROMPT) + modeHeader + languageHeader + qualityHeader + assetModeRule + contextBlock,
+              system: (mode === "chat" ? FAST_CHAT_SYSTEM_PROMPT : FAST_BUILD_SYSTEM_PROMPT) + modeHeader + languageHeader + qualityHeader + assetModeRule + contextBlock + ragBlock,
               messages: convertedMessages,
               abortSignal: timeoutController.signal,
               ...(extraBody ? { providerOptions: { nvidia: extraBody as Record<string, never> } as never } : {}),
