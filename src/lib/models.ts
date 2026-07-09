@@ -199,7 +199,7 @@ export const MODELS: ModelOption[] = [
     status: "Working",
     bestFor: "Fast general-purpose Qwen model — strong Luau generation, bug fixes, and build actions.",
     description: "Qwen 3 Next 80B via NVIDIA build.nvidia.com.",
-    modelSettings: { temperature: 0.35, topP: 0.85, maxOutputTokens: 3072 },
+    modelSettings: { temperature: 0.4, topP: 0.9, maxOutputTokens: 8192 },
   },
   {
     id: "nvidia/qwen-2.5-72b",
