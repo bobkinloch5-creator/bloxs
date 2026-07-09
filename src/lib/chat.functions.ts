@@ -4,6 +4,7 @@ import { z } from "zod";
 import { normalizePluginAction } from "@/lib/plugin-actions";
 import { sanitizeInsertAssetActions } from "@/lib/roblox-toolbox.server";
 import { stripCodeFences, validateLuau, autoFixLuau } from "@/lib/luau-validator";
+import { findMissingCrossRefs, synthesiseMissingCreateActions, type CrossRefAction } from "@/lib/luau-crossref";
 
 const SCRIPT_ACTION_KINDS = new Set(["script", "localscript", "modulescript", "run_lua"]);
 
