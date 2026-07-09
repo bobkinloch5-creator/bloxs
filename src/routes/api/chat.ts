@@ -16,6 +16,7 @@ import { searchRoblox, fetchDocPage } from "@/lib/roblox-research.server";
 import { productionSystemsStudioActions, detectLuaTemplates } from "@/lib/lua-templates";
 import { classifyIntent, renderIntentBlock } from "@/lib/intent-classifier.server";
 import { rerankMemories } from "@/lib/semantic-memory";
+import { retrieveKnowledge } from "@/lib/kb-retrieve.server";
 
 function jsonError(message: string, status: number, code?: string) {
   return new Response(JSON.stringify({ error: message, code }), {
