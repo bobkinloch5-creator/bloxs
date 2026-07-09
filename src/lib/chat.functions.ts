@@ -51,6 +51,8 @@ function scriptValidationErrors(action: { kind?: string; name?: string; payload?
   return errors;
 }
 
+const MAX_REPAIR_ATTEMPTS = 3;
+
 async function repairPreparedScriptActions<T extends { kind?: string; name?: string; parent_path?: string; payload?: Record<string, unknown> }>(actions: T[]) {
   // First pass: cheap deterministic autofix (JSON-style tables → Luau,
   // deprecated globals, stray markdown fences). Fixes the most common LLM
@@ -66,36 +68,68 @@ async function repairPreparedScriptActions<T extends { kind?: string; name?: str
     }
   }
 
+  // Validator auto-fix LOOP: for each invalid script, retry up to
+  // MAX_REPAIR_ATTEMPTS alternating deterministic autofix + NVIDIA repair /
+  // regeneration. Previously this was single-pass — if the first NVIDIA call
+  // failed the action was dropped. Now we give the model multiple shots with
+  // fresh error context each round.
   const invalid = actions
     .map((action) => ({ action, errors: scriptValidationErrors(action) }))
     .filter((entry) => entry.errors.length > 0)
     .slice(0, 12);
-  if (invalid.length === 0) return actions;
 
-  try {
-    const { generateLuauReplacementWithNvidia } = await import("@/lib/nvidia-critique.server");
-    const repaired = await Promise.allSettled(invalid.map(({ action, errors }) =>
-      generateLuauReplacementWithNvidia({
-        issues: errors.map((message) => ({ severity: "error", message })),
-        actionName: action.name,
-        actionKind: action.kind,
-        parentPath: action.parent_path,
-        userRequest: String(action.payload?.request ?? action.payload?.userRequest ?? action.name ?? "Roblox Studio script"),
-      })
-    ));
-    repaired.forEach((result, index) => {
-      if (result.status === "fulfilled" && result.value) {
-        invalid[index].action.payload = { ...(invalid[index].action.payload ?? {}), source: result.value };
-      }
-    });
-  } catch (error) {
-    console.warn("[chat.functions] prepared script repair failed", error);
+  if (invalid.length > 0) {
+    let nvidia: typeof import("@/lib/nvidia-critique.server") | null = null;
+    try { nvidia = await import("@/lib/nvidia-critique.server"); } catch (e) {
+      console.warn("[chat.functions] nvidia-critique unavailable", e);
+    }
+
+    if (nvidia) {
+      await Promise.allSettled(invalid.map(async ({ action }) => {
+        for (let attempt = 1; attempt <= MAX_REPAIR_ATTEMPTS; attempt++) {
+          const errs = scriptValidationErrors(action);
+          if (errs.length === 0) return;
+
+          const currentSource = stripCodeFences(String(action.payload?.source ?? ""));
+          const meaningful = currentSource.replace(/--\[\[[\s\S]*?\]\]/g, "").replace(/--[^\n]*/g, "").trim();
+          const issues = errs.map((message) => ({ severity: "error", message }));
+          const meta = {
+            actionName: action.name,
+            actionKind: action.kind,
+            parentPath: action.parent_path,
+            userRequest: String(action.payload?.request ?? action.payload?.userRequest ?? action.name ?? "Roblox Studio script"),
+          };
+
+          let repaired: string | null = null;
+          try {
+            repaired = meaningful.length >= 40
+              ? await nvidia!.repairLuauWithNvidia({ source: currentSource, issues, ...meta })
+              : await nvidia!.generateLuauReplacementWithNvidia({ issues, ...meta });
+          } catch (e) {
+            console.warn("[chat.functions] repair attempt threw", { attempt, name: action.name, e });
+          }
+
+          if (repaired) {
+            const { source: autofixed } = autoFixLuau(repaired);
+            action.payload = { ...(action.payload ?? {}), source: autofixed };
+            const remaining = scriptValidationErrors(action);
+            if (remaining.length === 0) {
+              console.info("[chat.functions] script repaired", { name: action.name, attempt });
+              return;
+            }
+            console.warn("[chat.functions] repair attempt still invalid", { name: action.name, attempt, remaining: remaining.slice(0, 3) });
+          } else {
+            console.warn("[chat.functions] repair attempt returned null", { name: action.name, attempt });
+          }
+        }
+      }));
+    }
   }
 
   const cleanedActions = actions.filter((action) => {
     const errors = scriptValidationErrors(action);
     if (errors.length > 0) {
-      console.error("[chat.functions] blocked invalid prepared script before Studio queue", { kind: action.kind, name: action.name, errors });
+      console.error("[chat.functions] blocked invalid prepared script after repair loop", { kind: action.kind, name: action.name, errors });
       return false;
     }
     return true;
