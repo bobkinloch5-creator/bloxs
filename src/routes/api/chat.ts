@@ -8405,6 +8405,27 @@ export const Route = createFileRoute("/api/chat")({
           );
 
 
+          // RAG: retrieve top Roblox knowledge chunks ONCE per turn (outside
+          // tryStream so fallback retries reuse the same block). Best-effort.
+          let ragBlock = "";
+          if (mode !== "chat") {
+            try {
+              const q = (userText || "").slice(0, 1200);
+              const [scr, world, uid] = await Promise.all([
+                retrieveKnowledge(supabase, "scripter", q, 5),
+                retrieveKnowledge(supabase, "world_builder", q, 2),
+                retrieveKnowledge(supabase, "ui_designer", q, 2),
+              ]);
+              const merged = [scr, world, uid].filter(Boolean).join("\n\n");
+              if (merged) {
+                ragBlock =
+                  "\n\n=== ROBLOX KNOWLEDGE (verified API + patterns — prefer these over memory) ===\n" +
+                  merged +
+                  "\n=== END KNOWLEDGE ===\n";
+              }
+            } catch { /* retrieval is best-effort */ }
+          }
+
           const tryStream = (
             model: typeof modelChoice.model,
             usedModelId: string,
