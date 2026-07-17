@@ -8426,6 +8426,23 @@ export const Route = createFileRoute("/api/chat")({
             } catch { /* retrieval is best-effort */ }
           }
 
+          // Silent internal build outline for broad game/system requests.
+          // Best-effort architect brief (~≤12s) that gives the main model a
+          // coherent contract: systems, folders, remotes, UI, contracts.
+          let outlineBlock = "";
+          if (
+            mode === "build" &&
+            (isBroadPlayableGameRequest(userText) || isExplicitFullSystemRequest(userText) || isRobloxSystemRequest(userText))
+          ) {
+            try {
+              const mod = await import("@/lib/silent-planner.server");
+              const outline = await mod.generateSilentOutline(userText, 12_000);
+              if (outline) outlineBlock = mod.outlineToPromptBlock(outline);
+            } catch (e) {
+              console.warn("[chat] silent outline skipped", e instanceof Error ? e.message : e);
+            }
+          }
+
           const tryStream = (
             model: typeof modelChoice.model,
             usedModelId: string,
