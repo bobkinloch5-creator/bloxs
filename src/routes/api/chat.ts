@@ -8501,7 +8501,7 @@ export const Route = createFileRoute("/api/chat")({
               : { roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch }) as ToolSet;
             return streamText({
               model,
-              system: (mode === "chat" ? FAST_CHAT_SYSTEM_PROMPT : FAST_BUILD_SYSTEM_PROMPT) + modeHeader + languageHeader + qualityHeader + assetModeRule + contextBlock + ragBlock,
+              system: (mode === "chat" ? FAST_CHAT_SYSTEM_PROMPT : FAST_BUILD_SYSTEM_PROMPT) + modeHeader + languageHeader + qualityHeader + assetModeRule + contextBlock + ragBlock + outlineBlock,
               messages: convertedMessages,
               abortSignal: timeoutController.signal,
               ...(extraBody ? { providerOptions: { nvidia: extraBody as Record<string, never> } as never } : {}),
