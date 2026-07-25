@@ -46,6 +46,15 @@ function buildProvider(gateway: Gateway): Provider {
       headers: { Authorization: `Bearer ${key}` },
     });
   }
+  if (gateway === "oneprovider") {
+    const key = process.env.ONEPROVIDER_API_KEY;
+    if (!key) throw new Error("OneProvider is not configured — set ONEPROVIDER_API_KEY.");
+    return createOpenAICompatible({
+      name: "oneprovider",
+      baseURL: "https://api.oneprovider.dev/v1",
+      headers: { Authorization: `Bearer ${key}` },
+    });
+  }
   throw new Error(`Unsupported AI gateway: ${gateway}`);
 }
 
