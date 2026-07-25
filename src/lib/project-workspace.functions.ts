@@ -218,3 +218,69 @@ export const getProjectStats = createServerFn({ method: "GET" })
       updated_at: proj?.updated_at ?? null,
     };
   });
+
+// ---------- Live Project Files ----------
+export const listProjectFiles = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) => z.object({ projectId: uuid }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { data: actions, error } = await context.supabase
+      .from("plugin_actions")
+      .select("id, kind, name, parent_path, payload, created_at, status")
+      .eq("project_id", data.projectId)
+      .order("created_at", { ascending: true });
+
+    if (error) throw new Error(error.message);
+
+    const fileMap = new Map<string, {
+      id: string;
+      name: string;
+      className: string;
+      parentPath: string;
+      source: string;
+      updatedAt: string;
+      actionKind: string;
+    }>();
+
+    for (const a of actions ?? []) {
+      const p = (a.payload ?? {}) as Record<string, any>;
+      const kind = (a.kind ?? "").toLowerCase();
+      const rawName = a.name || p.name || "Untitled";
+      const rawParent = a.parent_path || p.parentPath || p.parent_path || "ServerScriptService";
+
+      let className = "Script";
+      if (kind === "localscript" || p.className === "LocalScript") className = "LocalScript";
+      else if (kind === "modulescript" || p.className === "ModuleScript") className = "ModuleScript";
+      else if (kind === "screengui" || p.className === "ScreenGui") className = "ScreenGui";
+      else if (kind === "remoteevent" || p.className === "RemoteEvent") className = "RemoteEvent";
+      else if (kind === "remotefunction" || p.className === "RemoteFunction") className = "RemoteFunction";
+      else if (kind === "folder" || p.className === "Folder") className = "Folder";
+      else if (kind === "part" || p.className === "Part") className = "Part";
+      else if (p.className) className = p.className;
+
+      const source = typeof p.source === "string" ? p.source :
+                     typeof p.code === "string" ? p.code :
+                     typeof p.script === "string" ? p.script :
+                     typeof p.lua === "string" ? p.lua :
+                     typeof p.luau === "string" ? p.luau : "";
+
+      const key = `${rawParent}.${rawName}`;
+
+      if (kind.includes("delete") || kind.includes("remove")) {
+        fileMap.delete(key);
+      } else if (source.trim() || ["script", "localscript", "modulescript", "insertscript", "screengui", "remoteevent", "remotefunction"].includes(kind)) {
+        fileMap.set(key, {
+          id: a.id,
+          name: rawName,
+          className,
+          parentPath: rawParent,
+          source: source || `-- ${rawName} (${className})`,
+          updatedAt: a.created_at,
+          actionKind: a.kind,
+        });
+      }
+    }
+
+    return Array.from(fileMap.values());
+  });
+

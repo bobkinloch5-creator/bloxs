@@ -11,7 +11,7 @@ import {
   Infinity as InfinityIcon, ChevronDown, Paperclip, Image as ImageIcon,
   Send, Hammer, TrendingUp, Wrench, Gamepad2, Upload, CheckCircle2,
   Code2, Package, Crown, ExternalLink, MoreHorizontal, ArrowRight,
-  Radio, HelpCircle, LayoutDashboard, Server, Gift, Download,
+  Radio, HelpCircle, LayoutDashboard, Server, Gift, Download, FolderTree,
 } from "lucide-react";
 import thumbTycoon from "@/assets/thumbs/tycoon.jpg";
 import thumbObby from "@/assets/thumbs/obby.jpg";
@@ -28,6 +28,8 @@ import { ProjectMenu } from "@/components/ProjectMenu";
 import { WorkspaceChat } from "@/components/WorkspaceChat";
 import { NewProjectModal } from "@/components/NewProjectModal";
 import { ExportGameModal } from "@/components/ExportGameModal";
+import { ProjectFilesPanel } from "@/components/ProjectFilesPanel";
+
 import { Reveal, GlowCard, CountUp } from "@/components/Reveal";
 import { ProjectMemoryCard } from "@/components/ProjectMemoryCard";
 import { OnboardingChallenges } from "@/components/OnboardingChallenges";
@@ -263,241 +265,262 @@ function Dashboard() {
               <ProfileMenu />
             </header>
 
-            <main className="mx-auto w-full max-w-[1240px] space-y-6 px-3 pb-28 pt-5 sm:space-y-8 sm:px-8 sm:pb-8 sm:pt-8">
-              {/* Active project banner — futuristic vapor-card with glowing borders */}
-              {activeProject && (
-                <section className="vapor-card hover-lift overflow-hidden rounded-2xl border border-indigo-500/30 bg-gradient-to-r from-indigo-900/40 via-purple-900/20 to-cyan-900/30 p-4 sm:p-5 shadow-[0_0_35px_rgba(79,70,229,0.15)]">
-                  <div className="flex flex-wrap items-center gap-4">
-                    <div className="vapor-ring-avatar h-14 w-14 shrink-0 overflow-hidden shadow-[0_0_20px_rgba(167,139,250,0.3)]">
-                      <img
-                        src={activeProject.thumbnail_url ?? THUMBS[activeProject.game_type ?? "custom"] ?? THUMBS.custom}
-                        alt=""
-                        className="h-full w-full object-cover rounded-full"
-                      />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="vapor-label flex items-center gap-1.5 text-indigo-300">
-                        <Sparkles className="h-3 w-3 text-cyan-400" /> ACTIVE PROJECT
-                      </div>
-                      <div className="mt-1 flex items-center gap-2 truncate text-xl font-extrabold text-white tracking-tight">
-                        {activeProject.pinned_at && <span title="Pinned">📌</span>}
-                        {activeProject.is_favorite && <span title="Favorite" className="text-amber-300">★</span>}
-                        <span className="truncate">{activeProject.name}</span>
-                      </div>
-                      <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-medium text-slate-300">
-                        <span className="rounded-md bg-indigo-500/20 border border-indigo-400/30 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-indigo-200">{activeProject.game_type ?? "custom"}</span>
-                        <span>•</span>
-                        <span className="text-slate-300">{activeProject.build_count ?? 0} builds</span>
-                        <span>•</span>
-                        <span className="text-slate-400">Updated {timeAgo(activeProject.updated_at)}</span>
-                        <span>•</span>
-                        <span className="inline-flex items-center gap-1 text-emerald-400 font-semibold"><CheckCircle2 className="h-3 w-3" /> Chat & assets active</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setExportModalOpen(true)}
-                        className="vapor-glow-btn inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white transition-transform active:scale-95"
-                      >
-                        <Download className="h-3.5 w-3.5 text-cyan-300" /> Export Game
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          try { localStorage.removeItem("bs:activeProjectId"); } catch {}
-                          setActiveProjectId(null);
-                          try { window.dispatchEvent(new Event("bs:active-project-changed")); } catch {}
-                        }}
-                        className="vapor-ghost-btn px-3.5 py-2 text-xs font-semibold"
-                      >
-                        Switch project
-                      </button>
-                    </div>
-                  </div>
-                </section>
-              )}
-
-            {/* Composer — real AI Build flow */}
-            <section id="build">
-              <WorkspaceChat
-                activeProjectId={activeProjectId}
-                onProjectCreated={(id) => setActiveProjectId(id)}
-                onRequestNewProject={() => setNewProjectOpen(true)}
-                onSelectProject={(id) => openProject(id)}
-              />
-
-            </section>
-
-            {/* Persistent project memory — everything the AI remembers about this project */}
-            {activeProjectId && (
-              <section id="memory">
-                <ProjectMemoryCard projectId={activeProjectId} />
-              </section>
-            )}
-
-            {/* AI Playtest — the AI reads your scripts and reports back what it sees */}
-            <section id="ai-playtest" className="space-y-4">
-              <AiPlaytestCard projectId={activeProjectId} projectName={activeProject?.name} />
-              <LivePlaytestCard />
-            </section>
-
-            {/* Invite friends prompt — visible on every dashboard load */}
-            <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-indigo-400/30 bg-gradient-to-r from-indigo-500/10 via-fuchsia-500/5 to-indigo-500/10 p-4 sm:p-5">
-              <div className="flex items-center gap-3">
-                <span className="grid h-10 w-10 place-items-center rounded-xl bg-indigo-500/20 text-indigo-200">
-                  <Gift className="h-5 w-5" />
-                </span>
-                <div>
-                  <div className="text-sm font-bold text-white">Invite friends to BloxSmith</div>
-                  <div className="text-xs text-slate-400">Share your code — get shouted out on the community leaderboard.</div>
-                </div>
-              </div>
-              <Link
-                to="/referrals"
-                className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-500 px-3.5 py-2 text-xs font-bold text-white hover:bg-indigo-400"
-              >
-                <Gift className="h-3.5 w-3.5" /> Get your invite link
-              </Link>
-            </section>
-
-
-
-
-            {/* Quick Actions */}
-            <section>
-              <SectionHead title="Quick Actions" to="/models" />
-              <Reveal stagger className="mt-3 grid grid-cols-2 gap-3.5 sm:grid-cols-3 lg:grid-cols-6">
-                {QUICK_ACTIONS.map((a) => (
-                  <Link
-                    key={a.key}
-                    to={a.to as any}
-                    className="vapor-card hover-lift group relative flex flex-col overflow-hidden rounded-2xl border border-indigo-500/25 bg-gradient-to-b from-[#131330]/90 to-[#0b0b1a]/90 p-4 transition-all hover:border-cyan-400/50 hover:shadow-[0_0_25px_rgba(34,211,238,0.2)]"
-                  >
-                    <span className="grid h-10 w-10 place-items-center rounded-xl border border-indigo-400/30 bg-indigo-500/15 text-cyan-300 shadow-[0_0_15px_rgba(99,102,241,0.2)] transition-colors group-hover:bg-cyan-500/20 group-hover:text-cyan-200">
-                      <a.icon className="h-4 w-4" />
-                    </span>
-                    <div className="mt-3 text-sm font-extrabold text-slate-100 group-hover:text-cyan-200">{a.label}</div>
-                    <div className="mt-1 text-[11px] font-medium leading-relaxed text-slate-400">{a.desc}</div>
-                  </Link>
-                ))}
-              </Reveal>
-            </section>
-
-            {/* Recent Projects + Activity */}
-            <section className="grid gap-6 lg:grid-cols-2">
-              {/* Recent Projects */}
-              <div>
-                <SectionHead title="Recent Projects" to="/projects" />
-                <div className="vapor-card mt-3 rounded-2xl border border-indigo-500/25 bg-gradient-to-b from-[#12122e]/90 to-[#090918]/90 p-3 shadow-[0_0_30px_rgba(0,0,0,0.5)]">
-                  {isLoading ? (
-                    <div className="space-y-2 p-2">
-                      {Array.from({ length: 4 }).map((_, i) => (
-                        <div key={i} className="flex items-center gap-3">
-                          <div className="skeleton h-11 w-11 shrink-0 rounded-xl" />
-                          <div className="min-w-0 flex-1 space-y-1.5">
-                            <div className="skeleton h-3.5 w-1/2" />
-                            <div className="skeleton h-3 w-1/3" />
+            <main className="mx-auto w-full max-w-[1440px] px-3 pb-28 pt-5 sm:px-8 sm:pb-8 sm:pt-8">
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+                {/* Main Workspace Column */}
+                <div className="space-y-6 lg:col-span-7 xl:col-span-8">
+                  {/* Active project banner — futuristic vapor-card with glowing borders */}
+                  {activeProject && (
+                    <section className="vapor-card hover-lift overflow-hidden rounded-2xl border border-indigo-500/30 bg-gradient-to-r from-indigo-900/40 via-purple-900/20 to-cyan-900/30 p-4 sm:p-5 shadow-[0_0_35px_rgba(79,70,229,0.15)]">
+                      <div className="flex flex-wrap items-center gap-4">
+                        <div className="vapor-ring-avatar h-14 w-14 shrink-0 overflow-hidden shadow-[0_0_20px_rgba(167,139,250,0.3)]">
+                          <img
+                            src={activeProject.thumbnail_url ?? THUMBS[activeProject.game_type ?? "custom"] ?? THUMBS.custom}
+                            alt=""
+                            className="h-full w-full object-cover rounded-full"
+                          />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="vapor-label flex items-center gap-1.5 text-indigo-300">
+                            <Sparkles className="h-3 w-3 text-cyan-400" /> ACTIVE PROJECT
+                          </div>
+                          <div className="mt-1 flex items-center gap-2 truncate text-xl font-extrabold text-white tracking-tight">
+                            {activeProject.pinned_at && <span title="Pinned">📌</span>}
+                            {activeProject.is_favorite && <span title="Favorite" className="text-amber-300">★</span>}
+                            <span className="truncate">{activeProject.name}</span>
+                          </div>
+                          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-medium text-slate-300">
+                            <span className="rounded-md bg-indigo-500/20 border border-indigo-400/30 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-indigo-200">{activeProject.game_type ?? "custom"}</span>
+                            <span>•</span>
+                            <span className="text-slate-300">{activeProject.build_count ?? 0} builds</span>
+                            <span>•</span>
+                            <span className="text-slate-400">Updated {timeAgo(activeProject.updated_at)}</span>
+                            <span>•</span>
+                            <span className="inline-flex items-center gap-1 text-emerald-400 font-semibold"><CheckCircle2 className="h-3 w-3" /> Chat & assets active</span>
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  ) : recentProjects.length === 0 ? (
-                    <div className="p-6 text-center text-sm font-medium text-slate-400">
-                      No projects yet. Describe a game above to create your first one.
-                    </div>
-                  ) : (
-                    <ul className="divide-y divide-white/5">
-                      {recentProjects.map((p) => (
-                        <li key={p.id} className="group flex items-center gap-3 rounded-xl p-2.5 transition-colors hover:bg-white/[0.04]">
-                          <div className="vapor-ring-avatar h-11 w-11 shrink-0 overflow-hidden shadow-[0_0_15px_rgba(99,102,241,0.3)]">
-                            <img
-                              src={p.thumbnail_url ?? THUMBS[p.game_type ?? "custom"] ?? THUMBS.custom}
-                              alt=""
-                              className="h-full w-full object-cover rounded-full"
-                              loading="lazy"
-                            />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-1.5 truncate text-sm font-bold text-slate-100 group-hover:text-indigo-200">
-                              {p.pinned_at && <span title="Pinned">📌</span>}
-                              {p.is_favorite && <span title="Favorite" className="text-amber-300">★</span>}
-                              <span className="truncate">{p.name}</span>
-                            </div>
-                            <div className="truncate text-[11px] font-medium text-slate-400">Updated {timeAgo(p.updated_at)}</div>
-                          </div>
+                        <div className="flex items-center gap-2">
                           <button
                             type="button"
-                            onClick={() => openProject(p.id)}
-                            className="vapor-ghost-btn px-3 py-1.5 text-xs font-bold"
+                            onClick={() => setExportModalOpen(true)}
+                            className="vapor-glow-btn inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white transition-transform active:scale-95"
                           >
-                            {activeProjectId === p.id ? "Active" : "Open"}
+                            <Download className="h-3.5 w-3.5 text-cyan-300" /> Export Game
                           </button>
-                          <ProjectMenu project={p} />
-                        </li>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              try { localStorage.removeItem("bs:activeProjectId"); } catch {}
+                              setActiveProjectId(null);
+                              try { window.dispatchEvent(new Event("bs:active-project-changed")); } catch {}
+                            }}
+                            className="vapor-ghost-btn px-3.5 py-2 text-xs font-semibold"
+                          >
+                            Switch project
+                          </button>
+                        </div>
+                      </div>
+                    </section>
+                  )}
+
+                  {/* Composer — real AI Build flow */}
+                  <section id="build">
+                    <WorkspaceChat
+                      activeProjectId={activeProjectId}
+                      onProjectCreated={(id) => setActiveProjectId(id)}
+                      onRequestNewProject={() => setNewProjectOpen(true)}
+                      onSelectProject={(id) => openProject(id)}
+                    />
+                  </section>
+
+                  {/* Persistent project memory — everything the AI remembers about this project */}
+                  {activeProjectId && (
+                    <section id="memory">
+                      <ProjectMemoryCard projectId={activeProjectId} />
+                    </section>
+                  )}
+
+                  {/* AI Playtest — the AI reads your scripts and reports back what it sees */}
+                  <section id="ai-playtest" className="space-y-4">
+                    <AiPlaytestCard projectId={activeProjectId} projectName={activeProject?.name} />
+                    <LivePlaytestCard />
+                  </section>
+
+                  {/* Invite friends prompt — visible on every dashboard load */}
+                  <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-indigo-400/30 bg-gradient-to-r from-indigo-500/10 via-fuchsia-500/5 to-indigo-500/10 p-4 sm:p-5">
+                    <div className="flex items-center gap-3">
+                      <span className="grid h-10 w-10 place-items-center rounded-xl bg-indigo-500/20 text-indigo-200">
+                        <Gift className="h-5 w-5" />
+                      </span>
+                      <div>
+                        <div className="text-sm font-bold text-white">Invite friends to BloxSmith</div>
+                        <div className="text-xs text-slate-400">Share your code — get shouted out on the community leaderboard.</div>
+                      </div>
+                    </div>
+                    <Link
+                      to="/referrals"
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-500 px-3.5 py-2 text-xs font-bold text-white hover:bg-indigo-400"
+                    >
+                      <Gift className="h-3.5 w-3.5" /> Get your invite link
+                    </Link>
+                  </section>
+
+                  {/* Quick Actions */}
+                  <section>
+                    <SectionHead title="Quick Actions" to="/models" />
+                    <Reveal stagger className="mt-3 grid grid-cols-2 gap-3.5 sm:grid-cols-3 lg:grid-cols-6">
+                      {QUICK_ACTIONS.map((a) => (
+                        <Link
+                          key={a.key}
+                          to={a.to as any}
+                          className="vapor-card hover-lift group relative flex flex-col overflow-hidden rounded-2xl border border-indigo-500/25 bg-gradient-to-b from-[#131330]/90 to-[#0b0b1a]/90 p-4 transition-all hover:border-cyan-400/50 hover:shadow-[0_0_25px_rgba(34,211,238,0.2)]"
+                        >
+                          <span className="grid h-10 w-10 place-items-center rounded-xl border border-indigo-400/30 bg-indigo-500/15 text-cyan-300 shadow-[0_0_15px_rgba(99,102,241,0.2)] transition-colors group-hover:bg-cyan-500/20 group-hover:text-cyan-200">
+                            <a.icon className="h-4 w-4" />
+                          </span>
+                          <div className="mt-3 text-sm font-extrabold text-slate-100 group-hover:text-cyan-200">{a.label}</div>
+                          <div className="mt-1 text-[11px] font-medium leading-relaxed text-slate-400">{a.desc}</div>
+                        </Link>
                       ))}
-                    </ul>
-                  )}
+                    </Reveal>
+                  </section>
+
+                  {/* Recent Projects + Activity */}
+                  <section className="grid gap-6 lg:grid-cols-2">
+                    {/* Recent Projects */}
+                    <div>
+                      <SectionHead title="Recent Projects" to="/projects" />
+                      <div className="vapor-card mt-3 rounded-2xl border border-indigo-500/25 bg-gradient-to-b from-[#12122e]/90 to-[#090918]/90 p-3 shadow-[0_0_30px_rgba(0,0,0,0.5)]">
+                        {isLoading ? (
+                          <div className="space-y-2 p-2">
+                            {Array.from({ length: 4 }).map((_, i) => (
+                              <div key={i} className="flex items-center gap-3">
+                                <div className="skeleton h-11 w-11 shrink-0 rounded-xl" />
+                                <div className="min-w-0 flex-1 space-y-1.5">
+                                  <div className="skeleton h-3.5 w-1/2" />
+                                  <div className="skeleton h-3 w-1/3" />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : recentProjects.length === 0 ? (
+                          <div className="p-6 text-center text-sm font-medium text-slate-400">
+                            No projects yet. Describe a game above to create your first one.
+                          </div>
+                        ) : (
+                          <ul className="divide-y divide-white/5">
+                            {recentProjects.map((p) => (
+                              <li key={p.id} className="group flex items-center gap-3 rounded-xl p-2.5 transition-colors hover:bg-white/[0.04]">
+                                <div className="vapor-ring-avatar h-11 w-11 shrink-0 overflow-hidden shadow-[0_0_15px_rgba(99,102,241,0.3)]">
+                                  <img
+                                    src={p.thumbnail_url ?? THUMBS[p.game_type ?? "custom"] ?? THUMBS.custom}
+                                    alt=""
+                                    className="h-full w-full object-cover rounded-full"
+                                    loading="lazy"
+                                  />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-1.5 truncate text-sm font-bold text-slate-100 group-hover:text-indigo-200">
+                                    {p.pinned_at && <span title="Pinned">📌</span>}
+                                    {p.is_favorite && <span title="Favorite" className="text-amber-300">★</span>}
+                                    <span className="truncate">{p.name}</span>
+                                  </div>
+                                  <div className="truncate text-[11px] font-medium text-slate-400">Updated {timeAgo(p.updated_at)}</div>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => openProject(p.id)}
+                                  className="vapor-ghost-btn px-3 py-1.5 text-xs font-bold"
+                                >
+                                  {activeProjectId === p.id ? "Active" : "Open"}
+                                </button>
+                                <ProjectMenu project={p} />
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Activity */}
+                    <div>
+                      <SectionHead title="Recent Activity" to="/history" />
+                      <div className="vapor-card mt-3 rounded-2xl border border-indigo-500/25 bg-gradient-to-b from-[#12122e]/90 to-[#090918]/90 p-3 shadow-[0_0_30px_rgba(0,0,0,0.5)]">
+                        {activity.length === 0 ? (
+                          <div className="p-6 text-center text-sm font-medium text-slate-400">Activity will appear as you build.</div>
+                        ) : (
+                          <ul className="divide-y divide-white/5">
+                            {activity.map((a, i) => {
+                              const Icon = a.icon;
+                              return (
+                                <li key={i} className="flex items-center gap-3 p-3">
+                                  <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/10 ${a.tint} shadow-[0_0_15px_rgba(0,0,0,0.3)]`}>
+                                    <Icon className="h-4 w-4" />
+                                  </span>
+                                  <div className="min-w-0 flex-1">
+                                    <div className="truncate text-sm font-bold text-slate-100">{a.title}</div>
+                                    <div className="truncate text-[11px] font-medium text-slate-400">{a.sub}</div>
+                                  </div>
+                                  <div className="shrink-0 text-[11px] font-medium text-slate-400">{timeAgo(a.ts)}</div>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        )}
+                      </div>
+                    </div>
+                  </section>
+
+                  {/* Onboarding challenges */}
+                  <OnboardingChallenges
+                    projectCount={projects.length}
+                    hasPluginSession={pluginOnline}
+                    hasBuild={projects.some((p: any) => (p.build_count ?? 0) > 0)}
+                  />
+
+                  {/* Inspiration banner */}
+                  <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/8 bg-gradient-to-r from-indigo-500/10 via-white/[0.02] to-fuchsia-500/10 p-5">
+                    <div className="flex items-center gap-4">
+                      <span className="grid h-11 w-11 place-items-center rounded-xl bg-indigo-500/25 text-indigo-200">
+                        <Sparkles className="h-5 w-5" />
+                      </span>
+                      <div>
+                        <div className="text-sm font-bold text-slate-100">Need inspiration?</div>
+                        <div className="text-xs text-slate-400">Browse 3D models or explore the community.</div>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Link to="/models" className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.03] px-3.5 py-2 text-xs font-semibold text-slate-200 hover:bg-white/[0.06]">
+                        <Box className="h-3.5 w-3.5" /> Explore 3D Models
+                      </Link>
+                      <Link to="/collaborators" className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.03] px-3.5 py-2 text-xs font-semibold text-slate-200 hover:bg-white/[0.06]">
+                        <Users className="h-3.5 w-3.5" /> Browse Community
+                      </Link>
+                    </div>
+                  </section>
+                </div>
+
+                {/* Right Sidebar Column: Roblox Project Files Explorer & Exporter */}
+                <div className="space-y-6 lg:col-span-5 xl:col-span-4">
+                  <div className="sticky top-6">
+                    {activeProjectId ? (
+                      <ProjectFilesPanel
+                        projectId={activeProjectId}
+                        projectName={activeProject?.name ?? "Roblox Project"}
+                      />
+                    ) : (
+                      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 bg-slate-900/60 p-6 text-center shadow-xl backdrop-blur-xl">
+                        <FolderTree className="h-10 w-10 text-slate-600 mb-3" />
+                        <h4 className="text-sm font-bold text-white">No Active Project</h4>
+                        <p className="mt-1 text-xs text-slate-400">
+                          Select or create a project to view and export its live Roblox script files hierarchy.
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
-
-              {/* Activity */}
-              <div>
-                <SectionHead title="Recent Activity" to="/history" />
-                <div className="vapor-card mt-3 rounded-2xl border border-indigo-500/25 bg-gradient-to-b from-[#12122e]/90 to-[#090918]/90 p-3 shadow-[0_0_30px_rgba(0,0,0,0.5)]">
-                  {activity.length === 0 ? (
-                    <div className="p-6 text-center text-sm font-medium text-slate-400">Activity will appear as you build.</div>
-                  ) : (
-                    <ul className="divide-y divide-white/5">
-                      {activity.map((a, i) => {
-                        const Icon = a.icon;
-                        return (
-                          <li key={i} className="flex items-center gap-3 p-3">
-                            <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/10 ${a.tint} shadow-[0_0_15px_rgba(0,0,0,0.3)]`}>
-                              <Icon className="h-4 w-4" />
-                            </span>
-                            <div className="min-w-0 flex-1">
-                              <div className="truncate text-sm font-bold text-slate-100">{a.title}</div>
-                              <div className="truncate text-[11px] font-medium text-slate-400">{a.sub}</div>
-                            </div>
-                            <div className="shrink-0 text-[11px] font-medium text-slate-400">{timeAgo(a.ts)}</div>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
-                </div>
-              </div>
-            </section>
-
-            {/* Onboarding challenges */}
-            <OnboardingChallenges
-              projectCount={projects.length}
-              hasPluginSession={pluginOnline}
-              hasBuild={projects.some((p: any) => (p.build_count ?? 0) > 0)}
-            />
-
-            {/* Inspiration banner */}
-            <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/8 bg-gradient-to-r from-indigo-500/10 via-white/[0.02] to-fuchsia-500/10 p-5">
-              <div className="flex items-center gap-4">
-                <span className="grid h-11 w-11 place-items-center rounded-xl bg-indigo-500/25 text-indigo-200">
-                  <Sparkles className="h-5 w-5" />
-                </span>
-                <div>
-                  <div className="text-sm font-bold text-slate-100">Need inspiration?</div>
-                  <div className="text-xs text-slate-400">Browse 3D models or explore the community.</div>
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Link to="/models" className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.03] px-3.5 py-2 text-xs font-semibold text-slate-200 hover:bg-white/[0.06]">
-                  <Box className="h-3.5 w-3.5" /> Explore 3D Models
-                </Link>
-                <Link to="/collaborators" className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.03] px-3.5 py-2 text-xs font-semibold text-slate-200 hover:bg-white/[0.06]">
-                  <Users className="h-3.5 w-3.5" /> Browse Community
-                </Link>
-              </div>
-            </section>
-          </main>
+            </main>
         </div>
       </div>
       <BottomNav isAdmin={isAdmin} />
