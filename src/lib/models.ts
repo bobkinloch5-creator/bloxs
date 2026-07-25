@@ -7,7 +7,7 @@ export type Speed = "Fast" | "Medium" | "Slow";
 export type Quality = "Good" | "Great" | "Best";
 export type Credits = "Low" | "Medium" | "High" | "Very High";
 export type Status = "Working" | "Coming Soon";
-export type Gateway = "lovable" | "nvidia" | "groq";
+export type Gateway = "lovable" | "nvidia" | "groq" | "oneprovider";
 
 export interface ModelOption {
   id: string;          // unique id used in UI (also default upstream id)
