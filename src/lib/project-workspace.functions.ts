@@ -261,7 +261,7 @@ export const listProjectFiles = createServerFn({ method: "GET" })
     for (const a of actions ?? []) {
       const p = (a.payload ?? {}) as Record<string, any>;
       const kind = (a.kind ?? "").toLowerCase();
-      const rawName = a.name || p.name || "Untitled";
+      const rawName = a.name || p.name || p.asset_id || "Untitled";
 
       let className = "Script";
       if (kind === "localscript" || p.className === "LocalScript") className = "LocalScript";
@@ -271,6 +271,8 @@ export const listProjectFiles = createServerFn({ method: "GET" })
       else if (kind === "remotefunction" || p.className === "RemoteFunction") className = "RemoteFunction";
       else if (kind === "folder" || p.className === "Folder") className = "Folder";
       else if (kind === "part" || p.className === "Part") className = "Part";
+      else if (kind === "insert_asset" || kind === "model" || p.className === "Model") className = "Model";
+      else if (kind === "terrain" || p.className === "Terrain") className = "Terrain";
       else if (p.className) className = p.className;
 
       const parentPath = normalizeParent(a.parent_path || p.parentPath || p.parent_path, className);
@@ -285,20 +287,20 @@ export const listProjectFiles = createServerFn({ method: "GET" })
 
       if (kind.includes("delete") || kind.includes("remove")) {
         fileMap.delete(key);
-      } else if (source.trim() || ["script", "localscript", "modulescript", "insertscript", "screengui", "remoteevent", "remotefunction"].includes(kind)) {
+      } else {
         fileMap.set(key, {
           id: a.id,
           name: rawName,
           className,
           parentPath,
-          source: source || `-- ${rawName} (${className})`,
+          source: source || `-- Roblox Studio Instance: ${rawName} (${className})\n-- Location: ${parentPath}.${rawName}`,
           updatedAt: a.created_at,
           actionKind: a.kind,
         });
       }
     }
 
-    // 2. Also check chat_messages for assistant action blocks to capture any generated scripts
+    // 2. Check chat_messages for assistant action blocks to capture any generated scripts or objects
     const { data: messages } = await context.supabase
       .from("chat_messages")
       .select("id, content, created_at")
@@ -320,7 +322,7 @@ export const listProjectFiles = createServerFn({ method: "GET" })
             for (const act of parsed) {
               const kind = (act.kind || "").toLowerCase();
               const p = act.payload || {};
-              const rawName = act.name || p.name;
+              const rawName = act.name || p.name || p.asset_id;
               if (!rawName) continue;
 
               let className = "Script";
@@ -329,6 +331,9 @@ export const listProjectFiles = createServerFn({ method: "GET" })
               else if (kind === "screengui" || p.className === "ScreenGui") className = "ScreenGui";
               else if (kind === "remoteevent" || p.className === "RemoteEvent") className = "RemoteEvent";
               else if (kind === "remotefunction" || p.className === "RemoteFunction") className = "RemoteFunction";
+              else if (kind === "folder" || p.className === "Folder") className = "Folder";
+              else if (kind === "part" || p.className === "Part") className = "Part";
+              else if (kind === "insert_asset" || kind === "model" || p.className === "Model") className = "Model";
               else if (p.className) className = p.className;
 
               const parentPath = normalizeParent(act.parent_path || p.parentPath || p.parent_path, className);
@@ -337,13 +342,13 @@ export const listProjectFiles = createServerFn({ method: "GET" })
                              typeof p.script === "string" ? p.script : "";
 
               const key = `${parentPath}.${rawName}`;
-              if (!fileMap.has(key) && (source.trim() || ["script", "localscript", "modulescript"].includes(kind))) {
+              if (!fileMap.has(key)) {
                 fileMap.set(key, {
                   id: `chat-${msg.id}-${rawName}`,
                   name: rawName,
                   className,
                   parentPath,
-                  source: source || `-- ${rawName} (${className})`,
+                  source: source || `-- Roblox Studio Instance: ${rawName} (${className})\n-- Location: ${parentPath}.${rawName}`,
                   updatedAt: msg.created_at,
                   actionKind: act.kind || "chat_action",
                 });
@@ -351,6 +356,56 @@ export const listProjectFiles = createServerFn({ method: "GET" })
             }
           }
         } catch {}
+      }
+    }
+
+    // 3. Check plugin_sessions for live Roblox Studio scene scan tree
+    const { data: session } = await context.supabase
+      .from("plugin_sessions")
+      .select("last_scan, last_scan_at")
+      .eq("user_id", context.userId)
+      .maybeSingle();
+
+    if (session?.last_scan) {
+      const walkNode = (node: any, currentParent = "") => {
+        if (!node || typeof node !== "object") return;
+        const name = node.name || node.Name || "Instance";
+        const cls = node.className || node.ClassName || node.class || "Instance";
+        const rawPath = node.path || node.Path || (currentParent ? `${currentParent}.${name}` : name);
+
+        const parts = rawPath.replace(/^game\./i, "").split(".");
+        const itemName = parts.pop() || name;
+        const parentPath = parts.join(".") || (cls.includes("Script") ? "ServerScriptService" : "Workspace");
+
+        const source = typeof node.source === "string" ? node.source :
+                       typeof node.code === "string" ? node.code :
+                       typeof node.script === "string" ? node.script :
+                       `-- Live Roblox Studio Instance: ${itemName} (${cls})\n-- Path: ${rawPath}`;
+
+        const key = `${parentPath}.${itemName}`;
+        if (!fileMap.has(key)) {
+          fileMap.set(key, {
+            id: `scan-${rawPath}`,
+            name: itemName,
+            className: cls,
+            parentPath,
+            source,
+            updatedAt: session.last_scan_at || new Date().toISOString(),
+            actionKind: "live_scan",
+          });
+        }
+
+        const children = node.children || node.Children;
+        if (Array.isArray(children)) {
+          for (const child of children) {
+            walkNode(child, rawPath);
+          }
+        }
+      };
+
+      const roots = Array.isArray(session.last_scan) ? session.last_scan : [session.last_scan];
+      for (const root of roots) {
+        walkNode(root, "");
       }
     }
 

@@ -152,8 +152,32 @@ export function ProjectFilesPanel({ projectId, projectName }: Props) {
       case "RemoteEvent":
       case "RemoteFunction":
         return <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-amber-400">Remote</span>;
+      case "Folder":
+        return <span className="rounded bg-cyan-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-cyan-400">Folder</span>;
+      case "Model":
+      case "Part":
+      case "MeshPart":
+        return <span className="rounded bg-emerald-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-400">3D Object</span>;
       default:
-        return <span className="rounded bg-emerald-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-400">Server</span>;
+        return <span className="rounded bg-indigo-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-300">{className}</span>;
+    }
+  };
+
+  const getItemIcon = (className: string) => {
+    switch (className) {
+      case "Folder":
+        return <Folder className="h-3.5 w-3.5 text-cyan-400 flex-shrink-0" />;
+      case "Model":
+      case "Part":
+      case "MeshPart":
+        return <PackageCheck className="h-3.5 w-3.5 text-emerald-400 flex-shrink-0" />;
+      case "ScreenGui":
+        return <Code2 className="h-3.5 w-3.5 text-pink-400 flex-shrink-0" />;
+      case "RemoteEvent":
+      case "RemoteFunction":
+        return <Zap className="h-3.5 w-3.5 text-amber-400 flex-shrink-0" />;
+      default:
+        return <FileCode className="h-3.5 w-3.5 text-slate-400 group-hover:text-cyan-300 transition-colors flex-shrink-0" />;
     }
   };
 
@@ -167,11 +191,11 @@ export function ProjectFilesPanel({ projectId, projectName }: Props) {
           </div>
           <div>
             <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
-              Project Files
+              Project Explorer
               {isRefetching && <RefreshCw className="h-3 w-3 animate-spin text-cyan-400" />}
             </h3>
             <p className="text-[11px] text-slate-400">
-              {files.length} Roblox script{files.length !== 1 ? "s" : ""} • {totalLines.toLocaleString()} lines
+              {files.length} Roblox object{files.length !== 1 ? "s" : ""} • {totalLines.toLocaleString()} lines
             </p>
           </div>
         </div>
@@ -276,7 +300,7 @@ export function ProjectFilesPanel({ projectId, projectName }: Props) {
                           className="group flex items-center justify-between px-3 py-2 text-left hover:bg-white/[0.04] cursor-pointer transition-colors"
                         >
                           <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                            <FileCode className="h-3.5 w-3.5 text-slate-400 group-hover:text-cyan-300 transition-colors flex-shrink-0" />
+                            {getItemIcon(file.className)}
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-1.5">
                                 <span className="text-xs font-medium text-slate-200 group-hover:text-white truncate">
