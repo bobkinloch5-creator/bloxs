@@ -1,8 +1,8 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { listProjectFiles } from "@/lib/project-workspace.functions";
+import { listProjectFiles, saveScriptFile } from "@/lib/project-workspace.functions";
 import {
   FolderTree,
   FileCode,
@@ -10,7 +10,6 @@ import {
   Copy,
   Check,
   Search,
-  ExternalLink,
   ChevronRight,
   ChevronDown,
   RefreshCw,
@@ -21,7 +20,12 @@ import {
   Eye,
   X,
   Code2,
-  Share2,
+  Maximize2,
+  Minimize2,
+  Pencil,
+  Save,
+  Loader2,
+  Edit3,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ExportGameModal } from "./ExportGameModal";
@@ -50,7 +54,16 @@ export function ProjectFilesPanel({ projectId, projectName }: Props) {
   const [copiedAll, setCopiedAll] = useState(false);
   const [collapsedServices, setCollapsedServices] = useState<Record<string, boolean>>({});
 
+  // Fullscreen / Expanded panel view toggle
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  // Live Code Editor states
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedCode, setEditedCode] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+
   const listFn = useServerFn(listProjectFiles);
+  const saveFn = useServerFn(saveScriptFile);
 
   const {
     data: files = [],
@@ -67,6 +80,14 @@ export function ProjectFilesPanel({ projectId, projectName }: Props) {
     enabled: Boolean(projectId),
     refetchInterval: 10000, // auto-refresh files every 10s while active
   });
+
+  // Whenever a file is selected for viewing, sync edited code buffer
+  useEffect(() => {
+    if (selectedFile) {
+      setEditedCode(selectedFile.source || "");
+      setIsEditing(false);
+    }
+  }, [selectedFile]);
 
   const totalLines = useMemo(() => {
     return files.reduce((acc, f) => acc + (f.source ? f.source.split("\n").length : 0), 0);
@@ -141,6 +162,38 @@ export function ProjectFilesPanel({ projectId, projectName }: Props) {
     }
   };
 
+  // Live save code & sync to Roblox Studio
+  const handleSaveAndSync = async () => {
+    if (!selectedFile || !projectId) return;
+    setIsSaving(true);
+    try {
+      await saveFn({
+        data: {
+          projectId,
+          name: selectedFile.name,
+          parentPath: selectedFile.parentPath,
+          className: selectedFile.className,
+          source: editedCode,
+        },
+      });
+
+      // Update local object so preview updates instantly
+      selectedFile.source = editedCode;
+      setIsEditing(false);
+      refetch();
+
+      toast.success(`⚡ Synced changes in "${selectedFile.name}" to Roblox Studio live!`, {
+        description: "The BloxSmith Studio plugin will apply your updated script on its next poll.",
+      });
+    } catch (err) {
+      toast.error("Failed to sync code to Roblox Studio", {
+        description: err instanceof Error ? err.message : String(err),
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const getClassBadge = (className: string) => {
     switch (className) {
       case "LocalScript":
@@ -181,20 +234,135 @@ export function ProjectFilesPanel({ projectId, projectName }: Props) {
     }
   };
 
+  // Render the Tree List component (used in both normal card & expanded modal view)
+  const renderTreeContent = (maxHeightClass = "max-h-[640px]") => (
+    <div className={`mt-3 ${maxHeightClass} overflow-y-auto pr-1 space-y-2 bs-smooth-scroll`}>
+      {isLoading ? (
+        <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+          <RefreshCw className="h-6 w-6 animate-spin text-cyan-400 mb-2" />
+          <span className="text-xs">Loading project hierarchy…</span>
+        </div>
+      ) : Object.keys(groupedFiles).length === 0 ? (
+        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-white/10 bg-slate-950/40 py-10 text-center px-4">
+          <FileCode className="h-8 w-8 text-slate-600 mb-2" />
+          <p className="text-xs font-medium text-slate-300">
+            {search ? "No matching files found" : "No scripts generated yet"}
+          </p>
+          <p className="text-[11px] text-slate-500 mt-1 max-w-xs">
+            Ask BloxSmith in the chat box to build system scripts or features for your Roblox place.
+          </p>
+        </div>
+      ) : (
+        Object.entries(groupedFiles).map(([service, serviceFiles]) => {
+          const isCollapsed = collapsedServices[service];
+          return (
+            <div key={service} className="rounded-xl border border-white/5 bg-slate-950/50 overflow-hidden">
+              {/* Service Group Header */}
+              <button
+                type="button"
+                onClick={() => toggleService(service)}
+                className="flex w-full items-center justify-between bg-white/[0.03] px-3.5 py-2.5 text-left hover:bg-white/[0.06] transition-colors"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  {isCollapsed ? (
+                    <ChevronRight className="h-4 w-4 text-slate-400 flex-shrink-0" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4 text-slate-400 flex-shrink-0" />
+                  )}
+                  <Folder className="h-4 w-4 text-cyan-400 flex-shrink-0" />
+                  <span className="text-xs font-bold text-slate-200 truncate">
+                    {service.replace(/^game\./, "")}
+                  </span>
+                </div>
+                <span className="rounded-full bg-slate-800/80 border border-white/5 px-2 py-0.5 text-[10px] text-slate-400 font-mono">
+                  {serviceFiles.length}
+                </span>
+              </button>
+
+              {/* Service Files */}
+              {!isCollapsed && (
+                <div className="divide-y divide-white/5 border-t border-white/5">
+                  {serviceFiles.map((file) => {
+                    const lineCount = file.source ? file.source.split("\n").length : 0;
+                    return (
+                      <div
+                        key={file.id}
+                        onClick={() => setSelectedFile(file)}
+                        className={`group flex items-center justify-between px-3.5 py-2.5 text-left hover:bg-white/[0.05] cursor-pointer transition-colors ${
+                          selectedFile?.id === file.id ? "bg-cyan-500/10 border-l-2 border-cyan-400" : ""
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                          {getItemIcon(file.className)}
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs font-semibold text-slate-200 group-hover:text-white truncate">
+                                {file.name}
+                              </span>
+                              {getClassBadge(file.className)}
+                            </div>
+                            <div className="text-[10px] text-slate-400 truncate font-mono mt-0.5">
+                              {lineCount} lines • {file.className}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1 opacity-80 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            type="button"
+                            onClick={(e) => handleCopySingle(file, e)}
+                            title="Copy Script Code"
+                            className="rounded p-1 text-slate-400 hover:bg-white/10 hover:text-white"
+                          >
+                            {copiedId === file.id ? (
+                              <Check className="h-3.5 w-3.5 text-emerald-400" />
+                            ) : (
+                              <Copy className="h-3.5 w-3.5" />
+                            )}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => handleDownloadSingle(file, e)}
+                            title="Download Luau Script"
+                            className="rounded p-1 text-slate-400 hover:bg-white/10 hover:text-white"
+                          >
+                            <Download className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedFile(file)}
+                            title="Edit & View Code"
+                            className="rounded p-1 text-slate-400 hover:bg-cyan-500/20 hover:text-cyan-300"
+                          >
+                            <Pencil className="h-3.5 w-3.5 text-cyan-400" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })
+      )}
+    </div>
+  );
+
   return (
-    <div className="flex flex-col rounded-2xl border border-white/10 bg-slate-900/90 p-4 shadow-xl backdrop-blur-xl transition-all hover:border-white/15">
-      {/* Header */}
-      <div className="flex items-center justify-between gap-2 border-b border-white/10 pb-3">
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-tr from-cyan-500/20 to-blue-500/20 text-cyan-400 border border-cyan-500/30">
-            <FolderTree className="h-4 w-4" />
+    <div className="flex flex-col rounded-2xl border border-white/10 bg-slate-900/95 p-4 sm:p-5 shadow-2xl backdrop-blur-xl transition-all hover:border-white/15">
+      {/* Main Header */}
+      <div className="flex items-center justify-between gap-2 border-b border-white/10 pb-3.5">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-cyan-500/20 to-blue-500/20 text-cyan-400 border border-cyan-500/30">
+            <FolderTree className="h-4.5 w-4.5" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
+            <h3 className="text-sm font-extrabold text-white flex items-center gap-1.5 tracking-tight">
               Project Explorer
               {isRefetching && <RefreshCw className="h-3 w-3 animate-spin text-cyan-400" />}
             </h3>
-            <p className="text-[11px] text-slate-400">
+            <p className="text-[11px] font-medium text-slate-400">
               {files.length} Roblox object{files.length !== 1 ? "s" : ""} • {totalLines.toLocaleString()} lines
             </p>
           </div>
@@ -205,14 +373,22 @@ export function ProjectFilesPanel({ projectId, projectName }: Props) {
             type="button"
             onClick={() => refetch()}
             title="Refresh Files"
-            className="rounded-lg border border-white/10 bg-slate-800/80 p-1.5 text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
+            className="rounded-xl border border-white/10 bg-slate-800/80 p-2 text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
           >
             <RefreshCw className="h-3.5 w-3.5" />
           </button>
           <button
             type="button"
+            onClick={() => setIsExpanded(true)}
+            title="Expand Fullscreen Studio Explorer & Editor"
+            className="rounded-xl border border-white/10 bg-slate-800/80 p-2 text-cyan-400 hover:bg-slate-700 hover:text-white transition-colors"
+          >
+            <Maximize2 className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
             onClick={() => setShowExportModal(true)}
-            className="flex items-center gap-1 rounded-lg bg-gradient-to-r from-blue-600 to-cyan-600 px-2.5 py-1.5 text-xs font-semibold text-white shadow-md shadow-cyan-500/20 hover:from-blue-500 hover:to-cyan-500 transition-all active:scale-95"
+            className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 px-3 py-1.5 text-xs font-bold text-white shadow-lg shadow-cyan-500/20 hover:from-blue-500 hover:to-cyan-500 transition-all active:scale-95"
           >
             <Download className="h-3.5 w-3.5" />
             Export
@@ -221,15 +397,15 @@ export function ProjectFilesPanel({ projectId, projectName }: Props) {
       </div>
 
       {/* Quick Action Toolbar */}
-      <div className="mt-3 flex items-center justify-between gap-2">
+      <div className="mt-3.5 flex items-center justify-between gap-2">
         <div className="relative flex-1">
-          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
-            placeholder="Search code files…"
+            placeholder="Search code files & instances…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-xl border border-white/10 bg-slate-950/60 py-1.5 pl-8 pr-3 text-xs text-white placeholder-slate-500 outline-none focus:border-cyan-500/50"
+            className="w-full rounded-xl border border-white/10 bg-slate-950/70 py-2 pl-9 pr-3 text-xs text-white placeholder-slate-500 outline-none focus:border-cyan-500/50"
           />
         </div>
 
@@ -237,140 +413,207 @@ export function ProjectFilesPanel({ projectId, projectName }: Props) {
           type="button"
           onClick={handleCopyInstaller}
           title="Copy 1-Shot Installer code for Roblox Studio"
-          className="flex items-center gap-1.5 rounded-xl border border-cyan-500/30 bg-cyan-950/40 px-2.5 py-1.5 text-xs font-medium text-cyan-300 hover:bg-cyan-900/50 hover:text-white transition-colors"
+          className="flex items-center gap-1.5 rounded-xl border border-cyan-500/30 bg-cyan-950/50 px-3 py-2 text-xs font-bold text-cyan-300 hover:bg-cyan-900/60 hover:text-white transition-colors"
         >
           {copiedAll ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Terminal className="h-3.5 w-3.5 text-cyan-400" />}
           <span>1-Shot Lua</span>
         </button>
       </div>
 
-      {/* File Tree List */}
-      <div className="mt-3 max-h-[420px] overflow-y-auto pr-1 space-y-2 custom-scrollbar">
-        {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-8 text-slate-400">
-            <RefreshCw className="h-6 w-6 animate-spin text-cyan-400 mb-2" />
-            <span className="text-xs">Loading project hierarchy…</span>
-          </div>
-        ) : Object.keys(groupedFiles).length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-white/10 bg-slate-950/40 py-8 text-center px-4">
-            <FileCode className="h-8 w-8 text-slate-600 mb-2" />
-            <p className="text-xs font-medium text-slate-300">
-              {search ? "No matching files found" : "No scripts generated yet"}
-            </p>
-            <p className="text-[11px] text-slate-500 mt-1">
-              Ask BloxSmith in the chat box to build system scripts or features for your Roblox place.
-            </p>
-          </div>
-        ) : (
-          Object.entries(groupedFiles).map(([service, serviceFiles]) => {
-            const isCollapsed = collapsedServices[service];
-            return (
-              <div key={service} className="rounded-xl border border-white/5 bg-slate-950/40 overflow-hidden">
-                {/* Service Group Header */}
-                <button
-                  type="button"
-                  onClick={() => toggleService(service)}
-                  className="flex w-full items-center justify-between bg-white/[0.02] px-3 py-2 text-left hover:bg-white/[0.05] transition-colors"
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    {isCollapsed ? (
-                      <ChevronRight className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
-                    ) : (
-                      <ChevronDown className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
-                    )}
-                    <Folder className="h-3.5 w-3.5 text-cyan-400 flex-shrink-0" />
-                    <span className="text-xs font-semibold text-slate-200 truncate">
-                      {service.replace(/^game\./, "")}
-                    </span>
+      {/* File Tree List (Roomier height) */}
+      {renderTreeContent("max-h-[640px]")}
+
+      {/* Fullscreen / Expanded View Portal */}
+      {isExpanded && typeof window !== "undefined" &&
+        createPortal(
+          <div className="fixed inset-0 z-[99998] flex items-center justify-center bg-black/85 backdrop-blur-xl p-4 sm:p-6">
+            <div className="flex h-[92vh] w-full max-w-7xl flex-col rounded-3xl border border-white/15 bg-slate-900 shadow-2xl overflow-hidden">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between border-b border-white/10 bg-slate-950/90 px-6 py-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
+                    <FolderTree className="h-5 w-5" />
                   </div>
-                  <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] text-slate-400 font-mono">
-                    {serviceFiles.length}
-                  </span>
-                </button>
+                  <div>
+                    <h2 className="text-base font-extrabold text-white flex items-center gap-2">
+                      {projectName} — Live Roblox Studio Hierarchy
+                    </h2>
+                    <p className="text-xs text-slate-400">
+                      {files.length} objects • {totalLines.toLocaleString()} lines of Luau code
+                    </p>
+                  </div>
+                </div>
 
-                {/* Service Files */}
-                {!isCollapsed && (
-                  <div className="divide-y divide-white/5 border-t border-white/5">
-                    {serviceFiles.map((file) => {
-                      const lineCount = file.source ? file.source.split("\n").length : 0;
-                      return (
-                        <div
-                          key={file.id}
-                          onClick={() => setSelectedFile(file)}
-                          className="group flex items-center justify-between px-3 py-2 text-left hover:bg-white/[0.04] cursor-pointer transition-colors"
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                            {getItemIcon(file.className)}
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-xs font-medium text-slate-200 group-hover:text-white truncate">
-                                  {file.name}
-                                </span>
-                                {getClassBadge(file.className)}
-                              </div>
-                              <div className="text-[10px] text-slate-500 truncate font-mono">
-                                {lineCount} lines • {file.className}
-                              </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleCopyInstaller}
+                    className="flex items-center gap-1.5 rounded-xl border border-cyan-500/40 bg-cyan-950/60 px-3.5 py-2 text-xs font-bold text-cyan-300 hover:bg-cyan-900 hover:text-white"
+                  >
+                    {copiedAll ? <Check className="h-4 w-4 text-emerald-400" /> : <Terminal className="h-4 w-4 text-cyan-400" />}
+                    <span>Copy 1-Shot Installer</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowExportModal(true)}
+                    className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 px-3.5 py-2 text-xs font-bold text-white shadow-md shadow-cyan-500/20"
+                  >
+                    <Download className="h-4 w-4" />
+                    <span>Export Game</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsExpanded(false)}
+                    className="rounded-xl border border-white/10 bg-slate-800 p-2 text-slate-400 hover:bg-white/10 hover:text-white"
+                  >
+                    <Minimize2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Modal Body: Split View (Left: Tree, Right: Code Preview / Editor) */}
+              <div className="flex flex-1 min-h-0 overflow-hidden">
+                {/* Left Tree Explorer */}
+                <div className="w-80 flex-shrink-0 border-r border-white/10 bg-slate-950/60 p-4 flex flex-col min-h-0">
+                  <div className="relative mb-3">
+                    <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="Filter files…"
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      className="w-full rounded-xl border border-white/10 bg-slate-900 py-1.5 pl-8 pr-3 text-xs text-white outline-none focus:border-cyan-500/50"
+                    />
+                  </div>
+                  <div className="flex-1 overflow-auto">
+                    {renderTreeContent("h-full")}
+                  </div>
+                </div>
+
+                {/* Right Code Editor / Viewer */}
+                <div className="flex-1 flex flex-col bg-slate-950 min-h-0 overflow-hidden">
+                  {selectedFile ? (
+                    <>
+                      {/* Code Header Bar */}
+                      <div className="flex items-center justify-between border-b border-white/10 bg-slate-900/80 px-6 py-3">
+                        <div className="flex items-center gap-3">
+                          <FileCode className="h-5 w-5 text-cyan-400" />
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h3 className="text-sm font-bold text-white">{selectedFile.name}</h3>
+                              {getClassBadge(selectedFile.className)}
                             </div>
-                          </div>
-
-                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button
-                              type="button"
-                              onClick={(e) => handleCopySingle(file, e)}
-                              title="Copy Script Code"
-                              className="rounded p-1 text-slate-400 hover:bg-white/10 hover:text-white"
-                            >
-                              {copiedId === file.id ? (
-                                <Check className="h-3.5 w-3.5 text-emerald-400" />
-                              ) : (
-                                <Copy className="h-3.5 w-3.5" />
-                              )}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={(e) => handleDownloadSingle(file, e)}
-                              title="Download Luau Script"
-                              className="rounded p-1 text-slate-400 hover:bg-white/10 hover:text-white"
-                            >
-                              <Download className="h-3.5 w-3.5" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setSelectedFile(file)}
-                              title="View Full Code"
-                              className="rounded p-1 text-slate-400 hover:bg-white/10 hover:text-white"
-                            >
-                              <Eye className="h-3.5 w-3.5 text-cyan-400" />
-                            </button>
+                            <p className="text-xs font-mono text-slate-400">
+                              {selectedFile.parentPath}.{selectedFile.name}
+                            </p>
                           </div>
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            );
-          })
-        )}
-      </div>
 
-      {/* Code Viewer Modal */}
-      {selectedFile && typeof window !== "undefined" &&
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setIsEditing(!isEditing)}
+                            className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition-all ${
+                              isEditing
+                                ? "border-amber-500/50 bg-amber-500/10 text-amber-300"
+                                : "border-white/10 bg-slate-800 text-slate-200 hover:bg-slate-700 hover:text-white"
+                            }`}
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                            <span>{isEditing ? "Viewing Mode" : "Edit Code"}</span>
+                          </button>
+
+                          {isEditing && (
+                            <button
+                              type="button"
+                              onClick={handleSaveAndSync}
+                              disabled={isSaving}
+                              className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-1.5 text-xs font-bold text-white shadow-lg shadow-emerald-500/20 hover:from-emerald-500 hover:to-teal-500 transition-all disabled:opacity-50"
+                            >
+                              {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
+                              <span>Save & Sync to Studio</span>
+                            </button>
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={(e) => handleCopySingle(selectedFile, e)}
+                            className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-700 hover:text-white"
+                          >
+                            {copiedId === selectedFile.id ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5 text-cyan-400" />}
+                            <span>Copy</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Code Content Area */}
+                      <div className="flex-1 overflow-auto bg-[#0d0d1f] p-4 font-mono text-xs text-slate-200 leading-relaxed bs-smooth-scroll">
+                        {isEditing ? (
+                          <textarea
+                            value={editedCode}
+                            onChange={(e) => setEditedCode(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Tab") {
+                                e.preventDefault();
+                                const start = e.currentTarget.selectionStart;
+                                const end = e.currentTarget.selectionEnd;
+                                const val = e.currentTarget.value;
+                                setEditedCode(val.substring(0, start) + "  " + val.substring(end));
+                                setTimeout(() => {
+                                  if (e.currentTarget) {
+                                    e.currentTarget.selectionStart = e.currentTarget.selectionEnd = start + 2;
+                                  }
+                                }, 0);
+                              }
+                            }}
+                            className="w-full h-full min-h-[500px] bg-transparent text-slate-100 font-mono text-xs outline-none resize-none leading-relaxed"
+                            placeholder="Write Luau code here…"
+                          />
+                        ) : (
+                          <pre className="whitespace-pre-wrap break-words">
+                            {(selectedFile.source || "").split("\n").map((line, idx) => (
+                              <div key={idx} className="flex hover:bg-white/[0.04] py-0.5">
+                                <span className="w-12 select-none text-right pr-4 text-slate-600 flex-shrink-0 font-mono">
+                                  {idx + 1}
+                                </span>
+                                <span className="flex-1 font-mono">{line || " "}</span>
+                              </div>
+                            ))}
+                          </pre>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-full text-slate-500">
+                      <FileCode className="h-12 w-12 text-slate-700 mb-3" />
+                      <p className="text-sm font-semibold text-slate-400">Select a script from the tree to view or edit code</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+
+      {/* Code Viewer / Editor Modal (When clicked in normal view) */}
+      {selectedFile && !isExpanded && typeof window !== "undefined" &&
         createPortal(
           <div
-            className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/75 backdrop-blur-md p-4"
+            className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/80 backdrop-blur-md p-4"
             onClick={() => setSelectedFile(null)}
           >
             <div
-              className="flex max-h-[85vh] w-full max-w-3xl flex-col rounded-2xl border border-white/15 bg-slate-900 shadow-2xl overflow-hidden"
+              className="flex max-h-[88vh] w-full max-w-4xl flex-col rounded-2xl border border-white/15 bg-slate-900 shadow-2xl overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Modal Header */}
-              <div className="flex items-center justify-between border-b border-white/10 bg-slate-950/80 px-5 py-3.5">
+              <div className="flex items-center justify-between border-b border-white/10 bg-slate-950/90 px-5 py-3.5">
                 <div className="flex items-center gap-2.5">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
-                    <FileCode className="h-4 w-4" />
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
+                    <FileCode className="h-4.5 w-4.5" />
                   </div>
                   <div>
                     <h3 className="text-sm font-bold text-white flex items-center gap-2">
@@ -384,6 +627,31 @@ export function ProjectFilesPanel({ projectId, projectName }: Props) {
                 </div>
 
                 <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditing(!isEditing)}
+                    className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-bold transition-all ${
+                      isEditing
+                        ? "border-amber-500/50 bg-amber-500/10 text-amber-300"
+                        : "border-white/10 bg-slate-800 text-slate-200 hover:bg-slate-700 hover:text-white"
+                    }`}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                    <span>{isEditing ? "Viewing Mode" : "Edit Code"}</span>
+                  </button>
+
+                  {isEditing && (
+                    <button
+                      type="button"
+                      onClick={handleSaveAndSync}
+                      disabled={isSaving}
+                      className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-md shadow-emerald-500/20 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-50"
+                    >
+                      {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
+                      <span>Save & Sync to Studio</span>
+                    </button>
+                  )}
+
                   <button
                     type="button"
                     onClick={(e) => handleCopySingle(selectedFile, e)}
@@ -416,32 +684,68 @@ export function ProjectFilesPanel({ projectId, projectName }: Props) {
                 </div>
               </div>
 
-              {/* Code Content Box */}
-              <div className="flex-1 overflow-auto bg-slate-950 p-4 font-mono text-xs text-slate-200 custom-scrollbar leading-relaxed">
-                <pre className="whitespace-pre-wrap break-words">
-                  {selectedFile.source.split("\n").map((line, idx) => (
-                    <div key={idx} className="flex hover:bg-white/[0.03]">
-                      <span className="w-10 select-none text-right pr-4 text-slate-600 flex-shrink-0">
-                        {idx + 1}
-                      </span>
-                      <span className="flex-1">{line || " "}</span>
-                    </div>
-                  ))}
-                </pre>
+              {/* Code Editor / Viewer Box */}
+              <div className="flex-1 overflow-auto bg-[#0c0c1e] p-4 font-mono text-xs text-slate-200 leading-relaxed bs-smooth-scroll min-h-[350px]">
+                {isEditing ? (
+                  <textarea
+                    value={editedCode}
+                    onChange={(e) => setEditedCode(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Tab") {
+                        e.preventDefault();
+                        const start = e.currentTarget.selectionStart;
+                        const end = e.currentTarget.selectionEnd;
+                        const val = e.currentTarget.value;
+                        setEditedCode(val.substring(0, start) + "  " + val.substring(end));
+                        setTimeout(() => {
+                          if (e.currentTarget) {
+                            e.currentTarget.selectionStart = e.currentTarget.selectionEnd = start + 2;
+                          }
+                        }, 0);
+                      }
+                    }}
+                    className="w-full h-full min-h-[400px] bg-transparent text-slate-100 font-mono text-xs outline-none resize-none leading-relaxed"
+                    placeholder="Write Luau code here…"
+                  />
+                ) : (
+                  <pre className="whitespace-pre-wrap break-words">
+                    {(selectedFile.source || "").split("\n").map((line, idx) => (
+                      <div key={idx} className="flex hover:bg-white/[0.04] py-0.5">
+                        <span className="w-10 select-none text-right pr-4 text-slate-600 flex-shrink-0">
+                          {idx + 1}
+                        </span>
+                        <span className="flex-1">{line || " "}</span>
+                      </div>
+                    ))}
+                  </pre>
+                )}
               </div>
 
               {/* Modal Footer */}
               <div className="flex items-center justify-between border-t border-white/10 bg-slate-950/90 px-5 py-3 text-xs text-slate-400">
                 <span>
-                  {selectedFile.source.split("\n").length} lines • {selectedFile.source.length} characters
+                  {(isEditing ? editedCode : selectedFile.source).split("\n").length} lines • {(isEditing ? editedCode : selectedFile.source).length} characters
                 </span>
-                <button
-                  type="button"
-                  onClick={() => setSelectedFile(null)}
-                  className="rounded-lg bg-slate-800 px-4 py-1.5 font-medium text-white hover:bg-slate-700 transition-colors"
-                >
-                  Close
-                </button>
+                <div className="flex items-center gap-2">
+                  {isEditing && (
+                    <button
+                      type="button"
+                      onClick={handleSaveAndSync}
+                      disabled={isSaving}
+                      className="rounded-lg bg-emerald-600 px-4 py-1.5 font-bold text-white hover:bg-emerald-500 transition-colors flex items-center gap-1.5"
+                    >
+                      <Zap className="h-3.5 w-3.5" />
+                      <span>Save & Sync</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedFile(null)}
+                    className="rounded-lg bg-slate-800 px-4 py-1.5 font-medium text-white hover:bg-slate-700 transition-colors"
+                  >
+                    Close
+                  </button>
+                </div>
               </div>
             </div>
           </div>,

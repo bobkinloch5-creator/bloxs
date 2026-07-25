@@ -467,3 +467,40 @@ export const listProjectFiles = createServerFn({ method: "GET" })
     return Array.from(fileMap.values());
   });
 
+// ---------- Save / Edit Script File & Sync to Roblox Studio ----------
+export const saveScriptFile = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) => z.object({
+    projectId: uuid,
+    name: z.string().min(1).max(200),
+    parentPath: z.string().max(300),
+    className: z.string().max(100),
+    source: z.string().max(500000),
+  }).parse(input))
+  .handler(async ({ data, context }) => {
+    const clsLower = data.className.toLowerCase();
+    const kind = clsLower.includes("local") ? "localscript" : clsLower.includes("module") ? "modulescript" : "script";
+
+    const { error } = await context.supabase.from("plugin_actions").insert({
+      user_id: context.user.id,
+      project_id: data.projectId,
+      kind,
+      name: data.name,
+      parent_path: data.parentPath,
+      payload: {
+        source: data.source,
+        className: data.className,
+        updated_at: new Date().toISOString(),
+      },
+      status: "pending",
+    });
+
+    if (error) {
+      console.error("[saveScriptFile] Failed to queue script action:", error);
+      throw new Error(error.message);
+    }
+
+    return { ok: true, synced: true };
+  });
+
+
