@@ -4,6 +4,14 @@ All notable changes to BloxSmith are tracked here. Dates are UTC.
 
 ## [Unreleased]
 
+### 2026-07-25 - Roblox Studio Project Explorer & Hierarchy Mirroring
+
+**Project Files Explorer & Hierarchy Mirroring (`src/lib/project-workspace.functions.ts`, `src/components/ProjectFilesPanel.tsx`)**
+- Integrated real-time 3-way data aggregation into `listProjectFiles`: combines manual Roblox Studio plugin actions, chat assistant `bloxsmith-actions` history snippets, and live `plugin_sessions` scene scans (`last_scan`).
+- Normalized service paths and instance hierarchy, automatically routing scripts and models to their respective Roblox services (`Workspace`, `ServerScriptService`, `ReplicatedStorage`, `StarterGui`, etc.).
+- Enhanced `ProjectFilesPanel` UI with dynamic class badges and visual icons for Roblox object types (Folders, Models, BaseParts, Remotes, Scripts, GUIs, etc.).
+- Verified export functionality so full project exports accurately reflect all mirrored Roblox instances and AI-generated scripts.
+
 ### 2026-07-25 - 3D Engine: Complete migration to NVIDIA Trellis 3D API
 
 **NVIDIA Trellis 3D NIM Migration (`src/lib/trellis3d.functions.ts`, `src/lib/models3d.functions.ts`)**

@@ -1,12 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, Bell, Bot, Box, Brain, Check, CheckCircle2, ChevronDown, Copy, Gauge, ImageIcon, Lightbulb, Link2, ListChecks, Palette, Rocket, ScrollText, Search, Share2, ShieldCheck, Sparkles, Users, Wrench, X, Zap } from "lucide-react";
+import { AlertTriangle, Bell, Bot, Box, Brain, Check, CheckCircle2, ChevronDown, Copy, Folder, Gauge, ImageIcon, Lightbulb, Link2, ListChecks, Palette, Rocket, ScrollText, Search, Share2, ShieldCheck, Sparkles, Users, Wrench, X, Zap } from "lucide-react";
 import { checkChangelogCoverage, warnIfIncomplete } from "@/lib/changelog-coverage";
 import bloxsmithLogo from "@/assets/bloxsmith-logo.png.asset.json";
 
 
-const CHANGELOG_VERSION = "2026-07-25-nvidia-trellis-3d-overhaul";
+const CHANGELOG_VERSION = "2026-07-25-roblox-project-explorer-mirroring";
 
 const CHANGELOG_ITEMS = [
+  {
+    title: "📂 Roblox Studio Hierarchy Mirroring & Project Explorer",
+    date: "Jul 25",
+    icon: Folder,
+    body: "The Project Explorer on the dashboard now functions as a real-time, high-fidelity mirror of your Roblox Studio project hierarchy. Aggregates live scene scans (Folders, Models, Terrains, Parts), plugin actions, and AI chat generation history into a unified project tree with custom Roblox iconography, dynamic badges, and full project export capabilities.",
+  },
   {
     title: "🧊 NVIDIA Trellis 3D Generator — Ultra-High Quality 3D Engine Migration",
     date: "Jul 25",
