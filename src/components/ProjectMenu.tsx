@@ -13,6 +13,7 @@ import {
   duplicateProject, exportProject, updateProjectSettings, importProject,
 } from "@/lib/project-workspace.functions";
 import { deleteProject } from "@/lib/projects.functions";
+import { ExportGameModal } from "@/components/ExportGameModal";
 
 export type ProjectMenuProject = {
   id: string;
@@ -29,6 +30,7 @@ export function ProjectMenu({ project, onChanged }: { project: ProjectMenuProjec
   const [thumbOpen, setThumbOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [exportModalOpen, setExportModalOpen] = useState(false);
   const navigate = useNavigate();
   const qc = useQueryClient();
   const favFn = useServerFn(toggleProjectFavorite);
@@ -142,7 +144,7 @@ export function ProjectMenu({ project, onChanged }: { project: ProjectMenuProjec
               <Item icon={Star} label={project.is_favorite ? "Unfavorite" : "Favorite"} onClick={() => fav.mutate()} />
               <Item icon={Pin} label={project.pinned_at ? "Unpin" : "Pin"} onClick={() => pin.mutate()} />
               <Item icon={Copy} label="Duplicate" onClick={() => dup.mutate()} />
-              <Item icon={Download} label="Export" onClick={onExport} />
+              <Item icon={Download} label="Export Game (Multi-Platform)" onClick={() => setExportModalOpen(true)} />
               <Item icon={Upload} label="Import Project" onClick={() => setImportOpen(true)} />
               <Item icon={RefreshCw} label="Refresh" onClick={() => { invalidate(); toast.success("Refreshed"); }} />
               <div className="h-px bg-white/5" />
@@ -160,6 +162,13 @@ export function ProjectMenu({ project, onChanged }: { project: ProjectMenuProjec
         )}
       </div>
 
+      {exportModalOpen && (
+        <ExportGameModal
+          projectId={project.id}
+          projectName={project.name}
+          onClose={() => setExportModalOpen(false)}
+        />
+      )}
       {renameOpen && (
         <RenameDialog
           project={project}

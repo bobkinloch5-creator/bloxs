@@ -1,11 +1,12 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   Sparkles, Radio, Cpu, Wrench, Box, BookOpen, Bot, Hammer, FileCode,
   LayoutDashboard, Gauge, Bug, ScanLine, PlayCircle, Zap, Crown, Lightbulb,
   Upload, ImageIcon, Timer, ArrowRight, Activity, CheckCircle2, Rocket,
-  Wand2, ShieldCheck, Loader2,
+  Wand2, ShieldCheck, Loader2, Download,
 } from "lucide-react";
 import { SmartTooltip, HelpModeToggle, HelpCaption, type SmartHelp } from "@/components/SmartTooltip";
+import { ExportGameModal } from "@/components/ExportGameModal";
 
 type IconT = typeof Box;
 
@@ -88,6 +89,7 @@ const ACTION_HELP: Record<string, SmartHelp & { recommended?: boolean }> = {
   "Safety Scan": { title: "Safety Scan", description: "Checks assets, scripts, remotes, and permissions for unsafe patterns.", estTime: "5–15s", affectsProject: false, credits: "10" },
   "Test Game": { title: "Test Game", description: "Verifies spawn, movement, buttons, NPCs, shop/save systems and reports failures.", estTime: "10–20s", affectsProject: false, credits: "10" },
 
+  "Export Game": { title: "Export Game", description: "Export game scripts & structure to Rojo ZIP, 1-Shot Installer script, roblox-ts, or Luau bundle.", estTime: "1–5s", affectsProject: false, credits: "0", recommended: true },
   "Publish Checklist": { title: "Publish Checklist", description: "Generates title, description, tags, thumbnail idea, mobile check, and things to test before release.", estTime: "5–10s", affectsProject: false, credits: "5" },
   "Final Report": { title: "Final Report", description: "Summarizes what was built, what was fixed, and what to test next.", estTime: "5–10s", affectsProject: false, credits: "5" },
   "Update Generator": { title: "Update Generator", description: "Writes an update log for what changed since your last build.", estTime: "5–10s", affectsProject: false, credits: "5" },
@@ -163,6 +165,7 @@ const CATEGORIES: Array<{ title: string; icon: IconT; tone: string; items: Array
     icon: Upload,
     tone: "#22c55e",
     items: [
+      { label: "Export Game", icon: Download },
       { label: "Publish Checklist", icon: BookOpen },
       { label: "Final Report", icon: FileCode },
       { label: "Update Generator", icon: Sparkles },
@@ -208,6 +211,11 @@ export function LiveWorkspaceHome({
     : null;
 
   const safeTemplates = Array.isArray(templates) ? templates.filter((t) => t && typeof t.prompt === "string" && typeof t.label === "string") : [];
+  const [exportModalOpen, setExportModalOpen] = useState(false);
+
+  const activeProjectId = (project as any)?.id || (typeof window !== "undefined" ? localStorage.getItem("bs:activeProjectId") : null) || "";
+  const activeProjectName = (project as any)?.title || (project as any)?.name || "Roblox Experience";
+
   const handlePrompt = (p: string) => {
     try {
       if (typeof p !== "string" || !p.trim()) return;
@@ -216,18 +224,29 @@ export function LiveWorkspaceHome({
       console.error("[LiveWorkspaceHome] onPrompt failed", err);
     }
   };
+
   const handleAction = (label: string) => {
     try {
       if (!label) return;
+      if (label === "Export Game") {
+        setExportModalOpen(true);
+        return;
+      }
       onAction(label);
     } catch (err) {
       console.error("[LiveWorkspaceHome] onAction failed", err);
     }
   };
 
-
   return (
     <div className="bs-msg-in flex flex-col gap-5">
+      {exportModalOpen && (
+        <ExportGameModal
+          projectId={activeProjectId}
+          projectName={activeProjectName}
+          onClose={() => setExportModalOpen(false)}
+        />
+      )}
       {/* HERO */}
       <div
         className="relative overflow-hidden rounded-2xl p-5 sm:p-7"
