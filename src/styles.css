@@ -446,8 +446,10 @@ html { scroll-behavior: smooth; }
 }
 
 /* Iridescent gradient hairline border that glows on hover */
-.vapor-card {
+:where(.vapor-card) {
   position: relative;
+}
+.vapor-card {
   background: linear-gradient(180deg, #131329 0%, #0e0e22 100%);
   border-radius: 18px;
   border: 1px solid rgba(255,255,255,0.05);
