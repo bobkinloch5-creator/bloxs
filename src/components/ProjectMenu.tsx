@@ -14,6 +14,10 @@ import {
 } from "@/lib/project-workspace.functions";
 import { deleteProject } from "@/lib/projects.functions";
 import { ExportGameModal } from "@/components/ExportGameModal";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export type ProjectMenuProject = {
   id: string;
@@ -113,54 +117,62 @@ export function ProjectMenu({ project, onChanged }: { project: ProjectMenuProjec
     } catch { toast.error("Copy failed"); }
   };
 
-  const Item = ({ icon: Icon, label, danger, onClick, to, params }: any) => {
-    const body = (
-      <div className={`flex items-center gap-2 px-3 py-2 text-sm ${danger ? "text-rose-300 hover:bg-rose-500/10" : "text-slate-100 hover:bg-white/5"} cursor-pointer`}>
-        <Icon className="h-4 w-4 opacity-80" />
+  const MenuItem = ({ icon: Icon, label, danger, onClick, to }: any) => {
+    if (to) {
+      return (
+        <DropdownMenuItem asChild className={`cursor-pointer gap-2 py-2 text-xs font-medium ${danger ? "text-rose-300 focus:bg-rose-500/15 focus:text-rose-200" : "text-slate-200 focus:bg-white/10 focus:text-white"}`}>
+          <Link to={to}>
+            <Icon className="h-3.5 w-3.5 opacity-80" />
+            <span>{label}</span>
+          </Link>
+        </DropdownMenuItem>
+      );
+    }
+    return (
+      <DropdownMenuItem
+        onClick={onClick}
+        className={`cursor-pointer gap-2 py-2 text-xs font-medium ${danger ? "text-rose-300 focus:bg-rose-500/15 focus:text-rose-200" : "text-slate-200 focus:bg-white/10 focus:text-white"}`}
+      >
+        <Icon className="h-3.5 w-3.5 opacity-80" />
         <span>{label}</span>
-      </div>
+      </DropdownMenuItem>
     );
-    if (to) return <Link to={to} params={params} onClick={() => setOpen(false)}>{body}</Link>;
-    return <button className="w-full text-left" onClick={() => { setOpen(false); onClick?.(); }}>{body}</button>;
   };
 
   return (
     <Fragment>
-      <div className="relative">
-        <button
-          className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-white/5 hover:text-slate-100"
-          onClick={(e) => { e.stopPropagation(); e.preventDefault(); setOpen((v) => !v); }}
-          aria-label="Project menu"
-        >
-          <MoreVertical className="h-4 w-4" />
-        </button>
-        {open && (
-          <>
-            <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-            <div className="absolute right-0 top-9 z-50 w-60 overflow-hidden rounded-xl border border-white/10 bg-slate-900/95 shadow-2xl backdrop-blur">
-              <Item icon={FolderOpen} label="Open" onClick={openInWorkspace} />
-              <Item icon={Pencil} label="Rename" onClick={() => setRenameOpen(true)} />
-              <Item icon={ImageIcon} label="Change Thumbnail" onClick={() => setThumbOpen(true)} />
-              <Item icon={Star} label={project.is_favorite ? "Unfavorite" : "Favorite"} onClick={() => fav.mutate()} />
-              <Item icon={Pin} label={project.pinned_at ? "Unpin" : "Pin"} onClick={() => pin.mutate()} />
-              <Item icon={Copy} label="Duplicate" onClick={() => dup.mutate()} />
-              <Item icon={Download} label="Export Game (Multi-Platform)" onClick={() => setExportModalOpen(true)} />
-              <Item icon={Upload} label="Import Project" onClick={() => setImportOpen(true)} />
-              <Item icon={RefreshCw} label="Refresh" onClick={() => { invalidate(); toast.success("Refreshed"); }} />
-              <div className="h-px bg-white/5" />
-              <Item icon={BarChart3} label="View Statistics" to="/history" />
-              <Item icon={HistoryIcon} label="View Build History" to="/history" />
-              <Item icon={MessageSquare} label="View Chat History" onClick={openInWorkspace} />
-              <Item icon={Link2} label="Copy Project Link" onClick={copyLink} />
-              <Item icon={Users} label="Manage Collaborators" to="/collaborators" />
-              <Item icon={SettingsIcon} label="Project Settings" onClick={() => setSettingsOpen(true)} />
-              <div className="h-px bg-white/5" />
-              <Item icon={Archive} label={project.archived_at ? "Unarchive" : "Archive"} onClick={() => arch.mutate()} />
-              <Item icon={Trash2} label="Delete" danger onClick={() => { if (confirm(`Delete "${project.name}"? This cannot be undone.`)) del.mutate(); }} />
-            </div>
-          </>
-        )}
-      </div>
+      <DropdownMenu open={open} onOpenChange={setOpen}>
+        <DropdownMenuTrigger asChild>
+          <button
+            className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-white/10 hover:text-slate-100 focus:outline-none"
+            aria-label="Project menu"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <MoreVertical className="h-4 w-4" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="z-[9999] w-64 border-white/15 bg-slate-950/95 shadow-2xl backdrop-blur-xl">
+          <MenuItem icon={FolderOpen} label="Open" onClick={openInWorkspace} />
+          <MenuItem icon={Pencil} label="Rename" onClick={() => setRenameOpen(true)} />
+          <MenuItem icon={ImageIcon} label="Change Thumbnail" onClick={() => setThumbOpen(true)} />
+          <MenuItem icon={Star} label={project.is_favorite ? "Unfavorite" : "Favorite"} onClick={() => fav.mutate()} />
+          <MenuItem icon={Pin} label={project.pinned_at ? "Unpin" : "Pin"} onClick={() => pin.mutate()} />
+          <MenuItem icon={Copy} label="Duplicate" onClick={() => dup.mutate()} />
+          <MenuItem icon={Download} label="Export Game (Multi-Platform)" onClick={() => setExportModalOpen(true)} />
+          <MenuItem icon={Upload} label="Import Project" onClick={() => setImportOpen(true)} />
+          <MenuItem icon={RefreshCw} label="Refresh" onClick={() => { invalidate(); toast.success("Refreshed"); }} />
+          <DropdownMenuSeparator className="bg-white/10" />
+          <MenuItem icon={BarChart3} label="View Statistics" to="/history" />
+          <MenuItem icon={HistoryIcon} label="View Build History" to="/history" />
+          <MenuItem icon={MessageSquare} label="View Chat History" onClick={openInWorkspace} />
+          <MenuItem icon={Link2} label="Copy Project Link" onClick={copyLink} />
+          <MenuItem icon={Users} label="Manage Collaborators" to="/collaborators" />
+          <MenuItem icon={SettingsIcon} label="Project Settings" onClick={() => setSettingsOpen(true)} />
+          <DropdownMenuSeparator className="bg-white/10" />
+          <MenuItem icon={Archive} label={project.archived_at ? "Unarchive" : "Archive"} onClick={() => arch.mutate()} />
+          <MenuItem icon={Trash2} label="Delete" danger onClick={() => { if (confirm(`Delete "${project.name}"? This cannot be undone.`)) del.mutate(); }} />
+        </DropdownMenuContent>
+      </DropdownMenu>
 
       {exportModalOpen && (
         <ExportGameModal
