@@ -342,3 +342,181 @@ export const toggleCommentResolved = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+// ============ Creator Discovery & Team Hub ============
+
+export const searchCreators = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .validator((i: unknown) => z.object({ query: z.string().trim().min(1).max(80) }).parse(i))
+  .handler(async ({ data, context }) => {
+    const { data: profs, error } = await context.supabase
+      .from("profiles_public" as any)
+      .select("id, username, display_name, avatar_url, bio, plan")
+      .or(`username.ilike.%${data.query}%,display_name.ilike.%${data.query}%`)
+      .limit(12);
+    if (error) throw new Error(error.message);
+    return ((profs as any[]) ?? []).filter((p) => p.id !== context.userId);
+  });
+
+export const listMyTeamProjects = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data: owned, error: oErr } = await context.supabase
+      .from("projects")
+      .select("id, name, description, game_type, user_id, updated_at, created_at, is_public")
+      .eq("user_id", context.userId)
+      .order("updated_at", { ascending: false });
+    if (oErr) throw new Error(oErr.message);
+
+    const { data: collabRows, error: cErr } = await context.supabase
+      .from("project_collaborators")
+      .select("project_id, role, added_at")
+      .eq("user_id", context.userId);
+    if (cErr) throw new Error(cErr.message);
+
+    const collabPids = (collabRows ?? []).map((r: any) => r.project_id);
+    let sharedProjects: any[] = [];
+    if (collabPids.length > 0) {
+      const { data: sp, error: spErr } = await context.supabase
+        .from("projects")
+        .select("id, name, description, game_type, user_id, updated_at, created_at, is_public")
+        .in("id", collabPids);
+      if (spErr) throw new Error(spErr.message);
+      sharedProjects = sp ?? [];
+    }
+
+    const allProjects = [...(owned ?? []), ...sharedProjects];
+    const allProjectIds = Array.from(new Set(allProjects.map((p) => p.id)));
+
+    let memberMap: Record<string, any[]> = {};
+    let inviteCountMap: Record<string, number> = {};
+
+    if (allProjectIds.length > 0) {
+      const { data: collabs } = await context.supabase
+        .from("project_collaborators")
+        .select("project_id, user_id, role")
+        .in("project_id", allProjectIds);
+
+      const { data: invs } = await context.supabase
+        .from("project_invites")
+        .select("project_id")
+        .in("project_id", allProjectIds)
+        .eq("status", "pending");
+
+      (invs ?? []).forEach((inv: any) => {
+        inviteCountMap[inv.project_id] = (inviteCountMap[inv.project_id] || 0) + 1;
+      });
+
+      const uids = Array.from(
+        new Set([
+          ...allProjects.map((p) => p.user_id),
+          ...(collabs ?? []).map((c: any) => c.user_id),
+        ]),
+      );
+
+      let profiles: Record<string, any> = {};
+      if (uids.length > 0) {
+        const { data: profs } = await context.supabase
+          .from("profiles_public" as any)
+          .select("id, username, display_name, avatar_url")
+          .in("id", uids);
+        for (const p of (profs as any[]) ?? []) profiles[p.id] = p;
+      }
+
+      for (const p of allProjects) {
+        const ownerProf = profiles[p.user_id] ?? null;
+        const projectCollabs = (collabs ?? [])
+          .filter((c: any) => c.project_id === p.id)
+          .map((c: any) => ({
+            ...c,
+            profile: profiles[c.user_id] ?? null,
+          }));
+
+        memberMap[p.id] = [
+          { user_id: p.user_id, role: "owner", profile: ownerProf },
+          ...projectCollabs,
+        ];
+      }
+    }
+
+    return {
+      owned: (owned ?? []).map((p) => ({
+        ...p,
+        is_owner: true,
+        role: "owner",
+        members: memberMap[p.id] ?? [],
+        pending_invites_count: inviteCountMap[p.id] ?? 0,
+      })),
+      shared: sharedProjects.map((p) => {
+        const myCollab = collabRows?.find((r: any) => r.project_id === p.id);
+        return {
+          ...p,
+          is_owner: false,
+          role: myCollab?.role ?? "editor",
+          members: memberMap[p.id] ?? [],
+          pending_invites_count: inviteCountMap[p.id] ?? 0,
+        };
+      }),
+    };
+  });
+
+export const listAllTeamActivity = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .validator((i: unknown) => z.object({ limit: z.number().int().min(1).max(100).default(30) }).parse(i))
+  .handler(async ({ data, context }) => {
+    const { data: owned } = await context.supabase
+      .from("projects")
+      .select("id")
+      .eq("user_id", context.userId);
+    const { data: collab } = await context.supabase
+      .from("project_collaborators")
+      .select("project_id")
+      .eq("user_id", context.userId);
+
+    const projectIds = Array.from(
+      new Set([
+        ...(owned ?? []).map((p: any) => p.id),
+        ...(collab ?? []).map((c: any) => c.project_id),
+      ]),
+    );
+
+    if (projectIds.length === 0) return [];
+
+    const { data: activity, error } = await context.supabase
+      .from("project_activity")
+      .select("id, project_id, user_id, kind, summary, meta, created_at")
+      .in("project_id", projectIds)
+      .order("created_at", { ascending: false })
+      .limit(data.limit);
+
+    if (error) throw new Error(error.message);
+
+    const pids = Array.from(new Set((activity ?? []).map((a: any) => a.project_id)));
+    const uids = Array.from(new Set((activity ?? []).map((a: any) => a.user_id).filter(Boolean)));
+
+    let projectsMap: Record<string, any> = {};
+    let profilesMap: Record<string, any> = {};
+
+    if (pids.length > 0) {
+      const { data: ps } = await context.supabase
+        .from("projects")
+        .select("id, name")
+        .in("id", pids);
+      for (const p of ps ?? []) projectsMap[p.id] = p;
+    }
+
+    if (uids.length > 0) {
+      const { data: profs } = await context.supabase
+        .from("profiles_public" as any)
+        .select("id, username, display_name, avatar_url")
+        .in("id", uids);
+      for (const p of (profs as any[]) ?? []) profilesMap[p.id] = p;
+    }
+
+    return (activity ?? []).map((a: any) => ({
+      ...a,
+      project: projectsMap[a.project_id] ?? null,
+      profile: a.user_id ? profilesMap[a.user_id] ?? null : null,
+    }));
+  });
+
