@@ -242,11 +242,26 @@ export const listProjectFiles = createServerFn({ method: "GET" })
       actionKind: string;
     }>();
 
+    const normalizeParent = (rawParent: string | undefined, className: string): string => {
+      let p = (rawParent || "").trim();
+      p = p.replace(/^game\./i, "");
+      if (p.toLowerCase() === "game") p = "";
+      if (!p) {
+        if (className === "LocalScript") return "StarterPlayerScripts";
+        if (className === "ModuleScript") return "ReplicatedStorage";
+        if (className === "ScreenGui") return "StarterGui";
+        if (className === "RemoteEvent" || className === "RemoteFunction") return "ReplicatedStorage";
+        if (["Part", "Model", "Folder", "MeshPart"].includes(className)) return "Workspace";
+        return "ServerScriptService";
+      }
+      return p;
+    };
+
+    // 1. Process plugin_actions
     for (const a of actions ?? []) {
       const p = (a.payload ?? {}) as Record<string, any>;
       const kind = (a.kind ?? "").toLowerCase();
       const rawName = a.name || p.name || "Untitled";
-      const rawParent = a.parent_path || p.parentPath || p.parent_path || "ServerScriptService";
 
       let className = "Script";
       if (kind === "localscript" || p.className === "LocalScript") className = "LocalScript";
@@ -258,13 +273,15 @@ export const listProjectFiles = createServerFn({ method: "GET" })
       else if (kind === "part" || p.className === "Part") className = "Part";
       else if (p.className) className = p.className;
 
+      const parentPath = normalizeParent(a.parent_path || p.parentPath || p.parent_path, className);
+
       const source = typeof p.source === "string" ? p.source :
                      typeof p.code === "string" ? p.code :
                      typeof p.script === "string" ? p.script :
                      typeof p.lua === "string" ? p.lua :
                      typeof p.luau === "string" ? p.luau : "";
 
-      const key = `${rawParent}.${rawName}`;
+      const key = `${parentPath}.${rawName}`;
 
       if (kind.includes("delete") || kind.includes("remove")) {
         fileMap.delete(key);
@@ -273,11 +290,67 @@ export const listProjectFiles = createServerFn({ method: "GET" })
           id: a.id,
           name: rawName,
           className,
-          parentPath: rawParent,
+          parentPath,
           source: source || `-- ${rawName} (${className})`,
           updatedAt: a.created_at,
           actionKind: a.kind,
         });
+      }
+    }
+
+    // 2. Also check chat_messages for assistant action blocks to capture any generated scripts
+    const { data: messages } = await context.supabase
+      .from("chat_messages")
+      .select("id, content, created_at")
+      .eq("project_id", data.projectId)
+      .eq("role", "assistant")
+      .order("created_at", { ascending: true })
+      .limit(30);
+
+    for (const msg of messages ?? []) {
+      const content = msg.content || "";
+      const blocks = content.match(/```bloxsmith-actions([\s\S]*?)```/g);
+      if (!blocks) continue;
+
+      for (const block of blocks) {
+        const jsonStr = block.replace(/```bloxsmith-actions\s*/, "").replace(/```$/, "").trim();
+        try {
+          const parsed = JSON.parse(jsonStr);
+          if (Array.isArray(parsed)) {
+            for (const act of parsed) {
+              const kind = (act.kind || "").toLowerCase();
+              const p = act.payload || {};
+              const rawName = act.name || p.name;
+              if (!rawName) continue;
+
+              let className = "Script";
+              if (kind === "localscript" || p.className === "LocalScript") className = "LocalScript";
+              else if (kind === "modulescript" || p.className === "ModuleScript") className = "ModuleScript";
+              else if (kind === "screengui" || p.className === "ScreenGui") className = "ScreenGui";
+              else if (kind === "remoteevent" || p.className === "RemoteEvent") className = "RemoteEvent";
+              else if (kind === "remotefunction" || p.className === "RemoteFunction") className = "RemoteFunction";
+              else if (p.className) className = p.className;
+
+              const parentPath = normalizeParent(act.parent_path || p.parentPath || p.parent_path, className);
+              const source = typeof p.source === "string" ? p.source :
+                             typeof p.code === "string" ? p.code :
+                             typeof p.script === "string" ? p.script : "";
+
+              const key = `${parentPath}.${rawName}`;
+              if (!fileMap.has(key) && (source.trim() || ["script", "localscript", "modulescript"].includes(kind))) {
+                fileMap.set(key, {
+                  id: `chat-${msg.id}-${rawName}`,
+                  name: rawName,
+                  className,
+                  parentPath,
+                  source: source || `-- ${rawName} (${className})`,
+                  updatedAt: msg.created_at,
+                  actionKind: act.kind || "chat_action",
+                });
+              }
+            }
+          }
+        } catch {}
       }
     }
 
