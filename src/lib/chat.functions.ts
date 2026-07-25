@@ -46,8 +46,8 @@ function scriptValidationErrors(action: { kind?: string; name?: string; payload?
     .replace(/--\[\[[\s\S]*?\]\]/g, "")
     .replace(/--[^\n]*/g, "")
     .trim();
-  if (executable.length < 8 || /^\s*(TODO|placeholder|add your code here|simple server script is running)\s*$/i.test(executable)) {
-    errors.unshift("Script source is empty, placeholder, or comment-only.");
+  if (executable.length < 25 || /TODO|placeholder|add your code here|simple server script is running/i.test(source)) {
+    errors.unshift("Script source is empty, placeholder, comment-only, or too small to be executable.");
   }
   return errors;
 }

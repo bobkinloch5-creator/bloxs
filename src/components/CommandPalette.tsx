@@ -41,7 +41,7 @@ const NAV: Nav[] = [
   { label: "Projects", to: "/projects", icon: FolderKanban },
   { label: "History", to: "/history", icon: History, keywords: "past builds" },
   { label: "Plugin", to: "/plugin", icon: Puzzle, keywords: "roblox studio pair" },
-  { label: "3D Models", to: "/models", icon: Sparkles, keywords: "trellis nvidia generate 3d" },
+  { label: "3D Models", to: "/models", icon: Sparkles, keywords: "meshy generate 3d" },
   { label: "UI Generator", to: "/ui-generator", icon: Palette, keywords: "gui design" },
   { label: "Collaborators", to: "/collaborators", icon: Users, keywords: "team invite" },
   { label: "Referrals", to: "/referrals", icon: Gift, keywords: "invite friends" },

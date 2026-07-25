@@ -3,81 +3,67 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 
 const COOLDOWN_MS = 24 * 60 * 60 * 1000;
-
-const TRELLIS_URL = "https://ai.api.nvidia.com/v1/genai/microsoft/trellis";
-const TRELLIS_STATUS_URL = "https://api.nvcf.nvidia.com/v2/nvcf/pexec/status";
+const MESHY_BASE = "https://api.meshy.ai/openapi";
 const ROBLOX_ASSET_UPLOAD_URL = "https://apis.roblox.com/assets/v1/assets";
 const SUPPORTED_BRIDGE_FORMATS = ["glb", "gltf", "fbx", "rbxm", "rbxmx"] as const;
 const ROBLOX_MODEL_UPLOAD_LIMIT = 20 * 1024 * 1024;
 
-function nvidiaKey() {
-  const k = process.env.NVIDIA_API_KEY || process.env.NIM_API_KEY || process.env.NGC_API_KEY;
-  if (!k) throw new Error("NVIDIA_API_KEY is not configured. Set NVIDIA_API_KEY in your environment to use NVIDIA Trellis 3D generation.");
+function meshyKey() {
+  const k = process.env.MESHY_API_KEY;
+  if (!k) throw new Error("MESHY_API_KEY is not configured.");
   return k;
 }
 
-async function trellisGenerate(body: Record<string, unknown>): Promise<{ glbUrl?: string; result?: unknown }> {
-  const key = nvidiaKey();
-  const res = await fetch(TRELLIS_URL, {
-    method: "POST",
+async function meshyFetch(path: string, init?: RequestInit) {
+  const res = await fetch(`${MESHY_BASE}${path}`, {
+    ...init,
     headers: {
-      Authorization: `Bearer ${key}`,
-      Accept: "application/json",
+      Authorization: `Bearer ${meshyKey()}`,
       "Content-Type": "application/json",
+      ...(init?.headers || {}),
     },
-    body: JSON.stringify(body),
   });
-
-  // 202 = async job — poll the status URL
-  if (res.status === 202) {
-    const reqId = res.headers.get("nvcf-reqid");
-    if (!reqId) throw new Error("Trellis returned 202 without a request ID.");
-    return await trellisPoll(reqId, key);
+  const text = await res.text();
+  let json: any = null;
+  try { json = text ? JSON.parse(text) : null; } catch { /* keep as text */ }
+  if (!res.ok) {
+    const msg = (json && (json.message || json.error)) || text || `Meshy ${res.status}`;
+    throw new Error(typeof msg === "string" ? msg : JSON.stringify(msg));
   }
-
-  const json = await res.json().catch(() => null);
-  if (!res.ok) throw new Error(`Trellis error ${res.status}: ${JSON.stringify(json)}`);
-  return parseTrellisResult(json);
+  return json;
 }
 
-async function trellisPoll(reqId: string, key: string, maxMs = 180_000): Promise<{ glbUrl?: string; result?: unknown }> {
-  const start = Date.now();
-  while (Date.now() - start < maxMs) {
-    await new Promise((r) => setTimeout(r, 4000));
-    const res = await fetch(`${TRELLIS_STATUS_URL}/${reqId}`, {
-      headers: { Authorization: `Bearer ${key}`, Accept: "application/json" },
-    });
-    if (res.status === 202) continue;
-    const body = await res.json().catch(() => null);
-    if (res.ok) return parseTrellisResult(body);
-    throw new Error(`Trellis status ${res.status}: ${JSON.stringify(body)}`);
-  }
-  throw new Error("Trellis timed out after 3 minutes. Try a simpler prompt or a smaller image.");
-}
-
-function parseTrellisResult(json: any): { glbUrl?: string; result?: unknown } {
-  // Trellis returns the GLB as base64 artifacts or a signed CDN URL.
-  // Check common response shapes.
-  const artifacts = json?.artifacts ?? json?.output?.artifacts ?? [];
-  for (const a of artifacts) {
-    if (a?.encoding === "base64" && a?.value) {
-      // Store as a data URL so the browser model-viewer can open it
-      return { glbUrl: `data:model/gltf-binary;base64,${a.value}`, result: json };
-    }
-    if (typeof a?.url === "string" && /\.glb/i.test(a.url)) {
-      return { glbUrl: a.url, result: json };
-    }
-  }
-  // Fallback: return the raw result for storage
-  return { result: json };
+function looksLikeUnsupportedOptionalField(error: unknown) {
+  const msg = error instanceof Error ? error.message : String(error || "");
+  return /enable_pbr|pbr|unknown field|unsupported|not supported|invalid parameter|unrecognized/i.test(msg);
 }
 
 function materialRichPrompt(prompt?: string | null) {
   const base = String(prompt || "").trim();
-  const textureHint = "game-ready 3D asset with visible material textures, clean UVs, Roblox-friendly PBR materials";
+  const textureHint = "game-ready 3D asset with visible material textures, clean UVs, albedo/base color, roughness, metalness, and normal-map style surface detail, Roblox-friendly PBR materials";
   if (!base) return textureHint;
-  if (/\b(texture|textured|material|pbr|uv|normal map|roughness|metalness|albedo)\b/i.test(base)) return base;
+  if (/\b(texture|textured|material|pbr|uv|normal map|roughness|metalness|albedo)\b/i.test(base)) {
+    return base;
+  }
   return `${base}, ${textureHint}`;
+}
+
+async function startTextTo3dJob(body: Record<string, unknown>) {
+  const richBody = { ...body, enable_pbr: true };
+  try {
+    return await meshyFetch("/v2/text-to-3d", {
+      method: "POST",
+      body: JSON.stringify(richBody),
+    });
+  } catch (error) {
+    if (!looksLikeUnsupportedOptionalField(error)) throw error;
+    const fallbackBody = { ...richBody };
+    delete (fallbackBody as any).enable_pbr;
+    return meshyFetch("/v2/text-to-3d", {
+      method: "POST",
+      body: JSON.stringify(fallbackBody),
+    });
+  }
 }
 
 function robloxOpenCloudKey() {
@@ -215,11 +201,13 @@ export const startModelGeneration = createServerFn({ method: "POST" })
     topology: z.enum(["triangle", "quad"]).default("triangle"),
     targetPolycount: z.number().int().min(1000).max(300000).default(30000),
     autoRefine: z.boolean().default(true),
+    // ai_model is always "latest" (Meshy 6) for highest quality; not exposed as user input
   }).parse(i))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
 
-    // Role checks — admins/owners bypass the 24h cooldown
+    // Check if the user is an owner/admin to grant unlimited generations.
+    // Role checks are the single source of truth — no hardcoded emails.
     let isAdmin = false;
     try {
       const { data: adminFlag } = await supabase.rpc("current_user_has_role", { _role: "admin" });
@@ -228,6 +216,7 @@ export const startModelGeneration = createServerFn({ method: "POST" })
     } catch {}
 
     if (!isAdmin) {
+      // 24h rate-limit (per user) — only counts text/image, not animations/retexture/refine of existing models
       const { data: last } = await supabase
         .from("model_generations")
         .select("created_at")
@@ -253,26 +242,41 @@ export const startModelGeneration = createServerFn({ method: "POST" })
       throw new Error("Please provide an image URL or upload an image.");
     }
 
-    // ── NVIDIA Trellis generation ──────────────────────────────────────────
-    let glbUrl: string | undefined;
-    let trellisResult: unknown;
+    let taskId: string;
     try {
-      const body: Record<string, unknown> = {};
       if (data.mode === "text") {
-        body.prompt = materialRichPrompt(data.prompt);
+        // Use "latest" = Meshy 6 (highest quality; meshy-4 is retired as of March 2026)
+        // should_remesh defaults to false for meshy-6/latest per Meshy docs
+        const body: Record<string, unknown> = {
+          mode: "preview",
+          prompt: materialRichPrompt(data.prompt),
+          ai_model: "latest",
+          topology: data.topology,
+          target_polycount: data.targetPolycount,
+        };
+        if (data.negativePrompt) body.negative_prompt = data.negativePrompt;
+        if (data.artStyle) body.art_style = data.artStyle;
+        const res = await startTextTo3dJob(body);
+        taskId = res.result;
       } else {
-        // Trellis image-to-3D: pass the image as a URL or base64 data URL
-        body.image = data.imageUrl;
+        // image-to-3d does not consistently accept enable_pbr, so request latest quality and
+        // keep any returned embedded materials / texture maps during polling.
+        const body: Record<string, unknown> = {
+          image_url: data.imageUrl,
+          ai_model: "latest",
+          topology: data.topology,
+          target_polycount: data.targetPolycount,
+        };
+        const res = await meshyFetch("/v1/image-to-3d", {
+          method: "POST",
+          body: JSON.stringify(body),
+        });
+        taskId = res.result;
       }
-      const out = await trellisGenerate(body);
-      glbUrl = out.glbUrl;
-      trellisResult = out.result;
     } catch (e) {
-      throw new Error(`NVIDIA Trellis could not generate the 3D model: ${e instanceof Error ? e.message : String(e)}`);
+      throw new Error(`Meshy could not start the 3D job: ${e instanceof Error ? e.message : String(e)}`);
     }
 
-    // Insert the completed generation row — Trellis is synchronous so we store
-    // the result immediately as SUCCEEDED rather than PENDING.
     const { data: row, error } = await supabase
       .from("model_generations")
       .insert({
@@ -280,16 +284,12 @@ export const startModelGeneration = createServerFn({ method: "POST" })
         project_id: data.projectId ?? null,
         mode: data.mode,
         prompt: data.prompt ?? null,
+        // art_style is sent to Meshy only — the DB schema does not have this column
         image_url: data.mode === "image" ? data.imageUrl?.slice(0, 1000) ?? null : null,
-        // task_id not used for Trellis — store a placeholder so existing code doesn't break
-        task_id: `trellis-${Date.now()}`,
-        status: glbUrl ? "SUCCEEDED" : "PENDING",
-        progress: glbUrl ? 100 : 0,
-        model_url: glbUrl ?? null,
-        model_urls: glbUrl ? { glb: glbUrl } : {},
-        completed_at: glbUrl ? new Date().toISOString() : null,
-        source: "trellis",
-      } as any)
+        task_id: taskId,
+        status: "PENDING",
+        progress: 0,
+      })
       .select()
       .single();
     if (error) throw new Error(error.message);
@@ -522,8 +522,115 @@ export const pollModelGeneration = createServerFn({ method: "POST" })
       .eq("user_id", userId)
       .maybeSingle();
     if (!gen) throw new Error("Generation not found.");
-    // Trellis generations are stored as SUCCEEDED immediately — nothing to poll.
-    return gen;
+    if (gen.status === "FAILED") return gen;
+    const savedUrls = (gen.model_urls || {}) as Record<string, string>;
+    const hasSavedPreview = !!(gen.model_url || savedUrls.glb || savedUrls.gltf);
+    if (gen.status === "SUCCEEDED" && hasSavedPreview) return gen;
+    if (!gen.task_id) return gen;
+
+    const meta = ((gen as any).meta ?? {}) as Record<string, any>;
+    const stage = String(meta.stage ?? "");
+    const path =
+      gen.mode === "image" ? `/v1/image-to-3d/${gen.task_id}`
+      : gen.mode === "animation" ? `/v1/animations/${gen.task_id}`
+      : gen.mode === "rig" && stage === "remesh" ? `/v1/remesh/${gen.task_id}`
+      : gen.mode === "rig" ? `/v1/rigging/${gen.task_id}`
+      : gen.mode === "texture" ? `/v1/text-to-texture/${gen.task_id}`
+      : gen.mode === "refine" ? `/v2/text-to-3d/${gen.task_id}`
+      : `/v2/text-to-3d/${gen.task_id}`;
+
+    let res: any;
+    try { res = await meshyFetch(path); } catch { return gen; }
+
+    const status = String(res.status || gen.status).toUpperCase();
+    const progress = Number(res.progress ?? gen.progress ?? 0);
+    const modelUrls = res?.model_urls ?? null;
+    const textureUrls = res?.texture_urls ?? null;
+    // Prefer GLB (browser preview), but fall back to any format Meshy returned
+    // so the model row always has a `model_url` when files exist. This keeps the
+    // Download panel visible for rig/animation jobs that may only ship FBX.
+    const modelUrl =
+      modelUrls?.glb ?? modelUrls?.gltf ?? modelUrls?.fbx ?? modelUrls?.usdz ??
+      modelUrls?.obj ?? modelUrls?.blend ?? res?.model_url ?? null;
+    const thumb = res?.thumbnail_url ?? null;
+    const err = res?.task_error?.message ?? null;
+
+    // Chain: when the remesh stage of a rig job finishes, kick off the actual rigging.
+    if (gen.mode === "rig" && stage === "remesh" && status === "SUCCEEDED") {
+      try {
+        const rig = await meshyFetch("/v1/rigging", {
+          method: "POST",
+          body: JSON.stringify({ input_task_id: gen.task_id }),
+        });
+        const newMeta = { ...meta, stage: "rigging" };
+        const { data: chained } = await supabase.from("model_generations").update({
+          task_id: rig.result,
+          status: "PENDING",
+          progress: 0,
+          meta: newMeta,
+          error: null,
+        } as any).eq("id", gen.id).select().single();
+        return chained ?? gen;
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        const friendly = /pose\s*estimation|valid\s*model|not\s*humanoid|humanoid/i.test(msg)
+          ? "Meshy rigging is humanoid-only — it couldn't detect a two-arm/two-leg pose in this model (common for animals, quadrupeds, vehicles, or objects). Generate a humanoid character (e.g. \"stylized human warrior standing, arms out, T-pose\") and rig that instead."
+          : `Could not start rigging after remesh: ${msg}`;
+        const { data: failed } = await supabase.from("model_generations").update({
+          status: "FAILED",
+          error: friendly,
+          completed_at: new Date().toISOString(),
+        } as any).eq("id", gen.id).select().single();
+        return failed ?? gen;
+      }
+    }
+
+    const update: any = { status, progress };
+    if (modelUrl) update.model_url = modelUrl;
+    if (modelUrls) update.model_urls = modelUrls;
+    if (textureUrls) update.texture_urls = textureUrls;
+    if (thumb) update.thumbnail_url = thumb;
+    if (err) {
+      update.error = /pose\s*estimation|valid\s*model/i.test(err) && gen.mode === "rig"
+        ? "Meshy rigging is humanoid-only — it couldn't detect a two-arm/two-leg pose in this model (common for animals, quadrupeds, vehicles, or objects). Generate a humanoid character (e.g. \"stylized human warrior standing, arms out, T-pose\") and rig that instead."
+        : err;
+    }
+    if (status === "SUCCEEDED" || status === "FAILED") update.completed_at = new Date().toISOString();
+
+    const { data: updated } = await supabase
+      .from("model_generations")
+      .update(update)
+      .eq("id", gen.id)
+      .select()
+      .single();
+
+    // Auto-refine: when a preview text-to-3d succeeds, kick off a refine task once
+    if (status === "SUCCEEDED" && gen.mode === "text" && !gen.parent_id) {
+      const { data: already } = await supabase
+        .from("model_generations")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("parent_id", gen.id)
+        .eq("mode", "refine")
+        .maybeSingle();
+      if (!already) {
+        try {
+          const refine = await startTextTo3dJob({ mode: "refine", preview_task_id: gen.task_id });
+          await supabase.from("model_generations").insert({
+            user_id: userId,
+            project_id: gen.project_id,
+            mode: "refine",
+            prompt: `Refined — ${gen.prompt ?? "model"}`,
+            task_id: refine.result,
+            status: "PENDING",
+            progress: 0,
+            parent_id: gen.id,
+          });
+        } catch { /* refine optional */ }
+      }
+    }
+
+    return updated ?? gen;
   });
 
 
@@ -542,8 +649,85 @@ export const rigModel = createServerFn({ method: "POST" })
     projectId: z.string().uuid().optional(),
     sourceId: z.string().uuid(),
   }).parse(i))
-  .handler(async () => {
-    throw new Error("Auto-rigging is not available with NVIDIA Trellis. Export your GLB and rig it in Blender or use a dedicated rigging service.");
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: source } = await supabase
+      .from("model_generations").select("*")
+      .eq("id", data.sourceId).eq("user_id", userId).maybeSingle();
+    if (!source) throw new Error("Source 3D model not found.");
+    if (source.status !== "SUCCEEDED" || !source.task_id) throw new Error("Source model must finish generating before it can be rigged.");
+    if (source.mode === "animation" || source.mode === "rig") throw new Error("Pick an original 3D model to rig, not an animation or existing rig.");
+
+    // Meshy rigging is humanoid-only. Reject obviously non-humanoid prompts up-front
+    // so the user doesn't wait 2 minutes for "Pose estimation failed".
+    const promptText = String(source.prompt ?? "").toLowerCase();
+    const nonHumanoid = /\b(dog|cat|wolf|fox|bear|lion|tiger|horse|cow|pig|sheep|goat|deer|rabbit|bunny|mouse|rat|snake|lizard|dragon|dinosaur|t[-\s]?rex|raptor|fish|shark|whale|dolphin|octopus|crab|spider|bee|bird|eagle|owl|chicken|duck|penguin|turtle|frog|quadruped|animal|creature|beast|monster|car|truck|vehicle|plane|boat|ship|tank|robot\s*dog|mech(?!\s*warrior)|weapon|sword|gun|rifle|axe|shield|hammer|bow|staff|wand|building|house|castle|tree|rock|stone|chair|table|furniture|food|fruit|hat|helmet)\b/;
+    if (nonHumanoid.test(promptText)) {
+      throw new Error(`Meshy rigging is humanoid-only and can't rig "${source.prompt}". It needs a two-arm/two-leg character with clear limbs facing forward. Generate a humanoid character (e.g. "stylized human warrior standing, arms out, T-pose") and rig that instead.`);
+    }
+
+    let taskId: string;
+    let stage: "remesh" | "rigging" = "rigging";
+    // Rigging needs textured humanoid meshes ≤ 300k faces. If the initial rig call
+    // fails for any reason that looks like a mesh-side problem (face count, topology,
+    // pose estimation, "not found" on stale task), auto-remesh to 150k triangles
+    // via the CORRECT v1 endpoint (v2/remesh doesn't exist — returns "Not found")
+    // and re-chain rigging inside pollModelGeneration once the remesh succeeds.
+    const shouldTryRemesh = (msg: string) =>
+      /face|polycount|300[,\s]*000|limit|topology|pose|not\s*found|422|400/i.test(msg);
+    try {
+      const res = await meshyFetch("/v1/rigging", {
+        method: "POST",
+        body: JSON.stringify({
+          input_task_id: source.task_id,
+          height_meters: 1.7,
+          // Ask Meshy to emit GLB (plus FBX) so the browser <model-viewer> preview works
+          // and the site can play the rig/animation directly. Without this, rigging
+          // defaults to FBX only and the website shows "needs GLB or glTF".
+          output_format: "glb",
+          target_formats: ["glb", "fbx"],
+        }),
+      });
+      taskId = res.result;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (shouldTryRemesh(msg)) {
+        try {
+          const remesh = await meshyFetch("/v1/remesh", {
+            method: "POST",
+            body: JSON.stringify({
+              input_task_id: source.task_id,
+              target_polycount: 150000,
+              topology: "triangle",
+              target_formats: ["glb"],
+            }),
+          });
+          taskId = remesh.result;
+          stage = "remesh";
+        } catch (e2) {
+          const msg2 = e2 instanceof Error ? e2.message : String(e2);
+          throw new Error(
+            `Meshy couldn't start rigging: ${msg}. Auto-remesh also failed: ${msg2}. ` +
+            `Tips: rigging needs a textured HUMANOID model with clear limbs facing +Z. Try a fresh text-to-3D refine of the character (not a re-texture, not an animation), then Rig it.`
+          );
+        }
+      } else {
+        throw new Error(`Meshy could not start the rig: ${msg}`);
+      }
+    }
+
+    const promptLabel = `Rigged — ${source.prompt ?? "model"}`;
+    const { data: row, error } = await supabase
+      .from("model_generations")
+      .insert({
+        user_id: userId, project_id: data.projectId ?? source.project_id ?? null, mode: "rig",
+        prompt: promptLabel, task_id: taskId, status: "PENDING", progress: 0,
+        parent_id: source.id,
+        meta: { stage, original_task_id: source.task_id } as any,
+      } as any)
+      .select().single();
+    if (error) throw new Error(error.message);
+    return row;
   });
 
 
@@ -554,8 +738,44 @@ export const animateModel = createServerFn({ method: "POST" })
     sourceId: z.string().uuid(),
     animation: z.enum(ANIMATION_PRESETS),
   }).parse(i))
-  .handler(async () => {
-    throw new Error("Animation is not available with NVIDIA Trellis. Export your GLB and animate it in Blender or a dedicated animation tool.");
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: source } = await supabase
+      .from("model_generations").select("*")
+      .eq("id", data.sourceId).eq("user_id", userId).maybeSingle();
+    if (!source) throw new Error("Source 3D model not found.");
+    if (source.status !== "SUCCEEDED" || !source.task_id) throw new Error("Source model must finish generating before it can be animated.");
+    if (source.mode === "animation") throw new Error("Pick an original 3D model to animate, not another animation.");
+
+    let taskId: string;
+    try {
+      const res = await meshyFetch("/v1/animations", {
+        method: "POST",
+        body: JSON.stringify({
+          input_task_id: source.task_id,
+          animation_name: data.animation,
+          // Force GLB so the in-browser <model-viewer> can play the animation.
+          // FBX (Meshy default) is unsupported by browser preview.
+          output_format: "glb",
+          target_formats: ["glb", "fbx"],
+        }),
+      });
+      taskId = res.result;
+    } catch (e) {
+      throw new Error(`Meshy could not start the animation: ${e instanceof Error ? e.message : String(e)}`);
+    }
+
+    const promptLabel = `${data.animation.charAt(0).toUpperCase() + data.animation.slice(1)} — ${source.prompt ?? "model"}`;
+    const { data: row, error } = await supabase
+      .from("model_generations")
+      .insert({
+        user_id: userId, project_id: data.projectId ?? source.project_id ?? null, mode: "animation",
+        prompt: promptLabel, task_id: taskId, status: "PENDING", progress: 0,
+        animation_name: data.animation, parent_id: source.id,
+      })
+      .select().single();
+    if (error) throw new Error(error.message);
+    return row;
   });
 
 export const retextureModel = createServerFn({ method: "POST" })
@@ -566,8 +786,61 @@ export const retextureModel = createServerFn({ method: "POST" })
     texturePrompt: z.string().trim().min(3).max(400),
     artStyle: z.enum(["realistic", "fake-3d-cartoon", "japanese-anime", "cartoon-line-art", "realistic-hand-drawn", "fake-3d-hand-drawn", "oriental-comic-ink"]).default("realistic"),
   }).parse(i))
-  .handler(async () => {
-    throw new Error("Re-texturing is not available with NVIDIA Trellis. To retexture a model, use a tool like Blender or Substance Painter.");
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: source } = await supabase
+      .from("model_generations").select("*")
+      .eq("id", data.sourceId).eq("user_id", userId).maybeSingle();
+    if (!source) throw new Error("Source 3D model not found.");
+    if (source.status !== "SUCCEEDED" || !source.task_id) throw new Error("Source model must finish generating before it can be re-textured.");
+    if (source.mode === "animation" || source.mode === "texture") throw new Error("Pick an original 3D model to re-texture.");
+
+    let taskId: string;
+    try {
+      // enable_pbr is supported on text-to-texture endpoint; wrap in try/catch so an
+      // unsupported field never kills the whole retexture job.
+      const textureBody: Record<string, unknown> = {
+        model_url: source.model_url,
+        object_prompt: source.prompt ?? "3D model",
+        style_prompt: data.texturePrompt,
+        enable_original_uv: true,
+        enable_pbr: true,
+        art_style: data.artStyle,
+      };
+      let res: any;
+      try {
+        res = await meshyFetch("/v1/text-to-texture", {
+          method: "POST",
+          body: JSON.stringify(textureBody),
+        });
+      } catch (pbr_err) {
+        // If enable_pbr or another optional field caused rejection, retry without them
+        const msg = pbr_err instanceof Error ? pbr_err.message : String(pbr_err);
+        if (msg.toLowerCase().includes("enable_pbr") || msg.toLowerCase().includes("not supported")) {
+          delete textureBody.enable_pbr;
+          res = await meshyFetch("/v1/text-to-texture", {
+            method: "POST",
+            body: JSON.stringify(textureBody),
+          });
+        } else {
+          throw pbr_err;
+        }
+      }
+      taskId = res.result;
+    } catch (e) {
+      throw new Error(`Meshy could not start re-texture: ${e instanceof Error ? e.message : String(e)}`);
+    }
+
+    const { data: row, error } = await supabase
+      .from("model_generations")
+      .insert({
+        user_id: userId, project_id: data.projectId ?? source.project_id ?? null, mode: "texture",
+        prompt: `Retexture: ${data.texturePrompt}`,
+        task_id: taskId, status: "PENDING", progress: 0, parent_id: source.id,
+      })
+      .select().single();
+    if (error) throw new Error(error.message);
+    return row;
   });
 
 function formatRemaining(ms: number) {

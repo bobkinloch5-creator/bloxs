@@ -27,7 +27,6 @@ import { friendlyError } from "@/lib/friendly-error";
 import { MODELS, isSelectable } from "@/lib/models";
 import { pickModelForTask, estimateDifficulty } from "@/lib/model-router";
 import { ChatHistoryButton } from "@/components/ChatHistoryButton";
-import { ModelSelector } from "@/components/ModelSelector";
 
 
 
@@ -557,18 +556,21 @@ export function WorkspaceChat({
   const isBuild = mode === "build";
 
   return (
-    <div className="rounded-2xl border border-white/15 bg-white/[0.04] p-3 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)] sm:p-5">
+    <div className="relative overflow-hidden rounded-2xl border border-indigo-500/20 bg-[#0b0c20]/85 p-4 shadow-[0_25px_65px_-15px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:p-6 transition-all duration-300">
+      {/* Top ambient glowing accent line */}
+      <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 opacity-90" />
+
       {/* Chat / Build segmented toggle */}
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <div className="inline-flex rounded-xl border border-white/15 bg-black/30 p-1">
+      <div className="mb-4 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2.5">
+          <div className="inline-flex rounded-xl border border-white/15 bg-black/50 p-1 shadow-inner backdrop-blur-md">
             <button
               type="button"
               onClick={() => setComposerMode("chat")}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+              className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-bold transition-all duration-200 ${
                 mode === "chat"
-                  ? "bg-indigo-500 text-white shadow-[0_6px_18px_-8px_rgba(99,102,241,0.9)]"
-                  : "text-slate-300 hover:text-white hover:bg-white/5"
+                  ? "bg-gradient-to-r from-cyan-600 to-indigo-600 text-white shadow-[0_0_15px_rgba(6,182,212,0.4)]"
+                  : "text-slate-400 hover:text-white hover:bg-white/5"
               }`}
               aria-pressed={mode === "chat"}
             >
@@ -577,10 +579,10 @@ export function WorkspaceChat({
             <button
               type="button"
               onClick={() => setComposerMode("build")}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+              className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-bold transition-all duration-200 ${
                 mode === "build"
-                  ? "bg-indigo-500 text-white shadow-[0_6px_18px_-8px_rgba(99,102,241,0.9)]"
-                  : "text-slate-300 hover:text-white hover:bg-white/5"
+                  ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-[0_0_15px_rgba(99,102,241,0.5)]"
+                  : "text-slate-400 hover:text-white hover:bg-white/5"
               }`}
               aria-pressed={mode === "build"}
             >
@@ -597,20 +599,35 @@ export function WorkspaceChat({
 
         <div className="flex flex-col items-end gap-1">
           <div className="flex items-center gap-2">
-            <label className="hidden sm:flex items-center gap-1.5 text-[11px] font-semibold text-slate-300">
-              <Sparkles className="h-3 w-3 text-indigo-300" />
+            <div className="hidden sm:flex items-center gap-1.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-indigo-300">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
               Model
-            </label>
-            <ModelSelector
-              selectedModel={selectedModel}
-              onSelectModel={setSelectedModel}
-              availableModels={availableModels}
-            />
+            </div>
+            <select
+              value={selectedModel}
+              onChange={(e) => setSelectedModel(e.target.value)}
+              className="max-w-[260px] rounded-xl border border-white/15 bg-black/60 px-3 py-1.5 text-xs font-medium text-slate-100 shadow-sm transition hover:border-indigo-400/50 hover:bg-black/80 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+              title="Choose which AI model handles your next messages. Auto picks the best model for what you're doing."
+            >
+              <option value="auto" className="bg-slate-900 text-slate-100" title="Auto-selects the fastest, most capable model for chat vs build vs scripting.">
+                ⚡ Auto — best model for what you're doing
+              </option>
+              {availableModels.map((m) => (
+                <option
+                  key={m.id}
+                  value={m.id}
+                  className="bg-slate-900 text-slate-100"
+                  title={m.bestFor}
+                >
+                  {m.label} · {m.bestFor.length > 60 ? m.bestFor.slice(0, 60) + "…" : m.bestFor}
+                </option>
+              ))}
+            </select>
           </div>
           {/* Roblox-focused description of what the current model does for your games */}
           <p className="max-w-[280px] text-right text-[10.5px] leading-snug text-slate-400">
             {selectedModel === "auto"
-              ? "Auto: uses fast NVIDIA routes first — Qwen Coder for Luau & build actions."
+              ? "Auto: uses stable fast NVIDIA routes first — Qwen Coder for Luau/build actions and Gemma/Nemotron for planning."
               : (availableModels.find((m) => m.id === selectedModel)?.bestFor ?? "")}
           </p>
         </div>
@@ -683,7 +700,7 @@ export function WorkspaceChat({
       {messages.length > 0 && (
         <div
           ref={scrollerRef}
-          className="mb-3 max-h-[420px] overflow-y-auto rounded-xl border border-white/10 bg-black/40 p-3 text-sm"
+          className="mb-4 max-h-[440px] overflow-y-auto rounded-xl border border-white/10 bg-slate-950/70 p-4 text-sm shadow-inner space-y-3"
         >
           {messages.map((m) => {
             const rawText = m.parts.map((p: any) => (p.type === "text" ? p.text : "")).join("");
@@ -691,18 +708,18 @@ export function WorkspaceChat({
             const imgs = m.role === "user" ? m.parts.filter((p: any) => p.type === "file" && p.mediaType?.startsWith?.("image/")) as any[] : [];
             const genImages = m.role === "assistant" ? extractGeneratedImages(m.parts as any[]) : [];
             return (
-              <div key={m.id} className={`mb-3 flex gap-2 ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+              <div key={m.id} className={`flex gap-3 ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                 <div
-                  className={`max-w-[85%] rounded-xl px-3 py-2 ${
+                  className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed transition-all ${
                     m.role === "user"
-                      ? "bg-indigo-500 text-white"
-                      : "bg-white/[0.06] text-slate-100 border border-white/10"
+                      ? "rounded-tr-xs bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-700 text-white shadow-[0_4px_20px_rgba(99,102,241,0.25)] border border-indigo-400/30 font-medium"
+                      : "rounded-tl-xs bg-slate-900/90 text-slate-100 border border-white/10 shadow-md backdrop-blur-md"
                   }`}
                 >
                   {imgs.length > 0 && (
-                    <div className="mb-1 flex flex-wrap gap-1">
+                    <div className="mb-2 flex flex-wrap gap-1.5">
                       {imgs.map((im, i) => (
-                        <img key={i} src={im.url} alt="" className="max-h-96 w-auto rounded-lg object-contain" />
+                        <img key={i} src={im.url} alt="" className="max-h-96 w-auto rounded-xl object-contain border border-white/15 shadow-md" />
                       ))}
                     </div>
                   )}
@@ -710,7 +727,7 @@ export function WorkspaceChat({
                     <ReactMarkdown>{text || (m.role === "assistant" && status === "streaming" ? "Working on it…" : "")}</ReactMarkdown>
                   </div>
                   {genImages.length > 0 && (
-                    <div className="mt-2 space-y-2">
+                    <div className="mt-2.5 space-y-2.5">
                       {genImages.map((im, i) => (
                         <GeneratedImageCard
                           key={i}
@@ -730,46 +747,54 @@ export function WorkspaceChat({
             );
           })}
           {(status === "submitted" || status === "streaming") && (
-            <div className="flex items-center gap-2 text-xs text-slate-300">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              {status === "submitted" ? "Planning your build…" : "Building and sending to Studio…"}
+            <div className="flex items-center gap-2.5 rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-3.5 py-2.5 text-xs text-indigo-200 shadow-sm">
+              <Loader2 className="h-4 w-4 animate-spin text-indigo-300" />
+              <span className="font-semibold">{status === "submitted" ? "Planning your build…" : "Building and sending to Studio…"}</span>
             </div>
           )}
           {stopped && status !== "streaming" && status !== "submitted" && (
-            <div className="mt-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-100">
+            <div className="mt-2 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3.5 py-2.5 text-xs font-semibold text-amber-100">
               ⏹ Stopped by user.
             </div>
           )}
           {error && (
-            <div className="mt-2 rounded-lg border border-rose-500/40 bg-rose-500/15 px-3 py-2 text-xs text-rose-100">
+            <div className="mt-2 rounded-xl border border-rose-500/40 bg-rose-500/15 px-3.5 py-2.5 text-xs text-rose-100">
               {friendlyError(error, { fallback: "The AI request failed." })}
             </div>
           )}
           {isBuild && executionStatus && executionStatus.state === "done" && (executionStatus.total ?? 0) > 0 && (
-            <div className="mt-2 rounded-lg border border-emerald-500/40 bg-emerald-500/15 px-3 py-2 text-xs text-emerald-100">
-              <div className="font-bold">✅ Built in Studio</div>
-              <div>{executionStatus.message}{executionStatus.durationMs ? ` (${(executionStatus.durationMs/1000).toFixed(1)}s)` : ""}</div>
-              <div className="mt-0.5 text-[11px] opacity-80">Camera focused on the new objects.</div>
+            <div className="mt-2.5 rounded-xl border border-emerald-500/40 bg-gradient-to-r from-emerald-950/80 via-emerald-900/40 to-slate-950/80 px-4 py-3 text-xs text-emerald-100 shadow-[0_0_20px_rgba(16,185,129,0.15)] flex items-start gap-3">
+              <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+                ✅
+              </div>
+              <div>
+                <div className="font-bold text-emerald-300">Built in Studio</div>
+                <div className="text-emerald-100/90">{executionStatus.message}{executionStatus.durationMs ? ` (${(executionStatus.durationMs/1000).toFixed(1)}s)` : ""}</div>
+                <div className="mt-0.5 text-[11px] text-emerald-300/70">Camera focused on the new objects.</div>
+              </div>
             </div>
           )}
           {isBuild && executionStatus && (executionStatus.state === "queued" || executionStatus.state === "sent") && (
-            <div className="mt-2 rounded-lg border border-sky-500/40 bg-sky-500/15 px-3 py-2 text-xs text-sky-100">
-              <div className="flex items-center gap-2 font-bold"><Loader2 className="h-3 w-3 animate-spin" /> Building in Studio…</div>
-              <div>{executionStatus.done ?? 0} of {executionStatus.total ?? 0} done</div>
+            <div className="mt-2.5 rounded-xl border border-sky-500/40 bg-gradient-to-r from-sky-950/80 via-indigo-950/40 to-slate-950/80 px-4 py-3 text-xs text-sky-100 shadow-[0_0_20px_rgba(14,165,233,0.15)] flex items-center gap-3">
+              <Loader2 className="h-5 w-5 animate-spin text-sky-300 shrink-0" />
+              <div>
+                <div className="font-bold text-sky-200">Building in Studio…</div>
+                <div className="text-sky-100/80">{executionStatus.done ?? 0} of {executionStatus.total ?? 0} done</div>
+              </div>
             </div>
           )}
           {isBuild && executionStatus && (executionStatus.state === "failed" || executionStatus.state === "stalled") && (
-            <div className="mt-2 rounded-lg border border-rose-500/40 bg-rose-500/15 px-3 py-2 text-xs text-rose-100">
-              <div className="font-bold">Build not verified</div>
-              <div>{executionStatus.message}</div>
-              <div className="mt-2 flex flex-wrap gap-2">
+            <div className="mt-2.5 rounded-xl border border-rose-500/40 bg-rose-500/15 px-4 py-3 text-xs text-rose-100 shadow-md">
+              <div className="font-bold text-rose-200">Build not verified</div>
+              <div className="mt-0.5 text-rose-100/90">{executionStatus.message}</div>
+              <div className="mt-2.5 flex flex-wrap gap-2">
                 <button
                   type="button"
                   onClick={() => executeNowMut.mutate()}
                   disabled={executeNowMut.isPending || !activeProjectId}
-                  className="inline-flex items-center gap-1.5 rounded-md border border-emerald-300/40 bg-emerald-500/20 px-2.5 py-1 text-[11px] font-bold text-emerald-50 hover:bg-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300/40 bg-emerald-500/20 px-3 py-1.5 text-xs font-bold text-emerald-50 hover:bg-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-50 transition"
                 >
-                  {executeNowMut.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
+                  {executeNowMut.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
                   Execute now
                 </button>
                 {executionStatus.pluginOutdated ? (
@@ -831,7 +856,7 @@ export function WorkspaceChat({
               { label: "Code review", icon: "🔍", text: "Review this Luau code and suggest improvements:\n\n```lua\n\n```", title: "Paste code to review" },
             ];
         return (
-          <div className="mb-2 flex flex-wrap gap-1.5">
+          <div className="mb-3 flex flex-wrap gap-2">
             {chips.map((c) => (
               <button
                 key={c.label}
@@ -849,7 +874,7 @@ export function WorkspaceChat({
                   }
                 }}
                 disabled={busy}
-                className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/[0.04] px-2.5 py-1 text-[11px] font-semibold text-slate-200 transition hover:border-indigo-400/40 hover:bg-indigo-500/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 rounded-full border border-indigo-500/25 bg-indigo-500/10 px-3 py-1.5 text-xs font-semibold text-indigo-100 transition-all duration-200 hover:border-indigo-400/60 hover:bg-indigo-500/20 hover:shadow-[0_0_15px_rgba(99,102,241,0.3)] hover:-translate-y-0.5 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 backdrop-blur-sm"
               >
                 <span className="text-[13px] leading-none">{c.icon}</span>
                 {c.label}
@@ -859,21 +884,23 @@ export function WorkspaceChat({
         );
       })()}
 
-      <textarea
-        id="home-composer"
-        ref={taRef}
-        value={prompt}
-        onChange={(e) => setPrompt(e.target.value)}
-        onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) submit(); }}
-        placeholder={
-          isBuild
-            ? (activeProjectId ? "Describe what to build next…  (⌘K to focus · ⌘/ to switch modes)" : "Describe your game — Build will create a project and start.  (⌘K · ⌘/)")
-            : "Ask BloxSmith Agent anything — plan, brainstorm, or refine an idea.  (⌘K · ⌘/)"
-        }
-        rows={2}
-        className="w-full resize-none bg-transparent px-1 py-1 text-base leading-relaxed text-white outline-none placeholder:text-slate-400 sm:text-[15px]"
-        style={{ fontSize: "16px" }}
-      />
+      <div className="rounded-xl border border-white/15 bg-slate-950/80 p-3.5 shadow-inner focus-within:border-indigo-500/60 focus-within:ring-2 focus-within:ring-indigo-500/20 backdrop-blur-md transition-all duration-200">
+        <textarea
+          id="home-composer"
+          ref={taRef}
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) submit(); }}
+          placeholder={
+            isBuild
+              ? (activeProjectId ? "Describe what to build next…  (⌘K to focus · ⌘/ to switch modes)" : "Describe your game — Build will create a project and start.  (⌘K · ⌘/)")
+              : "Ask BloxSmith Agent anything — plan, brainstorm, or refine an idea.  (⌘K · ⌘/)"
+          }
+          rows={2}
+          className="w-full resize-none bg-transparent px-1 py-1 text-base leading-relaxed text-white outline-none placeholder:text-slate-400 sm:text-[15px]"
+          style={{ fontSize: "16px" }}
+        />
+      </div>
 
       <input
         ref={attachInputRef}
@@ -884,9 +911,9 @@ export function WorkspaceChat({
         onChange={(e) => handleFiles(e.target.files)}
       />
 
-      <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 sm:flex sm:flex-wrap sm:justify-between sm:gap-3">
-        <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-          {/* 🎙️ NVIDIA Voice Build Button — speak to BloxSmith, it builds in Studio and speaks back */}
+      <div className="mt-3.5 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 sm:flex sm:flex-wrap sm:justify-between sm:gap-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          {/* 🎙️ NVIDIA Voice Build Button */}
           <VoiceBuildButton
             onUtterance={handleVoiceUtterance}
             setTtsEnabled={setTtsEnabled}
@@ -895,20 +922,14 @@ export function WorkspaceChat({
           <button
             type="button"
             onClick={pickFiles}
-            className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg border border-white/20 bg-white/[0.06] px-3 py-2 text-xs font-semibold text-slate-100 transition hover:bg-white/[0.12] hover:border-white/30 active:scale-[0.98]"
+            className="inline-flex min-h-[40px] items-center gap-1.5 rounded-xl border border-white/15 bg-white/[0.05] px-3.5 py-2 text-xs font-semibold text-slate-200 transition-all hover:bg-white/10 hover:border-white/25 active:scale-[0.98]"
             title="Attach images or Roblox files"
           >
-            <Paperclip className="h-4 w-4" /> Attach
+            <Paperclip className="h-4 w-4 text-slate-300" /> Attach
           </button>
           <button
             type="button"
             onClick={() => {
-              // Image generation is a Chat Mode feature — never trigger Build /
-              // Studio actions from this button. Flip the live mode ref
-              // synchronously (so this send goes out as chat), mirror it into
-              // React state for UI, and pass an explicit "chat" override to
-              // submit() so its plugin/project gates use chat semantics even
-              // if the state hasn't flushed yet.
               liveModeRef.current = "chat";
               if (mode !== "chat") setComposerMode("chat");
               const trimmed = prompt.trim();
@@ -925,22 +946,22 @@ export function WorkspaceChat({
               submit(finalText, "chat");
             }}
             disabled={busy}
-            className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg border border-fuchsia-400/40 bg-fuchsia-500/10 px-3 py-2 text-xs font-semibold text-fuchsia-100 transition hover:bg-fuchsia-500/20 hover:border-fuchsia-400/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex min-h-[40px] items-center gap-1.5 rounded-xl border border-fuchsia-500/30 bg-fuchsia-500/10 px-3.5 py-2 text-xs font-semibold text-fuchsia-200 transition-all hover:bg-fuchsia-500/20 hover:border-fuchsia-400/50 hover:shadow-[0_0_15px_rgba(217,70,239,0.25)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
             title="Generate a Roblox image (Chat Mode — never runs a build)"
             aria-label="Generate image"
           >
-            <ImageIcon className="h-4 w-4" />
+            <ImageIcon className="h-4 w-4 text-fuchsia-300" />
             <span className="hidden sm:inline">Image</span>
           </button>
           <button
             type="button"
             onClick={enhance}
             disabled={!prompt.trim() || enhancing || busy}
-            className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg border border-indigo-400/40 bg-indigo-500/10 px-3 py-2 text-xs font-semibold text-indigo-100 transition hover:bg-indigo-500/20 hover:border-indigo-400/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex min-h-[40px] items-center gap-1.5 rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-3.5 py-2 text-xs font-semibold text-indigo-200 transition-all hover:bg-indigo-500/20 hover:border-indigo-400/50 hover:shadow-[0_0_15px_rgba(99,102,241,0.25)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
             title="Polish prompt — refine wording, grammar, and clarity into a premium build request"
             aria-label="Polish prompt"
           >
-            {enhancing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+            {enhancing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4 text-indigo-300" />}
             <span className="hidden sm:inline">{enhancing ? "Polishing…" : "Polish"}</span>
           </button>
         </div>
@@ -956,9 +977,9 @@ export function WorkspaceChat({
             return (
               <span
                 title={`Active model: ${active.label}${selectedModel === "auto" ? " (auto-picked for this task)" : ""}`}
-                className="hidden md:inline-flex min-h-[40px] items-center gap-1.5 rounded-lg border border-indigo-400/30 bg-indigo-500/10 px-2.5 py-2 text-[10px] font-semibold uppercase tracking-wider text-indigo-100"
+                className="hidden md:inline-flex min-h-[40px] items-center gap-1.5 rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-indigo-200"
               >
-                <Sparkles className="h-3 w-3" />
+                <Sparkles className="h-3.5 w-3.5 text-indigo-300" />
                 {active.label}
               </span>
             );
@@ -978,10 +999,10 @@ export function WorkspaceChat({
               title={proceduralGeneration
                 ? "From Scratch is ON — everything is built from parts, meshes, and terrain. Click to switch to Auto Build."
                 : "Auto Build is ON — uses safe Toolbox assets first, then creates a visible fallback if Toolbox has no match. Click to build from scratch only."}
-              className={`inline-flex min-h-[40px] items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition ${
+              className={`inline-flex min-h-[40px] items-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-semibold transition-all ${
                 proceduralGeneration
-                  ? "border-emerald-400/50 bg-emerald-500/15 text-emerald-100 hover:bg-emerald-500/25"
-                  : "border-amber-400/40 bg-amber-500/10 text-amber-100 hover:bg-amber-500/20"
+                  ? "border-emerald-400/50 bg-emerald-500/15 text-emerald-100 hover:bg-emerald-500/25 shadow-[0_0_15px_rgba(16,185,129,0.2)]"
+                  : "border-amber-400/40 bg-amber-500/10 text-amber-100 hover:bg-amber-500/20 shadow-[0_0_15px_rgba(245,158,11,0.15)]"
               }`}
             >
               <span className="text-sm leading-none">{proceduralGeneration ? "🛠" : "⚡"}</span>
@@ -998,14 +1019,14 @@ export function WorkspaceChat({
             <div ref={modeRef} className="relative hidden sm:block">
               <button
                 onClick={() => setModeOpen((v) => !v)}
-                className="inline-flex min-h-[40px] items-center gap-2 rounded-lg border border-white/20 bg-white/[0.06] px-3 py-2 text-xs font-semibold text-slate-100 hover:bg-white/[0.12] hover:border-white/30"
+                className="inline-flex min-h-[40px] items-center gap-2 rounded-xl border border-white/15 bg-white/[0.05] px-3.5 py-2 text-xs font-semibold text-slate-200 hover:bg-white/10 hover:border-white/25 transition-all"
               >
                 <Sparkles className="h-3.5 w-3.5 text-indigo-300" />
                 {buildMode}
                 <ChevronDown className="h-3.5 w-3.5 opacity-70" />
               </button>
               {modeOpen && (
-                <div className="absolute right-0 bottom-full z-30 mb-2 w-[300px] overflow-hidden rounded-xl border border-white/15 bg-[#12122a] shadow-2xl">
+                <div className="absolute right-0 bottom-full z-30 mb-2 w-[300px] overflow-hidden rounded-2xl border border-indigo-500/30 bg-[#0e0f26]/95 backdrop-blur-xl shadow-2xl">
                   <div className="border-b border-white/10 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-slate-300">
                     Choose a build mode
                   </div>
@@ -1036,7 +1057,7 @@ export function WorkspaceChat({
             <button
               type="button"
               onClick={handleStop}
-              className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg bg-rose-500 px-5 py-2.5 text-sm font-bold text-white shadow-[0_10px_30px_-12px_rgba(244,63,94,0.8)] transition active:scale-[0.98] hover:bg-rose-400"
+              className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 px-5 py-2.5 text-sm font-bold text-white shadow-[0_0_20px_rgba(244,63,94,0.5)] transition-all active:scale-[0.98] hover:shadow-[0_0_25px_rgba(244,63,94,0.7)] hover:from-rose-500 hover:to-red-500"
               title="Stop the current AI response"
               aria-label="Stop"
             >
@@ -1047,7 +1068,7 @@ export function WorkspaceChat({
             <button
               onClick={() => submit()}
               disabled={!prompt.trim()}
-              className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg bg-indigo-500 px-5 py-2.5 text-sm font-bold text-white shadow-[0_10px_30px_-12px_rgba(99,102,241,0.8)] transition active:scale-[0.98] hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-600 px-6 py-2.5 text-sm font-bold text-white shadow-[0_0_25px_rgba(99,102,241,0.45)] transition-all duration-200 active:scale-[0.98] hover:shadow-[0_0_35px_rgba(99,102,241,0.7)] hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isBuild ? <Hammer className="h-4 w-4" /> : <Send className="h-4 w-4" />}
               {isBuild ? "Build" : "Send"}

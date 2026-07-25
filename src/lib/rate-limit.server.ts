@@ -1,87 +1,120 @@
-// Server-only sliding-window rate limiter backed by public.rate_limits.
-// Callers should catch RateLimitError and surface a friendly toast.
+// Per-user sliding-window rate limiting for expensive server functions.
+//
+// Generation endpoints are auth-gated but were otherwise unthrottled, so a
+// single account could burn through the NVIDIA / Meshy keys. This keeps an
+// in-memory window per (user, bucket) pair. It is per-instance, which is the
+// right trade-off here: it costs nothing, needs no extra table, and stops the
+// runaway-loop case that actually drains the keys.
 
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
-
-export class RateLimitError extends Error {
-  status = 429;
-  retryAfterSeconds: number;
-  constructor(message: string, retryAfterSeconds: number) {
-    super(message);
-    this.name = "RateLimitError";
-    this.retryAfterSeconds = retryAfterSeconds;
-  }
-}
-
-type LimitOpts = {
-  userId: string;
-  action: string;
+export type RateLimitRule = {
+  /** Max requests allowed inside the window. */
   limit: number;
-  windowSeconds: number;
+  /** Window length in milliseconds. */
+  windowMs: number;
 };
 
-/**
- * Increment the counter for (userId, action) within the current window and
- * throw RateLimitError when the caller exceeds `limit` requests.
- *
- * Cheap best-effort implementation: uses a single row per (user, action) that
- * rolls over when the window expires. Do NOT use for money-critical limits.
- */
-export async function enforceRateLimit({ userId, action, limit, windowSeconds }: LimitOpts): Promise<void> {
-  const windowMs = windowSeconds * 1000;
-  const now = Date.now();
+export const RATE_LIMITS = {
+  chat: { limit: 40, windowMs: 60_000 },
+  ui_generate: { limit: 12, windowMs: 60_000 },
+  model_generate: { limit: 6, windowMs: 300_000 },
+  image_generate: { limit: 20, windowMs: 60_000 },
+  build: { limit: 6, windowMs: 60_000 },
+  toolbox_search: { limit: 60, windowMs: 60_000 },
+  export: { limit: 10, windowMs: 60_000 },
+} as const satisfies Record<string, RateLimitRule>;
 
-  const { data: existing } = await supabaseAdmin
-    .from("rate_limits")
-    .select("id, count, window_start")
-    .eq("user_id", userId)
-    .eq("action", action)
-    .order("window_start", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+export type RateLimitBucket = keyof typeof RATE_LIMITS;
 
-  const windowStart = existing ? new Date((existing as any).window_start).getTime() : 0;
-  const stillInWindow = existing && now - windowStart < windowMs;
+type Entry = { hits: number[] };
 
-  if (stillInWindow) {
-    const nextCount = ((existing as any).count as number) + 1;
-    if (nextCount > limit) {
-      const retryAfter = Math.max(1, Math.ceil((windowStart + windowMs - now) / 1000));
-      throw new RateLimitError(
-        `Rate limit reached for "${action}". Retry in ${retryAfter}s.`,
-        retryAfter,
-      );
-    }
-    await supabaseAdmin
-      .from("rate_limits")
-      .update({ count: nextCount, updated_at: new Date().toISOString() })
-      .eq("id", (existing as any).id);
-    return;
+const store = new Map<string, Entry>();
+let lastSweep = 0;
+
+function sweep(now: number) {
+  // Drop cold keys occasionally so the map cannot grow without bound.
+  if (now - lastSweep < 60_000) return;
+  lastSweep = now;
+  const cutoff = now - 600_000;
+  for (const [key, entry] of store) {
+    if (!entry.hits.some((t) => t > cutoff)) store.delete(key);
   }
-
-  await supabaseAdmin.from("rate_limits").insert({
-    user_id: userId,
-    action,
-    count: 1,
-    window_start: new Date(now).toISOString(),
-  });
 }
 
-/** Sensible presets keyed by action name. */
-export const RATE_LIMITS = {
-  ai_prompt: { limit: 120, windowSeconds: 60 },
-  ai_build: { limit: 60, windowSeconds: 60 },
-  image_gen: { limit: 40, windowSeconds: 60 },
-  plugin_action: { limit: 600, windowSeconds: 60 },
-  asset_search: { limit: 240, windowSeconds: 60 },
-  file_upload: { limit: 30, windowSeconds: 60 },
-  auth_attempt: { limit: 8, windowSeconds: 300 },
+export type RateLimitResult = {
+  allowed: boolean;
+  remaining: number;
+  limit: number;
+  /** Milliseconds until the window frees a slot. 0 when allowed. */
+  retryAfterMs: number;
+  resetAt: number;
+};
 
-} as const;
+/** Record a hit and report whether it is allowed. Does not throw. */
+export function checkRateLimit(
+  userId: string,
+  bucket: RateLimitBucket,
+  override?: Partial<RateLimitRule>,
+): RateLimitResult {
+  const rule = { ...RATE_LIMITS[bucket], ...(override ?? {}) };
+  const now = Date.now();
+  sweep(now);
 
-export type RateLimitKey = keyof typeof RATE_LIMITS;
+  const key = `${bucket}:${userId}`;
+  const entry = store.get(key) ?? { hits: [] };
+  entry.hits = entry.hits.filter((t) => now - t < rule.windowMs);
 
-export async function enforce(userId: string, key: RateLimitKey): Promise<void> {
-  const cfg = RATE_LIMITS[key];
-  await enforceRateLimit({ userId, action: key, ...cfg });
+  if (entry.hits.length >= rule.limit) {
+    const oldest = entry.hits[0];
+    const retryAfterMs = Math.max(0, rule.windowMs - (now - oldest));
+    store.set(key, entry);
+    return {
+      allowed: false,
+      remaining: 0,
+      limit: rule.limit,
+      retryAfterMs,
+      resetAt: oldest + rule.windowMs,
+    };
+  }
+
+  entry.hits.push(now);
+  store.set(key, entry);
+  return {
+    allowed: true,
+    remaining: Math.max(0, rule.limit - entry.hits.length),
+    limit: rule.limit,
+    retryAfterMs: 0,
+    resetAt: now + rule.windowMs,
+  };
+}
+
+function humanizeWait(ms: number) {
+  const seconds = Math.ceil(ms / 1000);
+  if (seconds < 60) return `${seconds}s`;
+  return `${Math.ceil(seconds / 60)} min`;
+}
+
+/**
+ * Enforce a limit inside a server function handler. Throws a user-facing error
+ * when the caller is over the limit.
+ *
+ *   enforceRateLimit(context.userId, "ui_generate");
+ */
+export function enforceRateLimit(
+  userId: string,
+  bucket: RateLimitBucket,
+  override?: Partial<RateLimitRule>,
+): RateLimitResult {
+  const result = checkRateLimit(userId, bucket, override);
+  if (!result.allowed) {
+    throw new Error(
+      `You are going a bit fast - that is ${result.limit} requests in a row. Try again in ${humanizeWait(result.retryAfterMs)}.`,
+    );
+  }
+  return result;
+}
+
+/** Test helper: clear all recorded hits. */
+export function resetRateLimits() {
+  store.clear();
+  lastSweep = 0;
 }

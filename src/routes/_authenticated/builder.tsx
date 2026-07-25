@@ -10,12 +10,15 @@ import {
 import { PageShell } from "@/components/PageShell";
 import { getMyProfile } from "@/lib/profile.functions";
 import { listProjects } from "@/lib/projects.functions";
+import { RouteSkeleton } from "@/components/RouteSkeleton";
 import {
   getBuilderCatalog, planGameBuild, queueGameBuild, regenerateScripts,
   installMarketplacePack, exportStudioProject,
 } from "@/lib/game-builder.functions";
 
 export const Route = createFileRoute("/_authenticated/builder")({
+  pendingComponent: () => <RouteSkeleton title="Game Builder" columns={2} />,
+  pendingMs: 150,
   head: () => ({
     meta: [
       { title: "Game Builder - BloxSmith" },

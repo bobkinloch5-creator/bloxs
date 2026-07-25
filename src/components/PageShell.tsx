@@ -5,27 +5,34 @@ import { RobloxBackdrop } from "./RobloxBackdrop";
 import { MobileNavTrigger } from "./MobileNav";
 import { ProfileMenu, DiscordIcon } from "./ProfileMenu";
 import {
-  Folder, Users, Plug, Heart, Hammer,
-  Crown, Box, LayoutDashboard, Home as HomeIcon,
-  Code2, Server, Gift,
+  Folder, Users, Plug, Wand2, Heart,
+  Hammer,
+  History as HistoryIcon, BookOpen, Settings as SettingsIcon, Crown, Box, LayoutDashboard,
 } from "lucide-react";
+
 
 type Accent = "default" | "chat" | "admin" | "mcp" | "history" | "plugin" | "settings" | "collaborators";
 
 type NavItem = { key: string; label: string; to: string; icon: typeof Folder; accent: Accent };
 
-/** Full nav — kept in sync with the dashboard sidebar */
-const NAV_ITEMS: NavItem[] = [
-  { key: "home",      label: "Home",          to: "/dashboard",     icon: HomeIcon,        accent: "default" },
-  { key: "builder",   label: "Game Builder",  to: "/builder",       icon: Hammer,          accent: "default" },
-  { key: "projects",  label: "Projects",      to: "/projects",      icon: Folder,          accent: "default" },
-  { key: "models",    label: "3D Models",     to: "/models",        icon: Box,             accent: "chat" },
-  { key: "scripts",   label: "Script Editor", to: "/script-editor", icon: Code2,           accent: "default" },
-  { key: "uigen",     label: "UI Generator",  to: "/ui-generator",  icon: LayoutDashboard, accent: "chat" },
-  { key: "plugin",    label: "Studio Plugin", to: "/plugin",        icon: Plug,            accent: "plugin" },
-  { key: "mcp-srv",   label: "MCP Servers",   to: "/mcp-servers",   icon: Server,          accent: "mcp" },
-  { key: "community", label: "Community",     to: "/collaborators", icon: Users,           accent: "collaborators" },
-  { key: "referrals", label: "Invite Friends",to: "/referrals",     icon: Gift,            accent: "default" },
+const NAV_CORE: NavItem[] = [
+  { key: "proj",   label: "Projects",      to: "/projects",      icon: Folder,          accent: "default" },
+  { key: "models", label: "3D Models",     to: "/models",        icon: Box,             accent: "chat" },
+  { key: "uigen",  label: "UI Generator",  to: "/ui-generator",  icon: LayoutDashboard, accent: "chat" },
+  { key: "builder", label: "Game Builder",  to: "/builder",       icon: Hammer,          accent: "chat" },
+  { key: "co",     label: "Collaborators", to: "/collaborators", icon: Users,           accent: "collaborators" },
+];
+
+
+const NAV_INTEGRATION: NavItem[] = [
+  { key: "plug",     label: "Studio Plugin",  to: "/plugin",      icon: Plug,  accent: "plugin" },
+  { key: "mcp",      label: "MCP / Tools",    to: "/mcp",         icon: Wand2, accent: "mcp" },
+  { key: "mcp-srv",  label: "MCP Servers",    to: "/mcp-servers", icon: Wand2, accent: "mcp" },
+
+  
+  { key: "hist",  label: "History",       to: "/history",  icon: HistoryIcon,  accent: "history" },
+  { key: "docs",  label: "Docs",          to: "/docs",     icon: BookOpen,     accent: "default" },
+  { key: "set",   label: "Settings",      to: "/settings", icon: SettingsIcon, accent: "settings" },
 ];
 
 export function PageShell({
@@ -95,46 +102,25 @@ function VaporSidebar({ isAdmin, activeKey }: { isAdmin: boolean; activeKey?: st
         </span>
       </Link>
 
-      <nav className="flex-1 overflow-y-auto px-5 pb-4">
+      <nav className="flex-1 space-y-7 overflow-y-auto px-5">
         {isAdmin && (
-          <div className="mb-4">
-            <Link
-              to="/admin"
-              className="flex items-center gap-3 rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-sm font-medium text-amber-200 transition hover:bg-amber-400/15"
-              activeProps={{ className: "" }}
-            >
-              <Crown className="h-4 w-4" /> Owner Admin
-            </Link>
-          </div>
+          <Link
+            to="/admin"
+            className="flex items-center gap-3 rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-sm font-medium text-amber-200 transition hover:bg-amber-400/15"
+            activeProps={{ className: "" }}
+          >
+            <Crown className="h-4 w-4" /> Owner Admin
+          </Link>
         )}
 
-        <div className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.3em] text-indigo-300/60" style={{ fontFamily: "Space Mono, monospace" }}>
-          Navigation
-        </div>
-        <div className="space-y-1">
-          {NAV_ITEMS.map((n) => {
-            const Icon = n.icon;
-            const active = activeKey === n.key;
-            return (
-              <Link
-                key={n.key}
-                to={n.to as any}
-                className={`group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${
-                  active ? "vapor-nav-active" : "text-white/55 hover:bg-white/5 hover:text-white"
-                }`}
-              >
-                <Icon className={`h-4 w-4 ${active ? "text-cyan-300" : "text-white/40 group-hover:text-cyan-200"}`} />
-                {n.label}
-              </Link>
-            );
-          })}
-        </div>
+        <NavGroup label="Core Suite" items={NAV_CORE} activeKey={activeKey} />
+        <NavGroup label="Integration" items={NAV_INTEGRATION} activeKey={activeKey} />
       </nav>
 
       <div className="space-y-2 border-t border-indigo-500/10 bg-white/[0.02] p-4">
         <ProfileMenu />
         <a
-          href="https://discord.gg/YJ8xPFNSSX"
+          href="https://discord.gg/6QDYT3RUkv"
           target="_blank"
           rel="noreferrer"
           className="flex items-center justify-center gap-2 rounded-xl border border-indigo-500/15 bg-white/[0.02] px-3 py-2 text-[11px] font-bold uppercase tracking-[0.18em] text-indigo-200 transition hover:border-indigo-400/40 hover:bg-indigo-500/10 hover:text-white"
@@ -144,6 +130,34 @@ function VaporSidebar({ isAdmin, activeKey }: { isAdmin: boolean; activeKey?: st
         </a>
       </div>
     </aside>
+  );
+}
+
+function NavGroup({ label, items, activeKey }: { label: string; items: NavItem[]; activeKey?: string }) {
+  return (
+    <div>
+      <div className="mb-3 px-3 text-[10px] font-bold uppercase tracking-[0.3em] text-indigo-300/60" style={{ fontFamily: "Space Mono, monospace" }}>
+        {label}
+      </div>
+      <div className="space-y-1">
+        {items.map((n) => {
+          const Icon = n.icon;
+          const active = activeKey === n.key;
+          return (
+            <Link
+              key={n.key}
+              to={n.to as any}
+              className={`group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${
+                active ? "vapor-nav-active" : "text-white/55 hover:bg-white/5 hover:text-white"
+              }`}
+            >
+              <Icon className={`h-4 w-4 ${active ? "text-cyan-300" : "text-white/40 group-hover:text-cyan-200"}`} />
+              {n.label}
+            </Link>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 

@@ -1118,7 +1118,7 @@ export async function searchRobloxToolbox(
           free_only: true,
           no_scripts: true,
           disable_procedural_fallback: true,
-          ...(singleAssetOnly ? { single_asset_only: true, extract_single: true, max_children: 25 } : {}),
+          ...(singleAssetOnly ? { single_asset_only: true, extract_single: false, preserve_hierarchy: true, max_children: 1000 } : {}),
         },
       };
     });

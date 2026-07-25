@@ -425,7 +425,16 @@ export const generateRobloxUi = createServerFn({ method: "POST" })
       });
     }
 
-    return { id: savedRow?.id as string | undefined, code: finalCode, conceptImageUrl, createdAt: savedRow?.created_at as string | undefined };
+    return {
+      id: savedRow?.id as string | undefined,
+      code: finalCode,
+      conceptImageUrl,
+      createdAt: savedRow?.created_at as string | undefined,
+      kind: blueprint.kind,
+      kindLabel: blueprint.kindLabel,
+      elementCount: blueprint.nodes.length,
+      layers: blueprint.layers,
+    };
   });
 
 export const listSavedRobloxUis = createServerFn({ method: "GET" })

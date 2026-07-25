@@ -4,32 +4,32 @@ import { checkChangelogCoverage, warnIfIncomplete } from "@/lib/changelog-covera
 import bloxsmithLogo from "@/assets/bloxsmith-logo.png.asset.json";
 
 
-const CHANGELOG_VERSION = "2026-07-25-bloxsmith-pro-v1";
+const CHANGELOG_VERSION = "2026-07-25-bloxsmith-pro-v4";
 
 const CHANGELOG_ITEMS = [
+  {
+    title: "✨ BloxSmith Pro Interface & Visual Polish Engine",
+    date: "Jul 25",
+    icon: Sparkles,
+    body: "Redesigned the WorkspaceChat and active project interface with modern dark glassmorphism, glowing borders, animated mode indicators, pill controls, and high-visibility status notification cards. Fully integrated BloxSmith Pro v4 update suite with automated test coverage, performance optimizations, and upgraded project controls.",
+  },
+  {
+    title: "🏰 Model Hierarchy & Structural Asset Integrity Fix",
+    date: "Jul 25",
+    icon: Box,
+    body: "Fixed single-asset Toolbox model insertions (\"build a house\", \"insert a castle\", \"add a car\") destroying model hierarchy. Enforced extract_single: false, preserve_hierarchy: true, and max_children: 1000 across all pipeline routes (bloxsmith-prompt, plugin-actions, roblox-toolbox.server, agent-pipeline, and chat routes). Complex models now import into Roblox Studio complete with all child parts, groups, materials, and internal structure intact.",
+  },
+  {
+    title: "🛡️ Stability Pass: Vitest Unit Suite, Rate Limiting & Provider Error Handling",
+    date: "Jul 25",
+    icon: ShieldCheck,
+    body: "Integrated Vitest test suite covering UI blueprints, Luau validation, plugin action routing, and rate limits. Added provider-fetch.server.ts for rich upstream error reporting across AI providers, per-user sliding-window rate limit protection, and lazy 3D asset preview chunks with skeleton loading for instant page navigations.",
+  },
   {
     title: "⚡ BloxSmith Pro Integration — Full Orchestration & Multi-System Game Builder",
     date: "Jul 25",
     icon: Rocket,
-    body: "Upgraded BloxSmith into a full BloxSmith Pro Roblox game development environment. Integrated the build-orchestrator, modular game-systems engine, and comprehensive Roblox scripting knowledge base. BloxSmith can now plan and generate complete end-to-end games across 20+ genres (Tycoons, Simulators, RPGs, Obbies, Survival, Tower Defense, FPS, Racing, Pets, Trading, Inventories, Quests, Skills, Mining, Fishing, Farming, and more) with automated service wiring, clean Luau standards (task.wait/task.spawn/task.delay), and complete architectural blueprints.",
-  },
-  {
-    title: "🎨 NVIDIA Trellis AI Engine for 3D Mesh Generation",
-    date: "Jul 25",
-    icon: Box,
-    body: "Upgraded 3D model generation to powered by NVIDIA Trellis AI. Generate high-fidelity, textured 3D meshes directly from text prompts with optimized geometry and custom part schemas, bypassing third-party web dependencies.",
-  },
-  {
-    title: "📜 Scripter Reliability & Unlimited Script Generation",
-    date: "Jul 25",
-    icon: ShieldCheck,
-    body: "Expanded scripter token output budget from 3,200 to 6,000 max tokens per turn, eliminating mid-script truncation on complex ModuleScripts, LocalScripts, and ServerScripts. Relaxed validator checks and improved Luau placeholder detection so legitimate short scripts and helper modules pass through to Roblox Studio with 100% reliability.",
-  },
-  {
-    title: "🏙️ Dedicated Game Builder Route (/builder)",
-    date: "Jul 25",
-    icon: Sparkles,
-    body: "Wired the new Game Builder studio environment directly into the dashboard and navigation sidebar. Access interactive multi-system game creation, system configuration presets, and automated workspace deployment in one click.",
+    body: "Upgraded BloxSmith into a full BloxSmith Pro Roblox game development environment. Integrated the build-orchestrator, modular game-systems engine, and comprehensive Roblox scripting knowledge base. BloxSmith can now plan and generate complete end-to-end games across 20+ genres with automated service wiring, clean Luau standards, and architectural blueprints.",
   },
   {
     title: "🔁 Auto-Playtest v2 — every build is verified in Studio and the AI auto-fixes failures (up to 4 retries)",

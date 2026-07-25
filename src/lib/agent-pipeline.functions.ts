@@ -130,9 +130,10 @@ async function buildVerifiedToolboxInsert(prompt: string, singleAssetOnly: boole
       anchor: true,
       ...(singleAssetOnly ? {
         single_asset_only: true,
-        extract_single: true,
+        extract_single: false,
+        preserve_hierarchy: true,
         exact_quantity: 1,
-        max_children: 25,
+        max_children: 1000,
         max_scripts: 0,
         reject_pack_names: true,
         stop_after_insert: true,
@@ -225,7 +226,7 @@ async function runAgent(
       : { temperature: agent === "critic" ? 0.2 : 0.4 }),
     ...(fb.modelSettings?.topP !== undefined ? { topP: fb.modelSettings.topP } : {}),
     ...(fb.extraBody ? { providerOptions: { nvidia: fb.extraBody as Record<string, never> } as never } : {}),
-    maxOutputTokens: agent === "planner" ? 480 : agent === "critic" ? 280 : agent === "scripter" || agent === "ui_designer" ? 6000 : 2400,
+    maxOutputTokens: agent === "planner" ? 360 : agent === "critic" ? 220 : agent === "scripter" || agent === "ui_designer" ? 3200 : 1800,
   });
 
   let full = "";
@@ -586,9 +587,10 @@ export const startAgentPipeline = createServerFn({ method: "POST" })
             allow_scripts: false,
             disable_procedural_fallback: true,
             single_asset_only: true,
-            extract_single: true,
+            extract_single: false,
+            preserve_hierarchy: true,
             exact_quantity: 1,
-            max_children: 25,
+            max_children: 1000,
             max_scripts: 0,
             reject_pack_names: true,
             stop_after_insert: true,

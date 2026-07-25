@@ -10,7 +10,21 @@ export type KbSeedChunk = {
   source_hash: string;
 };
 
+import { SCRIPTING_LESSONS } from "@/lib/roblox-scripting-knowledge";
+
+// The built-in scripting brain is also embedded so semantic retrieval can
+// surface the exact lesson a question needs, even when the keyword match in
+// roblox-scripting-knowledge.ts misses.
+const SCRIPTING_CHUNKS: KbSeedChunk[] = SCRIPTING_LESSONS.map((lesson) => ({
+  topic: lesson.topic === "ui" ? "ui_designer" : lesson.topic === "physics" ? "world_builder" : "scripter",
+  title: lesson.title,
+  source: `scripting:${lesson.id}`,
+  source_hash: `scripting/${lesson.id}/v1`,
+  content: lesson.example ? `${lesson.body}\n\nExample:\n${lesson.example}` : lesson.body,
+}));
+
 export const KB_CORPUS: KbSeedChunk[] = [
+  ...SCRIPTING_CHUNKS,
   // ── Scripter: Roblox API references ─────────────────────────────────
   {
     topic: "scripter",

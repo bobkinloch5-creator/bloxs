@@ -17,7 +17,7 @@ import { productionSystemsStudioActions, detectLuaTemplates } from "@/lib/lua-te
 import { classifyIntent, renderIntentBlock } from "@/lib/intent-classifier.server";
 import { rerankMemories } from "@/lib/semantic-memory";
 import { retrieveKnowledge } from "@/lib/kb-retrieve.server";
-import { scriptingKnowledgeFor } from "@/lib/roblox-scripting-knowledge";
+import { scriptingKnowledgeFor, SCRIPTING_CORE_RULES } from "@/lib/roblox-scripting-knowledge";
 
 function jsonError(message: string, status: number, code?: string) {
   return new Response(JSON.stringify({ error: message, code }), {
@@ -91,13 +91,11 @@ async function compileMissingStudioActions(params: {
   assetMode: "toolbox_only" | "both" | "procedural";
 }) {
   const fb = getFallbackModel();
-  const knowledge = scriptingKnowledgeFor(params.userText, { limit: 4, maxChars: 6000 });
   const { text } = await generateText({
     model: fb.model,
     system:
-      "You are the BloxSmith Studio action compiler. Convert Roblox build plans into executable BloxSmith actions only.\n" +
-      "Return exactly one fenced ```bloxsmith-actions block containing valid JSON. Do not include prose outside the block.\n\n" +
-      knowledge,
+      "You are the BloxSmith Studio action compiler. Convert Roblox build plans into executable BloxSmith actions only. " +
+      "Return exactly one fenced ```bloxsmith-actions block containing valid JSON. Do not include prose outside the block.",
     prompt: `The previous assistant response was in Build Mode but did not include executable Studio actions, so Roblox Studio received nothing.
 
 Convert the request and response below into a concise, safe, executable BloxSmith action list.
@@ -126,7 +124,7 @@ ${params.assistantText.slice(0, 12000)}`,
     ...(fb.extraBody ? { providerOptions: { nvidia: fb.extraBody as Record<string, never> } as never } : {}),
     ...(fb.modelSettings?.temperature !== undefined ? { temperature: fb.modelSettings.temperature } : { temperature: 0 }),
     ...(fb.modelSettings?.topP !== undefined ? { topP: fb.modelSettings.topP } : {}),
-    maxOutputTokens: 4000,
+    maxOutputTokens: 2200,
   });
 
   return parseActions(text).actions;
@@ -261,17 +259,18 @@ function trimMessagesForModel(messages: UIMessage[], mode: "chat" | "build"): UI
 }
 
 function capOutputTokens(modelSettings: { maxOutputTokens?: number } | undefined, mode: "chat" | "build", buildQuality?: "basic" | "better" | "premium" | "full_game") {
-  // Token caps raised so scripts are never truncated mid-generation.
-  const requested = modelSettings?.maxOutputTokens ?? (mode === "chat" ? 700 : 4000);
+  // FAST PATH: cap output tokens aggressively so responses finish quickly.
+  // Lowered further to reduce end-to-end generation latency.
+  const requested = modelSettings?.maxOutputTokens ?? (mode === "chat" ? 500 : 1600);
   const cap = mode === "chat"
-    ? 900
+    ? 700
     : buildQuality === "full_game"
-      ? 8000
+      ? 3000
       : buildQuality === "premium"
-        ? 6000
+        ? 2400
         : buildQuality === "basic"
-          ? 2400
-          : 4000;
+          ? 650
+          : 1800;
   return Math.min(requested, cap);
 }
 
@@ -365,6 +364,22 @@ for i, pos in ipairs({ Vector3.new(-28, 2, -28), Vector3.new(28, 2, -28), Vector
   spawn.Neutral = true
   spawn.Parent = root
 end
+
+local sign = part("BloxSmith_Execution_Confirmed", Vector3.new(44, 18, 1), Vector3.new(0, 12, -54), Color3.fromRGB(23, 26, 38), Enum.Material.Metal)
+local gui = Instance.new("SurfaceGui")
+gui.Face = Enum.NormalId.Front
+gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+gui.PixelsPerStud = 24
+gui.Parent = sign
+local label = Instance.new("TextLabel")
+label.BackgroundTransparency = 1
+label.Size = UDim2.fromScale(1, 1)
+label.Font = Enum.Font.GothamBold
+label.TextScaled = true
+label.TextWrapped = true
+label.TextColor3 = Color3.fromRGB(245, 248, 255)
+label.Text = "BloxSmith executed this build in Studio. Request: " .. ${JSON.stringify(safePrompt)}
+label.Parent = gui
 
 Lighting.ClockTime = 14
 Lighting.Brightness = 2.2
@@ -655,6 +670,30 @@ for i, data in ipairs({{-96,-72,12},{-42,86,8},{54,-58,10},{98,66,7},{8,34,5},{-
   rock.Parent = root
 end
 
+local marker = Instance.new("Part")
+marker.Name = "BloxSmith_Material_Built_Marker"
+marker.Anchored = true
+marker.CanCollide = false
+marker.Size = Vector3.new(26, 9, 1)
+marker.CFrame = CFrame.new(0, 7, -112)
+marker.Material = Enum.Material.Metal
+marker.Color = Color3.fromRGB(28, 34, 46)
+marker.Parent = root
+local gui = Instance.new("SurfaceGui")
+gui.Face = Enum.NormalId.Front
+gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+gui.PixelsPerStud = 24
+gui.Parent = marker
+local label = Instance.new("TextLabel")
+label.BackgroundTransparency = 1
+label.Size = UDim2.fromScale(1, 1)
+label.Font = Enum.Font.GothamBold
+label.TextScaled = true
+label.TextWrapped = true
+label.TextColor3 = Color3.fromRGB(245, 248, 255)
+label.Text = "BloxSmith applied ${label} ground"
+label.Parent = gui
+
 Lighting.ClockTime = math.max(Lighting.ClockTime, 12)
 Lighting.Brightness = math.max(Lighting.Brightness, 2.2)
 root:SetAttribute("BloxSmithRequest", request)
@@ -664,7 +703,7 @@ root:SetAttribute("GroundPartsChanged", changed)
 return {
   instance = root,
   path = root:GetFullName(),
-  created = { root, surface },
+  created = { root, surface, marker },
   visible = true,
   summary = "Applied visible " .. materialName .. " material to ground/baseplate and created a large visible surface"
 }
@@ -1988,9 +2027,16 @@ end
   }
 
   if (/\b(fly|flying|flight|toggle\s*fly)\b/i.test(text) && !/\bfly\s*trap\b/i.test(text)) {
-    // Use localscript kind directly — more reliable than run_lua wrapping.
-    const flySource = `-- BloxSmith Fly Toggle (press F to toggle, Space=up, Ctrl/Shift=down)
--- Installs automatically on character spawn. Works in any Roblox game.
+    const source = `
+local StarterPlayer = game:GetService("StarterPlayer")
+local scripts = StarterPlayer:FindFirstChild("StarterPlayerScripts")
+if not scripts then error("StarterPlayerScripts missing") end
+local old = scripts:FindFirstChild("BloxSmith_FlyToggle")
+if old then old:Destroy() end
+local client = Instance.new("LocalScript")
+client.Name = "BloxSmith_FlyToggle"
+client.Source = [==[
+-- BloxSmith Fly Toggle (modern constraints — LinearVelocity + AlignOrientation, camera-relative)
 local Players = game:GetService("Players")
 local ContextActionService = game:GetService("ContextActionService")
 local UserInputService = game:GetService("UserInputService")
@@ -2000,13 +2046,18 @@ local player = Players.LocalPlayer
 local SPEED = 70
 local ACTION = "BloxSmithFly"
 local flying = false
-local lv, ao, att, heartbeat
+local lv, ao, att
+local heartbeat
 
-local function cleanupConstraints(hrp)
+local function cleanupOn(char)
+  if not char then return end
+  local hrp = char:FindFirstChild("HumanoidRootPart")
   if not hrp then return end
-  for _, c in ipairs(hrp:GetChildren()) do
-    if c.Name == "BloxSmith_FlyAttachment" or c.Name == "BloxSmith_FlyLV" or c.Name == "BloxSmith_FlyAO" then
-      c:Destroy()
+  for _, child in ipairs(hrp:GetChildren()) do
+    if child.Name == "BloxSmith_FlyAttachment"
+       or child.Name == "BloxSmith_FlyLV"
+       or child.Name == "BloxSmith_FlyAO" then
+      child:Destroy()
     end
   end
 end
@@ -2030,7 +2081,7 @@ local function start()
   local hrp = char:WaitForChild("HumanoidRootPart", 5)
   local hum = char:FindFirstChildOfClass("Humanoid")
   if not hrp or not hum then return end
-  cleanupConstraints(hrp)
+  cleanupOn(char)
   flying = true
   hum.PlatformStand = true
 
@@ -2057,35 +2108,44 @@ local function start()
   local camera = workspace.CurrentCamera
   heartbeat = RunService.RenderStepped:Connect(function()
     if not flying or not hrp.Parent then stop(); return end
+    local move = hum.MoveDirection
     local look = camera.CFrame.LookVector
     local right = camera.CFrame.RightVector
-    local move = hum.MoveDirection
+    -- Project move (which is already camera-relative on the ground) onto camera basis
+    -- so W = camera-forward including pitch, giving proper fly-up-when-looking-up behavior.
     local forward = Vector3.new(look.X, look.Y, look.Z)
     local rightV = Vector3.new(right.X, right.Y, right.Z)
-    local upInput = 0
-    if UserInputService:IsKeyDown(Enum.KeyCode.Space) then upInput = upInput + 1 end
-    if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) or UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then upInput = upInput - 1 end
-    local dir = (rightV * move.X) + (forward * -move.Z) + Vector3.new(0, upInput, 0)
-    lv.VectorVelocity = dir.Magnitude > 0.05 and dir.Unit * SPEED or Vector3.zero
+    local up = 0
+    if UserInputService:IsKeyDown(Enum.KeyCode.Space) then up = up + 1 end
+    if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) or UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then up = up - 1 end
+    local dir = (rightV * move.X) + (forward * -move.Z) + Vector3.new(0, up, 0)
+    if dir.Magnitude > 0.05 then
+      lv.VectorVelocity = dir.Unit * SPEED
+    else
+      lv.VectorVelocity = Vector3.zero
+    end
     ao.CFrame = camera.CFrame
   end)
 end
 
 ContextActionService:UnbindAction(ACTION)
 ContextActionService:BindActionAtPriority(ACTION, function(_, state)
-  if state ~= Enum.UserInputState.Begin then return Enum.ContextActionResult.Pass end
-  if flying then stop() else start() end
+  if state == Enum.UserInputState.Begin then
+    if flying then stop() else start() end
+  end
   return Enum.ContextActionResult.Pass
 end, true, Enum.ContextActionPriority.High.Value, Enum.KeyCode.F, Enum.KeyCode.ButtonY)
-ContextActionService:SetTitle(ACTION, "Fly (F)")
+ContextActionService:SetTitle(ACTION, "Toggle Fly (F)")
 
 player.CharacterAdded:Connect(function() stop() end)
-print("[BloxSmith] Fly script loaded — press F to toggle fly")`;
+]==]
+client.Parent = scripts
+`;
     return [{
-      kind: "localscript",
+      kind: "run_lua",
       parent_path: "StarterPlayer.StarterPlayerScripts",
-      name: "BloxSmith_FlyToggle",
-      payload: { source: flySource, request: safePrompt, language: languageName },
+      name: "BloxSmith_Create_Fly_Toggle",
+      payload: { source, request: safePrompt, language: languageName },
     }];
   }
 
@@ -2441,9 +2501,10 @@ async function toolboxAssetFinderStudioActions(userText: string) {
           allow_scripts: false,
           disable_procedural_fallback: true,
           single_asset_only: true,
-          extract_single: true,
+          extract_single: false,
+          preserve_hierarchy: true,
           exact_quantity: 1,
-          max_children: 25,
+          max_children: 1000,
           max_scripts: 0,
           reject_pack_names: true,
           stop_after_insert: true,
@@ -2896,6 +2957,22 @@ spawn.Color = Color3.fromRGB(110, 215, 255)
 spawn.Material = Enum.Material.Ice
 spawn.Parent = root
 remember(spawn)
+
+local marker = part(root, "BloxSmith_Snow_Built_Marker", Vector3.new(18, 10, 1), CFrame.new(0, 7, -88), Color3.fromRGB(32, 45, 62), Enum.Material.Metal)
+local gui = Instance.new("SurfaceGui")
+gui.Face = Enum.NormalId.Front
+gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+gui.PixelsPerStud = 24
+gui.Parent = marker
+local label = Instance.new("TextLabel")
+label.BackgroundTransparency = 1
+label.Size = UDim2.fromScale(1, 1)
+label.Font = Enum.Font.GothamBold
+label.TextScaled = true
+label.TextWrapped = true
+label.TextColor3 = Color3.fromRGB(244, 250, 255)
+label.Text = "Snow terrain built"
+label.Parent = gui
 
 pcall(function()
   Lighting.ClockTime = 9.5
@@ -3752,6 +3829,27 @@ if wants.lighting then
   atmosphere.Color = Color3.fromRGB(205, 225, 255)
   atmosphere.Decay = Color3.fromRGB(110, 130, 160)
   atmosphere.Parent = Lighting
+end
+
+if wants.genericBuild then
+  local receipt = root:FindFirstChild("BloxSmith_Result_Receipt")
+  if not receipt then
+    receipt = part("BloxSmith_Result_Receipt", Vector3.new(34, 12, 1), CFrame.new(0, 9, -34), Color3.fromRGB(28, 32, 46), Enum.Material.Metal, root)
+    local sg = Instance.new("SurfaceGui")
+    sg.Face = Enum.NormalId.Front
+    sg.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+    sg.PixelsPerStud = 24
+    sg.Parent = receipt
+    local label = Instance.new("TextLabel")
+    label.BackgroundTransparency = 1
+    label.Size = UDim2.fromScale(1, 1)
+    label.Font = Enum.Font.GothamBold
+    label.TextScaled = true
+    label.TextWrapped = true
+    label.TextColor3 = Color3.fromRGB(245, 248, 255)
+    label.Text = "BloxSmith build applied visibly in Studio"
+    label.Parent = sg
+  end
 end
 
 root:SetAttribute("LastBloxSmithVisibilityGuard", os.time())
@@ -5467,6 +5565,22 @@ else
   end
 end
 
+local sign = part(map, "Objective_Sign", Vector3.new(58, 18, 1), CFrame.new(0, 13, -124), Color3.fromRGB(24, 29, 42), Enum.Material.Metal)
+local signGui = Instance.new("SurfaceGui")
+signGui.Face = Enum.NormalId.Front
+signGui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+signGui.PixelsPerStud = 24
+signGui.Parent = sign
+local signText = Instance.new("TextLabel")
+signText.BackgroundTransparency = 1
+signText.Size = UDim2.fromScale(1, 1)
+signText.Font = Enum.Font.GothamBold
+signText.TextScaled = true
+signText.TextWrapped = true
+signText.TextColor3 = Color3.fromRGB(245, 248, 255)
+signText.Text = "BloxSmith playable " .. genre .. " build\\n" .. request
+signText.Parent = signGui
+
 local remotes = ReplicatedStorage:FindFirstChild("BloxSmith_Remotes") or Instance.new("Folder")
 remotes.Name = "BloxSmith_Remotes"
 remotes.Parent = ReplicatedStorage
@@ -6022,6 +6136,7 @@ export const Route = createFileRoute("/api/chat")({
             const convertedLite = await convertToModelMessages(trimMessagesForModel(stripImageFilePartsFromMessages(messages), "chat"));
             const systemLite =
               FAST_CHAT_SYSTEM_PROMPT +
+              "\n\n" + SCRIPTING_CORE_RULES +
               `\n\nMODE: CHAT (no project open) — help the user plan, brainstorm, and refine ideas for their Roblox game. Do NOT emit build actions, file outputs, or plugin_actions. Keep replies conversational. Reply in ${languageName} (${languageCode}). If the user asks to delete, erase, clear, or modify their Roblox project, NEVER say BloxSmith only has Toolbox/search capability. Say BloxSmith can do that in Build Mode through the Studio plugin, and ask them to switch to Build Mode / open a project if needed. For requests like "erase everything but keep the Baseplate", answer with only that Build Mode instruction; do not provide manual deletion steps unless the user asks for manual steps.`;
             const liteResult = streamText({
               model: modelChoiceLite.model,
@@ -6628,9 +6743,10 @@ export const Route = createFileRoute("/api/chat")({
                     strip_scripts: true,
                     disable_procedural_fallback: true,
                     single_asset_only: true,
-                    extract_single: true,
+                    extract_single: false,
+                    preserve_hierarchy: true,
                     exact_quantity: 1,
-                    max_children: 25,
+                    max_children: 1000,
                     max_scripts: 0,
                     reject_pack_names: true,
                     stop_after_insert: true,
@@ -7314,9 +7430,10 @@ export const Route = createFileRoute("/api/chat")({
                           allow_scripts: false,
                           disable_procedural_fallback: true,
                           single_asset_only: true,
-                          extract_single: true,
+                          extract_single: false,
+                          preserve_hierarchy: true,
                           exact_quantity: 1,
-                          max_children: 25,
+                          max_children: 1000,
                           max_scripts: 0,
                           reject_pack_names: true,
                           stop_after_insert: true,
@@ -8293,6 +8410,18 @@ export const Route = createFileRoute("/api/chat")({
           );
 
 
+          // Built-in scripting brain: correct Luau/Roblox API knowledge,
+          // patterns and worked examples chosen for THIS request. Always
+          // available (no database round trip), so the model never has to
+          // guess a signature or fall back to deprecated idioms.
+          const scriptingBlock =
+            "\n\n=== " +
+            scriptingKnowledgeFor(userText || "", {
+              limit: mode === "chat" ? 4 : 6,
+              maxChars: mode === "chat" ? 9000 : 14000,
+            }) +
+            "\n=== END SCRIPTING KNOWLEDGE ===\n";
+
           // RAG: retrieve top Roblox knowledge chunks ONCE per turn (outside
           // tryStream so fallback retries reuse the same block). Best-effort.
           let ragBlock = "";
@@ -8389,7 +8518,7 @@ export const Route = createFileRoute("/api/chat")({
               : { roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch }) as ToolSet;
             return streamText({
               model,
-              system: (mode === "chat" ? FAST_CHAT_SYSTEM_PROMPT : FAST_BUILD_SYSTEM_PROMPT) + modeHeader + languageHeader + qualityHeader + assetModeRule + contextBlock + ragBlock + outlineBlock,
+              system: (mode === "chat" ? FAST_CHAT_SYSTEM_PROMPT : FAST_BUILD_SYSTEM_PROMPT) + modeHeader + languageHeader + qualityHeader + assetModeRule + contextBlock + scriptingBlock + ragBlock + outlineBlock,
               messages: convertedMessages,
               abortSignal: timeoutController.signal,
               ...(extraBody ? { providerOptions: { nvidia: extraBody as Record<string, never> } as never } : {}),

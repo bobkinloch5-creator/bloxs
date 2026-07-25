@@ -3,12 +3,15 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getMyProfile } from "@/lib/profile.functions";
 import { deleteSavedRobloxUi, generateRobloxUi, listSavedRobloxUis } from "@/lib/ui-generator.functions";
-import { paletteFor } from "@/lib/roblox-ui-blueprint";
+import { detectUiKind, kindLabelFor, paletteFor, UI_CANVAS_HEIGHT, UI_CANVAS_WIDTH, UI_KIND_OPTIONS } from "@/lib/roblox-ui-blueprint";
 import { PageShell, EmptyState } from "@/components/PageShell";
-import { LayoutDashboard, Send, Loader2, Copy, Check, AlertTriangle, Sparkles, Shuffle, Download, ExternalLink, Trash2, RefreshCw, RotateCcw } from "lucide-react";
+import { LayoutDashboard, Send, Loader2, Copy, Check, AlertTriangle, Sparkles, Shuffle, Download, ExternalLink, Trash2, RefreshCw, RotateCcw, Monitor, Tablet, Smartphone, Maximize2, Code2, Eye, ZoomIn, ZoomOut, Layers } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { RouteSkeleton } from "@/components/RouteSkeleton";
 
 export const Route = createFileRoute("/_authenticated/ui-generator")({
+  pendingComponent: () => <RouteSkeleton title="UI Generator" columns={2} />,
+  pendingMs: 150,
   head: () => ({ meta: [
     { title: "UI Generator — BloxSmith" },
     { name: "description", content: "Generate complete, ready-to-paste Roblox ScreenGui Luau scripts from a prompt." },
@@ -82,6 +85,7 @@ function UiGenerator() {
 
   const [prompt, setPrompt] = useState("");
   const [style, setStyle] = useState("Modern");
+  const [screenType, setScreenType] = useState<string>("auto");
   const [generated, setGenerated] = useState<Generated[]>([]);
   const [err, setErr] = useState<string | null>(null);
 
@@ -119,10 +123,17 @@ function UiGenerator() {
     setGenerated(savedQuery.data as Generated[]);
   }, [savedQuery.data]);
 
+  const chosenKind = UI_KIND_OPTIONS.find((option) => option.kind === screenType);
+  const detectedLabel = prompt.trim()
+    ? kindLabelFor(detectUiKind(chosenKind ? chosenKind.label + " - " + prompt : prompt))
+    : null;
+
   function generate(p?: string) {
     const value = (p ?? prompt).trim();
     if (!value || gen.isPending) return;
-    gen.mutate({ prompt: value, style });
+    // Prefixing with the picked screen type makes layout selection deterministic.
+    const modelPrompt = chosenKind ? chosenKind.label + " - " + value : value;
+    gen.mutate({ prompt: value, style, modelPrompt });
   }
 
   return (
@@ -209,6 +220,31 @@ function UiGenerator() {
             );
           })}
         </div>
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-violet-300/70">Screen type:</span>
+          <button
+            onClick={() => setScreenType("auto")}
+            className={`rounded-lg border px-2.5 py-1.5 text-[11px] font-bold transition ${screenType === "auto" ? "border-cyan-300/60 bg-cyan-400/20 text-cyan-50" : "border-white/10 bg-white/5 text-slate-300 hover:bg-white/10"}`}
+            title="Detect the screen type from your description"
+          >
+            Auto detect
+          </button>
+          {UI_KIND_OPTIONS.map((option) => (
+            <button
+              key={option.kind}
+              onClick={() => setScreenType(option.kind)}
+              title={option.hint}
+              className={`rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold transition ${screenType === option.kind ? "border-cyan-300/60 bg-cyan-400/20 text-cyan-50" : "border-white/10 bg-white/5 text-slate-300 hover:bg-white/10"}`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+        {detectedLabel && (
+          <div className="mt-2 inline-flex items-center gap-2 rounded-lg border border-emerald-300/25 bg-emerald-400/10 px-2.5 py-1.5 text-[11px] font-bold text-emerald-100">
+            <Layers className="h-3.5 w-3.5" /> Will build: {detectedLabel} layout - {UI_CANVAS_WIDTH}x{UI_CANVAS_HEIGHT} canvas
+          </div>
+        )}
         <div className="mt-3 flex flex-wrap gap-1.5">
           <span className="text-[10px] font-semibold uppercase tracking-wider text-violet-300/70">Try:</span>
           {EXAMPLES.map((ex) => (
@@ -287,6 +323,9 @@ function ResultCard({ result, onDelete, deleting, onRegenerate, onRemix, regener
 }) {
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState<string | null>(null);
+  const [tab, setTab] = useState<"preview" | "code">("preview");
+  const kindLabel = useMemo(() => kindLabelFor(detectUiKind(result.prompt)), [result.prompt]);
+  const codeLines = useMemo(() => String(result.code || "").split("\n").length, [result.code]);
   const swatch = useMemo(() => paletteFor(result.style), [result.style]);
   const createdLabel = typeof result.createdAt === "number"
     ? new Date(result.createdAt).toLocaleString()
@@ -358,29 +397,37 @@ function ResultCard({ result, onDelete, deleting, onRegenerate, onRemix, regener
           </button>
         </div>
       </div>
-      {result.conceptImageUrl && (
-        <div className="mt-3 overflow-hidden rounded-xl border border-white/10 bg-black/50">
-          <div className="flex items-center justify-between border-b border-white/10 bg-black/55 px-3 py-2 text-[11px] font-bold text-white">
-            <span className="inline-flex items-center gap-2"><Sparkles className="h-3.5 w-3.5 text-cyan-200" /> Roblox UI preview</span>
-            <div className="flex gap-1.5">
-              <a href={result.conceptImageUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-md bg-white/[0.06] px-2 py-1 hover:bg-white/[0.12]">
-                <ExternalLink className="h-3 w-3" /> Open
-              </a>
-              <a href={result.conceptImageUrl} download={safeFileName(result.prompt, "png")} className="inline-flex items-center gap-1 rounded-md bg-white/[0.06] px-2 py-1 hover:bg-white/[0.12]">
-                <Download className="h-3 w-3" /> Image
-              </a>
-            </div>
+      <div className="mt-3 flex flex-wrap items-center gap-1.5">
+        <button
+          onClick={() => setTab("preview")}
+          className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-bold transition ${tab === "preview" ? "border-cyan-300/50 bg-cyan-400/15 text-cyan-50" : "border-white/10 bg-white/5 text-slate-300 hover:bg-white/10"}`}
+        >
+          <Eye className="h-3.5 w-3.5" /> Preview
+        </button>
+        <button
+          onClick={() => setTab("code")}
+          className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-bold transition ${tab === "code" ? "border-violet-300/50 bg-violet-400/15 text-violet-50" : "border-white/10 bg-white/5 text-slate-300 hover:bg-white/10"}`}
+        >
+          <Code2 className="h-3.5 w-3.5" /> Luau ({codeLines} lines)
+        </button>
+        <span className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-[11px] font-bold text-slate-300">
+          <Layers className="h-3.5 w-3.5" /> {kindLabel}
+        </span>
+      </div>
+
+      {tab === "preview" ? (
+        result.conceptImageUrl ? (
+          <UiPreview src={result.conceptImageUrl} prompt={result.prompt} kindLabel={kindLabel} />
+        ) : (
+          <div className="mt-3 rounded-xl border border-white/10 bg-black/40 p-6 text-center text-xs text-muted-foreground">
+            No preview image was stored for this generation. Regenerate to build one.
           </div>
-          <img
-            src={result.conceptImageUrl}
-            alt="Generated Roblox UI concept"
-            className="max-h-[420px] w-full object-contain"
-          />
-        </div>
+        )
+      ) : (
+        <pre className="mt-3 max-h-[460px] overflow-auto rounded-xl border border-white/10 bg-black/60 p-3 text-[11px] leading-relaxed text-slate-200">
+          <code>{result.code}</code>
+        </pre>
       )}
-      <pre className="mt-3 max-h-[400px] overflow-auto rounded-xl border border-white/10 bg-black/60 p-3 text-[11px] leading-relaxed text-slate-200">
-        <code>{result.code}</code>
-      </pre>
       {copyError && (
         <div className="mt-2 rounded-lg border border-amber-300/25 bg-amber-400/10 px-3 py-2 text-[11px] font-semibold text-amber-100">
           {copyError}
@@ -389,6 +436,97 @@ function ResultCard({ result, onDelete, deleting, onRegenerate, onRemix, regener
       <p className="mt-2 text-[11px] text-muted-foreground">
         Paste into <span className="font-mono text-violet-300">StarterPlayer › StarterPlayerScripts</span> as a LocalScript and press Play.
       </p>
+    </div>
+  );
+}
+
+const PREVIEW_DEVICES = [
+  { id: "desktop", label: "Desktop", w: 1280, h: 720, icon: Monitor },
+  { id: "tablet", label: "Tablet", w: 1024, h: 768, icon: Tablet },
+  { id: "phone", label: "Phone", w: 844, h: 390, icon: Smartphone },
+] as const;
+
+// The generated LocalScript builds a fixed 1280x720 canvas that is centered and
+// uniformly scaled to the viewport. object-contain inside a device-aspect box
+// reproduces that exactly, so this preview matches Roblox pixel for pixel.
+function UiPreview({ src, prompt, kindLabel }: { src: string; prompt: string; kindLabel: string }) {
+  const [deviceId, setDeviceId] = useState<string>("desktop");
+  const [zoom, setZoom] = useState(1);
+  const [full, setFull] = useState(false);
+  const device = PREVIEW_DEVICES.find((d) => d.id === deviceId) ?? PREVIEW_DEVICES[0];
+
+  const stage = (
+    <div className="overflow-auto">
+      <div
+        className="relative mx-auto overflow-hidden rounded-lg border border-white/10 shadow-2xl shadow-black/50"
+        style={{
+          width: `${Math.round(100 * zoom)}%`,
+          aspectRatio: `${device.w} / ${device.h}`,
+          background: "linear-gradient(180deg,#1b2b4a 0%,#0e1730 55%,#070b16 100%)",
+        }}
+      >
+        <img src={src} alt={`Roblox ${kindLabel} preview for ${prompt}`} className="absolute inset-0 h-full w-full object-contain" />
+        <div className="pointer-events-none absolute bottom-2 right-2 rounded-md bg-black/65 px-2 py-1 text-[10px] font-bold text-white/75">
+          {device.label} {device.w}x{device.h} - canvas {UI_CANVAS_WIDTH}x{UI_CANVAS_HEIGHT}
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="mt-3 overflow-hidden rounded-xl border border-white/10 bg-black/50">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 bg-black/55 px-3 py-2 text-[11px] font-bold text-white">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {PREVIEW_DEVICES.map((d) => {
+            const Icon = d.icon;
+            return (
+              <button
+                key={d.id}
+                onClick={() => setDeviceId(d.id)}
+                title={`${d.label} ${d.w}x${d.h}`}
+                className={`inline-flex items-center gap-1 rounded-md px-2 py-1 transition ${deviceId === d.id ? "bg-cyan-400/20 text-cyan-100" : "bg-white/[0.06] text-slate-300 hover:bg-white/[0.12]"}`}
+              >
+                <Icon className="h-3 w-3" /> {d.label}
+              </button>
+            );
+          })}
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <button onClick={() => setZoom((z) => Math.max(0.5, Number((z - 0.25).toFixed(2))))} title="Zoom out" className="inline-flex items-center gap-1 rounded-md bg-white/[0.06] px-2 py-1 hover:bg-white/[0.12]">
+            <ZoomOut className="h-3 w-3" />
+          </button>
+          <span className="tabular-nums text-slate-300">{Math.round(zoom * 100)}%</span>
+          <button onClick={() => setZoom((z) => Math.min(3, Number((z + 0.25).toFixed(2))))} title="Zoom in" className="inline-flex items-center gap-1 rounded-md bg-white/[0.06] px-2 py-1 hover:bg-white/[0.12]">
+            <ZoomIn className="h-3 w-3" />
+          </button>
+          <button onClick={() => setFull(true)} title="Fullscreen preview" className="inline-flex items-center gap-1 rounded-md bg-white/[0.06] px-2 py-1 hover:bg-white/[0.12]">
+            <Maximize2 className="h-3 w-3" /> Full
+          </button>
+          <a href={src} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-md bg-white/[0.06] px-2 py-1 hover:bg-white/[0.12]">
+            <ExternalLink className="h-3 w-3" /> Open
+          </a>
+          <a href={src} download={safeFileName(prompt, "svg")} className="inline-flex items-center gap-1 rounded-md bg-white/[0.06] px-2 py-1 hover:bg-white/[0.12]">
+            <Download className="h-3 w-3" /> Image
+          </a>
+        </div>
+      </div>
+      <div className="p-3">{stage}</div>
+      {full && (
+        <div className="fixed inset-0 z-50 flex flex-col gap-3 bg-black/92 p-4 backdrop-blur-sm" role="dialog">
+          <div className="flex items-center justify-between text-xs font-bold text-white">
+            <span className="inline-flex items-center gap-2"><Sparkles className="h-3.5 w-3.5 text-cyan-200" /> {kindLabel} - {device.label} {device.w}x{device.h}</span>
+            <button onClick={() => setFull(false)} className="rounded-md bg-white/10 px-3 py-1.5 hover:bg-white/20">Close</button>
+          </div>
+          <div className="flex flex-1 items-center justify-center overflow-hidden">
+            <div
+              className="relative max-h-full w-full overflow-hidden rounded-xl border border-white/10"
+              style={{ aspectRatio: `${device.w} / ${device.h}`, maxWidth: "min(1680px, 96vw)", background: "linear-gradient(180deg,#1b2b4a 0%,#0e1730 55%,#070b16 100%)" }}
+            >
+              <img src={src} alt={`Roblox ${kindLabel} fullscreen preview`} className="absolute inset-0 h-full w-full object-contain" />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
