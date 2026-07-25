@@ -6,7 +6,10 @@ All notable changes to BloxSmith are tracked here. Dates are UTC.
 
 ### 2026-07-25 - Roblox Studio Project Explorer & Hierarchy Mirroring
 
-**Project Files Explorer & Hierarchy Mirroring (`src/lib/project-workspace.functions.ts`, `src/components/ProjectFilesPanel.tsx`)**
+**Project Files Explorer & Hierarchy Mirroring (`src/lib/project-workspace.functions.ts`, `src/components/ProjectFilesPanel.tsx`, `public/BloxSmithPlugin.lua`)**
+- Fixed `listProjectFiles` scene tree walker to properly unwrap `session.last_scan.roots` snapshot arrays and recursively traverse all live Roblox Studio hierarchy instances without dropping sub-folders or objects.
+- Enhanced `scanInstance` in `BloxSmithPlugin.lua` to automatically capture and transmit Luau `inst.Source` for all `Script`, `LocalScript`, and `ModuleScript` instances during project scans.
+- Added automatic background scene hierarchy scanning on plugin connect so the web explorer immediately mirrors live Roblox game contents without manual intervention.
 - Integrated real-time 3-way data aggregation into `listProjectFiles`: combines manual Roblox Studio plugin actions, chat assistant `bloxsmith-actions` history snippets, and live `plugin_sessions` scene scans (`last_scan`).
 - Normalized service paths and instance hierarchy, automatically routing scripts and models to their respective Roblox services (`Workspace`, `ServerScriptService`, `ReplicatedStorage`, `StarterGui`, etc.).
 - Enhanced `ProjectFilesPanel` UI with dynamic class badges and visual icons for Roblox object types (Folders, Models, BaseParts, Remotes, Scripts, GUIs, etc.).

@@ -1955,7 +1955,17 @@ local function pollOnce(force)
     end
     if data and data.user_id then
         -- userId surfaced only on first successful poll after (re)connect
-        if lastHeartbeat == 0 then log("userId: " .. tostring(data.user_id), "debug") end
+        if lastHeartbeat == 0 then
+            log("userId: " .. tostring(data.user_id), "debug")
+            task.spawn(function()
+                pcall(function()
+                    local scan = buildScan()
+                    post("/api/public/plugin/scan", {
+                        token = token, place_id = tostring(game.PlaceId or 0), scan = scan,
+                    }, { verbose = false })
+                end)
+            end)
+        end
     end
     setStatus("Connected to Studio", Color3.fromRGB(120,220,160), "Waiting for prompt.")
     if data.credits ~= nil or data.max_credits ~= nil then
@@ -2272,12 +2282,20 @@ local function scanInstance(inst, depth, maxDepth, budget)
     if budget.count >= budget.max then return nil end
     budget.count += 1
     local node = { name = inst.Name, class = inst.ClassName }
+    if inst:IsA("LuaSourceContainer") then
+        pcall(function()
+            local src = inst.Source
+            if type(src) == "string" and #src > 0 then
+                node.source = #src > 50000 and (src:sub(1, 50000) .. "\n-- [Truncated large script]") or src
+            end
+        end)
+    end
     if depth < maxDepth then
         local kids = inst:GetChildren()
         if #kids > 0 then
             node.children = {}
             for i, c in ipairs(kids) do
-                if i > 80 then node.truncated = true; break end
+                if i > 120 then node.truncated = true; break end
                 local child = scanInstance(c, depth + 1, maxDepth, budget)
                 if child then table.insert(node.children, child) end
             end

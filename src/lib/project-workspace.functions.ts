@@ -367,44 +367,99 @@ export const listProjectFiles = createServerFn({ method: "GET" })
       .maybeSingle();
 
     if (session?.last_scan) {
+      let rawScan = session.last_scan;
+      if (typeof rawScan === "string") {
+        try {
+          rawScan = JSON.parse(rawScan);
+        } catch {}
+      }
+
+      let rootNodes: any[] = [];
+      if (Array.isArray(rawScan)) {
+        rootNodes = rawScan;
+      } else if (rawScan && typeof rawScan === "object") {
+        if (Array.isArray((rawScan as any).roots)) {
+          rootNodes = (rawScan as any).roots;
+        } else {
+          rootNodes = [rawScan];
+        }
+      }
+
+      const ROBLOX_SERVICES = new Set([
+        "Workspace",
+        "ServerScriptService",
+        "ServerStorage",
+        "ReplicatedStorage",
+        "ReplicatedFirst",
+        "StarterGui",
+        "StarterPack",
+        "StarterPlayer",
+        "Lighting",
+        "SoundService",
+        "Teams",
+        "Players",
+        "TextChatService",
+        "StarterPlayerScripts",
+        "StarterCharacterScripts",
+      ]);
+
       const walkNode = (node: any, currentParent = "") => {
         if (!node || typeof node !== "object") return;
         const name = node.name || node.Name || "Instance";
         const cls = node.className || node.ClassName || node.class || "Instance";
+
         const rawPath = node.path || node.Path || (currentParent ? `${currentParent}.${name}` : name);
+        const cleanPath = rawPath.replace(/^game\./i, "");
 
-        const parts = rawPath.replace(/^game\./i, "").split(".");
-        const itemName = parts.pop() || name;
-        const parentPath = parts.join(".") || (cls.includes("Script") ? "ServerScriptService" : "Workspace");
+        if (!ROBLOX_SERVICES.has(cleanPath)) {
+          const parts = cleanPath.split(".");
+          const itemName = parts.pop() || name;
+          let parentPath = parts.join(".");
 
-        const source = typeof node.source === "string" ? node.source :
-                       typeof node.code === "string" ? node.code :
-                       typeof node.script === "string" ? node.script :
-                       `-- Live Roblox Studio Instance: ${itemName} (${cls})\n-- Path: ${rawPath}`;
+          if (!parentPath) {
+            if (cls === "LocalScript") parentPath = "StarterPlayerScripts";
+            else if (cls === "ModuleScript") parentPath = "ReplicatedStorage";
+            else if (cls === "ScreenGui") parentPath = "StarterGui";
+            else if (cls === "RemoteEvent" || cls === "RemoteFunction") parentPath = "ReplicatedStorage";
+            else if (["Part", "Model", "Folder", "MeshPart", "Terrain"].includes(cls)) parentPath = "Workspace";
+            else parentPath = "ServerScriptService";
+          }
 
-        const key = `${parentPath}.${itemName}`;
-        if (!fileMap.has(key)) {
-          fileMap.set(key, {
-            id: `scan-${rawPath}`,
-            name: itemName,
-            className: cls,
-            parentPath,
-            source,
-            updatedAt: session.last_scan_at || new Date().toISOString(),
-            actionKind: "live_scan",
-          });
+          const source =
+            typeof node.source === "string"
+              ? node.source
+              : typeof node.code === "string"
+              ? node.code
+              : typeof node.script === "string"
+              ? node.script
+              : typeof node.Source === "string"
+              ? node.Source
+              : `-- Live Roblox Studio Instance: ${itemName} (${cls})\n-- Path: ${cleanPath}`;
+
+          const key = `${parentPath}.${itemName}`;
+          const existing = fileMap.get(key);
+          if (!existing || (typeof node.source === "string" && node.source.trim())) {
+            fileMap.set(key, {
+              id: `scan-${cleanPath}`,
+              name: itemName,
+              className: cls,
+              parentPath,
+              source,
+              updatedAt: session.last_scan_at || new Date().toISOString(),
+              actionKind: "live_scan",
+            });
+          }
         }
 
         const children = node.children || node.Children;
         if (Array.isArray(children)) {
           for (const child of children) {
-            walkNode(child, rawPath);
+            walkNode(child, cleanPath);
           }
         }
       };
 
-      const roots = Array.isArray(session.last_scan) ? session.last_scan : [session.last_scan];
-      for (const root of roots) {
+      for (const root of rootNodes) {
         walkNode(root, "");
       }
     }
