@@ -59,31 +59,31 @@ export function HelpChatWidget() {
           type="button"
           onClick={() => setOpen(true)}
           aria-label="Open BloxSmith help chat"
-          className="group fixed bottom-20 left-4 z-[90] flex items-center gap-2 rounded-full bg-gradient-to-r from-indigo-600 to-violet-700 px-4 py-3 text-white shadow-xl shadow-indigo-900/40 ring-1 ring-white/10 transition hover:scale-105 hover:shadow-indigo-500/40 sm:bottom-6 sm:left-6"
+          className="group fixed bottom-20 right-4 z-[90] flex items-center gap-2.5 rounded-full border border-indigo-400/50 bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 px-4.5 py-3 text-white shadow-[0_0_30px_rgba(99,102,241,0.5)] transition-all hover:scale-105 hover:border-cyan-400 hover:shadow-[0_0_40px_rgba(34,211,238,0.6)] active:scale-95 sm:bottom-6 sm:right-6"
         >
-          <MessageCircle className="h-5 w-5" />
-          <span className="hidden text-sm font-semibold sm:inline">Need help?</span>
-          <span className="absolute -top-1 -right-1 flex h-3 w-3">
+          <MessageCircle className="h-5 w-5 text-cyan-300 transition-transform group-hover:scale-110" />
+          <span className="hidden text-sm font-black tracking-wide text-white sm:inline">Need help?</span>
+          <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-            <span className="relative inline-flex h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-slate-950" />
+            <span className="relative inline-flex h-3.5 w-3.5 rounded-full bg-emerald-400 border-2 border-[#050614] shadow-[0_0_8px_#34d399]" />
           </span>
         </button>
       )}
 
       {/* Panel */}
       {open && (
-        <div className="fixed bottom-4 left-4 z-[90] flex h-[600px] max-h-[85vh] w-[calc(100vw-2rem)] max-w-[380px] flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#0a0a0c] shadow-2xl shadow-black/60 sm:bottom-6 sm:left-6">
+        <div className="vapor-card fixed bottom-4 right-4 z-[90] flex h-[600px] max-h-[85vh] w-[calc(100vw-2rem)] max-w-[380px] flex-col overflow-hidden rounded-3xl border border-indigo-500/40 bg-[#0a0a22]/98 shadow-[0_0_50px_rgba(0,0,0,0.9)] backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-200 sm:bottom-6 sm:right-6">
           {/* Header */}
-          <div className="relative flex items-center justify-between border-b border-white/10 bg-gradient-to-r from-indigo-600 to-violet-700 p-4 shadow-lg">
+          <div className="relative flex items-center justify-between border-b border-indigo-500/30 bg-gradient-to-r from-indigo-900/90 via-purple-900/80 to-indigo-900/90 p-4 shadow-lg">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 shadow-inner ring-1 ring-white/20">
-                <Sparkles className="h-5 w-5 text-white" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-indigo-400/40 bg-indigo-500/25 shadow-[0_0_15px_rgba(99,102,241,0.4)]">
+                <Sparkles className="h-5 w-5 text-cyan-300 animate-pulse" />
               </div>
               <div>
-                <h3 className="text-sm font-semibold leading-tight text-white">BloxSmith Helper</h3>
+                <h3 className="text-sm font-extrabold leading-tight text-white">BloxSmith Helper</h3>
                 <div className="mt-0.5 flex items-center gap-1.5">
-                  <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-400" />
-                  <span className="text-[11px] font-medium text-white/70">Online</span>
+                  <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" />
+                  <span className="text-[11px] font-bold tracking-wide text-cyan-200">Online & Ready</span>
                 </div>
               </div>
             </div>
