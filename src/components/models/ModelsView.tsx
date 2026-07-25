@@ -1345,23 +1345,25 @@ function ToolboxLibrary({ projectId }: { projectId?: string }) {
   ];
 
   return (
-    <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 backdrop-blur-sm space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <div className="grid h-9 w-9 place-items-center rounded-lg bg-emerald-500/15 text-emerald-300"><Package className="h-4 w-4" /></div>
+    <section className="vapor-card rounded-3xl border border-indigo-500/40 bg-gradient-to-b from-[#121235]/95 via-[#0c0c24]/95 to-[#08081a]/95 p-5 sm:p-6 shadow-[0_0_50px_rgba(79,70,229,0.25)] space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="grid h-10 w-10 place-items-center rounded-xl border border-emerald-400/40 bg-emerald-500/20 text-emerald-300 shadow-[0_0_20px_rgba(52,211,153,0.3)]">
+            <Package className="h-5 w-5 animate-pulse" />
+          </div>
           <div>
-            <div className="text-sm font-bold">Roblox Toolbox library</div>
-            <div className="text-[11px] text-muted-foreground">Free, verified, script-safe assets pulled live from Roblox Creator Store — send any into Studio.</div>
+            <div className="text-base font-extrabold text-white tracking-tight">Roblox Toolbox Library</div>
+            <div className="text-xs font-medium text-slate-300">Free, verified, script-safe assets pulled live from Roblox Creator Store — send any into Studio.</div>
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-3 text-xs font-semibold text-slate-300">
           {!projectId && (
-            <label className="inline-flex items-center gap-1.5">
-              <span>Insert into:</span>
+            <label className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-500/30 bg-black/40 px-3 py-1.5">
+              <span className="text-indigo-300 font-bold">Insert into:</span>
               <select
                 value={pickedProjectId ?? ""}
                 onChange={(e) => setPickedProjectId(e.target.value || undefined)}
-                className="rounded-md border border-white/15 bg-black/40 px-2 py-1 text-[11px] text-white outline-none focus:border-emerald-400/60"
+                className="rounded-lg border border-indigo-500/40 bg-[#0d0d26] px-2.5 py-1 text-xs font-bold text-cyan-200 outline-none focus:border-cyan-400"
               >
                 {projects.length === 0 && <option value="">No projects yet</option>}
                 {projects.map((p) => (
@@ -1370,101 +1372,122 @@ function ToolboxLibrary({ projectId }: { projectId?: string }) {
               </select>
             </label>
           )}
-          <label className="inline-flex items-center gap-1.5"><input type="checkbox" checked={verifiedOnly} onChange={(e) => setVerifiedOnly(e.target.checked)} className="h-3.5 w-3.5 accent-emerald-500" /> Verified creators only</label>
-          <label className="inline-flex items-center gap-1.5"><input type="checkbox" checked={freeOnly} onChange={(e) => setFreeOnly(e.target.checked)} className="h-3.5 w-3.5 accent-emerald-500" disabled /> Free only</label>
+          <label className="inline-flex items-center gap-1.5 cursor-pointer rounded-xl border border-white/10 bg-white/[0.04] px-3 py-1.5 transition hover:bg-white/[0.08]">
+            <input type="checkbox" checked={verifiedOnly} onChange={(e) => setVerifiedOnly(e.target.checked)} className="h-3.5 w-3.5 accent-emerald-400" />
+            <span className="text-emerald-300 font-bold">Verified creators</span>
+          </label>
+          <label className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-1.5 opacity-70">
+            <input type="checkbox" checked={freeOnly} onChange={(e) => setFreeOnly(e.target.checked)} className="h-3.5 w-3.5 accent-emerald-400" disabled />
+            <span className="text-slate-300 font-bold">Free only</span>
+          </label>
         </div>
-
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative flex-1 min-w-[220px]">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+      {/* Search Input & Categories */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative flex-1 min-w-[260px] focus-within:ring-2 focus-within:ring-cyan-400/50 rounded-2xl transition-all">
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-cyan-400" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search the whole Toolbox — e.g. obby map, medieval castle, city map, low poly tree"
-            className="w-full rounded-xl border border-white/10 bg-black/30 py-2 pl-9 pr-3 text-sm text-white placeholder:text-muted-foreground outline-none focus:border-emerald-400/60"
+            className="w-full rounded-2xl border border-indigo-500/40 bg-[#09091e] py-2.5 pl-10 pr-4 text-xs font-semibold text-white placeholder-slate-400 shadow-[0_0_15px_rgba(79,70,229,0.15)] outline-none focus:border-cyan-400 focus:bg-[#0e0e2e]"
             maxLength={120}
           />
         </div>
-        <div className="flex gap-1">
+        <div className="flex gap-1.5">
           {(["Model", "Mesh", "Decal", "Audio"] as ToolboxCategoryLite[]).map((c) => (
-            <button key={c} onClick={() => setCategory(c)} className={`rounded-lg px-2.5 py-1.5 text-[11px] font-semibold ${category === c ? "bg-emerald-500/25 text-emerald-100 border border-emerald-400/40" : "bg-white/[0.04] text-muted-foreground border border-white/10 hover:bg-white/[0.10]"}`}>{c}</button>
+            <button
+              key={c}
+              onClick={() => setCategory(c)}
+              className={`rounded-xl px-3.5 py-2 text-xs font-extrabold transition-all ${
+                category === c
+                  ? "bg-gradient-to-r from-emerald-500 to-cyan-500 text-white shadow-[0_0_20px_rgba(52,211,153,0.5)] border border-emerald-300/40"
+                  : "bg-white/[0.04] text-slate-300 border border-white/10 hover:bg-white/[0.08] hover:text-white"
+              }`}
+            >
+              {c}
+            </button>
           ))}
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-1">
+      {/* Quick suggestions pills */}
+      <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-indigo-500/30">
         {quick.map((q) => (
-          <button key={q} onClick={() => setQuery(q)} className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-0.5 text-[10.5px] text-muted-foreground hover:bg-white/[0.10] hover:text-white">
+          <button
+            key={q}
+            onClick={() => setQuery(q)}
+            className="rounded-full border border-indigo-500/25 bg-indigo-500/[0.07] px-2.5 py-1 text-[11px] font-semibold text-slate-300 transition-all hover:border-cyan-400/60 hover:bg-cyan-500/15 hover:text-white hover:shadow-[0_0_12px_rgba(34,211,238,0.25)]"
+          >
             {q}
           </button>
         ))}
       </div>
 
       {isFetching && (
-        <div className="rounded-xl border border-white/10 bg-black/30 p-4 text-xs text-muted-foreground inline-flex items-center gap-2">
-          <Loader2 className="h-4 w-4 animate-spin" /> Searching Roblox Creator Store…
+        <div className="rounded-2xl border border-indigo-500/30 bg-[#0c0c24]/90 p-4 text-xs font-bold text-cyan-300 inline-flex items-center gap-2 shadow-[0_0_20px_rgba(79,70,229,0.2)]">
+          <Loader2 className="h-4 w-4 animate-spin text-cyan-400" /> Searching Roblox Creator Store…
         </div>
       )}
 
       {!isFetching && filtered.length === 0 && (
-        <div className="rounded-xl border border-dashed border-white/10 bg-black/20 p-6 text-center text-xs text-muted-foreground">
-          No verified free {category.toLowerCase()}s matched that search. Try a broader term.
+        <div className="rounded-2xl border border-dashed border-indigo-500/30 bg-[#0c0c24]/60 p-8 text-center text-xs font-medium text-slate-400">
+          No verified free {category.toLowerCase()}s matched that search. Try a broader term above.
         </div>
       )}
 
       {filtered.length > 0 && (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filtered.map((r: any) => (
-            <div key={r.id} className="group rounded-xl border border-white/10 bg-black/30 overflow-hidden flex flex-col">
+            <div key={r.id} className="group vapor-card rounded-2xl border border-indigo-500/30 bg-[#0b0b24]/95 overflow-hidden flex flex-col hover:border-cyan-400/60 hover:shadow-[0_0_30px_rgba(34,211,238,0.25)] hover:-translate-y-0.5 transition-all">
               <button
                 type="button"
                 onClick={() => setPreview3D({ id: r.id, name: r.name })}
                 title="Open 3D preview"
-                className="relative aspect-square w-full bg-black/40 grid place-items-center overflow-hidden group/img"
+                className="relative aspect-square w-full bg-black/60 grid place-items-center overflow-hidden group/img"
               >
                 {r.thumbnail ? (
                   <img src={r.thumbnail} alt={r.name} loading="lazy" className="h-full w-full object-contain transition-transform group-hover/img:scale-105" />
                 ) : (
-                  <Box className="h-8 w-8 text-muted-foreground" />
+                  <Box className="h-8 w-8 text-slate-500" />
                 )}
                 {(r.verifiedCreator || String(r.creatorName || "").toLowerCase() === "roblox") && (
-                  <span className="absolute top-1.5 left-1.5 inline-flex items-center gap-0.5 rounded-full bg-emerald-500/25 px-1.5 py-0.5 text-[9px] font-bold uppercase text-emerald-100 border border-emerald-400/40">
-                    <ShieldCheck className="h-2.5 w-2.5" /> Verified
+                  <span className="absolute top-2 left-2 inline-flex items-center gap-1 rounded-full border border-emerald-400/50 bg-emerald-500/25 px-2 py-0.5 text-[9px] font-black uppercase text-emerald-200 shadow-[0_0_12px_rgba(52,211,153,0.4)] backdrop-blur-md">
+                    <ShieldCheck className="h-3 w-3 text-emerald-300" /> Verified
                   </span>
                 )}
-                <span className="absolute bottom-1.5 right-1.5 inline-flex items-center gap-0.5 rounded-md bg-black/70 px-1.5 py-0.5 text-[9.5px] font-bold text-white border border-white/20 opacity-0 group-hover/img:opacity-100 transition-opacity">
-                  <Rotate3d className="h-2.5 w-2.5" /> 3D
+                <span className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-lg bg-black/80 px-2 py-1 text-[10px] font-black text-white border border-cyan-400/40 opacity-0 group-hover/img:opacity-100 transition-all shadow-[0_0_15px_rgba(34,211,238,0.3)]">
+                  <Rotate3d className="h-3 w-3 text-cyan-300" /> 3D Preview
                 </span>
               </button>
-              <div className="flex flex-1 flex-col gap-1.5 p-2">
-                <div className="line-clamp-2 text-[11.5px] font-semibold text-white leading-tight">{r.name}</div>
-                <div className="truncate text-[10px] text-muted-foreground">by {r.creatorName || "Unknown"}</div>
-                <div className="mt-auto flex items-center gap-1">
+              <div className="flex flex-1 flex-col gap-2 p-3">
+                <div className="line-clamp-2 text-xs font-bold text-white leading-snug">{r.name}</div>
+                <div className="truncate text-[10.5px] font-medium text-slate-400">by {r.creatorName || "Unknown"}</div>
+                <div className="mt-auto flex items-center gap-1.5 pt-1">
                   <button
                     onClick={() => handleInsert(r)}
                     disabled={!pickedProjectId || insertingId === r.id}
                     title={pickedProjectId ? "Queue for Studio plugin" : "Create or pick a project to enable Studio insert"}
-                    className="flex-1 inline-flex items-center justify-center gap-1 rounded-md bg-emerald-500/20 border border-emerald-400/40 px-2 py-1 text-[10.5px] font-bold text-emerald-100 hover:bg-emerald-500/30 disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 border border-emerald-300/40 px-2.5 py-1.5 text-xs font-extrabold text-white shadow-[0_0_15px_rgba(16,185,129,0.4)] hover:shadow-[0_0_25px_rgba(34,211,238,0.6)] hover:scale-[1.02] active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                   >
-                    {insertingId === r.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />} Insert
+                    {insertingId === r.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />} Insert
                   </button>
                   <button
                     onClick={() => { navigator.clipboard.writeText(String(r.id)).then(() => toast.success(`Copied ${r.id}`)).catch(() => toast.error("Copy failed")); }}
                     title="Copy asset ID"
-                    className="inline-flex items-center justify-center rounded-md border border-white/15 bg-white/[0.05] px-1.5 py-1 text-[10px] font-semibold text-muted-foreground hover:bg-white/[0.12] hover:text-white"
+                    className="inline-flex items-center justify-center rounded-xl border border-white/15 bg-white/[0.05] p-1.5 text-xs font-semibold text-slate-300 hover:border-cyan-400 hover:bg-cyan-500/20 hover:text-white transition-all"
                   >
-                    <Copy className="h-3 w-3" />
+                    <Copy className="h-3.5 w-3.5" />
                   </button>
                   <a
                     href={`https://create.roblox.com/store/asset/${r.id}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     title="Open on Roblox Creator Store"
-                    className="inline-flex items-center justify-center rounded-md border border-white/15 bg-white/[0.05] px-1.5 py-1 text-[10px] font-semibold text-muted-foreground hover:bg-white/[0.12] hover:text-white"
+                    className="inline-flex items-center justify-center rounded-xl border border-white/15 bg-white/[0.05] p-1.5 text-xs font-semibold text-slate-300 hover:border-cyan-400 hover:bg-cyan-500/20 hover:text-white transition-all"
                   >
-                    <ExternalLink className="h-3 w-3" />
+                    <ExternalLink className="h-3.5 w-3.5" />
                   </a>
                 </div>
               </div>
