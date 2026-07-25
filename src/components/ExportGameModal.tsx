@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useServerFn } from "@tanstack/react-start";
 import { exportProject } from "@/lib/project-workspace.functions";
 import { buildStudioExport, zipFiles, type ExportScript } from "@/lib/studio-export";
@@ -95,20 +96,31 @@ export function ExportGameModal({ projectId, projectName, onClose }: Props) {
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={onClose}>
-      <div className="w-full max-w-xl rounded-2xl border border-white/10 bg-card p-6 shadow-2xl space-y-5" onClick={(e) => e.stopPropagation()}>
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+
+  if (!mounted) return null;
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[99999] flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-in fade-in duration-200"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-2xl border border-indigo-500/30 bg-slate-900/95 p-6 text-slate-100 shadow-[0_0_50px_rgba(0,0,0,0.8)] backdrop-blur-2xl space-y-5"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between border-b border-white/10 pb-4">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center text-white font-bold shadow-lg shadow-violet-500/20">
               <Download className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-base font-extrabold">Export Game & Code</h3>
-              <p className="text-xs text-muted-foreground">Export "{projectName}" to Roblox Studio, roblox-ts, or standalone Luau</p>
+              <h3 className="text-base font-extrabold text-white">Export Game & Code</h3>
+              <p className="text-xs text-slate-400">Export "{projectName}" to Roblox Studio, roblox-ts, or standalone Luau</p>
             </div>
           </div>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+          <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-white/10 hover:text-white transition">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -163,20 +175,20 @@ export function ExportGameModal({ projectId, projectName, onClose }: Props) {
         </div>
 
         {/* Actions */}
-        <div className="flex items-center justify-between border-t border-white/10 pt-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-4">
           <button
             onClick={copyInstallerToClipboard}
             disabled={exporting}
-            className="rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 px-4 py-2.5 text-xs font-semibold flex items-center gap-2 transition"
+            className="rounded-xl border border-indigo-400/30 bg-indigo-500/10 hover:bg-indigo-500/20 px-4 py-2.5 text-xs font-semibold text-indigo-200 flex items-center gap-2 transition"
           >
-            {copiedLua ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4 text-violet-400" />}
+            {copiedLua ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4 text-cyan-300" />}
             {copiedLua ? "Installer Copied!" : "Copy 1-Shot Installer"}
           </button>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 ml-auto">
             <button
               onClick={onClose}
-              className="rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 px-4 py-2.5 text-xs font-semibold"
+              className="rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 px-4 py-2.5 text-xs font-semibold text-slate-300"
             >
               Cancel
             </button>
@@ -184,7 +196,7 @@ export function ExportGameModal({ projectId, projectName, onClose }: Props) {
             <button
               onClick={handleExport}
               disabled={exporting}
-              className="rounded-xl bg-gradient-to-r from-violet-500 to-pink-500 hover:from-violet-400 hover:to-pink-400 text-white px-5 py-2.5 text-xs font-bold flex items-center gap-2 shadow-lg shadow-pink-500/20 disabled:opacity-50 transition"
+              className="rounded-xl bg-gradient-to-r from-violet-600 via-pink-600 to-cyan-500 hover:from-violet-500 hover:to-cyan-400 text-white px-5 py-2.5 text-xs font-bold flex items-center gap-2 shadow-lg shadow-pink-500/20 disabled:opacity-50 transition"
             >
               <Download className="h-4 w-4" />
               {exporting ? "Generating Export…" : "Export File"}
@@ -192,7 +204,8 @@ export function ExportGameModal({ projectId, projectName, onClose }: Props) {
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -212,32 +225,32 @@ function FormatCard({
       onClick={onSelect}
       className={`relative rounded-xl border p-3.5 cursor-pointer transition flex flex-col justify-between ${
         selected
-          ? "border-violet-500 bg-violet-500/10 shadow-md shadow-violet-500/10"
-          : "border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/10"
+          ? "border-violet-500 bg-violet-500/15 shadow-md shadow-violet-500/20 ring-1 ring-violet-500/40"
+          : "border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.07]"
       }`}
     >
       <div>
-        <div className="flex items-center justify-between mb-1">
-          <div className="flex items-center gap-2">
-            <Icon className={`h-4 w-4 ${selected ? "text-violet-400" : "text-muted-foreground"}`} />
-            <h4 className="text-xs font-bold text-foreground">{title}</h4>
+        <div className="flex items-center justify-between mb-1.5 gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <Icon className={`h-4 w-4 shrink-0 ${selected ? "text-cyan-300" : "text-slate-400"}`} />
+            <h4 className={`text-xs font-bold truncate ${selected ? "text-white" : "text-slate-200"}`}>{title}</h4>
           </div>
           {badge && (
-            <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-gradient-to-r from-violet-500 to-pink-500 text-white">
+            <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-gradient-to-r from-violet-500 to-pink-500 text-white shrink-0">
               {badge}
             </span>
           )}
         </div>
-        <p className="text-[11px] text-muted-foreground leading-relaxed">{description}</p>
+        <p className="text-[11px] text-slate-300 leading-relaxed">{description}</p>
       </div>
 
       <div className="mt-2.5 flex justify-end">
         <div
-          className={`h-4 w-4 rounded-full border flex items-center justify-center ${
-            selected ? "border-violet-400 bg-violet-500" : "border-white/20"
+          className={`h-4 w-4 rounded-full border flex items-center justify-center transition ${
+            selected ? "border-cyan-400 bg-cyan-500 text-slate-950" : "border-white/20"
           }`}
         >
-          {selected && <Check className="h-3 w-3 text-white" />}
+          {selected && <Check className="h-3 w-3 stroke-[3]" />}
         </div>
       </div>
     </div>
