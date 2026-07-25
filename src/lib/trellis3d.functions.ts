@@ -231,15 +231,30 @@ async function pollStatus(reqId: string, key: string, maxMs = 300_000): Promise<
   throw new Error("Trellis did not finish within 5 minutes. Try a simpler reference image.");
 }
 
-async function callTrellis(image: ImagePayload, key: string, seed?: number): Promise<TrellisResult> {
+async function callTrellis(
+  image: ImagePayload,
+  key: string,
+  opts: {
+    seed?: number;
+    slatCfgScale?: number;
+    ssCfgScale?: number;
+    slatSamplingSteps?: number;
+    ssSamplingSteps?: number;
+  } = {},
+): Promise<TrellisResult> {
   const inline = image.bytes.length <= INLINE_LIMIT_BYTES;
   const base64 = toBase64(image.bytes);
   const assetId = inline ? null : await uploadAsset(image, key);
 
   const body: Record<string, unknown> = {
     image: inline ? `data:${image.mime};base64,${base64}` : assetId,
+    // Quality parameters — all optional; NVIDIA defaults are used when omitted.
+    ...(typeof opts.slatCfgScale    === "number" ? { slat_cfg_scale:       opts.slatCfgScale }    : {}),
+    ...(typeof opts.ssCfgScale      === "number" ? { ss_cfg_scale:         opts.ssCfgScale }      : {}),
+    ...(typeof opts.slatSamplingSteps === "number" ? { slat_sampling_steps: opts.slatSamplingSteps } : {}),
+    ...(typeof opts.ssSamplingSteps === "number" ? { ss_sampling_steps:    opts.ssSamplingSteps }  : {}),
+    ...(typeof opts.seed            === "number" ? { seed:                 opts.seed }             : {}),
   };
-  if (typeof seed === "number") body.seed = seed;
 
   const headers: Record<string, string> = {
     Authorization: `Bearer ${key}`,
@@ -288,9 +303,15 @@ export const generateTrellis3D = createServerFn({ method: "POST" })
   .validator((input: unknown) =>
     z
       .object({
-        prompt: z.string().trim().min(2).max(300).optional(),
-        imageUrl: z.string().trim().min(4).optional(),
-        seed: z.number().int().optional(),
+        prompt:             z.string().trim().min(2).max(300).optional(),
+        imageUrl:           z.string().trim().min(4).optional(),
+        seed:               z.number().int().optional(),
+        // Quality controls matching the NVIDIA Trellis API parameters.
+        // Defaults match the API's own defaults when omitted.
+        slatCfgScale:       z.number().min(1).max(10).default(3).optional(),
+        ssCfgScale:         z.number().min(1).max(20).default(7.5).optional(),
+        slatSamplingSteps:  z.number().int().min(1).max(50).default(25).optional(),
+        ssSamplingSteps:    z.number().int().min(1).max(50).default(25).optional(),
       })
       .refine((value) => value.prompt || value.imageUrl, { message: "prompt or imageUrl required" })
       .parse(input),
@@ -315,7 +336,13 @@ export const generateTrellis3D = createServerFn({ method: "POST" })
     if (!imageUrl) throw new Error("No reference image was available for Trellis.");
 
     const image = await loadImage(imageUrl);
-    const result = await callTrellis(image, key, data.seed);
+    const result = await callTrellis(image, key, {
+      seed:               data.seed,
+      slatCfgScale:       data.slatCfgScale,
+      ssCfgScale:         data.ssCfgScale,
+      slatSamplingSteps:  data.slatSamplingSteps,
+      ssSamplingSteps:    data.ssSamplingSteps,
+    });
 
     if (!result.glbUrl && !result.glbBase64) {
       throw new Error("Trellis finished but returned no GLB data. Try a different reference image.");
@@ -328,6 +355,14 @@ export const generateTrellis3D = createServerFn({ method: "POST" })
       mimeType: "model/gltf-binary",
       sourceImage: generatedFromPrompt ? imageUrl : undefined,
       inlineUpload: image.bytes.length <= INLINE_LIMIT_BYTES,
+      // Echo back the params used so the UI can display them.
+      params: {
+        seed:              data.seed,
+        slatCfgScale:      data.slatCfgScale,
+        ssCfgScale:        data.ssCfgScale,
+        slatSamplingSteps: data.slatSamplingSteps,
+        ssSamplingSteps:   data.ssSamplingSteps,
+      },
       result: result.raw,
     };
   });

@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { enforceRateLimit } from "@/lib/rate-limit.server";
 import { z } from "zod";
+import { generateTrellis3D } from "@/lib/trellis3d.functions";
 
 const COOLDOWN_MS = 24 * 60 * 60 * 1000;
 const MESHY_BASE = "https://api.meshy.ai/openapi";
@@ -202,17 +203,12 @@ export const startModelGeneration = createServerFn({ method: "POST" })
     topology: z.enum(["triangle", "quad"]).default("triangle"),
     targetPolycount: z.number().int().min(1000).max(300000).default(30000),
     autoRefine: z.boolean().default(true),
-    // ai_model is always "latest" (Meshy 6) for highest quality; not exposed as user input
   }).parse(i))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
 
-    // Short-window throttle. This sits in front of the 24h cooldown so a stuck
-    // client retry loop cannot burn through the Meshy key in seconds.
     enforceRateLimit(userId, "model_generate");
 
-    // Check if the user is an owner/admin to grant unlimited generations.
-    // Role checks are the single source of truth — no hardcoded emails.
     let isAdmin = false;
     try {
       const { data: adminFlag } = await supabase.rpc("current_user_has_role", { _role: "admin" });
@@ -221,7 +217,6 @@ export const startModelGeneration = createServerFn({ method: "POST" })
     } catch {}
 
     if (!isAdmin) {
-      // 24h rate-limit (per user) — only counts text/image, not animations/retexture/refine of existing models
       const { data: last } = await supabase
         .from("model_generations")
         .select("created_at")
@@ -247,40 +242,27 @@ export const startModelGeneration = createServerFn({ method: "POST" })
       throw new Error("Please provide an image URL or upload an image.");
     }
 
-    let taskId: string;
+    // Call NVIDIA Trellis 3D generator
+    let trellisResult;
     try {
-      if (data.mode === "text") {
-        // Use "latest" = Meshy 6 (highest quality; meshy-4 is retired as of March 2026)
-        // should_remesh defaults to false for meshy-6/latest per Meshy docs
-        const body: Record<string, unknown> = {
-          mode: "preview",
-          prompt: materialRichPrompt(data.prompt),
-          ai_model: "latest",
-          topology: data.topology,
-          target_polycount: data.targetPolycount,
-        };
-        if (data.negativePrompt) body.negative_prompt = data.negativePrompt;
-        if (data.artStyle) body.art_style = data.artStyle;
-        const res = await startTextTo3dJob(body);
-        taskId = res.result;
-      } else {
-        // image-to-3d does not consistently accept enable_pbr, so request latest quality and
-        // keep any returned embedded materials / texture maps during polling.
-        const body: Record<string, unknown> = {
-          image_url: data.imageUrl,
-          ai_model: "latest",
-          topology: data.topology,
-          target_polycount: data.targetPolycount,
-        };
-        const res = await meshyFetch("/v1/image-to-3d", {
-          method: "POST",
-          body: JSON.stringify(body),
-        });
-        taskId = res.result;
-      }
+      trellisResult = await generateTrellis3D({
+        data: {
+          prompt: data.mode === "text" ? data.prompt : undefined,
+          imageUrl: data.mode === "image" ? data.imageUrl : undefined,
+        },
+        context,
+      });
     } catch (e) {
-      throw new Error(`Meshy could not start the 3D job: ${e instanceof Error ? e.message : String(e)}`);
+      throw new Error(`NVIDIA Trellis 3D generation failed: ${e instanceof Error ? e.message : String(e)}`);
     }
+
+    const glbUrl = trellisResult.glbUrl || (trellisResult.glbBase64 ? `data:model/gltf-binary;base64,${trellisResult.glbBase64}` : null);
+    if (!glbUrl) {
+      throw new Error("Trellis generation completed but returned no GLB model URL.");
+    }
+
+    const taskId = `trellis_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const sourceImg = trellisResult.sourceImage || (data.mode === "image" ? data.imageUrl : null);
 
     const { data: row, error } = await supabase
       .from("model_generations")
@@ -288,15 +270,21 @@ export const startModelGeneration = createServerFn({ method: "POST" })
         user_id: userId,
         project_id: data.projectId ?? null,
         mode: data.mode,
-        prompt: data.prompt ?? null,
-        // art_style is sent to Meshy only — the DB schema does not have this column
-        image_url: data.mode === "image" ? data.imageUrl?.slice(0, 1000) ?? null : null,
+        prompt: data.prompt ?? "NVIDIA Trellis 3D Model",
+        image_url: sourceImg ? sourceImg.slice(0, 1000) : null,
         task_id: taskId,
-        status: "PENDING",
-        progress: 0,
-      })
+        status: "SUCCEEDED",
+        progress: 100,
+        model_url: glbUrl,
+        model_urls: { glb: glbUrl },
+        thumbnail_url: sourceImg || null,
+        completed_at: new Date().toISOString(),
+        source: "trellis_api",
+        source_format: "glb",
+      } as any)
       .select()
       .single();
+
     if (error) throw new Error(error.message);
 
     return { generation: row, nextAvailableAt: new Date(Date.now() + COOLDOWN_MS).toISOString() };

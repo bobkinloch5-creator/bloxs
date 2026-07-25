@@ -21,7 +21,10 @@ const ALLOWED_HOSTS = [
   /(^|\.)meshy\.pro$/i,
   /(^|\.)meshypro\.com$/i,
   /(^|\.)hyper3d\.ai$/i,
-  // Google Cloud Storage — Meshy signed asset URLs
+  // NVIDIA Trellis / NVCF asset & model hosts
+  /(^|\.)nvidia\.com$/i,
+  /(^|\.)nvcf\.nvidia\.com$/i,
+  // Google Cloud Storage — asset URLs
   /(^|\.)googleusercontent\.com$/i,
   /(^|\.)storage\.googleapis\.com$/i,
 ];
