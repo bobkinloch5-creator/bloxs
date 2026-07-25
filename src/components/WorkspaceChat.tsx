@@ -556,34 +556,34 @@ export function WorkspaceChat({
   const isBuild = mode === "build";
 
   return (
-    <div className="rounded-2xl border border-white/15 bg-white/[0.04] p-3 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)] sm:p-5">
+    <div className="vapor-card rounded-2xl border border-indigo-500/35 bg-gradient-to-b from-[#141432]/95 via-[#0e0e26]/95 to-[#0a0a1a]/95 p-4 sm:p-6 shadow-[0_0_50px_rgba(79,70,229,0.25)]">
       {/* Chat / Build segmented toggle */}
-      <div className="mb-3 flex items-center justify-between gap-2">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <div className="inline-flex rounded-xl border border-white/15 bg-black/30 p-1">
+          <div className="inline-flex rounded-xl border border-indigo-500/30 bg-black/60 p-1 shadow-[inset_0_0_15px_rgba(0,0,0,0.6)]">
             <button
               type="button"
               onClick={() => setComposerMode("chat")}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+              className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-extrabold transition-all ${
                 mode === "chat"
-                  ? "bg-indigo-500 text-white shadow-[0_6px_18px_-8px_rgba(99,102,241,0.9)]"
-                  : "text-slate-300 hover:text-white hover:bg-white/5"
+                  ? "bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-[0_0_20px_rgba(99,102,241,0.6)]"
+                  : "text-slate-400 hover:text-white hover:bg-white/5"
               }`}
               aria-pressed={mode === "chat"}
             >
-              <MessageSquare className="h-3.5 w-3.5" /> Chat
+              <MessageSquare className="h-3.5 w-3.5 text-cyan-300" /> Chat
             </button>
             <button
               type="button"
               onClick={() => setComposerMode("build")}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+              className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-extrabold transition-all ${
                 mode === "build"
-                  ? "bg-indigo-500 text-white shadow-[0_6px_18px_-8px_rgba(99,102,241,0.9)]"
-                  : "text-slate-300 hover:text-white hover:bg-white/5"
+                  ? "bg-gradient-to-r from-indigo-600 via-indigo-500 to-cyan-500 text-white shadow-[0_0_25px_rgba(99,102,241,0.7)]"
+                  : "text-slate-400 hover:text-white hover:bg-white/5"
               }`}
               aria-pressed={mode === "build"}
             >
-              <Hammer className="h-3.5 w-3.5" /> Build
+              <Hammer className="h-3.5 w-3.5 text-amber-300 animate-pulse" /> Build
             </button>
           </div>
           {onSelectProject && (
@@ -596,14 +596,14 @@ export function WorkspaceChat({
 
         <div className="flex flex-col items-end gap-1">
           <div className="flex items-center gap-2">
-            <label className="hidden sm:flex items-center gap-1.5 text-[11px] font-semibold text-slate-300">
-              <Sparkles className="h-3 w-3 text-indigo-300" />
+            <label className="hidden sm:flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-indigo-300">
+              <Sparkles className="h-3 w-3 text-cyan-400" />
               Model
             </label>
             <select
               value={selectedModel}
               onChange={(e) => setSelectedModel(e.target.value)}
-              className="max-w-[260px] rounded-lg border border-white/15 bg-black/40 px-2 py-1.5 text-[11px] font-medium text-slate-100 hover:bg-black/60 focus:outline-none focus:ring-2 focus:ring-indigo-400/50"
+              className="max-w-[260px] rounded-xl border border-indigo-500/40 bg-[#0c0c24] px-3 py-1.5 text-xs font-semibold text-cyan-200 shadow-[0_0_15px_rgba(79,70,229,0.15)] hover:bg-[#121234] focus:outline-none focus:ring-2 focus:ring-cyan-400"
               title="Choose which AI model handles your next messages. Auto picks the best model for what you're doing."
             >
               <option value="auto" className="bg-slate-900 text-slate-100" title="Auto-selects the fastest, most capable model for chat vs build vs scripting.">
@@ -622,7 +622,7 @@ export function WorkspaceChat({
             </select>
           </div>
           {/* Roblox-focused description of what the current model does for your games */}
-          <p className="max-w-[280px] text-right text-[10.5px] leading-snug text-slate-400">
+          <p className="max-w-[280px] text-right text-[10.5px] font-medium leading-snug text-slate-400">
             {selectedModel === "auto"
               ? "Auto: uses stable fast NVIDIA routes first — Qwen Coder for Luau/build actions and Gemma/Nemotron for planning."
               : (availableModels.find((m) => m.id === selectedModel)?.bestFor ?? "")}
@@ -631,10 +631,10 @@ export function WorkspaceChat({
       </div>
 
       {/* Mode tagline */}
-      <div className="mb-3 hidden text-[11px] text-slate-400 sm:block">
+      <div className="mb-3 hidden text-[11px] font-medium text-indigo-200/60 sm:block">
         {isBuild
-          ? "Build sends actions to Studio. Auto-creates a project if none is active."
-          : "Chat with BloxSmith Agent to plan, ask questions, and refine ideas. No builds run."}
+          ? "⚡ Build sends live actions to Roblox Studio. Auto-creates a project if none is active."
+          : "💬 Chat with BloxSmith Agent to plan, ask questions, and refine ideas. No builds run."}
       </div>
 
 
@@ -697,7 +697,7 @@ export function WorkspaceChat({
       {messages.length > 0 && (
         <div
           ref={scrollerRef}
-          className="mb-3 max-h-[420px] overflow-y-auto rounded-xl border border-white/10 bg-black/40 p-3 text-sm"
+          className="mb-4 max-h-[460px] overflow-y-auto rounded-2xl border border-indigo-500/30 bg-[#08081c]/90 p-4 text-sm shadow-[inset_0_0_35px_rgba(0,0,0,0.85)] bs-smooth-scroll"
         >
           {messages.map((m) => {
             const rawText = m.parts.map((p: any) => (p.type === "text" ? p.text : "")).join("");
@@ -705,12 +705,12 @@ export function WorkspaceChat({
             const imgs = m.role === "user" ? m.parts.filter((p: any) => p.type === "file" && p.mediaType?.startsWith?.("image/")) as any[] : [];
             const genImages = m.role === "assistant" ? extractGeneratedImages(m.parts as any[]) : [];
             return (
-              <div key={m.id} className={`mb-3 flex gap-2 ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+              <div key={m.id} className={`mb-3.5 flex gap-2.5 ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                 <div
-                  className={`max-w-[85%] rounded-xl px-3 py-2 ${
+                  className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm font-medium transition-all ${
                     m.role === "user"
-                      ? "bg-indigo-500 text-white"
-                      : "bg-white/[0.06] text-slate-100 border border-white/10"
+                      ? "bs-bubble-user text-white shadow-[0_8px_25px_rgba(99,102,241,0.4)] border border-indigo-300/40"
+                      : "bg-gradient-to-b from-[#161638] to-[#10102b] text-slate-100 border border-indigo-500/25 shadow-[0_8px_25px_rgba(0,0,0,0.5)]"
                   }`}
                 >
                   {imgs.length > 0 && (
@@ -873,34 +873,36 @@ export function WorkspaceChat({
         );
       })()}
 
-      <textarea
-        id="home-composer"
-        ref={taRef}
-        value={prompt}
-        onChange={(e) => setPrompt(e.target.value)}
-        onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) submit(); }}
-        placeholder={
-          isBuild
-            ? (activeProjectId ? "Describe what to build next…  (⌘K to focus · ⌘/ to switch modes)" : "Describe your game — Build will create a project and start.  (⌘K · ⌘/)")
-            : "Ask BloxSmith Agent anything — plan, brainstorm, or refine an idea.  (⌘K · ⌘/)"
-        }
-        rows={2}
-        className="w-full resize-none bg-transparent px-1 py-1 text-base leading-relaxed text-white outline-none placeholder:text-slate-400 sm:text-[15px]"
-        style={{ fontSize: "16px" }}
-      />
+      <div className="rounded-2xl border border-indigo-500/40 bg-[#0c0c24]/95 p-3.5 shadow-[0_0_25px_rgba(79,70,229,0.15)] focus-within:border-cyan-400 focus-within:shadow-[0_0_35px_rgba(34,211,238,0.25)] transition-all">
+        <textarea
+          id="home-composer"
+          ref={taRef}
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) submit(); }}
+          placeholder={
+            isBuild
+              ? (activeProjectId ? "Describe what to build next… (⌘K to focus · ⌘/ to switch modes)" : "Describe your game — Build will create a project and start. (⌘K · ⌘/)")
+              : "Ask BloxSmith Agent anything — plan, brainstorm, or refine an idea. (⌘K · ⌘/)"
+          }
+          rows={2}
+          className="w-full resize-none bg-transparent px-1 py-1 text-base leading-relaxed text-white outline-none placeholder:text-slate-500 sm:text-[15px]"
+          style={{ fontSize: "16px" }}
+        />
 
-      <input
-        ref={attachInputRef}
-        type="file"
-        accept={ACCEPT_ATTACH}
-        multiple
-        hidden
-        onChange={(e) => handleFiles(e.target.files)}
-      />
+        <input
+          ref={attachInputRef}
+          type="file"
+          accept={ACCEPT_ATTACH}
+          multiple
+          hidden
+          onChange={(e) => handleFiles(e.target.files)}
+        />
+      </div>
 
-      <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 sm:flex sm:flex-wrap sm:justify-between sm:gap-3">
-        <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-          {/* 🎙️ NVIDIA Voice Build Button — speak to BloxSmith, it builds in Studio and speaks back */}
+      <div className="mt-3.5 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 sm:flex sm:flex-wrap sm:justify-between sm:gap-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          {/* 🎙️ NVIDIA Voice Build Button */}
           <VoiceBuildButton
             onUtterance={handleVoiceUtterance}
             setTtsEnabled={setTtsEnabled}
@@ -909,20 +911,14 @@ export function WorkspaceChat({
           <button
             type="button"
             onClick={pickFiles}
-            className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg border border-white/20 bg-white/[0.06] px-3 py-2 text-xs font-semibold text-slate-100 transition hover:bg-white/[0.12] hover:border-white/30 active:scale-[0.98]"
+            className="vapor-ghost-btn inline-flex min-h-[40px] items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-slate-100"
             title="Attach images or Roblox files"
           >
-            <Paperclip className="h-4 w-4" /> Attach
+            <Paperclip className="h-4 w-4 text-cyan-300" /> Attach
           </button>
           <button
             type="button"
             onClick={() => {
-              // Image generation is a Chat Mode feature — never trigger Build /
-              // Studio actions from this button. Flip the live mode ref
-              // synchronously (so this send goes out as chat), mirror it into
-              // React state for UI, and pass an explicit "chat" override to
-              // submit() so its plugin/project gates use chat semantics even
-              // if the state hasn't flushed yet.
               liveModeRef.current = "chat";
               if (mode !== "chat") setComposerMode("chat");
               const trimmed = prompt.trim();
@@ -939,22 +935,22 @@ export function WorkspaceChat({
               submit(finalText, "chat");
             }}
             disabled={busy}
-            className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg border border-fuchsia-400/40 bg-fuchsia-500/10 px-3 py-2 text-xs font-semibold text-fuchsia-100 transition hover:bg-fuchsia-500/20 hover:border-fuchsia-400/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex min-h-[40px] items-center gap-1.5 rounded-xl border border-fuchsia-400/50 bg-fuchsia-500/15 px-3.5 py-2 text-xs font-bold text-fuchsia-100 shadow-[0_0_15px_rgba(217,70,239,0.2)] transition hover:bg-fuchsia-500/25 hover:border-fuchsia-400 hover:shadow-[0_0_20px_rgba(217,70,239,0.4)] active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
             title="Generate a Roblox image (Chat Mode — never runs a build)"
             aria-label="Generate image"
           >
-            <ImageIcon className="h-4 w-4" />
+            <ImageIcon className="h-4 w-4 text-fuchsia-300" />
             <span className="hidden sm:inline">Image</span>
           </button>
           <button
             type="button"
             onClick={enhance}
             disabled={!prompt.trim() || enhancing || busy}
-            className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg border border-indigo-400/40 bg-indigo-500/10 px-3 py-2 text-xs font-semibold text-indigo-100 transition hover:bg-indigo-500/20 hover:border-indigo-400/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex min-h-[40px] items-center gap-1.5 rounded-xl border border-indigo-400/50 bg-indigo-500/15 px-3.5 py-2 text-xs font-bold text-indigo-100 shadow-[0_0_15px_rgba(99,102,241,0.2)] transition hover:bg-indigo-500/25 hover:border-indigo-400 hover:shadow-[0_0_20px_rgba(99,102,241,0.4)] active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
             title="Polish prompt — refine wording, grammar, and clarity into a premium build request"
             aria-label="Polish prompt"
           >
-            {enhancing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+            {enhancing ? <Loader2 className="h-4 w-4 animate-spin text-cyan-300" /> : <Wand2 className="h-4 w-4 text-cyan-300" />}
             <span className="hidden sm:inline">{enhancing ? "Polishing…" : "Polish"}</span>
           </button>
         </div>
@@ -970,9 +966,9 @@ export function WorkspaceChat({
             return (
               <span
                 title={`Active model: ${active.label}${selectedModel === "auto" ? " (auto-picked for this task)" : ""}`}
-                className="hidden md:inline-flex min-h-[40px] items-center gap-1.5 rounded-lg border border-indigo-400/30 bg-indigo-500/10 px-2.5 py-2 text-[10px] font-semibold uppercase tracking-wider text-indigo-100"
+                className="hidden md:inline-flex min-h-[40px] items-center gap-1.5 rounded-xl border border-indigo-400/40 bg-indigo-500/15 px-3 py-2 text-[10px] font-extrabold uppercase tracking-wider text-indigo-200 shadow-[0_0_15px_rgba(99,102,241,0.15)]"
               >
-                <Sparkles className="h-3 w-3" />
+                <Sparkles className="h-3 w-3 text-cyan-400" />
                 {active.label}
               </span>
             );
@@ -992,16 +988,16 @@ export function WorkspaceChat({
               title={proceduralGeneration
                 ? "From Scratch is ON — everything is built from parts, meshes, and terrain. Click to switch to Auto Build."
                 : "Auto Build is ON — uses safe Toolbox assets first, then creates a visible fallback if Toolbox has no match. Click to build from scratch only."}
-              className={`inline-flex min-h-[40px] items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition ${
+              className={`inline-flex min-h-[40px] items-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-bold transition ${
                 proceduralGeneration
-                  ? "border-emerald-400/50 bg-emerald-500/15 text-emerald-100 hover:bg-emerald-500/25"
-                  : "border-amber-400/40 bg-amber-500/10 text-amber-100 hover:bg-amber-500/20"
+                  ? "border-emerald-400/60 bg-emerald-500/20 text-emerald-100 shadow-[0_0_20px_rgba(52,211,153,0.25)] hover:bg-emerald-500/30"
+                  : "border-amber-400/50 bg-amber-500/15 text-amber-100 shadow-[0_0_15px_rgba(245,158,11,0.2)] hover:bg-amber-500/25"
               }`}
             >
               <span className="text-sm leading-none">{proceduralGeneration ? "🛠" : "⚡"}</span>
               <span className="hidden sm:inline">{proceduralGeneration ? "From Scratch" : "Auto Build"}</span>
               <span className={`ml-1 rounded-full px-1.5 py-[1px] text-[9px] font-black uppercase tracking-wider ${
-                proceduralGeneration ? "bg-emerald-400/30 text-emerald-50" : "bg-amber-400/30 text-amber-50"
+                proceduralGeneration ? "bg-emerald-400/40 text-white" : "bg-amber-400/40 text-white"
               }`}>
                 On
               </span>
@@ -1012,15 +1008,15 @@ export function WorkspaceChat({
             <div ref={modeRef} className="relative hidden sm:block">
               <button
                 onClick={() => setModeOpen((v) => !v)}
-                className="inline-flex min-h-[40px] items-center gap-2 rounded-lg border border-white/20 bg-white/[0.06] px-3 py-2 text-xs font-semibold text-slate-100 hover:bg-white/[0.12] hover:border-white/30"
+                className="vapor-ghost-btn inline-flex min-h-[40px] items-center gap-2 px-3.5 py-2 text-xs font-bold text-slate-100"
               >
-                <Sparkles className="h-3.5 w-3.5 text-indigo-300" />
+                <Sparkles className="h-3.5 w-3.5 text-cyan-300" />
                 {buildMode}
                 <ChevronDown className="h-3.5 w-3.5 opacity-70" />
               </button>
               {modeOpen && (
-                <div className="absolute right-0 bottom-full z-30 mb-2 w-[300px] overflow-hidden rounded-xl border border-white/15 bg-[#12122a] shadow-2xl">
-                  <div className="border-b border-white/10 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-slate-300">
+                <div className="absolute right-0 bottom-full z-30 mb-2 w-[300px] overflow-hidden rounded-2xl border border-indigo-500/40 bg-[#121232] p-1.5 shadow-[0_0_40px_rgba(0,0,0,0.8)] backdrop-blur-xl">
+                  <div className="border-b border-white/10 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-indigo-300">
                     Choose a build mode
                   </div>
                   {([
@@ -1031,13 +1027,13 @@ export function WorkspaceChat({
                     <button
                       key={m.key}
                       onClick={() => { setBuildMode(m.key as any); setModeOpen(false); }}
-                      className={`block w-full px-3 py-2.5 text-left transition ${
-                        buildMode === m.key ? "bg-indigo-500/20" : "hover:bg-white/5"
+                      className={`block w-full rounded-xl px-3 py-2.5 text-left transition ${
+                        buildMode === m.key ? "bg-indigo-500/30 border border-indigo-400/40" : "hover:bg-white/5"
                       }`}
                     >
                       <div className="flex items-center gap-2">
                         <span className={`text-xs font-bold ${buildMode === m.key ? "text-white" : "text-slate-100"}`}>{m.key}</span>
-                        <span className="rounded-full bg-indigo-500/25 px-1.5 py-[1px] text-[9px] font-bold uppercase tracking-wide text-indigo-100">{m.tag}</span>
+                        <span className="rounded-full bg-indigo-500/30 px-2 py-[1px] text-[9px] font-extrabold uppercase tracking-wide text-cyan-200">{m.tag}</span>
                       </div>
                       <p className="mt-0.5 text-[11px] leading-4 text-slate-300">{m.desc}</p>
                     </button>
@@ -1050,7 +1046,7 @@ export function WorkspaceChat({
             <button
               type="button"
               onClick={handleStop}
-              className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg bg-rose-500 px-5 py-2.5 text-sm font-bold text-white shadow-[0_10px_30px_-12px_rgba(244,63,94,0.8)] transition active:scale-[0.98] hover:bg-rose-400"
+              className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-gradient-to-r from-rose-600 to-red-500 px-6 py-2.5 text-sm font-extrabold text-white shadow-[0_0_25px_rgba(244,63,94,0.7)] transition-transform active:scale-95 hover:brightness-110"
               title="Stop the current AI response"
               aria-label="Stop"
             >
@@ -1061,10 +1057,10 @@ export function WorkspaceChat({
             <button
               onClick={() => submit()}
               disabled={!prompt.trim()}
-              className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg bg-indigo-500 px-5 py-2.5 text-sm font-bold text-white shadow-[0_10px_30px_-12px_rgba(99,102,241,0.8)] transition active:scale-[0.98] hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-50"
+              className="vapor-glow-btn inline-flex min-h-[44px] items-center gap-2 px-6 py-2.5 text-sm font-extrabold text-white transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
             >
-              {isBuild ? <Hammer className="h-4 w-4" /> : <Send className="h-4 w-4" />}
-              {isBuild ? "Build" : "Send"}
+              {isBuild ? <Hammer className="h-4 w-4 text-cyan-300 animate-bounce" /> : <Send className="h-4 w-4 text-cyan-300" />}
+              {isBuild ? "Build in Studio" : "Send Request"}
             </button>
           )}
         </div>

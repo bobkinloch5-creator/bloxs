@@ -223,64 +223,66 @@ function Dashboard() {
         <Sidebar isOwner={isOwner} isAdmin={isAdmin} profile={profile} credits={credits} maxCredits={maxCredits} />
 
         <div className="min-w-0 flex-1">
-          {/* Top bar */}
-          <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-white/5 bg-[#0a0a1a]/85 px-3 py-3 backdrop-blur sm:px-8 sm:py-4">
+          {/* Top bar with Vapor Frost & Hairline Border */}
+          <header className="sticky top-0 z-30 flex items-center gap-3 vapor-frost vapor-hairline-b px-4 py-3.5 sm:px-8 sm:py-4">
             <MobileNavTrigger isAdmin={isAdmin} className="lg:hidden" />
             <div className="min-w-0 flex-1">
-              <h1 className="truncate text-lg font-bold tracking-tight sm:text-[28px]">
-                Welcome back, <span className="text-white">{shortName}</span> <span aria-hidden>👋</span>
+              <h1 className="truncate text-lg font-extrabold tracking-tight sm:text-[28px]">
+                Welcome back, <span className="vapor-title">{shortName}</span> <span aria-hidden className="inline-block animate-bounce">👋</span>
               </h1>
-              <p className="mt-0.5 hidden text-sm text-slate-400 sm:block">What do you want to build today?</p>
+              <p className="mt-0.5 hidden text-xs font-medium text-indigo-200/70 sm:block">What do you want to build today?</p>
             </div>
 
-            <div className="hidden items-center gap-2 md:flex">
-              <div className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold ${pluginOnline ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-300" : "border-white/10 bg-white/[0.02] text-slate-400"}`}>
-                <span className={`h-1.5 w-1.5 rounded-full ${pluginOnline ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.7)]" : "bg-slate-500"}`} />
+            <div className="hidden items-center gap-2.5 md:flex">
+              <div className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold backdrop-blur-md transition-all ${pluginOnline ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300 shadow-[0_0_15px_rgba(52,211,153,0.15)]" : "border-white/10 bg-white/[0.03] text-slate-400"}`}>
+                <span className={`h-2 w-2 rounded-full ${pluginOnline ? "bg-emerald-400 shadow-[0_0_10px_#34d399] animate-pulse" : "bg-slate-500"}`} />
                 Studio: {pluginOnline ? "Connected" : "Offline"}
               </div>
-              <Link to="/plugin" className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2 text-xs font-semibold text-slate-200 transition hover:bg-white/[0.05]">
-                <ExternalLink className="h-3.5 w-3.5" /> Send to Studio
+              <Link to="/plugin" className="vapor-ghost-btn inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold">
+                <ExternalLink className="h-3.5 w-3.5 text-cyan-400" /> Send to Studio
               </Link>
-              <ChangelogNotifications buttonClassName="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.02] px-2.5 py-2 text-xs font-semibold text-slate-300 hover:bg-white/[0.05]" iconClassName="h-3.5 w-3.5" />
+              <ChangelogNotifications buttonClassName="vapor-ghost-btn inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold" iconClassName="h-3.5 w-3.5 text-indigo-300" />
               <button
                 type="button"
                 disabled={createMut.isPending}
                 onClick={() => setNewProjectOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-500 px-3.5 py-2 text-xs font-bold text-white shadow-[0_10px_30px_-12px_rgba(99,102,241,0.7)] transition hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-60"
+                className="vapor-glow-btn inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white transition-transform active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                <Plus className="h-3.5 w-3.5" /> New Project
+                <Plus className="h-4 w-4 text-cyan-300" /> New Project
               </button>
             </div>
             <ProfileMenu />
           </header>
 
           <main className="mx-auto w-full max-w-[1240px] space-y-6 px-3 pb-28 pt-5 sm:space-y-8 sm:px-8 sm:pb-8 sm:pt-8">
-            {/* Active project banner — always visible when a project is open */}
+            {/* Active project banner — futuristic vapor-card with glowing borders */}
             {activeProject && (
-              <section className="rounded-2xl border border-indigo-400/30 bg-gradient-to-r from-indigo-500/15 via-white/[0.03] to-fuchsia-500/10 p-4 sm:p-5">
+              <section className="vapor-card hover-lift overflow-hidden rounded-2xl border border-indigo-500/30 bg-gradient-to-r from-indigo-900/40 via-purple-900/20 to-cyan-900/30 p-4 sm:p-5 shadow-[0_0_35px_rgba(79,70,229,0.15)]">
                 <div className="flex flex-wrap items-center gap-4">
-                  <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-white/5">
+                  <div className="vapor-ring-avatar h-14 w-14 shrink-0 overflow-hidden shadow-[0_0_20px_rgba(167,139,250,0.3)]">
                     <img
                       src={activeProject.thumbnail_url ?? THUMBS[activeProject.game_type ?? "custom"] ?? THUMBS.custom}
                       alt=""
-                      className="h-full w-full object-cover"
+                      className="h-full w-full object-cover rounded-full"
                     />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-indigo-300">📁 Active Project</div>
-                    <div className="mt-0.5 flex items-center gap-2 truncate text-lg font-bold text-white">
+                    <div className="vapor-label flex items-center gap-1.5 text-indigo-300">
+                      <Sparkles className="h-3 w-3 text-cyan-400" /> ACTIVE PROJECT
+                    </div>
+                    <div className="mt-1 flex items-center gap-2 truncate text-xl font-extrabold text-white tracking-tight">
                       {activeProject.pinned_at && <span title="Pinned">📌</span>}
                       {activeProject.is_favorite && <span title="Favorite" className="text-amber-300">★</span>}
                       <span className="truncate">{activeProject.name}</span>
                     </div>
-                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-400">
-                      <span className="uppercase tracking-widest">{activeProject.game_type ?? "custom"}</span>
+                    <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-medium text-slate-300">
+                      <span className="rounded-md bg-indigo-500/20 border border-indigo-400/30 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-indigo-200">{activeProject.game_type ?? "custom"}</span>
                       <span>•</span>
-                      <span>{activeProject.build_count ?? 0} builds</span>
+                      <span className="text-slate-300">{activeProject.build_count ?? 0} builds</span>
                       <span>•</span>
-                      <span>Updated {timeAgo(activeProject.updated_at)}</span>
+                      <span className="text-slate-400">Updated {timeAgo(activeProject.updated_at)}</span>
                       <span>•</span>
-                      <span className="text-emerald-300">Chat, builds & assets restored</span>
+                      <span className="inline-flex items-center gap-1 text-emerald-400 font-semibold"><CheckCircle2 className="h-3 w-3" /> Chat & assets active</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -291,7 +293,7 @@ function Dashboard() {
                         setActiveProjectId(null);
                         try { window.dispatchEvent(new Event("bs:active-project-changed")); } catch {}
                       }}
-                      className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-white/[0.06]"
+                      className="vapor-ghost-btn px-3.5 py-2 text-xs font-semibold"
                     >
                       Switch project
                     </button>
@@ -349,36 +351,34 @@ function Dashboard() {
             {/* Quick Actions */}
             <section>
               <SectionHead title="Quick Actions" to="/models" />
-              <Reveal stagger className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+              <Reveal stagger className="mt-3 grid grid-cols-2 gap-3.5 sm:grid-cols-3 lg:grid-cols-6">
                 {QUICK_ACTIONS.map((a) => (
                   <Link
                     key={a.key}
                     to={a.to as any}
-                    className="group spotlight hover-lift flex flex-col rounded-2xl border border-white/8 bg-white/[0.02] p-4 hover:border-indigo-400/30 hover:bg-white/[0.04]"
+                    className="vapor-card hover-lift group relative flex flex-col overflow-hidden rounded-2xl border border-indigo-500/25 bg-gradient-to-b from-[#131330]/90 to-[#0b0b1a]/90 p-4 transition-all hover:border-cyan-400/50 hover:shadow-[0_0_25px_rgba(34,211,238,0.2)]"
                   >
-                    <span className="icon-pop grid h-9 w-9 place-items-center rounded-xl bg-indigo-500/10 text-indigo-300 transition-colors group-hover:bg-indigo-500/20">
+                    <span className="grid h-10 w-10 place-items-center rounded-xl border border-indigo-400/30 bg-indigo-500/15 text-cyan-300 shadow-[0_0_15px_rgba(99,102,241,0.2)] transition-colors group-hover:bg-cyan-500/20 group-hover:text-cyan-200">
                       <a.icon className="h-4 w-4" />
                     </span>
-                    <div className="mt-3 text-sm font-bold text-slate-100">{a.label}</div>
-                    <div className="mt-0.5 text-[11px] leading-relaxed text-slate-400">{a.desc}</div>
+                    <div className="mt-3 text-sm font-extrabold text-slate-100 group-hover:text-cyan-200">{a.label}</div>
+                    <div className="mt-1 text-[11px] font-medium leading-relaxed text-slate-400">{a.desc}</div>
                   </Link>
                 ))}
               </Reveal>
             </section>
-
-
 
             {/* Recent Projects + Activity */}
             <section className="grid gap-6 lg:grid-cols-2">
               {/* Recent Projects */}
               <div>
                 <SectionHead title="Recent Projects" to="/projects" />
-                <div className="mt-3 rounded-2xl border border-white/8 bg-white/[0.02] p-2">
+                <div className="vapor-card mt-3 rounded-2xl border border-indigo-500/25 bg-gradient-to-b from-[#12122e]/90 to-[#090918]/90 p-3 shadow-[0_0_30px_rgba(0,0,0,0.5)]">
                   {isLoading ? (
                     <div className="space-y-2 p-2">
                       {Array.from({ length: 4 }).map((_, i) => (
                         <div key={i} className="flex items-center gap-3">
-                          <div className="skeleton h-11 w-11 shrink-0" />
+                          <div className="skeleton h-11 w-11 shrink-0 rounded-xl" />
                           <div className="min-w-0 flex-1 space-y-1.5">
                             <div className="skeleton h-3.5 w-1/2" />
                             <div className="skeleton h-3 w-1/3" />
@@ -387,33 +387,33 @@ function Dashboard() {
                       ))}
                     </div>
                   ) : recentProjects.length === 0 ? (
-                    <div className="p-6 text-center text-sm text-slate-400">
+                    <div className="p-6 text-center text-sm font-medium text-slate-400">
                       No projects yet. Describe a game above to create your first one.
                     </div>
                   ) : (
                     <ul className="divide-y divide-white/5">
                       {recentProjects.map((p) => (
-                        <li key={p.id} className="group flex items-center gap-3 rounded-xl p-2.5 transition-colors hover:bg-white/[0.03]">
-                          <div className="h-11 w-11 shrink-0 overflow-hidden rounded-lg bg-white/5">
+                        <li key={p.id} className="group flex items-center gap-3 rounded-xl p-2.5 transition-colors hover:bg-white/[0.04]">
+                          <div className="vapor-ring-avatar h-11 w-11 shrink-0 overflow-hidden shadow-[0_0_15px_rgba(99,102,241,0.3)]">
                             <img
                               src={p.thumbnail_url ?? THUMBS[p.game_type ?? "custom"] ?? THUMBS.custom}
                               alt=""
-                              className="h-full w-full object-cover"
+                              className="h-full w-full object-cover rounded-full"
                               loading="lazy"
                             />
                           </div>
                           <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-1.5 truncate text-sm font-semibold text-slate-100">
+                            <div className="flex items-center gap-1.5 truncate text-sm font-bold text-slate-100 group-hover:text-indigo-200">
                               {p.pinned_at && <span title="Pinned">📌</span>}
                               {p.is_favorite && <span title="Favorite" className="text-amber-300">★</span>}
                               <span className="truncate">{p.name}</span>
                             </div>
-                            <div className="truncate text-[11px] text-slate-500">Updated {timeAgo(p.updated_at)}</div>
+                            <div className="truncate text-[11px] font-medium text-slate-400">Updated {timeAgo(p.updated_at)}</div>
                           </div>
                           <button
                             type="button"
                             onClick={() => openProject(p.id)}
-                            className="rounded-lg border border-indigo-400/30 bg-indigo-500/10 px-3 py-1.5 text-xs font-semibold text-indigo-200 transition hover:bg-indigo-500/20"
+                            className="vapor-ghost-btn px-3 py-1.5 text-xs font-bold"
                           >
                             {activeProjectId === p.id ? "Active" : "Open"}
                           </button>
@@ -428,23 +428,23 @@ function Dashboard() {
               {/* Activity */}
               <div>
                 <SectionHead title="Recent Activity" to="/history" />
-                <div className="mt-3 rounded-2xl border border-white/8 bg-white/[0.02] p-2">
+                <div className="vapor-card mt-3 rounded-2xl border border-indigo-500/25 bg-gradient-to-b from-[#12122e]/90 to-[#090918]/90 p-3 shadow-[0_0_30px_rgba(0,0,0,0.5)]">
                   {activity.length === 0 ? (
-                    <div className="p-6 text-center text-sm text-slate-400">Activity will appear as you build.</div>
+                    <div className="p-6 text-center text-sm font-medium text-slate-400">Activity will appear as you build.</div>
                   ) : (
                     <ul className="divide-y divide-white/5">
                       {activity.map((a, i) => {
                         const Icon = a.icon;
                         return (
                           <li key={i} className="flex items-center gap-3 p-3">
-                            <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${a.tint}`}>
+                            <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/10 ${a.tint} shadow-[0_0_15px_rgba(0,0,0,0.3)]`}>
                               <Icon className="h-4 w-4" />
                             </span>
                             <div className="min-w-0 flex-1">
-                              <div className="truncate text-sm font-semibold text-slate-100">{a.title}</div>
-                              <div className="truncate text-[11px] text-slate-500">{a.sub}</div>
+                              <div className="truncate text-sm font-bold text-slate-100">{a.title}</div>
+                              <div className="truncate text-[11px] font-medium text-slate-400">{a.sub}</div>
                             </div>
-                            <div className="shrink-0 text-[11px] text-slate-500">{timeAgo(a.ts)}</div>
+                            <div className="shrink-0 text-[11px] font-medium text-slate-400">{timeAgo(a.ts)}</div>
                           </li>
                         );
                       })}
@@ -530,13 +530,16 @@ function Sidebar({ isOwner, isAdmin, profile, credits, maxCredits }: {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   return (
-    <aside className="sticky top-0 hidden h-screen w-[240px] shrink-0 flex-col border-r border-white/5 bg-[#080818] p-4 lg:flex">
-      <Link to="/dashboard" className="mb-8 flex items-center gap-2.5 px-2">
-        <img src={bloxsmithLogo.url} alt="BloxSmith" className="h-8 w-8 rounded-lg shadow-[0_8px_24px_-8px_rgba(99,102,241,0.8)]" />
-        <span className="text-[15px] font-bold tracking-wide text-white">BLOXSMITH</span>
+    <aside className="sticky top-0 hidden h-screen w-[240px] shrink-0 flex-col vapor-frost border-r border-indigo-500/20 p-4 lg:flex shadow-[5px_0_30px_rgba(0,0,0,0.5)]">
+      <Link to="/dashboard" className="mb-8 flex items-center gap-3 px-2 group">
+        <div className="relative">
+          <div className="absolute -inset-1 rounded-xl bg-gradient-to-r from-indigo-500 to-cyan-400 opacity-75 blur transition group-hover:opacity-100" />
+          <img src={bloxsmithLogo.url} alt="BloxSmith" className="relative h-9 w-9 rounded-xl border border-white/20 object-cover" />
+        </div>
+        <span className="vapor-title text-base font-black tracking-wider">BLOXSMITH</span>
       </Link>
 
-      <nav className="flex flex-1 flex-col gap-0.5">
+      <nav className="flex flex-1 flex-col gap-1.5">
         {NAV.map((n) => {
           const Icon = n.icon;
           const active = n.exact ? pathname === n.to : pathname === n.to || pathname.startsWith(n.to + "/");
@@ -544,50 +547,54 @@ function Sidebar({ isOwner, isAdmin, profile, credits, maxCredits }: {
             <Link
               key={n.key}
               to={n.to}
-              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${active
-                ? "bg-white/[0.05] text-white"
-                : "text-slate-400 hover:bg-white/[0.03] hover:text-slate-100"
-              }`}
+              className={`vapor-nav-item ${active ? "vapor-nav-active" : ""}`}
             >
-              <Icon className="h-4 w-4" />
-              {n.label}
+              <div className="vapor-nav-icon">
+                <Icon className="h-4 w-4" />
+              </div>
+              <span>{n.label}</span>
             </Link>
           );
         })}
         {isAdmin && (
-          <Link to="/admin" className="mt-2 flex items-center gap-3 rounded-xl border border-indigo-400/30 bg-indigo-500/10 px-3 py-2.5 text-sm font-semibold text-indigo-200 hover:bg-indigo-500/20">
-            <Crown className="h-4 w-4" /> Owner Admin
+          <Link to="/admin" className="mt-2 flex items-center gap-3 rounded-xl border border-indigo-500/40 bg-indigo-500/15 px-3 py-2.5 text-xs font-bold uppercase tracking-wider text-indigo-200 shadow-[0_0_15px_rgba(79,70,229,0.2)] hover:bg-indigo-500/25 transition">
+            <Crown className="h-4 w-4 text-amber-400 animate-pulse" /> Owner Admin
           </Link>
         )}
       </nav>
 
-      <div className="mt-4 space-y-1 border-t border-white/5 pt-3">
-        <div className="flex items-center justify-between rounded-xl px-3 py-2 text-sm text-slate-400">
-          <span className="flex items-center gap-3"><HelpCircle className="h-4 w-4" /> Credits</span>
-          <span className="text-slate-200">
-            {isOwner ? <InfinityIcon className="h-4 w-4" /> : `${credits}/${maxCredits}`}
+      <div className="mt-4 space-y-1.5 border-t border-white/10 pt-3">
+        <div className="flex items-center justify-between rounded-xl bg-white/[0.03] border border-white/5 px-3 py-2 text-xs font-semibold text-slate-300">
+          <span className="flex items-center gap-2 text-indigo-300"><HelpCircle className="h-3.5 w-3.5" /> Credits</span>
+          <span className="font-mono text-cyan-300">
+            {isOwner ? <InfinityIcon className="h-4 w-4 inline text-amber-300" /> : `${credits}/${maxCredits}`}
           </span>
         </div>
-        <Link to="/settings" className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-slate-400 transition hover:bg-white/[0.03] hover:text-slate-100">
-          <SettingsIcon className="h-4 w-4" /> Settings
+        <Link to="/settings" className="vapor-nav-item">
+          <div className="vapor-nav-icon">
+            <SettingsIcon className="h-4 w-4" />
+          </div>
+          <span>Settings</span>
         </Link>
 
         <Link
           to="/settings"
-          className="mt-2 flex w-full items-center gap-3 rounded-xl border border-white/8 bg-white/[0.02] px-3 py-2.5 text-left transition hover:bg-white/[0.05]"
+          className="mt-2 flex w-full items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] p-2.5 text-left transition hover:border-indigo-400/40 hover:bg-white/[0.07]"
         >
           {avatar ? (
-            <img src={avatar} alt="" className="h-8 w-8 rounded-full object-cover" />
+            <div className="vapor-ring-avatar h-8 w-8 shrink-0">
+              <img src={avatar} alt="" className="h-full w-full rounded-full object-cover" />
+            </div>
           ) : (
-            <span className="grid h-8 w-8 place-items-center rounded-full bg-indigo-500/30 text-xs font-bold text-indigo-100">
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-gradient-to-tr from-indigo-600 to-cyan-400 text-xs font-black text-white shadow-[0_0_10px_rgba(99,102,241,0.5)]">
               {displayName.slice(0, 1).toUpperCase()}
             </span>
           )}
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-semibold text-slate-100">{displayName}</span>
-            <span className="block truncate text-[10px] uppercase tracking-widest text-indigo-300">{isOwner ? "Owner" : (profile?.plan ?? "Free")}</span>
+            <span className="block truncate text-xs font-bold text-slate-100">{displayName}</span>
+            <span className="block truncate text-[9px] font-black uppercase tracking-widest text-indigo-300">{isOwner ? "Owner" : (profile?.plan ?? "Free")}</span>
           </span>
-          <ChevronDown className="h-3.5 w-3.5 text-slate-500" />
+          <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
         </Link>
       </div>
     </aside>
