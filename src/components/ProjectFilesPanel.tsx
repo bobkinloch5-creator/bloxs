@@ -2,7 +2,12 @@ import { useState, useMemo, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { listProjectFiles, saveScriptFile } from "@/lib/project-workspace.functions";
+import {
+  listProjectFiles,
+  saveScriptFile,
+  moveProjectFile,
+  deleteProjectFile,
+} from "@/lib/project-workspace.functions";
 import {
   FolderTree,
   FileCode,
@@ -26,6 +31,8 @@ import {
   Save,
   Loader2,
   Edit3,
+  GripVertical,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ExportGameModal } from "./ExportGameModal";
@@ -62,8 +69,14 @@ export function ProjectFilesPanel({ projectId, projectName }: Props) {
   const [editedCode, setEditedCode] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
+  // Drag and drop states
+  const [draggedFile, setDraggedFile] = useState<ProjectFile | null>(null);
+  const [dragOverTarget, setDragOverTarget] = useState<string | null>(null);
+
   const listFn = useServerFn(listProjectFiles);
   const saveFn = useServerFn(saveScriptFile);
+  const moveFn = useServerFn(moveProjectFile);
+  const deleteFn = useServerFn(deleteProjectFile);
 
   const {
     data: files = [],
@@ -194,6 +207,85 @@ export function ProjectFilesPanel({ projectId, projectName }: Props) {
     }
   };
 
+  // Drag and drop handler functions
+  const handleDragStart = (e: React.DragEvent, file: ProjectFile) => {
+    setDraggedFile(file);
+    e.dataTransfer.setData("application/json", JSON.stringify(file));
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragOver = (e: React.DragEvent, targetPath: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (dragOverTarget !== targetPath) {
+      setDragOverTarget(targetPath);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOverTarget(null);
+  };
+
+  const handleDrop = async (e: React.DragEvent, newParentPath: string) => {
+    e.preventDefault();
+    setDragOverTarget(null);
+
+    const fileToMove = draggedFile;
+    setDraggedFile(null);
+
+    if (!fileToMove || !projectId) return;
+    if (fileToMove.parentPath === newParentPath) return; // already there
+
+    try {
+      await moveFn({
+        data: {
+          projectId,
+          name: fileToMove.name,
+          parentPath: fileToMove.parentPath,
+          newParentPath,
+        },
+      });
+
+      // Optimistically update local file object parentPath
+      fileToMove.parentPath = newParentPath;
+      refetch();
+
+      toast.success(`⚡ Moved "${fileToMove.name}" to ${newParentPath}!`, {
+        description: "Roblox Studio plugin will update the instance location automatically.",
+      });
+    } catch (err) {
+      toast.error("Failed to move file", {
+        description: err instanceof Error ? err.message : String(err),
+      });
+    }
+  };
+
+  const handleDeleteFile = async (f: ProjectFile, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    if (!projectId) return;
+    if (!confirm(`Are you sure you want to delete "${f.name}" from Roblox Studio?`)) return;
+
+    try {
+      await deleteFn({
+        data: {
+          projectId,
+          name: f.name,
+          parentPath: f.parentPath,
+        },
+      });
+
+      if (selectedFile?.id === f.id) setSelectedFile(null);
+      refetch();
+
+      toast.success(`⚡ Delete action queued for "${f.name}" in Roblox Studio`);
+    } catch (err) {
+      toast.error("Failed to delete file", {
+        description: err instanceof Error ? err.message : String(err),
+      });
+    }
+  };
+
   const getClassBadge = (className: string) => {
     switch (className) {
       case "LocalScript":
@@ -255,9 +347,20 @@ export function ProjectFilesPanel({ projectId, projectName }: Props) {
       ) : (
         Object.entries(groupedFiles).map(([service, serviceFiles]) => {
           const isCollapsed = collapsedServices[service];
+          const isTarget = dragOverTarget === service;
           return (
-            <div key={service} className="rounded-xl border border-white/5 bg-slate-950/50 overflow-hidden">
-              {/* Service Group Header */}
+            <div
+              key={service}
+              onDragOver={(e) => handleDragOver(e, service)}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, service)}
+              className={`rounded-xl border transition-all overflow-hidden ${
+                isTarget
+                  ? "border-cyan-400 bg-cyan-500/10 shadow-[0_0_20px_rgba(6,182,212,0.35)] ring-2 ring-cyan-400/50"
+                  : "border-white/5 bg-slate-950/50"
+              }`}
+            >
+              {/* Service Group Header / Drop Target */}
               <button
                 type="button"
                 onClick={() => toggleService(service)}
@@ -273,6 +376,11 @@ export function ProjectFilesPanel({ projectId, projectName }: Props) {
                   <span className="text-xs font-bold text-slate-200 truncate">
                     {service.replace(/^game\./, "")}
                   </span>
+                  {isTarget && (
+                    <span className="text-[10px] font-bold text-cyan-300 bg-cyan-500/20 px-1.5 py-0.5 rounded animate-pulse">
+                      Drop to move here
+                    </span>
+                  )}
                 </div>
                 <span className="rounded-full bg-slate-800/80 border border-white/5 px-2 py-0.5 text-[10px] text-slate-400 font-mono">
                   {serviceFiles.length}
@@ -284,15 +392,29 @@ export function ProjectFilesPanel({ projectId, projectName }: Props) {
                 <div className="divide-y divide-white/5 border-t border-white/5">
                   {serviceFiles.map((file) => {
                     const lineCount = file.source ? file.source.split("\n").length : 0;
+                    const isFolder = file.className === "Folder";
+                    const itemPath = `${file.parentPath}.${file.name}`;
+                    const isItemTarget = dragOverTarget === itemPath;
+
                     return (
                       <div
                         key={file.id}
+                        draggable={true}
+                        onDragStart={(e) => handleDragStart(e, file)}
+                        onDragOver={(e) => isFolder && handleDragOver(e, itemPath)}
+                        onDragLeave={handleDragLeave}
+                        onDrop={(e) => isFolder && handleDrop(e, itemPath)}
                         onClick={() => setSelectedFile(file)}
-                        className={`group flex items-center justify-between px-3.5 py-2.5 text-left hover:bg-white/[0.05] cursor-pointer transition-colors ${
-                          selectedFile?.id === file.id ? "bg-cyan-500/10 border-l-2 border-cyan-400" : ""
+                        className={`group flex items-center justify-between px-3.5 py-2.5 text-left cursor-grab active:cursor-grabbing transition-all ${
+                          isItemTarget
+                            ? "bg-cyan-500/20 border-cyan-400 ring-1 ring-cyan-400"
+                            : selectedFile?.id === file.id
+                            ? "bg-cyan-500/10 border-l-2 border-cyan-400"
+                            : "hover:bg-white/[0.05]"
                         }`}
                       >
-                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          <GripVertical className="h-3.5 w-3.5 text-slate-600 group-hover:text-slate-400 transition-colors flex-shrink-0 cursor-grab" />
                           {getItemIcon(file.className)}
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-1.5">
@@ -336,6 +458,14 @@ export function ProjectFilesPanel({ projectId, projectName }: Props) {
                           >
                             <Pencil className="h-3.5 w-3.5 text-cyan-400" />
                           </button>
+                          <button
+                            type="button"
+                            onClick={(e) => handleDeleteFile(file, e)}
+                            title="Delete File from Studio"
+                            className="rounded p-1 text-slate-500 hover:bg-rose-500/20 hover:text-rose-400 transition-colors"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
                         </div>
                       </div>
                     );
@@ -363,7 +493,7 @@ export function ProjectFilesPanel({ projectId, projectName }: Props) {
               {isRefetching && <RefreshCw className="h-3 w-3 animate-spin text-cyan-400" />}
             </h3>
             <p className="text-[11px] font-medium text-slate-400">
-              {files.length} Roblox object{files.length !== 1 ? "s" : ""} • {totalLines.toLocaleString()} lines
+              {files.length} Roblox object{files.length !== 1 ? "s" : ""} • Drag & Drop to Move
             </p>
           </div>
         </div>
@@ -420,7 +550,7 @@ export function ProjectFilesPanel({ projectId, projectName }: Props) {
         </button>
       </div>
 
-      {/* File Tree List (Roomier height) */}
+      {/* File Tree List (Roomier height & Drag-and-Drop) */}
       {renderTreeContent("max-h-[640px]")}
 
       {/* Fullscreen / Expanded View Portal */}
@@ -439,7 +569,7 @@ export function ProjectFilesPanel({ projectId, projectName }: Props) {
                       {projectName} — Live Roblox Studio Hierarchy
                     </h2>
                     <p className="text-xs text-slate-400">
-                      {files.length} objects • {totalLines.toLocaleString()} lines of Luau code
+                      {files.length} objects • Drag and drop items to re-parent them live
                     </p>
                   </div>
                 </div>

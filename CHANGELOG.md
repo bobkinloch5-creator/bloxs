@@ -4,6 +4,16 @@ All notable changes to BloxSmith are tracked here. Dates are UTC.
 
 ## [Unreleased]
 
+### 2026-07-25 - Drag & Drop Reparenting & Live Luau Code Editor
+
+**Drag & Drop Hierarchy Management & Live Studio Code Sync (`src/components/ProjectFilesPanel.tsx`, `src/lib/project-workspace.functions.ts`, `public/BloxSmithPlugin.lua`)**
+- Added full **HTML5 Drag & Drop** functionality to the Project Explorer tree panel: users can now drag any script, folder, model, or object and drop it into another Roblox Service or Folder container.
+- Added `moveProjectFile` server function which queues a `kind: "move"` plugin action in Supabase; the BloxSmith Roblox Studio plugin automatically updates the instance's parent in Studio on its next poll cycle.
+- Added `deleteProjectFile` server function and inline deletion buttons to delete unwanted instances directly from the dashboard and sync the removal to Roblox Studio.
+- Added live visual drag indicators (`GripVertical` handle, glowing cyan target border, active feedback state) for smooth UX.
+- Built **Interactive Luau Code Editor** with real-time **Save & Sync to Studio** button (`saveScriptFile`), allowing developers to edit script code directly on the web and push changes to Studio instantly.
+- Added **Fullscreen / Expanded Studio Explorer** portal view (`Maximize2`), enabling a dual-column workspace with file navigation on the left and full-width code editing on the right.
+
 ### 2026-07-25 - Roblox Studio Project Explorer & Hierarchy Mirroring
 
 **Project Files Explorer & Hierarchy Mirroring (`src/lib/project-workspace.functions.ts`, `src/components/ProjectFilesPanel.tsx`, `public/BloxSmithPlugin.lua`)**

@@ -503,4 +503,69 @@ export const saveScriptFile = createServerFn({ method: "POST" })
     return { ok: true, synced: true };
   });
 
+// ---------- Move / Drag-and-Drop Reparent File in Roblox Studio ----------
+export const moveProjectFile = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) => z.object({
+    projectId: uuid,
+    name: z.string().min(1).max(200),
+    parentPath: z.string().max(300),
+    newParentPath: z.string().max(300),
+  }).parse(input))
+  .handler(async ({ data, context }) => {
+    const targetPath = data.parentPath ? `${data.parentPath}.${data.name}` : data.name;
+
+    const { error } = await context.supabase.from("plugin_actions").insert({
+      user_id: context.user.id,
+      project_id: data.projectId,
+      kind: "move",
+      name: data.name,
+      parent_path: data.parentPath,
+      payload: {
+        target_path: targetPath,
+        new_parent_path: data.newParentPath,
+      },
+      status: "pending",
+    });
+
+    if (error) {
+      console.error("[moveProjectFile] Failed to queue move action:", error);
+      throw new Error(error.message);
+    }
+
+    return { ok: true, moved: true };
+  });
+
+// ---------- Delete File in Roblox Studio ----------
+export const deleteProjectFile = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) => z.object({
+    projectId: uuid,
+    name: z.string().min(1).max(200),
+    parentPath: z.string().max(300),
+  }).parse(input))
+  .handler(async ({ data, context }) => {
+    const targetPath = data.parentPath ? `${data.parentPath}.${data.name}` : data.name;
+
+    const { error } = await context.supabase.from("plugin_actions").insert({
+      user_id: context.user.id,
+      project_id: data.projectId,
+      kind: "delete",
+      name: data.name,
+      parent_path: data.parentPath,
+      payload: {
+        target_path: targetPath,
+      },
+      status: "pending",
+    });
+
+    if (error) {
+      console.error("[deleteProjectFile] Failed to queue delete action:", error);
+      throw new Error(error.message);
+    }
+
+    return { ok: true, deleted: true };
+  });
+
+
 
