@@ -8487,12 +8487,17 @@ export const Route = createFileRoute("/api/chat")({
 
           // RAG: retrieve top Roblox knowledge chunks ONCE per turn (outside
           // tryStream so fallback retries reuse the same block). Best-effort.
+          // Fires in BOTH chat and build mode for technical Roblox questions;
+          // skipped only for trivially simple one-line chat turns to save latency.
           let ragBlock = "";
-          if (mode !== "chat") {
+          const isRobloxTechnicalQuery = /\b(luau?|script|remote|event|service|datastore|humanoid|tween|cframe|raycast|collision|module|require|part|mesh|animation|sound|gui|screengu|uigrid|runservice|heartbeat|coroutine|task\.)\b/i.test(userText || "");
+          if (mode !== "chat" || isRobloxTechnicalQuery) {
             try {
               const q = (userText || "").slice(0, 1200);
+              // Scripting gets more chunks (7 vs 2) because it's the most token-hungry
+              // topic and the model benefits most from verified API examples.
               const [scr, world, uid] = await Promise.all([
-                retrieveKnowledge(supabase, "scripter", q, 5),
+                retrieveKnowledge(supabase, "scripter", q, 7),
                 retrieveKnowledge(supabase, "world_builder", q, 2),
                 retrieveKnowledge(supabase, "ui_designer", q, 2),
               ]);

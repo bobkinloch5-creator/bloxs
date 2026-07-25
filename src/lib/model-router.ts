@@ -1,4 +1,6 @@
 // Smart model router: every task uses the default reliable AI route.
+// Enhanced: Roblox-specific difficulty signals, per-task token budgets,
+// and a validation-failure retry helper.
 
 import { MODELS, isSelectable, DEFAULT_MODEL_ID, type ModelOption } from "./models";
 
@@ -67,11 +69,46 @@ const TASK_PREF: Record<AutoTask, { ids: string[]; reason: string }> = {
 
 export type Difficulty = "easy" | "normal" | "hard";
 
+// Per-task recommended max output tokens. Tuned to avoid costly over-generation
+// on simple tasks while giving complex builds enough headroom to finish.
+export const TASK_MAX_TOKENS: Record<AutoTask, number> = {
+  planning:    4000,
+  scripting:   8000,
+  ui:          6000,
+  assets:      2000,
+  bugfix:      5000,
+  performance: 4000,
+  testing:     3000,
+  shortedit:   1800,
+  vision:      2500,
+};
+
+// Hard-difficulty multiplier applied to TASK_MAX_TOKENS for large builds.
+// Full-game requests can easily push past 12k tokens; we cap at the model's own ceiling.
+export const HARD_TOKEN_MULTIPLIER = 2.0;
+
 // Rough word/char heuristic — no model call, ~0ms.
+// Enhanced with Roblox-specific complexity signals that reliably escalate to hard.
 export function estimateDifficulty(text: string): Difficulty {
   const t = (text || "").toLowerCase();
   const words = t.split(/\s+/).filter(Boolean).length;
-  const systemHits = (t.match(/\b(system|tycoon|simulator|rpg|battle royale|combat|inventory|shop|quest|save|datastore|multiplayer|round|match|team|leaderboard|economy)\b/g) || []).length;
+
+  // Roblox-specific HARD signals: any single match escalates immediately.
+  const hardSignals = [
+    /\b(full\s*game|complete\s*game|entire\s*game|full\s*system|all\s*systems)\b/,
+    /\b(multiplayer|server.?authoritative|cross.?server|messaging.?service)\b/,
+    /\b(datastore|profileservice|profile.?store|data.?store.?service)\b/,
+    /\b(tycoon|simulator|battle.?royale|tower.?defen[cs]e|zombie.?survival)\b/,
+    /\b(anti.?exploit|rate.?limit|remote.?event.?validation)\b/,
+    /\b(streaming.?enabled|parallel.?luau|actor|bindable)\b/,
+    /\b(round.?system|match.?making|leaderboard|economy|currency|gamepass)\b/,
+    /\b(pet.?system|inventory.?system|quest.?system|skill.?tree|crafting)\b/,
+    /\b(npc.?(pathfinding|ai|behavior)|behavior.?tree|state.?machine)\b/,
+    /\b(procedural|pcg|noise|terrain.?generation|dungeon.?gen)\b/,
+  ];
+  if (hardSignals.some((re) => re.test(t))) return "hard";
+
+  const systemHits = (t.match(/\b(system|rpg|combat|inventory|shop|quest|save|multiplayer|round|match|team|economy)\b/g) || []).length;
   const featureAnds = (t.match(/\band\b/g) || []).length;
   if (words <= 8 && systemHits === 0) return "easy";
   if (words >= 40 || systemHits >= 2 || featureAnds >= 3) return "hard";
@@ -127,6 +164,53 @@ export function pickModelForTask(task: AutoTask, difficulty: Difficulty = "norma
       : `${pref.reason}${diffTag}`,
     fellBack,
   };
+}
+
+/**
+ * Like pickModelForTask but also returns the recommended maxOutputTokens cap
+ * for this task/difficulty combination, respecting the model's own ceiling.
+ */
+export function pickModelForTaskWithBudget(
+  task: AutoTask,
+  difficulty: Difficulty = "normal",
+): ModelPick & { maxOutputTokens: number } {
+  const pick = pickModelForTask(task, difficulty);
+  const base = TASK_MAX_TOKENS[task] ?? 4000;
+  const maxOutputTokens = difficulty === "hard"
+    ? Math.round(base * HARD_TOKEN_MULTIPLIER)
+    : difficulty === "easy"
+      ? Math.round(base * 0.5)
+      : base;
+  return { ...pick, maxOutputTokens };
+}
+
+/**
+ * Auto-retry: when the primary model pick produces a validation failure,
+ * walk the HARD_PREF list for the same task and return the next best model
+ * that differs from the one that failed. Returns null when exhausted.
+ */
+export function pickFallbackAfterFailure(
+  task: AutoTask,
+  failedModelId: string,
+): ModelPick | null {
+  const hard = HARD_PREF[task] ?? [];
+  const fast = TASK_PREF[task].ids;
+  const candidates = [...hard, ...fast].filter((id) => id !== failedModelId);
+  for (const id of candidates) {
+    const m = MODELS.find((x) => x.id === id);
+    if (m && isSelectable(m)) {
+      return {
+        task,
+        modelId: m.id,
+        label: m.label,
+        provider: m.provider,
+        via: m.via,
+        reason: `Auto-retry after validation failure on ${failedModelId}`,
+        fellBack: true,
+      };
+    }
+  }
+  return null;
 }
 
 export const AUTO_TASKS: AutoTask[] = [

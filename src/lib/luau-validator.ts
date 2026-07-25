@@ -83,11 +83,20 @@ export function validateLuau(rawSource: string): LuauIssue[] {
   const NIL_CALL_PATTERNS: Array<[RegExp, string]> = [
     [/\bLighting\s*:\s*GetEffect\b/, "Lighting has no :GetEffect — use :FindFirstChildOfClass or iterate :GetChildren()."],
     [/\bWorkspace\s*:\s*GetPart\b/, "Workspace has no :GetPart — use :FindFirstChild or :GetDescendants()."],
-    [/\bPlayers\s*:\s*GetPlayerFromInput\s*\(/, "Players:GetPlayerFromInput does not exist — use Players.LocalPlayer in a LocalScript, or pass intent to the server through a RemoteEvent."],
+    [/\bPlayers\s*:\s*GetPlayerFromInput\s*\(/, "Players:GetPlayerFromInput does not exist — use Players.LocalPlayer in a LocalScript."],
     [/:connect\s*\(/, "Use :Connect (capital C) — :connect was removed."],
     [/(?<!task\.)\bwait\s*\(/, "Use task.wait(n) — legacy wait() is throttled and deprecated."],
     [/(?<!task\.)\bspawn\s*\(\s*function/, "Use task.spawn(fn) — legacy spawn() is deprecated."],
     [/(?<!task\.)\bdelay\s*\(/, "Use task.delay(n, fn) — legacy delay() is deprecated."],
+    // Additional Roblox-specific correctness checks:
+    [/Instance\.new\s*\(\s*['"][^'"]+['"]\s*,\s*[^)]+\)/, "Instance.new(class, parent) is deprecated — set .Parent last after configuring all properties."],
+    [/\bgame\.Players\b/, "Use game:GetService('Players') instead of game.Players for reliable access."],
+    [/:WaitForChild\s*\([^)]+\)(?!\s*--\s*timeout)/, "WaitForChild without a timeout can yield forever — pass a second timeout argument."],
+    [/\bOnServerEvent\s*:\s*Connect\s*\([^)]*\)(?![\s\S]{0,500}?pcall)/, "Remote handler without pcall — wrap handler body in pcall to prevent client-triggered server crashes."],
+    [/:InvokeServer\s*\(/, "RemoteFunction:InvokeServer can deadlock if the server yields indefinitely — prefer RemoteEvent for one-way calls."],
+    [/RunService\.(Heartbeat|RenderStepped)\s*:\s*Connect\s*\(function[\s\S]{0,300}?(?:DataStore|HttpService|FireServer|FireAllClients)/, "DataStore/HTTP/Remote calls inside a per-frame loop cause throttle errors and network spam — use debounce."],
+    [/\bHttpService\s*:\s*GetAsync\s*\(|\bHttpService\s*:\s*PostAsync\s*\(/, "Wrap HttpService calls in pcall — network failures throw errors that crash the script."],
+    [/local\s+\w+\s*=\s*game\.\w+\b(?!\s*:\s*GetService)/, "Prefer game:GetService('ServiceName') over game.ServiceName for type-safety and error clarity."],
   ];
   for (const [re, msg] of NIL_CALL_PATTERNS) {
     if (re.test(src)) issues.push({ severity: "warn", message: msg });
@@ -459,7 +468,12 @@ export function analyzeLuauPerformance(rawSource: string): PerfFinding[] {
 
 /** Rolled-up score (0-100) used by the project health panel. */
 export function performanceScore(findings: PerfFinding[]): number {
-  const weights = { error: 12, warn: 5, info: 2 } as const;
+  // Security errors hurt the score harder than generic errors because
+  // they can result in exploitable gameplay or data loss.
+  const weights = { error: 15, warn: 5, info: 2 } as const;
+  const securityPenalty = findings
+    .filter((f) => f.category === "security")
+    .reduce((total, f) => total + (f.severity === "error" ? 20 : 8), 0);
   const penalty = findings.reduce((total, finding) => total + weights[finding.severity], 0);
-  return Math.max(0, 100 - penalty);
+  return Math.max(0, 100 - penalty - securityPenalty);
 }

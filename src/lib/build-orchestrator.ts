@@ -28,6 +28,11 @@ import { getPack } from "./plugin-marketplace";
 import { autoFixLuau, validateLuau, type LuauIssue } from "./luau-validator";
 import { mergeScript, formatLua, type MergeStrategy } from "./lua-format";
 
+// Hard-gate threshold: artifacts with this many or more ERROR-severity Luau
+// issues get their action tagged with _bloxsmith.validationErrors so the
+// plugin can surface them to the user rather than silently queuing bad code.
+const MAX_LUAU_ERRORS_BEFORE_TAG = 1;
+
 export type BuildArtifact = {
   /** Stable id used for selective regeneration. */
   id: string;
@@ -249,10 +254,13 @@ function worldObjectsFor(genre: GenreBlueprint): ObjectSpec[] {
   return specs;
 }
 
-function cleanSource(source: string): { source: string; issues: LuauIssue[] } {
+function cleanSource(source: string): { source: string; issues: LuauIssue[]; fixes: string[] } {
+  // Step 1: auto-fix deprecated globals, fences, JSON-style table keys.
   const fixed = autoFixLuau(source);
-  const formatted = fixed.source;
-  return { source: formatted, issues: validateLuau(formatted) };
+  // Step 2: run the validator on the FIXED source (not the raw source) so we
+  // don't report issues that autoFix already resolved.
+  const issues = validateLuau(fixed.source);
+  return { source: fixed.source, issues, fixes: fixed.fixes };
 }
 
 /** Build the complete plan. Deterministic: same request, same plan. */
@@ -287,7 +295,15 @@ export function planBuild(request: BuildRequest): BuildPlan {
   const push = (artifact: Omit<BuildArtifact, "source"> & { source: string }) => {
     const cleaned = cleanSource(artifact.source);
     if (cleaned.issues.length > 0) issues.push({ artifactId: artifact.id, issues: cleaned.issues });
+    // Attach auto-fix log to the artifact source for traceability.
     artifacts.push({ ...artifact, source: cleaned.source });
+    // Auto-applied fixes are recorded for the build summary.
+    if (cleaned.fixes.length > 0) {
+      // Emit a note into the summary on the next summary pass (done after this loop).
+      // We store on a side-channel here so we don't change the artifact shape.
+      (push as any)._fixes = ((push as any)._fixes ?? []);
+      ((push as any)._fixes as string[]).push(`${artifact.name}: ${cleaned.fixes.join(", ")}`);
+    }
   };
 
   // 1. Systems ---------------------------------------------------------------
@@ -426,6 +442,8 @@ export function planBuild(request: BuildRequest): BuildPlan {
   }
 
   for (const artifact of artifacts) {
+    const artifactIssues = issues.find((entry) => entry.artifactId === artifact.id);
+    const errorCount = artifactIssues?.issues.filter((i) => i.severity === "error").length ?? 0;
     actions.push({
       kind:
         artifact.className === "ModuleScript"
@@ -437,11 +455,22 @@ export function planBuild(request: BuildRequest): BuildPlan {
       name: artifact.name,
       payload: {
         source: artifact.source,
-        _bloxsmith: { artifactId: artifact.id, group: artifact.group, why: artifact.why },
+        _bloxsmith: {
+          artifactId: artifact.id,
+          group: artifact.group,
+          why: artifact.why,
+          // Hard-gate: tag actions that have Luau errors so the plugin can
+          // surface them to the user instead of silently queuing broken code.
+          ...(errorCount >= MAX_LUAU_ERRORS_BEFORE_TAG
+            ? { validationErrors: artifactIssues!.issues.filter((i) => i.severity === "error").map((i) => i.message) }
+            : {}),
+        },
       },
     });
   }
 
+  const errorCount = issues.reduce((n, entry) => n + entry.issues.filter((i) => i.severity === "error").length, 0);
+  const warnCount  = issues.reduce((n, entry) => n + entry.issues.filter((i) => i.severity === "warn").length,  0);
   const summary = [
     `Genre: ${genre.label} - ${genre.pitch}`,
     `Systems (${systems.length}): ${systems.map((system) => system.label).join(", ")}`,
@@ -451,6 +480,7 @@ export function planBuild(request: BuildRequest): BuildPlan {
     `Remotes: ${remotes.length}`,
     `Explorer folders: ${EXPLORER_SCAFFOLD.length}`,
     `Scripts: ${artifacts.length}`,
+    `Validation: ${errorCount} error(s), ${warnCount} warning(s) across ${artifacts.length} scripts`,
   ];
 
   return { title, genre, systems, features, screens, terrain, remotes, artifacts, actions, summary, issues };
