@@ -1,4 +1,5 @@
 import { Fragment, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -341,8 +342,12 @@ function ImportDialog({ onClose, onImported }: { onClose: () => void; onImported
           try {
             const text = await f.text();
             const payload = JSON.parse(text);
-            await importFn({ data: { payload } });
-            toast.success("Project imported");
+            const p = await importFn({ data: { payload } });
+            if (p?.id) {
+              try { localStorage.setItem("bs:activeProjectId", p.id); } catch {}
+              try { window.dispatchEvent(new Event("bs:active-project-changed")); } catch {}
+            }
+            toast.success("Project imported!");
             onImported(); onClose();
           } catch (err: any) { toast.error(err?.message ?? "Import failed"); }
           finally { setBusy(false); }
@@ -350,22 +355,25 @@ function ImportDialog({ onClose, onImported }: { onClose: () => void; onImported
       />
       {busy && <div className="mt-3 text-xs text-slate-400">Importing…</div>}
       <div className="mt-3 flex justify-end">
-        <button onClick={onClose} className="rounded-lg px-3 py-1.5 text-sm text-slate-300 hover:bg-white/5">Close</button>
+        <button type="button" onClick={onClose} className="rounded-lg px-3 py-1.5 text-sm text-slate-300 hover:bg-white/5">Close</button>
       </div>
     </Modal>
   );
 }
 
 function Modal({ children, onClose, title }: { children: React.ReactNode; onClose: () => void; title: string }) {
-  return (
-    <div className="fixed inset-0 z-[100] grid place-items-center bg-black/60 p-4" onClick={onClose}>
-      <div className="w-full max-w-md rounded-2xl border border-white/10 bg-slate-900 p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+  if (typeof window === "undefined") return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[99999] grid place-items-center bg-black/70 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="w-full max-w-md rounded-2xl border border-white/15 bg-slate-900 p-5 shadow-2xl backdrop-blur-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="mb-3 flex items-center justify-between">
           <div className="text-sm font-bold text-white">{title}</div>
-          <button onClick={onClose} className="text-slate-400 hover:text-white">✕</button>
+          <button type="button" onClick={onClose} className="text-slate-400 hover:text-white">✕</button>
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

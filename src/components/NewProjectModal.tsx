@@ -3,6 +3,7 @@
 // Renders as a lightweight overlay; parent controls open state so clicking
 // "+ New Project" NEVER wipes the surrounding page.
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { X, Loader2, Sparkles } from "lucide-react";
@@ -64,8 +65,6 @@ export function NewProjectModal({
   const mut = useMutation({
     mutationFn: async () => {
       const cleanName = name.trim() || `New ${gameType} Game`;
-      // Compose a rich description so the AI sees full project context.
-      // Description column is capped at 500 chars.
       const briefLines = [
         `Type: ${gameType}`,
         `Style: ${style}`,
@@ -84,6 +83,7 @@ export function NewProjectModal({
     },
     onSuccess: (p: any) => {
       try { localStorage.setItem("bs:activeProjectId", p.id); } catch {}
+      try { window.dispatchEvent(new Event("bs:active-project-changed")); } catch {}
       toast.success(`Created "${p.name}"`);
       onCreated(p.id);
       onClose();
@@ -91,11 +91,12 @@ export function NewProjectModal({
     onError: (e: any) => toast.error(e?.message || "Couldn't create the project."),
   });
 
-  if (!open) return null;
+  if (!open || typeof window === "undefined") return null;
 
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6">
+  return createPortal(
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-6">
       <button
+        type="button"
         aria-label="Close"
         onClick={onClose}
         className="absolute inset-0 bg-black/70 backdrop-blur-sm"
@@ -181,7 +182,8 @@ export function NewProjectModal({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
