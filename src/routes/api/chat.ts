@@ -123,7 +123,7 @@ ${params.assistantText.slice(0, 12000)}`,
     ...(fb.extraBody ? { providerOptions: { nvidia: fb.extraBody as Record<string, never> } as never } : {}),
     ...(fb.modelSettings?.temperature !== undefined ? { temperature: fb.modelSettings.temperature } : { temperature: 0 }),
     ...(fb.modelSettings?.topP !== undefined ? { topP: fb.modelSettings.topP } : {}),
-    maxOutputTokens: 2200,
+    maxOutputTokens: 4000,
   });
 
   return parseActions(text).actions;
@@ -258,18 +258,17 @@ function trimMessagesForModel(messages: UIMessage[], mode: "chat" | "build"): UI
 }
 
 function capOutputTokens(modelSettings: { maxOutputTokens?: number } | undefined, mode: "chat" | "build", buildQuality?: "basic" | "better" | "premium" | "full_game") {
-  // FAST PATH: cap output tokens aggressively so responses finish quickly.
-  // Lowered further to reduce end-to-end generation latency.
-  const requested = modelSettings?.maxOutputTokens ?? (mode === "chat" ? 500 : 1600);
+  // Token caps raised so scripts are never truncated mid-generation.
+  const requested = modelSettings?.maxOutputTokens ?? (mode === "chat" ? 700 : 4000);
   const cap = mode === "chat"
-    ? 700
+    ? 900
     : buildQuality === "full_game"
-      ? 3000
+      ? 8000
       : buildQuality === "premium"
-        ? 2400
+        ? 6000
         : buildQuality === "basic"
-          ? 650
-          : 1800;
+          ? 2400
+          : 4000;
   return Math.min(requested, cap);
 }
 
@@ -2026,16 +2025,9 @@ end
   }
 
   if (/\b(fly|flying|flight|toggle\s*fly)\b/i.test(text) && !/\bfly\s*trap\b/i.test(text)) {
-    const source = `
-local StarterPlayer = game:GetService("StarterPlayer")
-local scripts = StarterPlayer:FindFirstChild("StarterPlayerScripts")
-if not scripts then error("StarterPlayerScripts missing") end
-local old = scripts:FindFirstChild("BloxSmith_FlyToggle")
-if old then old:Destroy() end
-local client = Instance.new("LocalScript")
-client.Name = "BloxSmith_FlyToggle"
-client.Source = [==[
--- BloxSmith Fly Toggle (modern constraints — LinearVelocity + AlignOrientation, camera-relative)
+    // Use localscript kind directly — more reliable than run_lua wrapping.
+    const flySource = `-- BloxSmith Fly Toggle (press F to toggle, Space=up, Ctrl/Shift=down)
+-- Installs automatically on character spawn. Works in any Roblox game.
 local Players = game:GetService("Players")
 local ContextActionService = game:GetService("ContextActionService")
 local UserInputService = game:GetService("UserInputService")
@@ -2045,18 +2037,13 @@ local player = Players.LocalPlayer
 local SPEED = 70
 local ACTION = "BloxSmithFly"
 local flying = false
-local lv, ao, att
-local heartbeat
+local lv, ao, att, heartbeat
 
-local function cleanupOn(char)
-  if not char then return end
-  local hrp = char:FindFirstChild("HumanoidRootPart")
+local function cleanupConstraints(hrp)
   if not hrp then return end
-  for _, child in ipairs(hrp:GetChildren()) do
-    if child.Name == "BloxSmith_FlyAttachment"
-       or child.Name == "BloxSmith_FlyLV"
-       or child.Name == "BloxSmith_FlyAO" then
-      child:Destroy()
+  for _, c in ipairs(hrp:GetChildren()) do
+    if c.Name == "BloxSmith_FlyAttachment" or c.Name == "BloxSmith_FlyLV" or c.Name == "BloxSmith_FlyAO" then
+      c:Destroy()
     end
   end
 end
@@ -2080,7 +2067,7 @@ local function start()
   local hrp = char:WaitForChild("HumanoidRootPart", 5)
   local hum = char:FindFirstChildOfClass("Humanoid")
   if not hrp or not hum then return end
-  cleanupOn(char)
+  cleanupConstraints(hrp)
   flying = true
   hum.PlatformStand = true
 
@@ -2107,44 +2094,35 @@ local function start()
   local camera = workspace.CurrentCamera
   heartbeat = RunService.RenderStepped:Connect(function()
     if not flying or not hrp.Parent then stop(); return end
-    local move = hum.MoveDirection
     local look = camera.CFrame.LookVector
     local right = camera.CFrame.RightVector
-    -- Project move (which is already camera-relative on the ground) onto camera basis
-    -- so W = camera-forward including pitch, giving proper fly-up-when-looking-up behavior.
+    local move = hum.MoveDirection
     local forward = Vector3.new(look.X, look.Y, look.Z)
     local rightV = Vector3.new(right.X, right.Y, right.Z)
-    local up = 0
-    if UserInputService:IsKeyDown(Enum.KeyCode.Space) then up = up + 1 end
-    if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) or UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then up = up - 1 end
-    local dir = (rightV * move.X) + (forward * -move.Z) + Vector3.new(0, up, 0)
-    if dir.Magnitude > 0.05 then
-      lv.VectorVelocity = dir.Unit * SPEED
-    else
-      lv.VectorVelocity = Vector3.zero
-    end
+    local upInput = 0
+    if UserInputService:IsKeyDown(Enum.KeyCode.Space) then upInput = upInput + 1 end
+    if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) or UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then upInput = upInput - 1 end
+    local dir = (rightV * move.X) + (forward * -move.Z) + Vector3.new(0, upInput, 0)
+    lv.VectorVelocity = dir.Magnitude > 0.05 and dir.Unit * SPEED or Vector3.zero
     ao.CFrame = camera.CFrame
   end)
 end
 
 ContextActionService:UnbindAction(ACTION)
 ContextActionService:BindActionAtPriority(ACTION, function(_, state)
-  if state == Enum.UserInputState.Begin then
-    if flying then stop() else start() end
-  end
+  if state ~= Enum.UserInputState.Begin then return Enum.ContextActionResult.Pass end
+  if flying then stop() else start() end
   return Enum.ContextActionResult.Pass
 end, true, Enum.ContextActionPriority.High.Value, Enum.KeyCode.F, Enum.KeyCode.ButtonY)
-ContextActionService:SetTitle(ACTION, "Toggle Fly (F)")
+ContextActionService:SetTitle(ACTION, "Fly (F)")
 
 player.CharacterAdded:Connect(function() stop() end)
-]==]
-client.Parent = scripts
-`;
+print("[BloxSmith] Fly script loaded — press F to toggle fly")`;
     return [{
-      kind: "run_lua",
+      kind: "localscript",
       parent_path: "StarterPlayer.StarterPlayerScripts",
-      name: "BloxSmith_Create_Fly_Toggle",
-      payload: { source, request: safePrompt, language: languageName },
+      name: "BloxSmith_FlyToggle",
+      payload: { source: flySource, request: safePrompt, language: languageName },
     }];
   }
 
