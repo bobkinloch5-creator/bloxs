@@ -17,6 +17,7 @@ import { productionSystemsStudioActions, detectLuaTemplates } from "@/lib/lua-te
 import { classifyIntent, renderIntentBlock } from "@/lib/intent-classifier.server";
 import { rerankMemories } from "@/lib/semantic-memory";
 import { retrieveKnowledge } from "@/lib/kb-retrieve.server";
+import { scriptingKnowledgeFor } from "@/lib/roblox-scripting-knowledge";
 
 function jsonError(message: string, status: number, code?: string) {
   return new Response(JSON.stringify({ error: message, code }), {
@@ -90,11 +91,13 @@ async function compileMissingStudioActions(params: {
   assetMode: "toolbox_only" | "both" | "procedural";
 }) {
   const fb = getFallbackModel();
+  const knowledge = scriptingKnowledgeFor(params.userText, { limit: 4, maxChars: 6000 });
   const { text } = await generateText({
     model: fb.model,
     system:
-      "You are the BloxSmith Studio action compiler. Convert Roblox build plans into executable BloxSmith actions only. " +
-      "Return exactly one fenced ```bloxsmith-actions block containing valid JSON. Do not include prose outside the block.",
+      "You are the BloxSmith Studio action compiler. Convert Roblox build plans into executable BloxSmith actions only.\n" +
+      "Return exactly one fenced ```bloxsmith-actions block containing valid JSON. Do not include prose outside the block.\n\n" +
+      knowledge,
     prompt: `The previous assistant response was in Build Mode but did not include executable Studio actions, so Roblox Studio received nothing.
 
 Convert the request and response below into a concise, safe, executable BloxSmith action list.
