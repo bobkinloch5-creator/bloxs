@@ -70,15 +70,12 @@ export function VaporModelSelector({ selectedModel, onSelectModel, availableMode
         type="button"
         onClick={handleToggle}
         aria-expanded={open}
-        className={`group inline-flex items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-extrabold transition-all active:scale-95 ${
-          open
-            ? "border-cyan-400 bg-indigo-500/30 text-white shadow-[0_0_25px_rgba(34,211,238,0.4)]"
-            : "border-indigo-500/40 bg-[#0c0c26] text-cyan-200 shadow-[0_0_15px_rgba(79,70,229,0.2)] hover:border-cyan-400/60 hover:bg-[#121236] hover:shadow-[0_0_20px_rgba(34,211,238,0.3)]"
-        }`}
+        style={{ backgroundColor: open ? "#1e1b4b" : "#0a0a20" }}
+        className={`group inline-flex items-center gap-2 rounded-xl border border-cyan-400/50 px-3.5 py-2 text-xs font-extrabold text-cyan-200 shadow-[0_0_15px_rgba(34,211,238,0.2)] transition-all active:scale-95 hover:border-cyan-400 hover:bg-[#121236] hover:shadow-[0_0_20px_rgba(34,211,238,0.35)]`}
         title="Choose which AI model handles your next messages."
       >
         <Sparkles className="h-3.5 w-3.5 text-cyan-400 group-hover:animate-pulse" />
-        <span className="max-w-[180px] truncate font-extrabold">
+        <span className="max-w-[180px] truncate font-extrabold text-white">
           {selectedModel === "auto" ? "Auto (Recommended)" : activeModel?.label ?? selectedModel}
         </span>
         <ChevronDown
@@ -90,44 +87,48 @@ export function VaporModelSelector({ selectedModel, onSelectModel, availableMode
 
       {open && mounted && createPortal(
         <>
-          {/* Dimmed Backdrop to block clicks and avoid visual clutter */}
+          {/* Dimmed Solid Backdrop Overlay */}
           <div
-            className="fixed inset-0 z-[99998] bg-black/60 backdrop-blur-[3px]"
+            style={{ backgroundColor: "rgba(0, 0, 0, 0.75)" }}
+            className="fixed inset-0 z-[99998]"
             onClick={() => setOpen(false)}
           />
 
-          {/* Portal Popover Window */}
+          {/* 100% Solid Non-Transparent Modal Window */}
           <div
             style={{
               position: "fixed",
               top: `${coords.top}px`,
               right: `${coords.right}px`,
               maxHeight: `calc(100vh - ${coords.top + 24}px)`,
+              backgroundColor: "#050514",
+              opacity: 1,
             }}
-            className="z-[99999] flex w-[340px] flex-col overflow-hidden rounded-2xl border-2 border-cyan-400/80 bg-[#08081c] p-2.5 shadow-[0_30px_90px_rgba(0,0,0,0.98)] animate-in fade-in zoom-in-95 duration-150 sm:w-[390px]"
+            className="z-[99999] flex w-[340px] flex-col overflow-hidden rounded-2xl border-2 border-cyan-400 shadow-[0_30px_100px_rgba(0,0,0,1)] animate-in fade-in zoom-in-95 duration-150 p-3 sm:w-[390px]"
           >
             {/* Header & Search */}
-            <div className="shrink-0 border-b border-white/10 p-2">
+            <div className="shrink-0 border-b border-indigo-500/30 pb-2.5 mb-2">
               <div className="mb-2 flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-indigo-300">
                 <span className="flex items-center gap-1.5">
                   <Cpu className="h-3.5 w-3.5 text-cyan-400" /> Choose AI Model
                 </span>
-                <span className="font-bold text-slate-400">{availableModels.length + 1} Available</span>
+                <span className="font-bold text-slate-300">{availableModels.length + 1} Available</span>
               </div>
               <div className="relative">
-                <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-cyan-400" />
+                <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-cyan-400" />
                 <input
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search models (e.g. Claude, Qwen, NVIDIA, Llama)…"
-                  className="w-full rounded-xl border border-indigo-500/50 bg-[#040412] py-2 pl-8 pr-3 text-xs font-semibold text-white placeholder-slate-500 outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400"
+                  style={{ backgroundColor: "#0d0d26", opacity: 1 }}
+                  className="w-full rounded-xl border border-indigo-500/50 py-2 pl-9 pr-3 text-xs font-semibold text-white placeholder-slate-400 outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400"
                 />
               </div>
             </div>
 
-            {/* Model Options List */}
-            <div className="mt-1.5 flex-1 overflow-y-auto space-y-1.5 pr-1 scrollbar-thin scrollbar-thumb-indigo-500/40">
+            {/* Model Options List - All buttons 100% solid opacity */}
+            <div className="flex-1 overflow-y-auto space-y-2 pr-1 scrollbar-thin scrollbar-thumb-indigo-500">
               {/* Auto Option */}
               {(!search || "auto".includes(search.toLowerCase()) || "recommend".includes(search.toLowerCase())) && (
                 <button
@@ -136,16 +137,23 @@ export function VaporModelSelector({ selectedModel, onSelectModel, availableMode
                     onSelectModel("auto");
                     setOpen(false);
                   }}
-                  className={`group flex w-full items-start justify-between rounded-xl border p-2.5 text-left transition-all ${
+                  style={{
+                    backgroundColor: selectedModel === "auto" ? "#1e1b4b" : "#0c0c24",
+                    opacity: 1,
+                  }}
+                  className={`group flex w-full items-start justify-between rounded-xl border p-3 text-left transition-all ${
                     selectedModel === "auto"
-                      ? "border-cyan-400 bg-gradient-to-r from-cyan-500/30 via-indigo-500/30 to-purple-500/30 shadow-[0_0_25px_rgba(34,211,238,0.3)]"
-                      : "border-white/10 bg-[#0e0e30] hover:border-indigo-400/60 hover:bg-[#141440]"
+                      ? "border-cyan-400 shadow-[0_0_20px_rgba(34,211,238,0.4)]"
+                      : "border-indigo-500/30 hover:border-cyan-400/60 hover:bg-[#121236]"
                   }`}
                 >
                   <div className="min-w-0 flex-1 pr-2">
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-black text-cyan-300">⚡ Auto — Smart Routing</span>
-                      <span className="rounded-full border border-cyan-400/40 bg-cyan-400/20 px-2 py-[1px] text-[9px] font-black uppercase tracking-wider text-cyan-200">
+                      <span
+                        style={{ backgroundColor: "#0284c7" }}
+                        className="rounded-full px-2 py-[1px] text-[9px] font-black uppercase tracking-wider text-white"
+                      >
                         Recommended
                       </span>
                     </div>
@@ -170,10 +178,14 @@ export function VaporModelSelector({ selectedModel, onSelectModel, availableMode
                       onSelectModel(m.id);
                       setOpen(false);
                     }}
-                    className={`group flex w-full items-start justify-between rounded-xl border p-2.5 text-left transition-all ${
+                    style={{
+                      backgroundColor: isSelected ? "#1e1b4b" : "#0c0c24",
+                      opacity: 1,
+                    }}
+                    className={`group flex w-full items-start justify-between rounded-xl border p-3 text-left transition-all ${
                       isSelected
-                        ? "border-indigo-400 bg-indigo-500/35 shadow-[0_0_25px_rgba(99,102,241,0.35)]"
-                        : "border-white/10 bg-[#0e0e30] hover:border-indigo-400/60 hover:bg-[#141440]"
+                        ? "border-cyan-400 shadow-[0_0_20px_rgba(34,211,238,0.4)]"
+                        : "border-indigo-500/30 hover:border-cyan-400/60 hover:bg-[#121236]"
                     }`}
                   >
                     <div className="min-w-0 flex-1 pr-2">
@@ -181,16 +193,20 @@ export function VaporModelSelector({ selectedModel, onSelectModel, availableMode
                         <span className={`text-xs font-bold ${isSelected ? "text-white" : "text-slate-100 group-hover:text-cyan-200"}`}>
                           {m.label}
                         </span>
-                        <span className="rounded-full border border-white/15 bg-white/10 px-1.5 py-[1px] text-[9px] font-bold text-slate-300">
+                        <span
+                          style={{ backgroundColor: "#1e293b" }}
+                          className="rounded-full px-2 py-[1px] text-[9px] font-bold text-slate-200"
+                        >
                           {m.provider}
                         </span>
-                        <span className={`rounded-full px-1.5 py-[1px] text-[9px] font-black uppercase ${
-                          m.speed === "Fast" ? "border border-emerald-500/40 bg-emerald-500/20 text-emerald-300" : "border border-indigo-500/40 bg-indigo-500/20 text-indigo-300"
-                        }`}>
+                        <span
+                          style={{ backgroundColor: m.speed === "Fast" ? "#065f46" : "#3730a3" }}
+                          className="rounded-full px-2 py-[1px] text-[9px] font-black uppercase text-white"
+                        >
                           {m.speed}
                         </span>
                       </div>
-                      <p className="mt-1 text-[11px] font-medium leading-snug text-slate-300 group-hover:text-white line-clamp-2">
+                      <p className="mt-1 text-[11px] font-medium leading-snug text-slate-200 group-hover:text-white line-clamp-2">
                         {m.bestFor}
                       </p>
                     </div>
@@ -202,7 +218,7 @@ export function VaporModelSelector({ selectedModel, onSelectModel, availableMode
               })}
 
               {filteredModels.length === 0 && search && (
-                <div className="p-4 text-center text-xs font-medium text-slate-400">
+                <div className="p-4 text-center text-xs font-medium text-slate-300">
                   No AI models found matching &quot;{search}&quot;.
                 </div>
               )}
