@@ -325,29 +325,75 @@ export function LiveWorkspaceHome({
 
   return (
     <div className="bs-msg-in flex flex-col gap-5">
-      {/* HERO */}
-      <div className="bs-card relative overflow-hidden rounded-2xl p-5 sm:p-6">
-        <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full opacity-40 blur-3xl" style={{ background: "var(--bs-grad)" }} />
-        <div className="pointer-events-none absolute -left-16 bottom-0 h-48 w-48 rounded-full opacity-20 blur-3xl" style={{ background: "var(--bs-primary)" }} />
+      {/* HERO — Roblox-themed background */}
+      <div
+        className="relative overflow-hidden rounded-2xl p-5 sm:p-6"
+        style={{
+          background: "linear-gradient(135deg, #0f1923 0%, #111827 40%, #0d1f3c 100%)",
+          border: "1px solid rgba(99,179,237,0.18)",
+          boxShadow: "0 0 60px rgba(59,130,246,0.12), inset 0 1px 0 rgba(255,255,255,0.05)",
+        }}
+      >
+        {/* Roblox isometric grid overlay */}
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{
+            backgroundImage: `
+              linear-gradient(rgba(59,130,246,0.06) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(59,130,246,0.06) 1px, transparent 1px)
+            `,
+            backgroundSize: "32px 32px",
+          }}
+        />
+        {/* Floating Roblox-style blocks */}
+        <div className="pointer-events-none absolute right-6 top-4 opacity-20" style={{ transform: "perspective(200px) rotateX(20deg) rotateZ(-15deg)" }}>
+          {[["#e74c3c","#c0392b"],["#3498db","#2980b9"],["#2ecc71","#27ae60"],["#f39c12","#e67e22"]].map(([bg, shadow], i) => (
+            <div key={i} className="absolute rounded-sm" style={{ width: 22, height: 22, background: bg, boxShadow: `3px 3px 0 ${shadow}`, top: i * 16, left: i * 16, animation: `float ${2.4+i*0.4}s ease-in-out ${i*0.3}s infinite alternate` }} />
+          ))}
+        </div>
+        {/* Glow orbs */}
+        <div className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full opacity-30 blur-3xl" style={{ background: "radial-gradient(circle, #3b82f6 0%, transparent 70%)" }} />
+        <div className="pointer-events-none absolute -left-16 bottom-0 h-40 w-40 rounded-full opacity-20 blur-3xl" style={{ background: "radial-gradient(circle, #8b5cf6 0%, transparent 70%)" }} />
+
         <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4 min-w-0">
-            <div className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-2xl ring-1 ring-[var(--bs-border)]" style={{ background: "var(--bs-card-2)" }}>
+            <div className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-2xl" style={{ background: "rgba(59,130,246,0.15)", border: "1px solid rgba(99,179,237,0.3)" }}>
               <BrandMark className="bs-logo-float h-14 w-14 rounded-2xl" />
             </div>
             <div className="min-w-0">
-              <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--bs-muted-fg)" }}>
-                <Sparkles className="h-3 w-3" style={{ color: "var(--bs-primary)" }} /> BloxSmith Workspace
+              <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "rgba(147,197,253,0.8)" }}>
+                <Sparkles className="h-3 w-3 text-blue-400" /> BloxSmith Workspace
               </div>
-              <h2 className="font-display truncate text-2xl font-bold sm:text-3xl">
+              <h2 className="font-display truncate text-2xl font-bold sm:text-3xl" style={{ color: "#f0f8ff" }}>
                 Hey {display}, ready to build?
               </h2>
-              <p className="mt-1 truncate text-sm" style={{ color: "var(--bs-muted-fg)" }}>
+              <p className="mt-1 truncate text-sm" style={{ color: "rgba(147,197,253,0.7)" }}>
                 {project?.title ? `Project: ${project.title}` : "Describe your game — I'll plan, script, and ship it."}
               </p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <HelpModeToggle />
+            {/* Discord invite */}
+            <a
+              href="https://discord.gg/YJ8xPFNSSX"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold transition-all hover:scale-105 hover:brightness-110"
+              style={{
+                background: "linear-gradient(135deg, #5865F2, #7289DA)",
+                color: "#fff",
+                boxShadow: "0 2px 12px rgba(88,101,242,0.5)",
+                border: "1px solid rgba(255,255,255,0.15)",
+                textDecoration: "none",
+              }}
+              title="Join our Discord community"
+            >
+              <svg className="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057.1 18.08.11 18.102.12 18.12c2.061 1.514 4.057 2.433 6.021 3.04a.077.077 0 0 0 .084-.028 13.999 13.999 0 0 0 1.226-1.994.075.075 0 0 0-.041-.104 13.073 13.073 0 0 1-1.872-.892.077.077 0 0 1-.008-.127c.126-.094.252-.192.372-.291a.074.074 0 0 1 .078-.01c3.927 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .079.009c.12.099.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.105c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028c1.976-.607 3.972-1.526 6.033-3.04a.077.077 0 0 0 .031-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/>
+              </svg>
+              Join Discord
+            </a>
             <StatusPill
               icon={Radio}
               label={pluginOnline ? "Studio online" : "Studio offline"}
