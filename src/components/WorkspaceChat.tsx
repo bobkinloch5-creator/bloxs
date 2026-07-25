@@ -27,6 +27,7 @@ import { friendlyError } from "@/lib/friendly-error";
 import { MODELS, isSelectable } from "@/lib/models";
 import { pickModelForTask, estimateDifficulty } from "@/lib/model-router";
 import { ChatHistoryButton } from "@/components/ChatHistoryButton";
+import { ModelSelector } from "@/components/ModelSelector";
 
 
 
@@ -600,31 +601,16 @@ export function WorkspaceChat({
               <Sparkles className="h-3 w-3 text-indigo-300" />
               Model
             </label>
-            <select
-              value={selectedModel}
-              onChange={(e) => setSelectedModel(e.target.value)}
-              className="max-w-[260px] rounded-lg border border-white/15 bg-black/40 px-2 py-1.5 text-[11px] font-medium text-slate-100 hover:bg-black/60 focus:outline-none focus:ring-2 focus:ring-indigo-400/50"
-              title="Choose which AI model handles your next messages. Auto picks the best model for what you're doing."
-            >
-              <option value="auto" className="bg-slate-900 text-slate-100" title="Auto-selects the fastest, most capable model for chat vs build vs scripting.">
-                ⚡ Auto — best model for what you're doing
-              </option>
-              {availableModels.map((m) => (
-                <option
-                  key={m.id}
-                  value={m.id}
-                  className="bg-slate-900 text-slate-100"
-                  title={m.bestFor}
-                >
-                  {m.label} · {m.bestFor.length > 60 ? m.bestFor.slice(0, 60) + "…" : m.bestFor}
-                </option>
-              ))}
-            </select>
+            <ModelSelector
+              selectedModel={selectedModel}
+              onSelectModel={setSelectedModel}
+              availableModels={availableModels}
+            />
           </div>
           {/* Roblox-focused description of what the current model does for your games */}
           <p className="max-w-[280px] text-right text-[10.5px] leading-snug text-slate-400">
             {selectedModel === "auto"
-              ? "Auto: uses stable fast NVIDIA routes first — Qwen Coder for Luau/build actions and Gemma/Nemotron for planning."
+              ? "Auto: uses fast NVIDIA routes first — Qwen Coder for Luau & build actions."
               : (availableModels.find((m) => m.id === selectedModel)?.bestFor ?? "")}
           </p>
         </div>
