@@ -66,109 +66,117 @@ export function VaporModelSelector({ selectedModel, onSelectModel, availableMode
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-50 mt-2 w-[360px] overflow-hidden rounded-2xl border border-indigo-500/40 bg-[#0a0a22]/98 p-2 shadow-[0_0_45px_rgba(0,0,0,0.85)] backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-150 sm:w-[400px]">
-          {/* Header & Search */}
-          <div className="p-2 border-b border-white/10">
-            <div className="mb-2 flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-indigo-300">
-              <span className="flex items-center gap-1.5">
-                <Cpu className="h-3 w-3 text-cyan-400" /> Choose AI Model
-              </span>
-              <span className="text-slate-400">{availableModels.length + 1} Available</span>
-            </div>
-            <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search models (e.g. Claude, Qwen, NVIDIA, Llama)…"
-                className="w-full rounded-xl border border-indigo-500/30 bg-[#060618] py-1.5 pl-8 pr-3 text-xs text-white placeholder-slate-500 outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400"
-              />
-            </div>
-          </div>
+        <>
+          {/* Subtle click-away backdrop overlay */}
+          <div
+            className="fixed inset-0 z-[90] bg-black/40 backdrop-blur-[2px]"
+            onClick={() => setOpen(false)}
+          />
 
-          {/* Model Options List */}
-          <div className="mt-1.5 max-h-[300px] overflow-y-auto space-y-1 pr-1 scrollbar-thin scrollbar-thumb-indigo-500/40">
-            {/* Auto Option */}
-            {(!search || "auto".includes(search.toLowerCase()) || "recommend".includes(search.toLowerCase())) && (
-              <button
-                type="button"
-                onClick={() => {
-                  onSelectModel("auto");
-                  setOpen(false);
-                }}
-                className={`group flex w-full items-start justify-between rounded-xl border p-2.5 text-left transition-all ${
-                  selectedModel === "auto"
-                    ? "border-cyan-400/60 bg-gradient-to-r from-cyan-500/20 via-indigo-500/20 to-purple-500/20 shadow-[0_0_20px_rgba(34,211,238,0.2)]"
-                    : "border-white/5 bg-white/[0.02] hover:border-indigo-400/40 hover:bg-white/[0.06]"
-                }`}
-              >
-                <div className="min-w-0 flex-1 pr-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-black text-cyan-300">⚡ Auto — Smart Routing</span>
-                    <span className="rounded-full bg-cyan-400/20 px-2 py-[1px] text-[9px] font-black uppercase tracking-wider text-cyan-200 border border-cyan-400/30">
-                      Recommended
-                    </span>
-                  </div>
-                  <p className="mt-1 text-[11px] font-medium leading-snug text-slate-300">
-                    Auto-selects fast NVIDIA models for Luau scripting & build actions, and Nemotron/Claude for deep planning.
-                  </p>
-                </div>
-                {selectedModel === "auto" && (
-                  <Check className="h-4 w-4 shrink-0 text-cyan-300 mt-0.5" />
-                )}
-              </button>
-            )}
+          <div className="absolute right-0 top-full z-[99] mt-2 w-[340px] overflow-hidden rounded-2xl border border-cyan-400/50 bg-[#0a0a26] p-2 shadow-[0_20px_50px_rgba(0,0,0,0.95)] animate-in fade-in zoom-in-95 duration-150 sm:w-[380px]">
+            {/* Header & Search */}
+            <div className="p-2 border-b border-white/10">
+              <div className="mb-2 flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-indigo-300">
+                <span className="flex items-center gap-1.5">
+                  <Cpu className="h-3.5 w-3.5 text-cyan-400" /> Choose AI Model
+                </span>
+                <span className="text-slate-400 font-bold">{availableModels.length + 1} Available</span>
+              </div>
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-cyan-400" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search models (e.g. Claude, Qwen, NVIDIA, Llama)…"
+                  className="w-full rounded-xl border border-indigo-500/40 bg-[#050518] py-1.5 pl-8 pr-3 text-xs font-semibold text-white placeholder-slate-500 outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400"
+                />
+              </div>
+            </div>
 
-            {/* Filtered Models List */}
-            {filteredModels.map((m) => {
-              const isSelected = selectedModel === m.id;
-              return (
+            {/* Model Options List */}
+            <div className="mt-1.5 max-h-[260px] overflow-y-auto space-y-1 pr-1 scrollbar-thin scrollbar-thumb-indigo-500/40">
+              {/* Auto Option */}
+              {(!search || "auto".includes(search.toLowerCase()) || "recommend".includes(search.toLowerCase())) && (
                 <button
-                  key={m.id}
                   type="button"
                   onClick={() => {
-                    onSelectModel(m.id);
+                    onSelectModel("auto");
                     setOpen(false);
                   }}
                   className={`group flex w-full items-start justify-between rounded-xl border p-2.5 text-left transition-all ${
-                    isSelected
-                      ? "border-indigo-400/60 bg-indigo-500/25 shadow-[0_0_20px_rgba(99,102,241,0.25)]"
-                      : "border-white/5 bg-white/[0.02] hover:border-indigo-400/40 hover:bg-white/[0.06]"
+                    selectedModel === "auto"
+                      ? "border-cyan-400/80 bg-gradient-to-r from-cyan-500/25 via-indigo-500/25 to-purple-500/25 shadow-[0_0_20px_rgba(34,211,238,0.25)]"
+                      : "border-white/10 bg-[#0d0d2a] hover:border-indigo-400/50 hover:bg-[#121236]"
                   }`}
                 >
                   <div className="min-w-0 flex-1 pr-2">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className={`text-xs font-bold ${isSelected ? "text-white" : "text-slate-100 group-hover:text-cyan-200"}`}>
-                        {m.label}
-                      </span>
-                      <span className="rounded-full border border-white/10 bg-white/10 px-1.5 py-[1px] text-[9px] font-bold text-slate-300">
-                        {m.provider}
-                      </span>
-                      <span className={`rounded-full px-1.5 py-[1px] text-[9px] font-black uppercase ${
-                        m.speed === "Fast" ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30" : "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
-                      }`}>
-                        {m.speed}
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-black text-cyan-300">⚡ Auto — Smart Routing</span>
+                      <span className="rounded-full bg-cyan-400/20 px-2 py-[1px] text-[9px] font-black uppercase tracking-wider text-cyan-200 border border-cyan-400/40">
+                        Recommended
                       </span>
                     </div>
-                    <p className="mt-1 text-[11px] font-medium leading-snug text-slate-400 group-hover:text-slate-300 line-clamp-2">
-                      {m.bestFor}
+                    <p className="mt-1 text-[11px] font-medium leading-snug text-slate-300">
+                      Auto-selects fast NVIDIA models for Luau scripting & build actions, and Nemotron/Claude for deep planning.
                     </p>
                   </div>
-                  {isSelected && (
+                  {selectedModel === "auto" && (
                     <Check className="h-4 w-4 shrink-0 text-cyan-300 mt-0.5" />
                   )}
                 </button>
-              );
-            })}
+              )}
 
-            {filteredModels.length === 0 && search && (
-              <div className="p-4 text-center text-xs font-medium text-slate-400">
-                No AI models found matching &quot;{search}&quot;.
-              </div>
-            )}
+              {/* Filtered Models List */}
+              {filteredModels.map((m) => {
+                const isSelected = selectedModel === m.id;
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => {
+                      onSelectModel(m.id);
+                      setOpen(false);
+                    }}
+                    className={`group flex w-full items-start justify-between rounded-xl border p-2.5 text-left transition-all ${
+                      isSelected
+                        ? "border-indigo-400/80 bg-indigo-500/30 shadow-[0_0_20px_rgba(99,102,241,0.3)]"
+                        : "border-white/10 bg-[#0d0d2a] hover:border-indigo-400/50 hover:bg-[#121236]"
+                    }`}
+                  >
+                    <div className="min-w-0 flex-1 pr-2">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className={`text-xs font-bold ${isSelected ? "text-white" : "text-slate-100 group-hover:text-cyan-200"}`}>
+                          {m.label}
+                        </span>
+                        <span className="rounded-full border border-white/15 bg-white/10 px-1.5 py-[1px] text-[9px] font-bold text-slate-300">
+                          {m.provider}
+                        </span>
+                        <span className={`rounded-full px-1.5 py-[1px] text-[9px] font-black uppercase ${
+                          m.speed === "Fast" ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40" : "bg-indigo-500/20 text-indigo-300 border border-indigo-500/40"
+                        }`}>
+                          {m.speed}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-[11px] font-medium leading-snug text-slate-400 group-hover:text-slate-300 line-clamp-2">
+                        {m.bestFor}
+                      </p>
+                    </div>
+                    {isSelected && (
+                      <Check className="h-4 w-4 shrink-0 text-cyan-300 mt-0.5" />
+                    )}
+                  </button>
+                );
+              })}
+
+              {filteredModels.length === 0 && search && (
+                <div className="p-4 text-center text-xs font-medium text-slate-400">
+                  No AI models found matching &quot;{search}&quot;.
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );

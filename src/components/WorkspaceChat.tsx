@@ -559,7 +559,7 @@ export function WorkspaceChat({
   return (
     <div className="vapor-card rounded-2xl border border-indigo-500/35 bg-gradient-to-b from-[#141432]/95 via-[#0e0e26]/95 to-[#0a0a1a]/95 p-4 sm:p-6 shadow-[0_0_50px_rgba(79,70,229,0.25)]">
       {/* Chat / Build segmented toggle */}
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <div className="relative z-30 mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <div className="inline-flex rounded-xl border border-indigo-500/30 bg-black/60 p-1 shadow-[inset_0_0_15px_rgba(0,0,0,0.6)]">
             <button
