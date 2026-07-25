@@ -3,7 +3,10 @@ import {
   Sparkles, Radio, Cpu, Wrench, Box, BookOpen, Bot, Hammer, FileCode,
   LayoutDashboard, Gauge, Bug, ScanLine, PlayCircle, Zap, Crown, Lightbulb,
   Upload, ImageIcon, Timer, ArrowRight, Activity, CheckCircle2, Rocket,
-  Wand2, ShieldCheck, Loader2,
+  Wand2, ShieldCheck, Loader2, Sword, Shield, Users, ShoppingCart,
+  Package, Star, Fish, Pickaxe, Leaf, Building2, Map, Music,
+  Database, Trophy, Globe, Store, Gift, Palette, Crosshair, Car,
+  Swords, Ghost, Flame, Mountain, Trees,
 } from "lucide-react";
 import { SmartTooltip, HelpModeToggle, HelpCaption, type SmartHelp } from "@/components/SmartTooltip";
 
@@ -92,6 +95,43 @@ const ACTION_HELP: Record<string, SmartHelp & { recommended?: boolean }> = {
   "Final Report": { title: "Final Report", description: "Summarizes what was built, what was fixed, and what to test next.", estTime: "5–10s", affectsProject: false, credits: "5" },
   "Update Generator": { title: "Update Generator", description: "Writes an update log for what changed since your last build.", estTime: "5–10s", affectsProject: false, credits: "5" },
   "Community Share": { title: "Community Share", description: "Formats a shareable post about your game for Discord, Twitter, or the Roblox forum.", estTime: "5–10s", affectsProject: false, credits: "5" },
+
+  // ── Game Systems ──────────────────────────────────────────────────────────
+  "Add Combat System": { title: "Add Combat System", description: "Generates swords, guns, or ability-based combat with hitboxes, damage remotes, and anti-exploit guards.", estTime: "20–40s", affectsProject: true, credits: "20" },
+  "Add Pet System": { title: "Add Pet System", description: "Creates equippable pets that orbit the player, boost stats, and can be upgraded, hatched, or traded.", estTime: "25–50s", affectsProject: true, credits: "25" },
+  "Add Quest System": { title: "Add Quest System", description: "Builds a full quest engine with objectives, progress tracking, rewards, and a quest log UI.", estTime: "20–40s", affectsProject: true, credits: "20" },
+  "Add Inventory": { title: "Add Inventory", description: "Creates a grid inventory with item stacking, equip/unequip, rarity borders, and DataStore persistence.", estTime: "20–35s", affectsProject: true, credits: "20" },
+  "Add Shop": { title: "Add Shop", description: "Builds an in-game shop UI with item listings, currency costs, purchase confirmation, and server-side validation.", estTime: "15–30s", affectsProject: true, credits: "15" },
+  "Add Trading": { title: "Add Trading", description: "Player-to-player item trading with trade window UI, offer validation, confirmation screen, and DataStore updates.", estTime: "25–45s", affectsProject: true, credits: "25" },
+  "Add Crafting": { title: "Add Crafting", description: "Recipe-based crafting system with ingredient requirements, crafting UI, success animations, and output items.", estTime: "20–40s", affectsProject: true, credits: "20" },
+  "Add Skills": { title: "Add Skills", description: "Skill tree or ability system with XP-based unlocking, ability hotbar, cooldown management, and visual effects.", estTime: "25–45s", affectsProject: true, credits: "25" },
+  "Add Leaderboards": { title: "Add Leaderboards", description: "OrderedDataStore leaderboard with top-10 display, player rank badges, and auto-refresh polling.", estTime: "10–20s", affectsProject: true, credits: "10" },
+  "Add Daily Rewards": { title: "Add Daily Rewards", description: "Login streak system with escalating daily rewards, calendar UI, and DataStore tracking per player.", estTime: "15–25s", affectsProject: true, credits: "15" },
+  "Add Data Saving": { title: "Add Data Saving", description: "ProfileService DataStore setup with auto-save, load retry, session-lock, and default player data schema.", estTime: "15–25s", affectsProject: true, credits: "15", recommended: true },
+  "Add Gamepasses": { title: "Add Gamepasses", description: "Gamepass integration with MarketplaceService purchase handling, server-side validation, and perk application.", estTime: "15–25s", affectsProject: true, credits: "15" },
+
+  // ── Game Genres ───────────────────────────────────────────────────────────
+  "Build Tycoon": { title: "Build Tycoon", description: "Full tycoon with droppers, conveyors, collectors, upgrades, team plots, and a progression economy.", estTime: "90–180s", affectsProject: true, credits: "80" },
+  "Build Simulator": { title: "Build Simulator", description: "Click-to-earn simulator with auto-click upgrades, rebirth system, pets, coin multipliers, and leaderboards.", estTime: "60–120s", affectsProject: true, credits: "60" },
+  "Build RPG": { title: "Build RPG", description: "RPG with open-world map, enemy spawns, loot drops, XP/level system, skill tree, inventory, and quest log.", estTime: "120–240s", affectsProject: true, credits: "120" },
+  "Build Obby": { title: "Build Obby", description: "Multi-stage obstacle course with checkpoints, lives, kill bricks, moving parts, and completion rewards.", estTime: "60–120s", affectsProject: true, credits: "60" },
+  "Build Horror": { title: "Build Horror", description: "Horror experience with atmospheric lighting, jumpscares, monster AI, scripted events, and escape objectives.", estTime: "90–180s", affectsProject: true, credits: "80" },
+  "Build FPS": { title: "Build FPS", description: "First-person shooter with gun models, raycast hit detection, recoil, ammo, kill feed, and respawn logic.", estTime: "90–180s", affectsProject: true, credits: "90" },
+  "Build Racing": { title: "Build Racing", description: "Vehicle racing game with driveable cars, lap counter, checkpoints, positions, and a finish-line podium.", estTime: "60–120s", affectsProject: true, credits: "60" },
+  "Build Tower Defense": { title: "Build Tower Defense", description: "Tower defense with wave spawning, tower placement grid, upgrade system, enemy path AI, and round progression.", estTime: "90–180s", affectsProject: true, credits: "90" },
+  "Build Survival": { title: "Build Survival", description: "Survival game with hunger/health, resource gathering, crafting, enemy spawns, day/night cycle, and base building.", estTime: "120–240s", affectsProject: true, credits: "100" },
+  "Build Farming": { title: "Build Farming", description: "Farming sim with plant plots, growth timers, harvest mechanics, selling system, and farm expansion upgrades.", estTime: "60–120s", affectsProject: true, credits: "60" },
+  "Build Mining": { title: "Build Mining", description: "Mining game with ore veins, pickaxe tools, inventory, selling NPCs, cave generation, and depth progression.", estTime: "60–120s", affectsProject: true, credits: "60" },
+  "Build Fishing": { title: "Build Fishing", description: "Fishing game with rod mechanic, fish rarity tiers, fish book, selling dock, weather effects, and bait system.", estTime: "45–90s", affectsProject: true, credits: "50" },
+
+  // ── Assets ────────────────────────────────────────────────────────────────
+  "Generate Icon": { title: "Generate Icon", description: "Creates a high-quality 512x512 Roblox game icon matching your game theme and style.", estTime: "10–20s", affectsProject: false, credits: "10" },
+  "Generate Thumbnail": { title: "Generate Thumbnail", description: "Creates a 1920x1080 Roblox game thumbnail with characters, environment, and a branded title treatment.", estTime: "10–20s", affectsProject: false, credits: "15" },
+  "Generate Loading Screen": { title: "Generate Loading Screen", description: "Designs an animated loading screen with your game logo, progress bar, and tip rotator.", estTime: "15–30s", affectsProject: true, credits: "10" },
+  "Add Terrain": { title: "Add Terrain", description: "Generates sculpted terrain matching your game type — hills, rivers, caves, or flat starter islands.", estTime: "30–60s", affectsProject: true, credits: "30" },
+  "Add Sounds": { title: "Add Sounds", description: "Adds ambient SoundService audio, music tracks, UI click sounds, and in-world proximity sounds.", estTime: "10–20s", affectsProject: true, credits: "10" },
+  "Add Particles": { title: "Add Particles", description: "Attaches particle emitters to key objects — fires, sparkles, magic auras, footstep dust, and rain.", estTime: "10–20s", affectsProject: true, credits: "10" },
+  "Add Lighting": { title: "Add Lighting", description: "Sets premium Lighting properties, atmospheric Atmosphere fog, and ColorCorrectionEffect for your game's mood.", estTime: "5–15s", affectsProject: true, credits: "5" },
 };
 
 function BrandMark({ className = "" }: { className?: string }) {
@@ -132,6 +172,58 @@ const CATEGORIES: Array<{ title: string; icon: IconT; tone: string; items: Array
       { label: "Generate UI", icon: LayoutDashboard },
       { label: "Add NPCs", icon: Bot },
       { label: "Add Currency", icon: Crown },
+    ],
+  },
+  {
+    title: "Game Systems",
+    icon: Database,
+    tone: "#06b6d4",
+    items: [
+      { label: "Add Combat System", icon: Sword },
+      { label: "Add Pet System", icon: Star },
+      { label: "Add Quest System", icon: Trophy },
+      { label: "Add Inventory", icon: Package },
+      { label: "Add Shop", icon: ShoppingCart },
+      { label: "Add Trading", icon: Store },
+      { label: "Add Crafting", icon: Wrench },
+      { label: "Add Skills", icon: Zap },
+      { label: "Add Leaderboards", icon: Trophy },
+      { label: "Add Daily Rewards", icon: Gift },
+      { label: "Add Data Saving", icon: Database },
+      { label: "Add Gamepasses", icon: Crown },
+    ],
+  },
+  {
+    title: "Game Genres",
+    icon: Globe,
+    tone: "#f59e0b",
+    items: [
+      { label: "Build Tycoon", icon: Building2 },
+      { label: "Build Simulator", icon: Gauge },
+      { label: "Build RPG", icon: Swords },
+      { label: "Build Obby", icon: Mountain },
+      { label: "Build Horror", icon: Ghost },
+      { label: "Build FPS", icon: Crosshair },
+      { label: "Build Racing", icon: Car },
+      { label: "Build Tower Defense", icon: Shield },
+      { label: "Build Survival", icon: Flame },
+      { label: "Build Farming", icon: Leaf },
+      { label: "Build Mining", icon: Pickaxe },
+      { label: "Build Fishing", icon: Fish },
+    ],
+  },
+  {
+    title: "Assets",
+    icon: Palette,
+    tone: "#ec4899",
+    items: [
+      { label: "Generate Icon", icon: ImageIcon },
+      { label: "Generate Thumbnail", icon: ImageIcon },
+      { label: "Generate Loading Screen", icon: ImageIcon },
+      { label: "Add Terrain", icon: Trees },
+      { label: "Add Sounds", icon: Music },
+      { label: "Add Particles", icon: Sparkles },
+      { label: "Add Lighting", icon: Flame },
     ],
   },
   {
@@ -179,6 +271,11 @@ const WORKERS: Array<{ label: string; icon: IconT; job: string }> = [
   { label: "Toolbox Search", icon: Box, job: "Safe free assets" },
   { label: "QA Tester", icon: Bug, job: "Scans & playtest reports" },
   { label: "Optimizer", icon: Gauge, job: "Perf & cleanup" },
+  { label: "NPC AI", icon: Bot, job: "Characters & pathfinding" },
+  { label: "Systems Architect", icon: Database, job: "DataStore & remotes" },
+  { label: "Asset Hunter", icon: Package, job: "Models & sound assets" },
+  { label: "Script Auditor", icon: ShieldCheck, job: "Error & exploit checks" },
+  { label: "Perf Engineer", icon: Zap, job: "Memory & render budget" },
 ];
 
 export function LiveWorkspaceHome({

@@ -54,8 +54,10 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
 type NavItem = { key: string; label: string; icon: typeof Box; to: string; exact?: boolean };
 const NAV: NavItem[] = [
   { key: "home",     label: "Home",          icon: HomeIcon,        to: "/dashboard", exact: true },
+  { key: "builder",  label: "Game Builder",  icon: Hammer,          to: "/builder" },
   { key: "projects", label: "Projects",      icon: Folder,          to: "/projects" },
   { key: "models",   label: "3D Models",     icon: Box,             to: "/models" },
+  { key: "scripts",  label: "Script Editor", icon: Code2,           to: "/script-editor" },
   { key: "ui",       label: "UI Generator",  icon: LayoutDashboard, to: "/ui-generator" },
   { key: "plugin",   label: "Studio Plugin", icon: Plug,            to: "/plugin" },
   { key: "mcp",      label: "MCP Servers",   icon: Server,          to: "/mcp-servers" },

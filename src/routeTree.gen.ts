@@ -40,6 +40,7 @@ import { Route as ApiHelpChatRouteImport } from './routes/api/help-chat'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as AuthenticatedUiGeneratorRouteImport } from './routes/_authenticated/ui-generator'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
+import { Route as AuthenticatedScriptEditorRouteImport } from './routes/_authenticated/script-editor'
 import { Route as AuthenticatedReferralsRouteImport } from './routes/_authenticated/referrals'
 import { Route as AuthenticatedReferralAuditRouteImport } from './routes/_authenticated/referral-audit'
 import { Route as AuthenticatedProjectsRouteImport } from './routes/_authenticated/projects'
@@ -51,6 +52,7 @@ import { Route as AuthenticatedLinkRouteImport } from './routes/_authenticated/l
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedCollaboratorsRouteImport } from './routes/_authenticated/collaborators'
+import { Route as AuthenticatedBuilderRouteImport } from './routes/_authenticated/builder'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as ApiVisualsGenerateRouteImport } from './routes/api/visuals/generate'
 import { Route as ApiPublicStatusRouteImport } from './routes/api/public/status'
@@ -231,6 +233,12 @@ const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedScriptEditorRoute =
+  AuthenticatedScriptEditorRouteImport.update({
+    id: '/script-editor',
+    path: '/script-editor',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedReferralsRoute = AuthenticatedReferralsRouteImport.update({
   id: '/referrals',
   path: '/referrals',
@@ -288,6 +296,11 @@ const AuthenticatedCollaboratorsRoute =
     path: '/collaborators',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedBuilderRoute = AuthenticatedBuilderRouteImport.update({
+  id: '/builder',
+  path: '/builder',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   id: '/admin',
   path: '/admin',
@@ -443,6 +456,7 @@ export interface FileRoutesByFullPath {
   '/templates-market': typeof TemplatesMarketRoute
   '/terms': typeof TermsRoute
   '/admin': typeof AuthenticatedAdminRoute
+  '/builder': typeof AuthenticatedBuilderRoute
   '/collaborators': typeof AuthenticatedCollaboratorsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/history': typeof AuthenticatedHistoryRoute
@@ -454,6 +468,7 @@ export interface FileRoutesByFullPath {
   '/projects': typeof AuthenticatedProjectsRoute
   '/referral-audit': typeof AuthenticatedReferralAuditRoute
   '/referrals': typeof AuthenticatedReferralsRoute
+  '/script-editor': typeof AuthenticatedScriptEditorRoute
   '/settings': typeof AuthenticatedSettingsRouteWithChildren
   '/ui-generator': typeof AuthenticatedUiGeneratorRoute
   '/api/chat': typeof ApiChatRoute
@@ -510,6 +525,7 @@ export interface FileRoutesByTo {
   '/templates-market': typeof TemplatesMarketRoute
   '/terms': typeof TermsRoute
   '/admin': typeof AuthenticatedAdminRoute
+  '/builder': typeof AuthenticatedBuilderRoute
   '/collaborators': typeof AuthenticatedCollaboratorsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/history': typeof AuthenticatedHistoryRoute
@@ -521,6 +537,7 @@ export interface FileRoutesByTo {
   '/projects': typeof AuthenticatedProjectsRoute
   '/referral-audit': typeof AuthenticatedReferralAuditRoute
   '/referrals': typeof AuthenticatedReferralsRoute
+  '/script-editor': typeof AuthenticatedScriptEditorRoute
   '/settings': typeof AuthenticatedSettingsRouteWithChildren
   '/ui-generator': typeof AuthenticatedUiGeneratorRoute
   '/api/chat': typeof ApiChatRoute
@@ -579,6 +596,7 @@ export interface FileRoutesById {
   '/templates-market': typeof TemplatesMarketRoute
   '/terms': typeof TermsRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
+  '/_authenticated/builder': typeof AuthenticatedBuilderRoute
   '/_authenticated/collaborators': typeof AuthenticatedCollaboratorsRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/history': typeof AuthenticatedHistoryRoute
@@ -590,6 +608,7 @@ export interface FileRoutesById {
   '/_authenticated/projects': typeof AuthenticatedProjectsRoute
   '/_authenticated/referral-audit': typeof AuthenticatedReferralAuditRoute
   '/_authenticated/referrals': typeof AuthenticatedReferralsRoute
+  '/_authenticated/script-editor': typeof AuthenticatedScriptEditorRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRouteWithChildren
   '/_authenticated/ui-generator': typeof AuthenticatedUiGeneratorRoute
   '/api/chat': typeof ApiChatRoute
@@ -648,6 +667,7 @@ export interface FileRouteTypes {
     | '/templates-market'
     | '/terms'
     | '/admin'
+    | '/builder'
     | '/collaborators'
     | '/dashboard'
     | '/history'
@@ -659,6 +679,7 @@ export interface FileRouteTypes {
     | '/projects'
     | '/referral-audit'
     | '/referrals'
+    | '/script-editor'
     | '/settings'
     | '/ui-generator'
     | '/api/chat'
@@ -715,6 +736,7 @@ export interface FileRouteTypes {
     | '/templates-market'
     | '/terms'
     | '/admin'
+    | '/builder'
     | '/collaborators'
     | '/dashboard'
     | '/history'
@@ -726,6 +748,7 @@ export interface FileRouteTypes {
     | '/projects'
     | '/referral-audit'
     | '/referrals'
+    | '/script-editor'
     | '/settings'
     | '/ui-generator'
     | '/api/chat'
@@ -783,6 +806,7 @@ export interface FileRouteTypes {
     | '/templates-market'
     | '/terms'
     | '/_authenticated/admin'
+    | '/_authenticated/builder'
     | '/_authenticated/collaborators'
     | '/_authenticated/dashboard'
     | '/_authenticated/history'
@@ -794,6 +818,7 @@ export interface FileRouteTypes {
     | '/_authenticated/projects'
     | '/_authenticated/referral-audit'
     | '/_authenticated/referrals'
+    | '/_authenticated/script-editor'
     | '/_authenticated/settings'
     | '/_authenticated/ui-generator'
     | '/api/chat'
@@ -1099,6 +1124,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/script-editor': {
+      id: '/_authenticated/script-editor'
+      path: '/script-editor'
+      fullPath: '/script-editor'
+      preLoaderRoute: typeof AuthenticatedScriptEditorRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/referrals': {
       id: '/_authenticated/referrals'
       path: '/referrals'
@@ -1174,6 +1206,13 @@ declare module '@tanstack/react-router' {
       path: '/collaborators'
       fullPath: '/collaborators'
       preLoaderRoute: typeof AuthenticatedCollaboratorsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/builder': {
+      id: '/_authenticated/builder'
+      path: '/builder'
+      fullPath: '/builder'
+      preLoaderRoute: typeof AuthenticatedBuilderRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/admin': {
@@ -1373,6 +1412,7 @@ const AuthenticatedSettingsRouteWithChildren =
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
+  AuthenticatedBuilderRoute: typeof AuthenticatedBuilderRoute
   AuthenticatedCollaboratorsRoute: typeof AuthenticatedCollaboratorsRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedHistoryRoute: typeof AuthenticatedHistoryRoute
@@ -1384,6 +1424,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedProjectsRoute: typeof AuthenticatedProjectsRoute
   AuthenticatedReferralAuditRoute: typeof AuthenticatedReferralAuditRoute
   AuthenticatedReferralsRoute: typeof AuthenticatedReferralsRoute
+  AuthenticatedScriptEditorRoute: typeof AuthenticatedScriptEditorRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRouteWithChildren
   AuthenticatedUiGeneratorRoute: typeof AuthenticatedUiGeneratorRoute
   AuthenticatedProjectProjectIdRoute: typeof AuthenticatedProjectProjectIdRoute
@@ -1391,6 +1432,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
+  AuthenticatedBuilderRoute: AuthenticatedBuilderRoute,
   AuthenticatedCollaboratorsRoute: AuthenticatedCollaboratorsRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedHistoryRoute: AuthenticatedHistoryRoute,
@@ -1402,6 +1444,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedProjectsRoute: AuthenticatedProjectsRoute,
   AuthenticatedReferralAuditRoute: AuthenticatedReferralAuditRoute,
   AuthenticatedReferralsRoute: AuthenticatedReferralsRoute,
+  AuthenticatedScriptEditorRoute: AuthenticatedScriptEditorRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRouteWithChildren,
   AuthenticatedUiGeneratorRoute: AuthenticatedUiGeneratorRoute,
   AuthenticatedProjectProjectIdRoute: AuthenticatedProjectProjectIdRoute,
@@ -1465,3 +1508,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

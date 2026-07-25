@@ -220,11 +220,11 @@ const ANIMATION_META: Record<string, { emoji: string; tint: string }> = {
 };
 
 async function forceDownload(url: string, filename: string) {
-  // Meshy signed CDN URLs don't send CORS headers, so a same-origin fetch()
-  // fails and the download silently doesn't happen (this was blocking FBX
-  // downloads of rigged/animated models). Route the fetch through our
-  // /api/public/model-proxy which streams the file with correct headers, and
-  // fall back to opening the raw URL if the proxy is unavailable.
+  // Some CDNs (signed S3, NVIDIA, Cloudflare) don't send CORS headers, so
+  // a same-origin fetch() fails and the download silently doesn't happen.
+  // Route the fetch through our /api/public/model-proxy which streams the
+  // file with correct headers, and fall back to opening the raw URL if the
+  // proxy is unavailable.
   const proxyUrl = `/api/public/model-proxy?url=${encodeURIComponent(url)}`;
   const attempts = [proxyUrl, url];
   for (const target of attempts) {
@@ -502,8 +502,8 @@ export function ModelsView({ projectId }: { projectId?: string }) {
     <PageShell
       title="3D Models"
       description={projectId
-        ? (project ? `Generate 3D models for "${project.name}". One free model every 24 hours.` : "Generate 3D models for your Roblox project.")
-        : "Generate 3D models for any of your Roblox projects. One free model every 24 hours."}
+        ? (project ? `Generate 3D models for "${project.name}" powered by NVIDIA Trellis. One free model every 24 hours.` : "Generate 3D models for your Roblox project with NVIDIA Trellis.")
+        : "Generate 3D models with NVIDIA Trellis — text or image to GLB in minutes. One free model every 24 hours."}
       accent="chat"
       activeKey="models"
       isAdmin={!!profile?.is_admin}
@@ -511,14 +511,16 @@ export function ModelsView({ projectId }: { projectId?: string }) {
     >
 
       {/* Cooldown banner */}
-      <section className="rounded-2xl border border-white/10 bg-gradient-to-br from-violet-500/10 via-transparent to-blue-500/10 p-5 backdrop-blur-sm">
+      <section className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#76b900]/10 via-transparent to-blue-500/10 p-5 backdrop-blur-sm">
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3">
-            <div className="grid h-11 w-11 place-items-center rounded-xl bg-violet-500/15 text-violet-300">
+            <div className="grid h-11 w-11 place-items-center rounded-xl bg-[#76b900]/15 text-[#76b900]">
               <Timer className="h-5 w-5" />
             </div>
             <div>
-              <div className="text-xs font-semibold uppercase tracking-wider text-violet-300">Generation limit</div>
+              <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#76b900" }}>
+                Powered by NVIDIA Trellis
+              </div>
               <div className="text-sm text-muted-foreground">1 brand-new model every 24 hours. Animations and re-textures are free.</div>
             </div>
           </div>
@@ -599,11 +601,11 @@ export function ModelsView({ projectId }: { projectId?: string }) {
           </div>
         )}
 
-        <button disabled={!canGenerate} onClick={onGenerate} className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-violet-500 to-blue-500 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-40 disabled:cursor-not-allowed">
+        <button disabled={!canGenerate} onClick={onGenerate} className="inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-bold text-white disabled:opacity-40 disabled:cursor-not-allowed" style={{ background: canGenerate ? "linear-gradient(135deg, #76b900, #00a3e0)" : undefined, backgroundColor: canGenerate ? undefined : "#1e293b" }}>
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-          {busy ? "Starting…" : canGenerate ? "Generate 3D model" : `Wait ${formatRemaining(liveRemaining)}`}
+          {busy ? "Generating with NVIDIA Trellis…" : canGenerate ? "Generate 3D model (NVIDIA Trellis)" : `Wait ${formatRemaining(liveRemaining)}`}
         </button>
-        <p className="text-[11px] text-muted-foreground">Auto-refine is on — once the preview finishes, BloxSmith automatically queues a high-detail refined version with full PBR textures.</p>
+        <p className="text-[11px] text-muted-foreground">NVIDIA Trellis generates a high-quality GLB in one pass — no extra steps needed. Download the GLB then open it in Blender to rig or animate.</p>
       </section>
 
       {/* Roblox Toolbox library — free + verified assets */}
@@ -681,9 +683,7 @@ function ModelCard({ m, projectId, onChange }: { m: any; projectId?: string; onC
     setViewerProgress(0);
   }, [previewUrl]);
 
-  // Silent auto-poll: when the job is done but no GLB/glTF preview is saved
-  // yet, keep asking Meshy for the finished file every few seconds so the
-  // interactive viewer appears without any manual "Refresh 3D file" button.
+  // Trellis stores results immediately — no polling needed.
   useEffect(() => {
     if (!done || canPreview || assetOnly || failed || !m.task_id) return;
     let cancelled = false;
@@ -1138,10 +1138,10 @@ function ModelCard({ m, projectId, onChange }: { m: any; projectId?: string; onC
             )}
             {!isAnimation && !isTexture && !isRig && (
               <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                <button onClick={runRig} disabled={rigBusy} title="Auto-rig this model with Meshy AI — generates a humanoid skeleton and skin weights so it can be animated." className="inline-flex items-center gap-1 rounded-md bg-sky-500/20 hover:bg-sky-500/30 px-2 py-1 text-[10px] font-bold text-sky-200 disabled:opacity-50">
+                <button onClick={runRig} disabled={rigBusy} title="Auto-rig this model — generates a humanoid skeleton. Export your GLB and rig in Blender for best results." className="inline-flex items-center gap-1 rounded-md bg-sky-500/20 hover:bg-sky-500/30 px-2 py-1 text-[10px] font-bold text-sky-200 disabled:opacity-50">
                   {rigBusy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Bone className="h-3 w-3" />} Rig
                 </button>
-                <button onClick={() => setPicking(picking === "anim" ? null : "anim")} disabled={animBusy} title="Apply a preset animation with Meshy AI (works best on rigged humanoid characters)." className="inline-flex items-center gap-1 rounded-md bg-fuchsia-500/20 hover:bg-fuchsia-500/30 px-2 py-1 text-[10px] font-bold text-fuchsia-200 disabled:opacity-50">
+                <button onClick={() => setPicking(picking === "anim" ? null : "anim")} disabled={animBusy} title="Apply a preset animation (works best on rigged humanoid characters). Export GLB for Blender workflows." className="inline-flex items-center gap-1 rounded-md bg-fuchsia-500/20 hover:bg-fuchsia-500/30 px-2 py-1 text-[10px] font-bold text-fuchsia-200 disabled:opacity-50">
                   {animBusy ? <Loader2 className="h-3 w-3 animate-spin" /> : <PlayCircle className="h-3 w-3" />} Animate
                 </button>
                 <button onClick={() => setPicking(picking === "texture" ? null : "texture")} disabled={texBusy} title="Re-texture this model with a new material prompt." className="inline-flex items-center gap-1 rounded-md bg-amber-500/20 hover:bg-amber-500/30 px-2 py-1 text-[10px] font-bold text-amber-200 disabled:opacity-50">

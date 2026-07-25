@@ -4,9 +4,33 @@ import { checkChangelogCoverage, warnIfIncomplete } from "@/lib/changelog-covera
 import bloxsmithLogo from "@/assets/bloxsmith-logo.png.asset.json";
 
 
-const CHANGELOG_VERSION = "2026-07-08-auto-playtest-v2";
+const CHANGELOG_VERSION = "2026-07-25-bloxsmith-pro-v1";
 
 const CHANGELOG_ITEMS = [
+  {
+    title: "⚡ BloxSmith Pro Integration — Full Orchestration & Multi-System Game Builder",
+    date: "Jul 25",
+    icon: Rocket,
+    body: "Upgraded BloxSmith into a full BloxSmith Pro Roblox game development environment. Integrated the build-orchestrator, modular game-systems engine, and comprehensive Roblox scripting knowledge base. BloxSmith can now plan and generate complete end-to-end games across 20+ genres (Tycoons, Simulators, RPGs, Obbies, Survival, Tower Defense, FPS, Racing, Pets, Trading, Inventories, Quests, Skills, Mining, Fishing, Farming, and more) with automated service wiring, clean Luau standards (task.wait/task.spawn/task.delay), and complete architectural blueprints.",
+  },
+  {
+    title: "🎨 NVIDIA Trellis AI Engine for 3D Mesh Generation",
+    date: "Jul 25",
+    icon: Box,
+    body: "Upgraded 3D model generation to powered by NVIDIA Trellis AI. Generate high-fidelity, textured 3D meshes directly from text prompts with optimized geometry and custom part schemas, bypassing third-party web dependencies.",
+  },
+  {
+    title: "📜 Scripter Reliability & Unlimited Script Generation",
+    date: "Jul 25",
+    icon: ShieldCheck,
+    body: "Expanded scripter token output budget from 3,200 to 6,000 max tokens per turn, eliminating mid-script truncation on complex ModuleScripts, LocalScripts, and ServerScripts. Relaxed validator checks and improved Luau placeholder detection so legitimate short scripts and helper modules pass through to Roblox Studio with 100% reliability.",
+  },
+  {
+    title: "🏙️ Dedicated Game Builder Route (/builder)",
+    date: "Jul 25",
+    icon: Sparkles,
+    body: "Wired the new Game Builder studio environment directly into the dashboard and navigation sidebar. Access interactive multi-system game creation, system configuration presets, and automated workspace deployment in one click.",
+  },
   {
     title: "🔁 Auto-Playtest v2 — every build is verified in Studio and the AI auto-fixes failures (up to 4 retries)",
     date: "Jul 8",

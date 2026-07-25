@@ -10,18 +10,17 @@ const ALLOWED_HOSTS = [
   /(^|\.)tripo3d\.com$/i,
   /(^|\.)tripo3d\.ai$/i,
   /(^|\.)tripo-data\.[a-z0-9-]+\.data\.tripo3d\.com$/i,
-  // Amazon S3 / CloudFront signed URLs used by Tripo
+  // Amazon S3 / CloudFront signed URLs
   /(^|\.)amazonaws\.com$/i,
   /(^|\.)cloudfront\.net$/i,
   // Supabase Storage
   /(^|\.)supabase\.co$/i,
   /(^|\.)supabase\.in$/i,
-  // Meshy / Rodin / common providers occasionally used as sources
-  /(^|\.)meshy\.ai$/i,
-  /(^|\.)meshy\.pro$/i,
-  /(^|\.)meshypro\.com$/i,
-  /(^|\.)hyper3d\.ai$/i,
-  // Google Cloud Storage — Meshy signed asset URLs
+  // NVIDIA / Cloudflare CDNs used by Trellis output artifacts
+  /(^|\.)nvidia\.com$/i,
+  /(^|\.)nvcf\.nvidia\.com$/i,
+  /(^|\.)r2\.cloudflarestorage\.com$/i,
+  // Google Cloud Storage — may host NVIDIA-signed asset artifacts
   /(^|\.)googleusercontent\.com$/i,
   /(^|\.)storage\.googleapis\.com$/i,
 ];

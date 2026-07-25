@@ -5,7 +5,7 @@ import { RobloxBackdrop } from "./RobloxBackdrop";
 import { MobileNavTrigger } from "./MobileNav";
 import { ProfileMenu, DiscordIcon } from "./ProfileMenu";
 import {
-  Folder, Users, Plug, Wand2, Heart,
+  Folder, Users, Plug, Wand2, Heart, Hammer,
   History as HistoryIcon, BookOpen, Settings as SettingsIcon, Crown, Box, LayoutDashboard,
 } from "lucide-react";
 
@@ -15,10 +15,11 @@ type Accent = "default" | "chat" | "admin" | "mcp" | "history" | "plugin" | "set
 type NavItem = { key: string; label: string; to: string; icon: typeof Folder; accent: Accent };
 
 const NAV_CORE: NavItem[] = [
-  { key: "proj",   label: "Projects",      to: "/projects",      icon: Folder,          accent: "default" },
-  { key: "models", label: "3D Models",     to: "/models",        icon: Box,             accent: "chat" },
-  { key: "uigen",  label: "UI Generator",  to: "/ui-generator",  icon: LayoutDashboard, accent: "chat" },
-  { key: "co",     label: "Collaborators", to: "/collaborators", icon: Users,           accent: "collaborators" },
+  { key: "builder", label: "Game Builder", to: "/builder",       icon: Hammer,          accent: "default" },
+  { key: "proj",    label: "Projects",     to: "/projects",     icon: Folder,          accent: "default" },
+  { key: "models",  label: "3D Models",    to: "/models",       icon: Box,             accent: "chat" },
+  { key: "uigen",   label: "UI Generator", to: "/ui-generator", icon: LayoutDashboard, accent: "chat" },
+  { key: "co",      label: "Collaborators", to: "/collaborators", icon: Users,           accent: "collaborators" },
 ];
 
 

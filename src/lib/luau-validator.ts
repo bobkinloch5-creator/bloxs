@@ -274,3 +274,192 @@ export function autoFixLuau(rawSource: string): { source: string; fixes: string[
   return { source: src, fixes };
 }
 
+
+// ---------------------------------------------------------------------------
+// Performance analysis: memory leaks, lag, networking and mobile
+// ---------------------------------------------------------------------------
+
+export type PerfCategory = "memory" | "lag" | "network" | "mobile" | "security";
+
+export type PerfFinding = {
+  category: PerfCategory;
+  severity: "error" | "warn" | "info";
+  line: number;
+  message: string;
+  suggestion: string;
+};
+
+type PerfRule = {
+  category: PerfCategory;
+  severity: PerfFinding["severity"];
+  pattern: RegExp;
+  message: string;
+  suggestion: string;
+  /** Skip the finding when this pattern also appears in the file. */
+  unless?: RegExp;
+};
+
+const PERF_RULES: PerfRule[] = [
+  {
+    category: "memory",
+    severity: "warn",
+    pattern: /\.(Touched|Changed|Heartbeat|Stepped|RenderStepped|InputBegan)\s*:Connect\(/,
+    message: "Event connection is never disconnected",
+    suggestion:
+      "Store the connection and call :Disconnect() when the object dies, or use a Maid/Trove table.",
+    unless: /:Disconnect\(\)|Maid|Trove|Janitor|GetPropertyChangedSignal/,
+  },
+  {
+    category: "memory",
+    severity: "warn",
+    pattern: /Players\.PlayerAdded:Connect/,
+    message: "Per-player state may never be cleaned up",
+    suggestion: "Add a Players.PlayerRemoving handler that clears the player's entries from your tables.",
+    unless: /PlayerRemoving/,
+  },
+  {
+    category: "memory",
+    severity: "info",
+    pattern: /^\s*local\s+\w+\s*=\s*\{\s*\}\s*--\s*cache/i,
+    message: "Unbounded cache table",
+    suggestion: 'Use setmetatable(cache, { __mode = "k" }) so entries can be collected.',
+    unless: /__mode/,
+  },
+  {
+    category: "lag",
+    severity: "error",
+    pattern: /RunService\.(Heartbeat|Stepped|RenderStepped):Connect\(function[\s\S]{0,200}?(GetChildren|GetDescendants|FindFirstChild)\(/,
+    message: "Instance tree walk inside a per-frame loop",
+    suggestion: "Cache the instances outside the loop; walking the tree every frame is a top lag cause.",
+  },
+  {
+    category: "lag",
+    severity: "warn",
+    pattern: /while\s+true\s+do(?![\s\S]{0,160}?task\.wait)/,
+    message: "Tight while true loop without a yield",
+    suggestion: "Add task.wait() inside the loop, or the script will freeze the scheduler.",
+  },
+  {
+    category: "lag",
+    severity: "warn",
+    pattern: /:GetDescendants\(\)/,
+    message: "GetDescendants on a large tree",
+    suggestion: "Prefer CollectionService tags or a cached list instead of scanning descendants repeatedly.",
+    unless: /CollectionService/,
+  },
+  {
+    category: "lag",
+    severity: "info",
+    pattern: /Instance\.new\(\s*"Part"\s*\)[\s\S]{0,80}?\.Parent\s*=/,
+    message: "Part parented before its properties are set",
+    suggestion: "Set every property first, then assign Parent last. It avoids extra replication work.",
+  },
+  {
+    category: "network",
+    severity: "error",
+    pattern: /RunService\.(Heartbeat|RenderStepped|Stepped):Connect\(function[\s\S]{0,240}?:FireServer\(/,
+    message: "RemoteEvent fired every frame",
+    suggestion: "Throttle to 10-20 sends per second, or send input intent only when it changes.",
+  },
+  {
+    category: "network",
+    severity: "warn",
+    pattern: /:FireAllClients\(/,
+    message: "Broadcast to every client",
+    suggestion: "Send only to players who can see the effect, or batch updates into one payload.",
+  },
+  {
+    category: "network",
+    severity: "error",
+    pattern: /OnServerEvent:Connect\(function\s*\([^)]*\)(?![\s\S]{0,300}?(typeof|type\(|tonumber|tostring|assert|if\s))/,
+    message: "Remote handler does not validate client input",
+    suggestion: "Never trust the client: check types and ranges before using the arguments.",
+  },
+  {
+    category: "security",
+    severity: "error",
+    pattern: /OnServerEvent:Connect\(function\s*\([^)]*\)[\s\S]{0,200}?(Humanoid\.Health\s*=|leaderstats)/,
+    message: "Client can set health or currency directly",
+    suggestion: "Compute the new value on the server from validated inputs instead of trusting the client.",
+  },
+  {
+    category: "mobile",
+    severity: "warn",
+    pattern: /UserInputService\.InputBegan(?![\s\S]{0,400}?(TouchEnabled|Touch|ContextActionService))/,
+    message: "Keyboard-only input handling",
+    suggestion: "Use ContextActionService or add touch buttons so phone players can trigger the action.",
+  },
+  {
+    category: "mobile",
+    severity: "warn",
+    pattern: /Size\s*=\s*UDim2\.new\(\s*0\s*,\s*([0-3]?\d)\s*,\s*0\s*,\s*([0-3]?\d)\s*\)/,
+    message: "Touch target smaller than 44px",
+    suggestion: "Give buttons a UISizeConstraint with MinSize Vector2.new(88, 44) for comfortable tapping.",
+  },
+  {
+    category: "mobile",
+    severity: "info",
+    pattern: /ScreenGui/,
+    message: "ScreenGui without responsive scaling",
+    suggestion: "Add a UIScale driven by ViewportSize so the UI fits phones, tablets and TVs.",
+    unless: /UIScale|UIAspectRatioConstraint/,
+  },
+];
+
+/**
+ * Static performance and safety analysis for a Luau source file.
+ * Complements validateLuau, which focuses on syntax correctness.
+ */
+export function analyzeLuauPerformance(rawSource: string): PerfFinding[] {
+  const source = stripCodeFences(rawSource ?? "");
+  if (!source.trim()) return [];
+
+  const lines = source.split("\n");
+  const findings: PerfFinding[] = [];
+
+  for (const rule of PERF_RULES) {
+    if (rule.unless && rule.unless.test(source)) continue;
+    const match = rule.pattern.exec(source);
+    if (!match) continue;
+    const upTo = source.slice(0, match.index);
+    const line = upTo.split("\n").length;
+    findings.push({
+      category: rule.category,
+      severity: rule.severity,
+      line,
+      message: rule.message,
+      suggestion: rule.suggestion,
+    });
+  }
+
+  // Heuristic: many separate per-frame connections in one file.
+  const frameLoops = (source.match(/RunService\.(Heartbeat|Stepped|RenderStepped):Connect/g) ?? []).length;
+  if (frameLoops >= 3) {
+    findings.push({
+      category: "lag",
+      severity: "warn",
+      line: 1,
+      message: `${frameLoops} separate per-frame loops in one script`,
+      suggestion: "Merge them into a single Heartbeat loop with an accumulator; frame cost stays flat.",
+    });
+  }
+
+  if (lines.length > 600) {
+    findings.push({
+      category: "lag",
+      severity: "info",
+      line: 1,
+      message: `Script is ${lines.length} lines long`,
+      suggestion: "Split it into ModuleScripts so Studio stays responsive and reuse gets easier.",
+    });
+  }
+
+  return findings.sort((a, b) => a.line - b.line);
+}
+
+/** Rolled-up score (0-100) used by the project health panel. */
+export function performanceScore(findings: PerfFinding[]): number {
+  const weights = { error: 12, warn: 5, info: 2 } as const;
+  const penalty = findings.reduce((total, finding) => total + weights[finding.severity], 0);
+  return Math.max(0, 100 - penalty);
+}
