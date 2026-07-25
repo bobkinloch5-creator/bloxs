@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { enforceRateLimit } from "@/lib/rate-limit.server";
 import { z } from "zod";
 import { DEFAULT_MODEL_ID } from "./models";
 import { createRobloxUiBlueprint, renderRobloxUiBlueprintLuau, renderRobloxUiBlueprintSvg } from "./roblox-ui-blueprint";
@@ -388,6 +389,8 @@ export const generateRobloxUi = createServerFn({ method: "POST" })
     projectId: z.string().uuid().optional(),
   }).parse(input))
   .handler(async ({ data, context }) => {
+    enforceRateLimit(context.userId, "ui_generate");
+
     const blueprint = createRobloxUiBlueprint(data.prompt, data.style);
     const conceptImageUrl = renderRobloxUiBlueprintSvg(blueprint);
     const finalCode = renderRobloxUiBlueprintLuau(blueprint);

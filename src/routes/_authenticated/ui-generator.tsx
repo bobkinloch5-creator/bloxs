@@ -5,9 +5,11 @@ import { getMyProfile } from "@/lib/profile.functions";
 import { deleteSavedRobloxUi, generateRobloxUi, listSavedRobloxUis } from "@/lib/ui-generator.functions";
 import { detectUiKind, kindLabelFor, paletteFor, UI_CANVAS_HEIGHT, UI_CANVAS_WIDTH, UI_KIND_OPTIONS } from "@/lib/roblox-ui-blueprint";
 import { PageShell, EmptyState } from "@/components/PageShell";
-import { LayoutDashboard, Send, Loader2, Copy, Check, AlertTriangle, Sparkles, Shuffle, Download, ExternalLink, Trash2, RefreshCw, RotateCcw, Monitor, Tablet, Smartphone, Maximize2, Code2, Eye, ZoomIn, ZoomOut, Layers } from "lucide-react";
+import { LayoutDashboard, Send, Loader2, Copy, Check, AlertTriangle, Sparkles, Shuffle, Download, ExternalLink, Trash2, RefreshCw, RotateCcw, Monitor, Tablet, Smartphone, Maximize2, Code2, Eye, ZoomIn, ZoomOut, Layers, Timer } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { RouteSkeleton } from "@/components/RouteSkeleton";
+import { RateLimitNotice, useCountdown } from "@/components/RateLimitNotice";
+import { formatCountdown, parseRateLimitError, stripRateLimitMarker, type RateLimitInfo } from "@/lib/rate-limit-client";
 
 export const Route = createFileRoute("/_authenticated/ui-generator")({
   pendingComponent: () => <RouteSkeleton title="UI Generator" columns={2} />,
@@ -88,6 +90,9 @@ function UiGenerator() {
   const [screenType, setScreenType] = useState<string>("auto");
   const [generated, setGenerated] = useState<Generated[]>([]);
   const [err, setErr] = useState<string | null>(null);
+  const [rateLimit, setRateLimit] = useState<RateLimitInfo | null>(null);
+  // Drives the disabled state on the generate button while the window is closed.
+  const rateLimited = useCountdown(rateLimit?.resetAt);
 
   const gen = useMutation({
     mutationFn: async (vars: { prompt: string; style: string; modelPrompt?: string }) => {
@@ -106,7 +111,17 @@ function UiGenerator() {
       setErr(null);
       savedQuery.refetch();
     },
-    onError: (e: any) => setErr(e?.message || "Generation failed. Try a different prompt or model."),
+    onError: (e: any) => {
+      const limit = parseRateLimitError(e);
+      if (limit) {
+        // Not a failure - the request just has to wait, so show the countdown
+        // instead of a red error banner.
+        setRateLimit(limit);
+        setErr(null);
+        return;
+      }
+      setErr(stripRateLimitMarker(e?.message || "") || "Generation failed. Try a different prompt or model.");
+    },
   });
 
   const del = useMutation({
@@ -115,7 +130,7 @@ function UiGenerator() {
       setGenerated((rows) => rows.filter((row) => row.id !== id));
       savedQuery.refetch();
     },
-    onError: (e: any) => setErr(e?.message || "Could not delete saved UI."),
+    onError: (e: any) => setErr(stripRateLimitMarker(e?.message || "") || "Could not delete saved UI."),
   });
 
   useEffect(() => {
@@ -130,7 +145,7 @@ function UiGenerator() {
 
   function generate(p?: string) {
     const value = (p ?? prompt).trim();
-    if (!value || gen.isPending) return;
+    if (!value || gen.isPending || !rateLimited.expired) return;
     // Prefixing with the picked screen type makes layout selection deterministic.
     const modelPrompt = chosenKind ? chosenKind.label + " - " + value : value;
     gen.mutate({ prompt: value, style, modelPrompt });
@@ -190,10 +205,18 @@ function UiGenerator() {
               <span className={`text-[10px] font-semibold tabular-nums ${prompt.length > 1800 ? "text-amber-300" : "text-muted-foreground"}`}>{prompt.length}/2000</span>
               <button
                 onClick={() => generate()}
-                disabled={gen.isPending || !prompt.trim()}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-violet-500 via-fuchsia-500 to-cyan-400 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-violet-900/30 disabled:opacity-50"
+                disabled={gen.isPending || !prompt.trim() || !rateLimited.expired}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-violet-500 via-fuchsia-500 to-cyan-400 px-4 py-2 text-xs font-bold tabular-nums text-white shadow-lg shadow-violet-900/30 disabled:opacity-50"
               >
-                {gen.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />} Generate
+                {!rateLimited.expired ? (
+                  <>
+                    <Timer className="h-3.5 w-3.5" /> Ready in {formatCountdown(rateLimited.remaining)}
+                  </>
+                ) : (
+                  <>
+                    {gen.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />} Generate
+                  </>
+                )}
               </button>
             </div>
           </div>
@@ -257,6 +280,9 @@ function UiGenerator() {
             </button>
           ))}
         </div>
+        {rateLimit && (
+          <RateLimitNotice info={rateLimit} onExpire={() => setRateLimit(null)} className="mt-3" />
+        )}
         {err && (
           <div className="mt-3 flex items-center gap-2 rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-xs text-red-200">
             <AlertTriangle className="h-3.5 w-3.5" /> {err}

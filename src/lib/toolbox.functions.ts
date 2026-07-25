@@ -124,10 +124,9 @@ export const queueToolboxInsert = createServerFn({ method: "POST" })
           preserve_hierarchy: true,
         } : {
           single_asset_only: true,
-          extract_single: false,
-          preserve_hierarchy: true,
+          extract_single: true,
           exact_quantity: 1,
-          max_children: 1000,
+          max_children: 25,
           max_scripts: 0,
           reject_pack_names: true,
           stop_after_insert: true,

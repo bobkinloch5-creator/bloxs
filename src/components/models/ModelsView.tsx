@@ -4,6 +4,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getProject, listProjects } from "@/lib/projects.functions";
 import { getMyProfile } from "@/lib/profile.functions";
+import { RateLimitNotice, useCountdown } from "@/components/RateLimitNotice";
+import { formatCountdown, parseRateLimitError, stripRateLimitMarker, type RateLimitInfo } from "@/lib/rate-limit-client";
 import {
   getModelStatus,
   startModelGeneration,
@@ -397,6 +399,9 @@ export function ModelsView({ projectId }: { projectId?: string }) {
   const [busy, setBusy] = useState(false);
   const [bridgeBusy, setBridgeBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [rateLimit, setRateLimit] = useState<RateLimitInfo | null>(null);
+  // Keeps the Generate button disabled and labelled until the window reopens.
+  const rateLimited = useCountdown(rateLimit?.resetAt);
   const [bridgeErr, setBridgeErr] = useState<string | null>(null);
   const [bridgeSource, setBridgeSource] = useState<"tripo_api" | "tripo_bridge" | "external_model">("tripo_bridge");
   const [bridgeName, setBridgeName] = useState("");
@@ -440,6 +445,7 @@ export function ModelsView({ projectId }: { projectId?: string }) {
   }
 
   async function onGenerate() {
+    if (!rateLimited.expired) return;
     setErr(null);
     setBusy(true);
     try {
@@ -457,7 +463,14 @@ export function ModelsView({ projectId }: { projectId?: string }) {
       setPrompt(""); setNegativePrompt(""); setImageUrl("");
       await refetchStatus();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Failed to start generation.");
+      const limit = parseRateLimitError(e);
+      if (limit) {
+        // Throttled rather than broken - show the countdown, not a red error.
+        setRateLimit(limit);
+        setErr(null);
+      } else {
+        setErr(e instanceof Error ? stripRateLimitMarker(e.message) : "Failed to start generation.");
+      }
     } finally { setBusy(false); }
   }
 
@@ -593,15 +606,24 @@ export function ModelsView({ projectId }: { projectId?: string }) {
           </div>
         </div>
 
+        {rateLimit && (
+          <RateLimitNotice info={rateLimit} onExpire={() => setRateLimit(null)} />
+        )}
         {err && (
           <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-200 inline-flex items-center gap-2">
             <AlertCircle className="h-4 w-4" /> {err}
           </div>
         )}
 
-        <button disabled={!canGenerate} onClick={onGenerate} className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-violet-500 to-blue-500 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-40 disabled:cursor-not-allowed">
+        <button disabled={!canGenerate || !rateLimited.expired} onClick={onGenerate} className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-violet-500 to-blue-500 px-4 py-2.5 text-sm font-bold tabular-nums text-white disabled:opacity-40 disabled:cursor-not-allowed">
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-          {busy ? "Starting…" : canGenerate ? "Generate 3D model" : `Wait ${formatRemaining(liveRemaining)}`}
+          {busy
+            ? "Starting…"
+            : !rateLimited.expired
+              ? `Ready in ${formatCountdown(rateLimited.remaining)}`
+              : canGenerate
+                ? "Generate 3D model"
+                : `Wait ${formatRemaining(liveRemaining)}`}
         </button>
         <p className="text-[11px] text-muted-foreground">Auto-refine is on — once the preview finishes, BloxSmith automatically queues a high-detail refined version with full PBR textures.</p>
       </section>

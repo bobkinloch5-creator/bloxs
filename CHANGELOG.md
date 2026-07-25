@@ -4,6 +4,178 @@ All notable changes to BloxSmith are tracked here. Dates are UTC.
 
 ## [Unreleased]
 
+### 2026-07-25 - AI pass: throttling, context window, retrieval gate, evals
+
+**Chat rate limiting was failing open on every request.** `chat.ts` imported
+`enforce` and used an `"ai_prompt"` bucket, but `rate-limit.server.ts` exports
+`enforceRateLimit` and defines no such bucket. The destructured value was
+`undefined`, the resulting TypeError was swallowed by the surrounding catch, and
+every request was waved through with a console warning. Now calls the real
+function with the `chat` / `build` bucket and returns a proper 429 carrying
+`Retry-After` plus structured `resetAt` / `retryAfterMs` / `limit` / `bucket`
+fields, so the countdown UI works on the chat surface too.
+
+**Token-aware context window (`src/lib/context-window.ts`)**
+History was trimmed by message count plus a raw character slice. Characters are
+not tokens - a build turn full of Luau tokenizes far denser than prose - so the
+budget was simultaneously wasteful on chat and over the limit on code. Slices
+also landed mid-word and mid-code-fence, and anything older than the window was
+lost outright.
+- `estimateTokens()` weights punctuation-dense code (~3 chars/token) separately
+  from prose (~4), biased slightly high so we undershoot rather than truncate.
+- `trimTextToTokens()` cuts on sentence/line boundaries and `balanceCodeFences()`
+  removes any fence left dangling by the cut.
+- `fitMessagesToWindow()` walks backwards from the newest message, always keeps
+  the latest user turn (trimmed if necessary), and honours a token budget of
+  6k for chat / 9k for build.
+- `summarizeDroppedTurns()` compresses everything that fell outside the window
+  into a short extractive digest that is prepended to the system prompt, so
+  "add a second floor" still knows it is a tycoon 20 messages later. Extractive
+  on purpose: no model call, no latency, and it cannot invent a requirement.
+
+**Retrieval confidence gate (`src/lib/kb-retrieve.server.ts`)**
+Retrieval took a fixed top-4 with no similarity floor and introduced them as
+"verified Roblox API - prefer these over memory". That header outranks the
+model's own knowledge, so a 0.2-similarity chunk was actively steering the model
+wrong. Now over-fetches, drops anything under 0.35, returns nothing when nothing
+qualifies, and downgrades the header to "possibly relevant reference" when the
+best match is only borderline. Debug logging moved behind `KB_DEBUG=1`.
+
+**Memory recall (`src/lib/semantic-memory.ts`)**
+The keyword ranker stoplisted "roblox", "game", "script", "build", "create",
+"fix", "player" and "character" - the highest-signal words in this product -
+so "fix the shop script" and "fix the pet script" scored identically. Replaced
+with IDF weighting computed over the candidate rows, which down-weights common
+tokens automatically and needs no hand-maintained domain list. Added
+`rerankMemoriesSemantic()`, which shortlists with keywords, ranks with
+embeddings (cached per row, so a row costs one embedding ever), and blends both
+scores. Time-boxed to 1.8s in `chat.ts` and falls back to keyword ranking on any
+failure, so an embedding outage can never slow or break a build.
+
+**Prompt prefix cache (`src/lib/prompt-cache.server.ts`)**
+The leading system-prompt blocks depend only on mode, language, quality and
+asset mode, so they are now assembled once per request shape instead of
+rebuilt every request, with observable hit/miss counters. Scope note:
+token-level caching (Anthropic `cache_control`) needs an Anthropic-native
+endpoint; the current gateways are OpenAI-compatible shims that would ignore it.
+`anthropicCacheHint()` builds the correct payload and is deliberately not wired
+in until a native endpoint exists, rather than shipping a no-op that looks like
+a saving.
+
+**Offline quality evals (`src/lib/ai-eval.ts`)**
+There was no way to tell whether a prompt or model change made output better or
+worse. Adds deterministic scoring that runs in CI in milliseconds with no model
+and no network: `scoreScript()` (validator errors, warnings, performance),
+`checkStructure()` (catches a Script under StarterGui, a LocalScript under
+ServerScriptService, a RemoteEvent outside ReplicatedStorage, unknown services -
+builds that look right in the explorer and do nothing at runtime), and a
+17-prompt UI intent golden set guarding the reported "main menu rendered a shop"
+bug. Currently 17/17; the floor is set to 0.94 so a real regression fails the
+suite.
+
+**Tests** - `src/lib/ai-quality.test.ts`, 52 assertions across all five areas.
+
+### 2026-07-25 - Rate limit countdown timer
+
+When a user hit a rate limit they got a red error banner with a static "try again in 30s"
+that went stale the moment it rendered, and no way to tell when they could retry.
+
+**Server (`src/lib/rate-limit.server.ts`)**
+- New `RateLimitError` class carrying `bucket`, `limit`, `retryAfterMs` and `resetAt`.
+- Because server function errors only survive serialization as a message string, the same
+  values are appended as a compact marker (`[[rl:bucket:resetAt:limit]]`) that the client
+  parses. The human-readable sentence is unchanged.
+
+**Client (`src/lib/rate-limit-client.ts`)**
+- `parseRateLimitError()` - returns the reset time, limit and bucket, or null for any other
+  error, so genuine failures still surface as errors.
+- `stripRateLimitMarker()` - guarantees the marker is never shown to a user.
+- `formatCountdown()` - "42s" under a minute, "1:05" above it.
+- `bucketLabel()` - friendly names, e.g. `ui_generate` reads as "UI generations".
+
+**UI (`src/components/RateLimitNotice.tsx`)**
+- `useCountdown()` - ticks once a second and clears its own interval at zero, so an expired
+  notice costs nothing.
+- `<RateLimitNotice>` - amber panel with a live MM:SS countdown, a progress bar that drains
+  as the window reopens, and an explanation of which limit was hit. Announced to screen
+  readers via `role="status"` and a labelled progressbar. Removes itself on expiry.
+- `<RateLimitedButton>` and a `compact` pill variant for tighter spots.
+- `useRateLimitState()` for callers that just want the current limit or null.
+
+**Wired up**
+- UI Generator: throttled responses now show the countdown instead of a red error, and the
+  Generate button disables itself and reads "Ready in 0:42" until the window reopens.
+- 3D Models: same treatment, folded in alongside the existing 24h cooldown label so the two
+  timers cannot contradict each other.
+- Submissions are blocked client-side while a limit is active, so users cannot burn retries
+  that are guaranteed to fail.
+
+**Tests** - `src/lib/rate-limit-client.test.ts` (29 assertions) covers countdown formatting,
+parser rejection of ordinary errors, marker stripping, and a round trip proving what the
+server throws is readable by the client parser.
+
+### 2026-07-25 - Motion pass: scroll reveals and micro-interactions
+
+**New helpers (`src/components/Reveal.tsx`)**
+- `useReveal()` - IntersectionObserver hook that adds `.is-revealed` the first time an element scrolls into view. It disconnects after firing, so there is no scroll listener and no cost while off screen.
+- `<Reveal>` - wrapper with `up` / `left` / `right` / `zoom` / `blur` variants and an optional `stagger` mode that cascades its direct children 60ms apart.
+- `<CountUp>` - animates a number up on first view using requestAnimationFrame with an ease-out curve.
+- `usePointerGlow()` / `<GlowCard>` - tracks the cursor inside a card and exposes it as `--mx` / `--my` for the spotlight and tilt effects. Pointer tracking is skipped on touch devices.
+- `<TypingDots>` - three-dot indicator for streaming AI responses.
+
+**New motion classes (`src/styles.css`)**
+- Scroll reveal: `reveal`, `reveal-left`, `reveal-right`, `reveal-zoom`, `reveal-blur`, `stagger`, `delay-1`..`delay-6`.
+- Hover: `hover-lift`, `tilt`, `spotlight`, `icon-pop`, `arrow-slide`, `link-underline`.
+- Status: `breathe`, `status-dot` (pinging ring), `float-y`, `tick-num`.
+- Loading: `skeleton` (shimmer sweep), `indeterminate-bar`, `typing-dot`.
+- Feedback: `success-pop`, `shake`, `toast-in`.
+- Ambient: `orb-drift`, `gradient-pan`, `text-shine`.
+
+**Wired up**
+- Dashboard Quick Actions cascade in on scroll; each tile has a cursor spotlight, a hover lift and an icon that pops.
+- Recent Projects rows highlight on hover, and the loading state is now a set of skeleton rows shaped like real rows instead of a lone spinner.
+- `RouteSkeleton` uses the shimmer sweep rather than a flat opacity pulse.
+- Empty states fade in and their icon floats gently.
+
+**Performance and accessibility**
+- No animation library added - this is all CSS plus one small hook, so bundle size is unchanged.
+- Only `transform`, `opacity` and `filter` are animated, which stay on the compositor.
+- Pointer tracking is throttled to one update per frame.
+- Every effect in this pass is disabled under `prefers-reduced-motion: reduce`.
+
+### 2026-07-25 - Interface polish: navigation and design system
+
+**Navigation**
+- Sidebar rows are a shared component style now: a rounded icon tile, a gradient left indicator that grows on hover and locks on for the current page, and a soft inner glow on the active row. Section headers ("Core Suite", "Integration") get a fading luminous rule.
+- The mobile drawer had no active state at all - you could not tell which page you were on. It now uses the exact same row treatment as the sidebar, so the two surfaces finally match.
+- **Game Builder was missing from the mobile menu entirely.** It was in the desktop sidebar only, which made the feature unreachable on a phone. Added, along with Donate.
+- The drawer slides in instead of appearing, closes on Escape, and respects the iOS safe area at the bottom.
+- Bottom tab bar: the active tab gets a gradient icon chip and a small top indicator bar rather than just a colour change. Taps have a press response.
+
+**Header**
+- Condenses on scroll - the title shrinks and the description fades out, giving long pages their vertical space back.
+- Titles use a new gradient treatment (white into cyan) instead of flat white.
+- The header, drawer and bottom bar share one frosted-glass surface with a hairline that fades out at both ends.
+
+**Design system (`src/styles.css`)**
+- New reusable classes: `vapor-title`, `vapor-rule`, `vapor-nav-item`, `vapor-nav-icon`, `vapor-frost`, `vapor-hairline-b`, `vapor-ghost-btn`, `vapor-tab`, `vapor-rise`.
+- Cards get a top sheen and a deeper lift on hover.
+- Primary buttons get a light sweep on hover.
+- One consistent focus ring across every link, button and input - previously focus styling was inconsistent and in places invisible.
+- Page content rises in on mount with a short stagger.
+- Every new animation is disabled under `prefers-reduced-motion`.
+
+### 2026-07-25 - Model routing fixes
+
+Four routing bugs were making working models look broken.
+
+- **Unknown model ids routed to a disabled endpoint.** `findModel` fell back to `MODELS[0]`, which is a "Coming Soon" entry, so any stale or renamed id (an old saved preference, a bookmarked project) was silently sent to a model that does not exist. It now falls back to the default working model. Same fix in `model-router.ts`.
+- **Build responses were truncated.** Output tokens were capped at 1800 for a normal build and 3000 for a full game, well under what a real system costs - a shop with a server script, ModuleScript, remotes and a ScreenGui runs past that easily. Every model was being cut off mid action block, which reads as "the model is bad". Caps are now 3000 basic / 8000 normal / 12000 premium / 16000 full game, still bounded by each model's own ceiling. Chat is unchanged in spirit, raised 700 -> 1200.
+- **Five working models were unreachable.** Claude Opus 4.6/4.7/4.8/5 and Sonnet 5 were selectable in the UI but missing from `FALLBACK_CHAIN`, so under load they were never retried. The chain now covers all 18 working models and still spans multiple gateways.
+- **The health harness was rigged against the models it graded.** `testModel` asks for 5-8 actions plus a ScreenGui and two scripts but allowed only 1600 output tokens, so models were truncated and then marked "Not Working". Raised to 6000. A missing gateway API key now reports as a configuration problem instead of blaming every model on that gateway.
+
+**New: `src/lib/models.test.ts`** - 18 invariants over the catalog: no duplicate ids, upstream ids never carry our internal gateway prefix, every working model has sane temperature/topP and at least 2048 output tokens, the default and fallback ids resolve to working models, unknown and empty ids resolve to working models, and the chain has no duplicates, starts at the default, spans multiple gateways, and can reach every selectable model.
+
 ### 2026-07-25 - Stability pass: tests, throttling, faster pages
 
 **Unit tests (new)**

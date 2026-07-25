@@ -30,7 +30,7 @@ export function BottomNav({ isAdmin }: { isAdmin?: boolean }) {
   return (
     <nav
       aria-label="Primary"
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-[#0a0a1a]/95 backdrop-blur-xl pb-[env(safe-area-inset-bottom)] lg:hidden"
+      className="vapor-frost fixed inset-x-0 bottom-0 z-40 border-t border-indigo-500/20 pb-[env(safe-area-inset-bottom)] shadow-[0_-18px_40px_-28px_rgba(79,70,229,0.9)] lg:hidden"
     >
       <ul className="mx-auto grid max-w-[520px] grid-cols-5">
         {ITEMS.map((it) => {
@@ -40,11 +40,20 @@ export function BottomNav({ isAdmin }: { isAdmin?: boolean }) {
             <li key={it.label}>
               <Link
                 to={it.to as any}
-                className={`flex min-h-[56px] flex-col items-center justify-center gap-0.5 px-1 py-1.5 text-[10px] font-semibold transition ${
-                  active ? "text-indigo-300" : "text-slate-400 active:text-white"
+                aria-current={active ? "page" : undefined}
+                className={`vapor-tab flex min-h-[58px] flex-col items-center justify-center gap-1 px-1 pb-1.5 pt-2.5 text-[10px] font-semibold transition active:scale-95 ${
+                  active ? "vapor-tab-active" : "text-slate-400 active:text-white"
                 }`}
               >
-                <Icon className={`h-5 w-5 ${active ? "drop-shadow-[0_0_8px_rgba(129,140,248,0.7)]" : ""}`} />
+                <span
+                  className={`grid h-7 w-7 place-items-center rounded-lg transition ${
+                    active
+                      ? "bg-gradient-to-br from-indigo-500/40 to-cyan-400/25 text-cyan-200 shadow-[0_0_16px_-2px_rgba(103,232,249,0.55)]"
+                      : ""
+                  }`}
+                >
+                  <Icon className="h-5 w-5" />
+                </span>
                 {it.label}
               </Link>
             </li>

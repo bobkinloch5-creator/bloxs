@@ -558,13 +558,43 @@ export const FALLBACK_CHAIN: string[] = [
   "nvidia/mixtral-8x22b",
   "nvidia/llama-3.1-70b",
   "nvidia/mistral-large-2",
+  // Premium Claude tier - last resort, highest quality, highest cost.
+  "oneprovider/claude-sonnet-5",
+  "oneprovider/claude-opus-4-6",
+  "oneprovider/claude-opus-4-7",
+  "oneprovider/claude-opus-4-8",
+  "oneprovider/claude-opus-5",
 ];
 
 
 export function findModel(id: string): ModelOption {
-  return MODELS.find((m) => m.id === id) ?? MODELS[0];
+  const exact = MODELS.find((m) => m.id === id);
+  if (exact) return exact;
+  // Unknown / renamed id. Never fall back to MODELS[0] - the catalog is ordered
+  // by family, and the first entry is a "Coming Soon" model, so that silently
+  // routed stale ids into a disabled endpoint.
+  return MODELS.find((m) => m.id === DEFAULT_MODEL_ID && isSelectable(m))
+    ?? MODELS.find((m) => isSelectable(m))
+    ?? MODELS[0];
 }
 
 export function isSelectable(m: ModelOption): boolean {
   return m.status === "Working";
 }
+
+/** Every model the user is allowed to pick, in catalog order. */
+export function selectableModels(): ModelOption[] {
+  return MODELS.filter(isSelectable);
+}
+
+/**
+ * Environment variable that must be present for a gateway to work at all.
+ * Used by the admin health panel so a missing key reads as "not configured"
+ * instead of every model on that gateway reporting "Not Working".
+ */
+export const GATEWAY_ENV_KEYS: Record<Gateway, string[]> = {
+  lovable: ["LOVABLE_API_KEY"],
+  groq: ["GROQ_API_KEY"],
+  nvidia: ["NVIDIA_API_KEY", "NIM_API_KEY", "NGC_API_KEY"],
+  oneprovider: ["ONEPROVIDER_API_KEY"],
+};

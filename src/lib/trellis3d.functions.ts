@@ -15,6 +15,7 @@
 // Requires NVIDIA_API_KEY (or NIM_API_KEY / NGC_API_KEY).
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { enforceRateLimit } from "@/lib/rate-limit.server";
 import { z } from "zod";
 import { generateGeneralImage } from "./general-image.server";
 
@@ -294,7 +295,9 @@ export const generateTrellis3D = createServerFn({ method: "POST" })
       .refine((value) => value.prompt || value.imageUrl, { message: "prompt or imageUrl required" })
       .parse(input),
   )
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    enforceRateLimit(context.userId, "model_generate");
+
     const key = nvidiaKey();
 
     // Trellis has no text input. When only a prompt is given, render a reference

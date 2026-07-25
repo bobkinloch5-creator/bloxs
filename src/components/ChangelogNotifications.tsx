@@ -4,33 +4,9 @@ import { checkChangelogCoverage, warnIfIncomplete } from "@/lib/changelog-covera
 import bloxsmithLogo from "@/assets/bloxsmith-logo.png.asset.json";
 
 
-const CHANGELOG_VERSION = "2026-07-25-bloxsmith-pro-v4";
+const CHANGELOG_VERSION = "2026-07-08-auto-playtest-v2";
 
 const CHANGELOG_ITEMS = [
-  {
-    title: "✨ BloxSmith Pro Interface & Visual Polish Engine",
-    date: "Jul 25",
-    icon: Sparkles,
-    body: "Redesigned the WorkspaceChat and active project interface with modern dark glassmorphism, glowing borders, animated mode indicators, pill controls, and high-visibility status notification cards. Fully integrated BloxSmith Pro v4 update suite with automated test coverage, performance optimizations, and upgraded project controls.",
-  },
-  {
-    title: "🏰 Model Hierarchy & Structural Asset Integrity Fix",
-    date: "Jul 25",
-    icon: Box,
-    body: "Fixed single-asset Toolbox model insertions (\"build a house\", \"insert a castle\", \"add a car\") destroying model hierarchy. Enforced extract_single: false, preserve_hierarchy: true, and max_children: 1000 across all pipeline routes (bloxsmith-prompt, plugin-actions, roblox-toolbox.server, agent-pipeline, and chat routes). Complex models now import into Roblox Studio complete with all child parts, groups, materials, and internal structure intact.",
-  },
-  {
-    title: "🛡️ Stability Pass: Vitest Unit Suite, Rate Limiting & Provider Error Handling",
-    date: "Jul 25",
-    icon: ShieldCheck,
-    body: "Integrated Vitest test suite covering UI blueprints, Luau validation, plugin action routing, and rate limits. Added provider-fetch.server.ts for rich upstream error reporting across AI providers, per-user sliding-window rate limit protection, and lazy 3D asset preview chunks with skeleton loading for instant page navigations.",
-  },
-  {
-    title: "⚡ BloxSmith Pro Integration — Full Orchestration & Multi-System Game Builder",
-    date: "Jul 25",
-    icon: Rocket,
-    body: "Upgraded BloxSmith into a full BloxSmith Pro Roblox game development environment. Integrated the build-orchestrator, modular game-systems engine, and comprehensive Roblox scripting knowledge base. BloxSmith can now plan and generate complete end-to-end games across 20+ genres with automated service wiring, clean Luau standards, and architectural blueprints.",
-  },
   {
     title: "🔁 Auto-Playtest v2 — every build is verified in Studio and the AI auto-fixes failures (up to 4 retries)",
     date: "Jul 8",

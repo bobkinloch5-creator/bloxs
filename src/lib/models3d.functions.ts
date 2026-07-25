@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { enforceRateLimit } from "@/lib/rate-limit.server";
 import { z } from "zod";
 
 const COOLDOWN_MS = 24 * 60 * 60 * 1000;
@@ -205,6 +206,10 @@ export const startModelGeneration = createServerFn({ method: "POST" })
   }).parse(i))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+
+    // Short-window throttle. This sits in front of the 24h cooldown so a stuck
+    // client retry loop cannot burn through the Meshy key in seconds.
+    enforceRateLimit(userId, "model_generate");
 
     // Check if the user is an owner/admin to grant unlimited generations.
     // Role checks are the single source of truth — no hardcoded emails.

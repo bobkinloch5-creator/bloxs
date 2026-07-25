@@ -15,7 +15,9 @@ import { summarizeSceneScan } from "@/lib/scene-digest.server";
 import { searchRoblox, fetchDocPage } from "@/lib/roblox-research.server";
 import { productionSystemsStudioActions, detectLuaTemplates } from "@/lib/lua-templates";
 import { classifyIntent, renderIntentBlock } from "@/lib/intent-classifier.server";
-import { rerankMemories } from "@/lib/semantic-memory";
+import { rerankMemories, rerankMemoriesSemantic } from "@/lib/semantic-memory";
+import { fitMessagesToWindow, HISTORY_BUDGETS, type SimpleMessage } from "@/lib/context-window";
+import { cachedPrefix } from "@/lib/prompt-cache.server";
 import { retrieveKnowledge } from "@/lib/kb-retrieve.server";
 import { scriptingKnowledgeFor, SCRIPTING_CORE_RULES } from "@/lib/roblox-scripting-knowledge";
 
@@ -243,34 +245,49 @@ function sanitizeToolPairing(messages: UIMessage[]): UIMessage[] {
 }
 
 function trimMessagesForModel(messages: UIMessage[], mode: "chat" | "build"): UIMessage[] {
+  // Token-aware rather than character-aware. See context-window.ts for why the
+  // old "last N messages, last N characters" approach both overshot the context
+  // limit on code-heavy turns and silently dropped the original request on long
+  // sessions.
   const cleaned = sanitizeToolPairing(messages);
-  const maxMessages = mode === "chat" ? 12 : 10;
-  const start = Math.max(0, cleaned.length - maxMessages);
-  return cleaned.slice(start).map((m, i, recent) => {
-    const isLatestUser = i === recent.length - 1 && m.role === "user";
-    const textLimit = isLatestUser ? 12000 : m.role === "assistant" ? 1600 : 2400;
+  return fitMessagesToWindow(cleaned as unknown as SimpleMessage[], {
+    budgetTokens: HISTORY_BUDGETS[mode],
+    maxMessages: mode === "chat" ? 14 : 12,
+  }).messages as unknown as UIMessage[];
+}
 
-    const parts = (m.parts ?? []).map((p: any) => {
-      if (p?.type !== "text" || typeof p.text !== "string" || p.text.length <= textLimit) return p;
-      return { ...p, text: `[trimmed previous context]\n${p.text.slice(-textLimit)}` };
-    });
-    return { ...m, parts } as UIMessage;
-  });
+/**
+ * The digest of whatever fell outside the token window. Prepending this to the
+ * system prompt is what keeps "add a second floor" meaningful 20 messages after
+ * the user said "build me a tycoon". Returns "" when nothing was dropped.
+ */
+function historyDigestFor(messages: UIMessage[], mode: "chat" | "build"): string {
+  const cleaned = sanitizeToolPairing(messages);
+  return fitMessagesToWindow(cleaned as unknown as SimpleMessage[], {
+    budgetTokens: HISTORY_BUDGETS[mode],
+    maxMessages: mode === "chat" ? 14 : 12,
+  }).digest;
 }
 
 function capOutputTokens(modelSettings: { maxOutputTokens?: number } | undefined, mode: "chat" | "build", buildQuality?: "basic" | "better" | "premium" | "full_game") {
-  // FAST PATH: cap output tokens aggressively so responses finish quickly.
-  // Lowered further to reduce end-to-end generation latency.
-  const requested = modelSettings?.maxOutputTokens ?? (mode === "chat" ? 500 : 1600);
+  // Chat stays tight: answers should be conversational, not essays.
+  //
+  // Builds are different. The old caps (1800 normal / 3000 full_game) were far
+  // below what a full system actually costs - a shop with a server script,
+  // ModuleScript, remotes and a ScreenGui runs well past 3000 output tokens.
+  // Every model was being cut off mid-action-block, which reads to the user as
+  // "the model is bad" when it was really a truncated response. Build caps now
+  // scale with the requested quality and respect each model's own ceiling.
+  const requested = modelSettings?.maxOutputTokens ?? (mode === "chat" ? 900 : 8192);
   const cap = mode === "chat"
-    ? 700
+    ? 1200
     : buildQuality === "full_game"
-      ? 3000
+      ? 16000
       : buildQuality === "premium"
-        ? 2400
+        ? 12000
         : buildQuality === "basic"
-          ? 650
-          : 1800;
+          ? 3000
+          : 8000;
   return Math.min(requested, cap);
 }
 
@@ -2501,10 +2518,9 @@ async function toolboxAssetFinderStudioActions(userText: string) {
           allow_scripts: false,
           disable_procedural_fallback: true,
           single_asset_only: true,
-          extract_single: false,
-          preserve_hierarchy: true,
+          extract_single: true,
           exact_quantity: 1,
-          max_children: 1000,
+          max_children: 25,
           max_scripts: 0,
           reject_pack_names: true,
           stop_after_insert: true,
@@ -6080,15 +6096,46 @@ export const Route = createFileRoute("/api/chat")({
           if (!userData.user) return jsonError("Your session expired. Please sign in again.", 401, "expired");
           const userId = userData.user.id;
 
-          // Rate limit AI prompt endpoint per user.
+          // Rate limit the AI endpoint per user.
+          //
+          // This previously destructured `enforce` and used an "ai_prompt"
+          // bucket, but rate-limit.server.ts exports `enforceRateLimit` and has
+          // no such bucket. The destructured value was undefined, the resulting
+          // TypeError landed in the catch below, and every request was waved
+          // through with a warning - chat was effectively unthrottled.
           try {
-            const { enforce, RateLimitError } = await import("@/lib/rate-limit.server");
-            await enforce(userId, "ai_prompt");
+            const { enforceRateLimit } = await import("@/lib/rate-limit.server");
+            enforceRateLimit(userId, mode === "build" ? "build" : "chat");
           } catch (e) {
-            if (e && (e as any).name === "RateLimitError") {
-              return jsonError((e as Error).message, 429, "rate_limited");
+            if (e instanceof Error && e.name === "RateLimitError") {
+              const info = e as Error & {
+                resetAt?: number;
+                retryAfterMs?: number;
+                limit?: number;
+                bucket?: string;
+              };
+              // Structured fields let the client render a live countdown; the
+              // message also carries the [[rl:...]] marker for callers that only
+              // ever see an error string.
+              return new Response(
+                JSON.stringify({
+                  error: info.message,
+                  code: "rate_limited",
+                  resetAt: info.resetAt,
+                  retryAfterMs: info.retryAfterMs,
+                  limit: info.limit,
+                  bucket: info.bucket,
+                }),
+                {
+                  status: 429,
+                  headers: {
+                    "Content-Type": "application/json",
+                    "Retry-After": String(Math.max(1, Math.ceil((info.retryAfterMs ?? 1000) / 1000))),
+                  },
+                },
+              );
             }
-            // Rate-limit table failure should never block a paying user; log and continue.
+            // A limiter fault must never block a paying user; log and continue.
             console.warn("[chat] rate limit check failed", e);
           }
 
@@ -6133,9 +6180,12 @@ export const Route = createFileRoute("/api/chat")({
             } catch (e) {
               return jsonError(e instanceof Error ? e.message : "Model unavailable", 500, "provider_init_failed");
             }
-            const convertedLite = await convertToModelMessages(trimMessagesForModel(stripImageFilePartsFromMessages(messages), "chat"));
+            const strippedLite = stripImageFilePartsFromMessages(messages);
+            const convertedLite = await convertToModelMessages(trimMessagesForModel(strippedLite, "chat"));
+            const liteDigest = historyDigestFor(strippedLite, "chat");
             const systemLite =
               FAST_CHAT_SYSTEM_PROMPT +
+              (liteDigest ? `\n\n${liteDigest}` : "") +
               "\n\n" + SCRIPTING_CORE_RULES +
               `\n\nMODE: CHAT (no project open) — help the user plan, brainstorm, and refine ideas for their Roblox game. Do NOT emit build actions, file outputs, or plugin_actions. Keep replies conversational. Reply in ${languageName} (${languageCode}). If the user asks to delete, erase, clear, or modify their Roblox project, NEVER say BloxSmith only has Toolbox/search capability. Say BloxSmith can do that in Build Mode through the Studio plugin, and ask them to switch to Build Mode / open a project if needed. For requests like "erase everything but keep the Baseplate", answer with only that Build Mode instruction; do not provide manual deletion steps unless the user asks for manual steps.`;
             const liteResult = streamText({
@@ -6743,10 +6793,9 @@ export const Route = createFileRoute("/api/chat")({
                     strip_scripts: true,
                     disable_procedural_fallback: true,
                     single_asset_only: true,
-                    extract_single: false,
-                    preserve_hierarchy: true,
+                    extract_single: true,
                     exact_quantity: 1,
-                    max_children: 1000,
+                    max_children: 25,
                     max_scripts: 0,
                     reject_pack_names: true,
                     stop_after_insert: true,
@@ -7027,7 +7076,15 @@ export const Route = createFileRoute("/api/chat")({
               userText ? withTimeout(classifyIntent(userText), 1600, "intent classifier").catch(() => null) : Promise.resolve(null),
             ]);
             const [{ data: session }, { data: recentErrors }, { data: recentBuilds }, { data: existingActions }, { data: memoriesRaw }] = ctxResult;
-            const memories = rerankMemories(memoriesRaw ?? [], userText, buildQuality === "basic" ? 8 : 20);
+            // Embedding-backed recall, with the keyword ranker as both the
+            // shortlist and the fallback. Time-boxed so a slow embedding
+            // endpoint can never add latency to a build.
+            const memoryTopN = buildQuality === "basic" ? 8 : 20;
+            const memories = await withTimeout(
+              rerankMemoriesSemantic(memoriesRaw ?? [], userText, memoryTopN),
+              1800,
+              "semantic memory rerank",
+            ).catch(() => rerankMemories(memoriesRaw ?? [], userText, memoryTopN));
 
             const parts: string[] = [];
             const intentBlock = renderIntentBlock(intent);
@@ -7179,7 +7236,14 @@ export const Route = createFileRoute("/api/chat")({
           // of tokens and trigger `Provider returned error` (upstream 400: context too
           // large). Replace each image part with a short text marker so conversation
           // continuity is preserved without re-sending the pixels.
-          const messagesForModel = trimMessagesForModel(stripImageFilePartsFromMessages(messages), mode);
+          const strippedForModel = stripImageFilePartsFromMessages(messages);
+          const messagesForModel = trimMessagesForModel(strippedForModel, mode);
+          const historyDigest = historyDigestFor(strippedForModel, mode);
+          if (historyDigest) {
+            contextBlock = contextBlock
+              ? `${contextBlock}\n\n---\n${historyDigest}`
+              : `\n\n---\n${historyDigest}`;
+          }
           const convertedMessages = await convertToModelMessages(messagesForModel);
 
 
@@ -7430,10 +7494,9 @@ export const Route = createFileRoute("/api/chat")({
                           allow_scripts: false,
                           disable_procedural_fallback: true,
                           single_asset_only: true,
-                          extract_single: false,
-                          preserve_hierarchy: true,
+                          extract_single: true,
                           exact_quantity: 1,
-                          max_children: 1000,
+                          max_children: 25,
                           max_scripts: 0,
                           reject_pack_names: true,
                           stop_after_insert: true,
@@ -8518,7 +8581,20 @@ export const Route = createFileRoute("/api/chat")({
               : { roblox_docs_search: robloxDocsSearch, roblox_docs_fetch: robloxDocsFetch }) as ToolSet;
             return streamText({
               model,
-              system: (mode === "chat" ? FAST_CHAT_SYSTEM_PROMPT : FAST_BUILD_SYSTEM_PROMPT) + modeHeader + languageHeader + qualityHeader + assetModeRule + contextBlock + scriptingBlock + ragBlock + outlineBlock,
+              // The leading blocks depend only on primitives (mode, language,
+              // quality, asset mode), so they are identical across the vast
+              // majority of requests and are assembled once per shape. Only the
+              // trailing blocks are per-request. Never key this on user text.
+              system:
+                cachedPrefix(
+                  `${mode}|${languageCode}|${buildQuality}|${assetMode}`,
+                  () =>
+                    (mode === "chat" ? FAST_CHAT_SYSTEM_PROMPT : FAST_BUILD_SYSTEM_PROMPT) +
+                    modeHeader +
+                    languageHeader +
+                    qualityHeader +
+                    assetModeRule,
+                ) + contextBlock + scriptingBlock + ragBlock + outlineBlock,
               messages: convertedMessages,
               abortSignal: timeoutController.signal,
               ...(extraBody ? { providerOptions: { nvidia: extraBody as Record<string, never> } as never } : {}),

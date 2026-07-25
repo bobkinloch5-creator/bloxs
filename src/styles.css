@@ -527,3 +527,446 @@ html { scroll-behavior: smooth; }
 
 
 
+
+/* ==========================================================================
+   Vapor Chrome - polish layer
+   Refines the existing system rather than replacing it: same indigo/cyan on
+   near-black palette, same Space Mono display face. Everything here is
+   additive so existing class names keep working.
+   ========================================================================== */
+
+/* ---------- Focus: one consistent, visible ring everywhere ---------- */
+:where(a, button, input, textarea, select, [tabindex]):focus-visible {
+  outline: 2px solid rgba(167, 139, 250, 0.9);
+  outline-offset: 2px;
+  border-radius: 10px;
+}
+
+/* ---------- Headline treatment ---------- */
+.vapor-title {
+  font-family: "Space Mono", ui-monospace, monospace;
+  font-style: italic;
+  text-transform: uppercase;
+  letter-spacing: -0.045em;
+  background: linear-gradient(100deg, #ffffff 0%, #e8e6ff 42%, #a5f3fc 100%);
+  -webkit-background-clip: text;
+          background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Thin luminous rule used under section headers */
+.vapor-rule {
+  height: 1px;
+  background: linear-gradient(90deg, rgba(79,70,229,0.55), rgba(103,232,249,0.35) 45%, transparent);
+}
+
+/* ---------- Navigation ---------- */
+/* Shared row geometry so the sidebar and the mobile drawer feel identical. */
+.vapor-nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  border-radius: 12px;
+  padding: 0.55rem 0.7rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: rgba(255,255,255,0.58);
+  transition: color .2s ease, background-color .2s ease, transform .2s ease;
+  isolation: isolate;
+}
+.vapor-nav-item:hover {
+  color: #fff;
+  background: rgba(255,255,255,0.05);
+}
+.vapor-nav-item:active { transform: scale(0.985); }
+
+/* Left indicator bar - grows in on hover, locks on when active. */
+.vapor-nav-item::after {
+  content: "";
+  position: absolute;
+  left: -0.7rem;
+  top: 50%;
+  height: 0;
+  width: 3px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #a78bfa, #67e8f9);
+  transform: translateY(-50%);
+  transition: height .24s cubic-bezier(.2,.8,.2,1);
+}
+.vapor-nav-item:hover::after { height: 40%; }
+
+.vapor-nav-active {
+  background: linear-gradient(90deg, rgba(79,70,229,0.22), rgba(79,70,229,0.06) 70%, transparent);
+  border: 1px solid rgba(129,140,248,0.34);
+  color: #fff;
+  box-shadow: 0 0 26px rgba(79,70,229,0.16) inset, 0 6px 22px -12px rgba(79,70,229,0.9);
+}
+.vapor-nav-active::after { height: 62%; }
+
+/* Icon tile inside a nav row. */
+.vapor-nav-icon {
+  display: grid;
+  place-items: center;
+  height: 1.85rem;
+  width: 1.85rem;
+  flex-shrink: 0;
+  border-radius: 9px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.5);
+  transition: color .2s ease, background-color .2s ease, border-color .2s ease, box-shadow .2s ease;
+}
+.vapor-nav-item:hover .vapor-nav-icon {
+  color: #a5f3fc;
+  border-color: rgba(103,232,249,0.28);
+  background: rgba(103,232,249,0.08);
+}
+.vapor-nav-active .vapor-nav-icon {
+  color: #67e8f9;
+  background: linear-gradient(135deg, rgba(79,70,229,0.4), rgba(103,232,249,0.22));
+  border-color: rgba(103,232,249,0.42);
+  box-shadow: 0 0 16px rgba(103,232,249,0.28);
+}
+
+/* ---------- Surfaces ---------- */
+/* Adds a soft top sheen to the existing card without touching its border. */
+.vapor-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(180deg, rgba(255,255,255,0.055), transparent 38%);
+  pointer-events: none;
+  z-index: 0;
+}
+.vapor-card > * { position: relative; z-index: 1; }
+.vapor-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 22px 50px -28px rgba(79,70,229,0.75);
+}
+
+/* Frosted panel for headers, drawers and sticky bars. */
+.vapor-frost {
+  background: linear-gradient(180deg, rgba(12,12,30,0.86), rgba(10,10,26,0.72));
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+}
+
+/* Hairline that fades out at both ends - softer than a full border. */
+.vapor-hairline-b {
+  border-bottom: 1px solid transparent;
+  border-image: linear-gradient(90deg, transparent, rgba(129,140,248,0.32) 20%, rgba(103,232,249,0.22) 80%, transparent) 1;
+}
+
+/* ---------- Buttons ---------- */
+.vapor-glow-btn { position: relative; overflow: hidden; }
+.vapor-glow-btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 20%, rgba(255,255,255,0.28) 50%, transparent 80%);
+  transform: translateX(-120%);
+  transition: transform .6s cubic-bezier(.2,.8,.2,1);
+}
+.vapor-glow-btn:hover::after { transform: translateX(120%); }
+
+/* Quiet secondary button. */
+.vapor-ghost-btn {
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.09);
+  background: rgba(255,255,255,0.03);
+  color: rgba(255,255,255,0.82);
+  transition: border-color .2s ease, background-color .2s ease, color .2s ease, transform .15s ease;
+}
+.vapor-ghost-btn:hover {
+  border-color: rgba(129,140,248,0.45);
+  background: rgba(79,70,229,0.12);
+  color: #fff;
+}
+.vapor-ghost-btn:active { transform: translateY(1px); }
+
+/* ---------- Mobile drawer + bottom bar ---------- */
+@keyframes vapor-drawer-in {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(0); }
+}
+@keyframes vapor-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.vapor-drawer { animation: vapor-drawer-in .28s cubic-bezier(.2,.8,.2,1); }
+.vapor-scrim  { animation: vapor-fade-in .22s ease; }
+
+.vapor-tab {
+  position: relative;
+  transition: color .2s ease;
+}
+.vapor-tab::before {
+  content: "";
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  height: 3px;
+  width: 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #a78bfa, #67e8f9);
+  transform: translateX(-50%);
+  transition: width .24s cubic-bezier(.2,.8,.2,1);
+}
+.vapor-tab-active::before { width: 26px; }
+.vapor-tab-active { color: #c7d2fe; }
+
+/* ---------- Entrance stagger for page content ---------- */
+@keyframes vapor-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.vapor-rise { animation: vapor-rise .42s cubic-bezier(.2,.8,.2,1) both; }
+.vapor-rise-1 { animation-delay: .04s; }
+.vapor-rise-2 { animation-delay: .09s; }
+.vapor-rise-3 { animation-delay: .14s; }
+
+/* ---------- Respect reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .vapor-drawer, .vapor-scrim, .vapor-rise,
+  .vapor-rise-1, .vapor-rise-2, .vapor-rise-3 {
+    animation: none !important;
+  }
+  .vapor-card:hover { transform: none; }
+  .vapor-glow-btn::after { display: none; }
+  .vapor-nav-item, .vapor-nav-item::after, .vapor-nav-icon, .vapor-tab::before {
+    transition: none !important;
+  }
+}
+
+/* ==========================================================================
+   Vapor Chrome - motion layer
+   Pure CSS. No animation library, no extra bundle weight. Everything degrades
+   to "no animation" under prefers-reduced-motion at the bottom of this block.
+   ========================================================================== */
+
+/* ---------- Scroll reveal ----------
+   Elements start hidden and are revealed by the useReveal hook, which adds
+   .is-revealed when the element scrolls into view. */
+.reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity .6s cubic-bezier(.2,.8,.2,1), transform .6s cubic-bezier(.2,.8,.2,1);
+  will-change: opacity, transform;
+}
+.reveal.is-revealed { opacity: 1; transform: none; }
+
+.reveal-left  { transform: translateX(-22px); }
+.reveal-right { transform: translateX(22px); }
+.reveal-zoom  { transform: scale(.94); }
+.reveal-blur  { filter: blur(10px); transition: opacity .6s ease, transform .6s ease, filter .6s ease; }
+.reveal-blur.is-revealed { filter: blur(0); }
+
+/* Stagger children of a revealed container. */
+.stagger > * { transition-delay: 0ms; }
+.stagger.is-revealed > *:nth-child(1) { transition-delay: 0ms; }
+.stagger.is-revealed > *:nth-child(2) { transition-delay: 60ms; }
+.stagger.is-revealed > *:nth-child(3) { transition-delay: 120ms; }
+.stagger.is-revealed > *:nth-child(4) { transition-delay: 180ms; }
+.stagger.is-revealed > *:nth-child(5) { transition-delay: 240ms; }
+.stagger.is-revealed > *:nth-child(6) { transition-delay: 300ms; }
+.stagger.is-revealed > *:nth-child(7) { transition-delay: 360ms; }
+.stagger.is-revealed > *:nth-child(8) { transition-delay: 420ms; }
+
+/* Manual per-item delays for grids the hook does not wrap. */
+.delay-1 { animation-delay: .06s; transition-delay: .06s; }
+.delay-2 { animation-delay: .12s; transition-delay: .12s; }
+.delay-3 { animation-delay: .18s; transition-delay: .18s; }
+.delay-4 { animation-delay: .24s; transition-delay: .24s; }
+.delay-5 { animation-delay: .30s; transition-delay: .30s; }
+.delay-6 { animation-delay: .36s; transition-delay: .36s; }
+
+/* ---------- Interactive cards ---------- */
+/* Lifts and brightens its border on hover; pairs with .vapor-card. */
+.hover-lift {
+  transition: transform .3s cubic-bezier(.2,.8,.2,1), box-shadow .3s ease, border-color .3s ease;
+}
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 26px 55px -30px rgba(79,70,229,0.85);
+}
+.hover-lift:active { transform: translateY(-1px) scale(.995); }
+
+/* Slight 3D tilt toward the cursor - driven by --mx/--my set in JS. */
+.tilt {
+  transform: perspective(900px) rotateX(calc((var(--my, .5) - .5) * -6deg)) rotateY(calc((var(--mx, .5) - .5) * 6deg));
+  transition: transform .25s cubic-bezier(.2,.8,.2,1);
+  transform-style: preserve-3d;
+}
+
+/* Cursor-following spotlight on dark cards. */
+.spotlight { position: relative; overflow: hidden; }
+.spotlight::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(320px circle at calc(var(--mx, .5) * 100%) calc(var(--my, .5) * 100%), rgba(129,140,248,0.16), transparent 65%);
+  opacity: 0;
+  transition: opacity .35s ease;
+  pointer-events: none;
+}
+.spotlight:hover::before { opacity: 1; }
+
+/* Icon nudges when its card is hovered. */
+.group:hover .icon-pop { transform: scale(1.12) rotate(-4deg); }
+.icon-pop { transition: transform .28s cubic-bezier(.2,.8,.2,1); }
+
+/* Arrow slides right on hover - for "view all" style links. */
+.group:hover .arrow-slide { transform: translateX(4px); }
+.arrow-slide { transition: transform .25s cubic-bezier(.2,.8,.2,1); }
+
+/* Underline that wipes in from the left. */
+.link-underline { position: relative; }
+.link-underline::after {
+  content: "";
+  position: absolute;
+  left: 0; bottom: -2px;
+  height: 1.5px; width: 0;
+  background: linear-gradient(90deg, #a78bfa, #67e8f9);
+  transition: width .28s cubic-bezier(.2,.8,.2,1);
+}
+.link-underline:hover::after { width: 100%; }
+
+/* ---------- Attention / status ---------- */
+@keyframes vapor-breathe {
+  0%, 100% { opacity: .55; transform: scale(1); }
+  50%      { opacity: 1;   transform: scale(1.06); }
+}
+.breathe { animation: vapor-breathe 2.6s ease-in-out infinite; }
+
+@keyframes vapor-ping-ring {
+  0%   { transform: scale(.8); opacity: .8; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+.status-dot { position: relative; display: inline-block; }
+.status-dot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: inherit;
+  animation: vapor-ping-ring 1.8s cubic-bezier(0,0,.2,1) infinite;
+}
+
+@keyframes vapor-float-y {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-7px); }
+}
+.float-y { animation: vapor-float-y 5s ease-in-out infinite; }
+
+/* Number counting up uses JS; this just softens each tick. */
+.tick-num { transition: color .2s ease; font-variant-numeric: tabular-nums; }
+
+/* ---------- Loading ---------- */
+@keyframes vapor-skeleton {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.10) 37%, rgba(255,255,255,0.04) 63%);
+  background-size: 200% 100%;
+  animation: vapor-skeleton 1.5s ease-in-out infinite;
+  border-radius: 10px;
+}
+
+@keyframes vapor-bar-slide {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}
+.indeterminate-bar { position: relative; overflow: hidden; }
+.indeterminate-bar::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  width: 25%;
+  background: linear-gradient(90deg, transparent, #a78bfa, #67e8f9, transparent);
+  animation: vapor-bar-slide 1.3s ease-in-out infinite;
+}
+
+@keyframes vapor-dots {
+  0%, 80%, 100% { opacity: .25; transform: translateY(0); }
+  40%           { opacity: 1;   transform: translateY(-3px); }
+}
+.typing-dot { animation: vapor-dots 1.3s ease-in-out infinite; }
+.typing-dot:nth-child(2) { animation-delay: .18s; }
+.typing-dot:nth-child(3) { animation-delay: .36s; }
+
+/* ---------- Feedback ---------- */
+@keyframes vapor-success-pop {
+  0%   { transform: scale(.5); opacity: 0; }
+  55%  { transform: scale(1.18); opacity: 1; }
+  100% { transform: scale(1); }
+}
+.success-pop { animation: vapor-success-pop .45s cubic-bezier(.2,.8,.2,1) both; }
+
+@keyframes vapor-shake {
+  0%, 100%    { transform: translateX(0); }
+  20%, 60%    { transform: translateX(-5px); }
+  40%, 80%    { transform: translateX(5px); }
+}
+.shake { animation: vapor-shake .4s ease-in-out; }
+
+@keyframes vapor-toast-in {
+  from { opacity: 0; transform: translateY(14px) scale(.97); }
+  to   { opacity: 1; transform: none; }
+}
+.toast-in { animation: vapor-toast-in .3s cubic-bezier(.2,.8,.2,1) both; }
+
+/* ---------- Ambient background ---------- */
+@keyframes vapor-orb-drift {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  33%      { transform: translate3d(3%, -4%, 0) scale(1.07); }
+  66%      { transform: translate3d(-3%, 3%, 0) scale(.95); }
+}
+.orb-drift { animation: vapor-orb-drift 22s ease-in-out infinite; }
+.orb-drift-slow { animation: vapor-orb-drift 34s ease-in-out infinite reverse; }
+
+@keyframes vapor-gradient-pan {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+.gradient-pan {
+  background-size: 220% 220%;
+  animation: vapor-gradient-pan 9s ease infinite;
+}
+
+/* Animated gradient text - for hero words only, it is expensive. */
+.text-shine {
+  background: linear-gradient(100deg, #ffffff, #c7d2fe 30%, #67e8f9 55%, #ffffff 80%);
+  background-size: 220% auto;
+  -webkit-background-clip: text;
+          background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  animation: vapor-gradient-pan 6s linear infinite;
+}
+
+/* ---------- Reduced motion: turn all of it off ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .reveal, .reveal-left, .reveal-right, .reveal-zoom, .reveal-blur {
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+    transition: none !important;
+  }
+  .stagger.is-revealed > * { transition-delay: 0ms !important; }
+  .hover-lift:hover, .hover-lift:active { transform: none; }
+  .tilt { transform: none !important; transition: none !important; }
+  .spotlight::before { display: none; }
+  .icon-pop, .arrow-slide, .link-underline::after { transition: none !important; }
+  .group:hover .icon-pop, .group:hover .arrow-slide { transform: none; }
+  .breathe, .float-y, .orb-drift, .orb-drift-slow, .gradient-pan, .text-shine,
+  .status-dot::after, .typing-dot, .success-pop, .shake, .toast-in,
+  .skeleton, .indeterminate-bar::after {
+    animation: none !important;
+  }
+  .text-shine { -webkit-text-fill-color: #e0e7ff; color: #e0e7ff; }
+}

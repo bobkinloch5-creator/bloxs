@@ -108,7 +108,9 @@ export function pickModelForTask(task: AutoTask, difficulty: Difficulty = "norma
     }
   }
   if (!chosen) {
-    chosen = MODELS.find((m) => m.id === DEFAULT_MODEL_ID) ?? MODELS[0];
+    chosen = MODELS.find((m) => m.id === DEFAULT_MODEL_ID && isSelectable(m))
+      ?? MODELS.find((m) => isSelectable(m))
+      ?? MODELS[0];
     fellBack = true;
   } else {
     fellBack = chosen.id !== ids[0];

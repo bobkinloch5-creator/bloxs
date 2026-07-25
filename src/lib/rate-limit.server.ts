@@ -94,6 +94,34 @@ function humanizeWait(ms: number) {
 }
 
 /**
+ * Error thrown when a caller is over the limit. Carries the reset time so the
+ * client can render a live countdown.
+ *
+ * Server function errors only survive serialization as a message string, so the
+ * same values are also appended as a compact marker that the client parses with
+ * `parseRateLimitError` in `rate-limit-client.ts`. Keep the two in sync.
+ */
+export class RateLimitError extends Error {
+  readonly bucket: RateLimitBucket;
+  readonly limit: number;
+  readonly retryAfterMs: number;
+  readonly resetAt: number;
+
+  constructor(bucket: RateLimitBucket, result: RateLimitResult) {
+    super(
+      `You are going a bit fast - that is ${result.limit} requests in a row. ` +
+        `Try again in ${humanizeWait(result.retryAfterMs)}. ` +
+        `[[rl:${bucket}:${result.resetAt}:${result.limit}]]`,
+    );
+    this.name = "RateLimitError";
+    this.bucket = bucket;
+    this.limit = result.limit;
+    this.retryAfterMs = result.retryAfterMs;
+    this.resetAt = result.resetAt;
+  }
+}
+
+/**
  * Enforce a limit inside a server function handler. Throws a user-facing error
  * when the caller is over the limit.
  *
@@ -105,11 +133,7 @@ export function enforceRateLimit(
   override?: Partial<RateLimitRule>,
 ): RateLimitResult {
   const result = checkRateLimit(userId, bucket, override);
-  if (!result.allowed) {
-    throw new Error(
-      `You are going a bit fast - that is ${result.limit} requests in a row. Try again in ${humanizeWait(result.retryAfterMs)}.`,
-    );
-  }
+  if (!result.allowed) throw new RateLimitError(bucket, result);
   return result;
 }
 

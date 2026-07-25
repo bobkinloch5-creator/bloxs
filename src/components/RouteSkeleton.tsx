@@ -5,7 +5,7 @@
 // layout makes the wait feel far shorter and stops the page from jumping.
 
 function Shimmer({ className = "" }: { className?: string }) {
-  return <div className={`animate-pulse rounded-lg bg-white/[0.06] ${className}`} />;
+  return <div className={`skeleton ${className}`} />;
 }
 
 export function RouteSkeleton({

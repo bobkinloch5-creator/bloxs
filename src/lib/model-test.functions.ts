@@ -130,7 +130,11 @@ export const testModel = createServerFn({ method: "POST" })
         ...(extraBody ? { providerOptions: { nvidia: extraBody as Record<string, never> } as never } : {}),
         ...(modelSettings?.temperature !== undefined ? { temperature: modelSettings.temperature } : {}),
         ...(modelSettings?.topP !== undefined ? { topP: modelSettings.topP } : {}),
-        maxOutputTokens: Math.min(modelSettings?.maxOutputTokens ?? 1600, 1600),
+        // The harness asks for 5-8 actions plus a ScreenGui and two scripts.
+        // At 1600 tokens most models were truncated mid-JSON and then graded
+        // "Not Working" for a missing action block - a harness bug, not a
+        // model failure. Give the test the room the task actually needs.
+        maxOutputTokens: Math.min(modelSettings?.maxOutputTokens ?? 6000, 6000),
       });
       const durationMs = Date.now() - started;
       const text = (result.text ?? "").trim();
@@ -151,10 +155,14 @@ export const testModel = createServerFn({ method: "POST" })
           : validation.issues.join("; "),
       };
     } catch (e) {
+      const message = e instanceof Error ? e.message : "Unknown error";
+      const notConfigured = /is not configured/i.test(message);
       return {
         ok: false,
         modelId: data.modelId,
-        error: e instanceof Error ? e.message : "Unknown error",
+        // A missing API key is an environment problem. Reporting it as
+        // "Not Working" made every model on that gateway look broken.
+        error: notConfigured ? `${message} (gateway key missing - not a model fault)` : message,
         durationMs: Date.now() - started,
         healthStatus: "Not Working" as ModelHealthStatus,
         score: 0,

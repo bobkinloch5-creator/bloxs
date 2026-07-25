@@ -27,6 +27,7 @@ import { ChangelogNotifications } from "@/components/ChangelogNotifications";
 import { ProjectMenu } from "@/components/ProjectMenu";
 import { WorkspaceChat } from "@/components/WorkspaceChat";
 import { NewProjectModal } from "@/components/NewProjectModal";
+import { Reveal, GlowCard, CountUp } from "@/components/Reveal";
 import { ProjectMemoryCard } from "@/components/ProjectMemoryCard";
 import { OnboardingChallenges } from "@/components/OnboardingChallenges";
 import { AiPlaytestCard } from "@/components/AiPlaytestCard";
@@ -256,38 +257,30 @@ function Dashboard() {
           <main className="mx-auto w-full max-w-[1240px] space-y-6 px-3 pb-28 pt-5 sm:space-y-8 sm:px-8 sm:pb-8 sm:pt-8">
             {/* Active project banner — always visible when a project is open */}
             {activeProject && (
-              <section className="relative overflow-hidden rounded-2xl border border-indigo-500/30 bg-gradient-to-r from-indigo-950/40 via-purple-950/20 to-slate-950/60 p-4 backdrop-blur-xl shadow-[0_10px_40px_-15px_rgba(99,102,241,0.25)] sm:p-5 transition-all">
-                <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-indigo-500/10 blur-3xl pointer-events-none" />
-                <div className="flex flex-wrap items-center gap-4 relative z-10">
-                  <div className="h-14 w-14 shrink-0 overflow-hidden rounded-2xl border border-indigo-400/30 bg-indigo-500/10 shadow-md">
+              <section className="rounded-2xl border border-indigo-400/30 bg-gradient-to-r from-indigo-500/15 via-white/[0.03] to-fuchsia-500/10 p-4 sm:p-5">
+                <div className="flex flex-wrap items-center gap-4">
+                  <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-white/5">
                     <img
                       src={activeProject.thumbnail_url ?? THUMBS[activeProject.game_type ?? "custom"] ?? THUMBS.custom}
                       alt=""
-                      className="h-full w-full object-cover transition-transform duration-300 hover:scale-105"
+                      className="h-full w-full object-cover"
                     />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="inline-flex items-center gap-1 rounded-full border border-indigo-400/30 bg-indigo-500/15 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-widest text-indigo-300">
-                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                        Active Project
-                      </span>
-                    </div>
-                    <div className="mt-1 flex items-center gap-2 truncate text-xl font-extrabold text-white">
+                    <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-indigo-300">📁 Active Project</div>
+                    <div className="mt-0.5 flex items-center gap-2 truncate text-lg font-bold text-white">
                       {activeProject.pinned_at && <span title="Pinned">📌</span>}
                       {activeProject.is_favorite && <span title="Favorite" className="text-amber-300">★</span>}
-                      <span className="truncate tracking-tight">{activeProject.name}</span>
+                      <span className="truncate">{activeProject.name}</span>
                     </div>
-                    <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-300">
-                      <span className="uppercase font-semibold tracking-wider text-indigo-200">{activeProject.game_type ?? "custom"}</span>
-                      <span className="text-slate-600">•</span>
-                      <span className="font-medium text-slate-300">{activeProject.build_count ?? 0} builds</span>
-                      <span className="text-slate-600">•</span>
-                      <span className="text-slate-400">Updated {timeAgo(activeProject.updated_at)}</span>
-                      <span className="text-slate-600">•</span>
-                      <span className="inline-flex items-center gap-1 font-bold text-emerald-400">
-                        <span className="text-[10px]">✨</span> Workspace ready
-                      </span>
+                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-400">
+                      <span className="uppercase tracking-widest">{activeProject.game_type ?? "custom"}</span>
+                      <span>•</span>
+                      <span>{activeProject.build_count ?? 0} builds</span>
+                      <span>•</span>
+                      <span>Updated {timeAgo(activeProject.updated_at)}</span>
+                      <span>•</span>
+                      <span className="text-emerald-300">Chat, builds & assets restored</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -298,7 +291,7 @@ function Dashboard() {
                         setActiveProjectId(null);
                         try { window.dispatchEvent(new Event("bs:active-project-changed")); } catch {}
                       }}
-                      className="rounded-xl border border-white/15 bg-white/[0.05] px-4 py-2 text-xs font-bold text-slate-200 shadow-sm transition-all hover:bg-white/10 hover:border-white/30 hover:text-white active:scale-[0.98]"
+                      className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-white/[0.06]"
                     >
                       Switch project
                     </button>
@@ -356,21 +349,21 @@ function Dashboard() {
             {/* Quick Actions */}
             <section>
               <SectionHead title="Quick Actions" to="/models" />
-              <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+              <Reveal stagger className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
                 {QUICK_ACTIONS.map((a) => (
                   <Link
                     key={a.key}
                     to={a.to as any}
-                    className="group flex flex-col rounded-2xl border border-white/8 bg-white/[0.02] p-4 transition hover:-translate-y-0.5 hover:border-indigo-400/30 hover:bg-white/[0.04]"
+                    className="group spotlight hover-lift flex flex-col rounded-2xl border border-white/8 bg-white/[0.02] p-4 hover:border-indigo-400/30 hover:bg-white/[0.04]"
                   >
-                    <span className="grid h-9 w-9 place-items-center rounded-xl bg-indigo-500/10 text-indigo-300 group-hover:bg-indigo-500/20">
+                    <span className="icon-pop grid h-9 w-9 place-items-center rounded-xl bg-indigo-500/10 text-indigo-300 transition-colors group-hover:bg-indigo-500/20">
                       <a.icon className="h-4 w-4" />
                     </span>
                     <div className="mt-3 text-sm font-bold text-slate-100">{a.label}</div>
                     <div className="mt-0.5 text-[11px] leading-relaxed text-slate-400">{a.desc}</div>
                   </Link>
                 ))}
-              </div>
+              </Reveal>
             </section>
 
 
@@ -382,7 +375,17 @@ function Dashboard() {
                 <SectionHead title="Recent Projects" to="/projects" />
                 <div className="mt-3 rounded-2xl border border-white/8 bg-white/[0.02] p-2">
                   {isLoading ? (
-                    <div className="grid h-40 place-items-center"><Loader2 className="h-5 w-5 animate-spin text-slate-500" /></div>
+                    <div className="space-y-2 p-2">
+                      {Array.from({ length: 4 }).map((_, i) => (
+                        <div key={i} className="flex items-center gap-3">
+                          <div className="skeleton h-11 w-11 shrink-0" />
+                          <div className="min-w-0 flex-1 space-y-1.5">
+                            <div className="skeleton h-3.5 w-1/2" />
+                            <div className="skeleton h-3 w-1/3" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   ) : recentProjects.length === 0 ? (
                     <div className="p-6 text-center text-sm text-slate-400">
                       No projects yet. Describe a game above to create your first one.
@@ -390,7 +393,7 @@ function Dashboard() {
                   ) : (
                     <ul className="divide-y divide-white/5">
                       {recentProjects.map((p) => (
-                        <li key={p.id} className="flex items-center gap-3 p-2.5">
+                        <li key={p.id} className="group flex items-center gap-3 rounded-xl p-2.5 transition-colors hover:bg-white/[0.03]">
                           <div className="h-11 w-11 shrink-0 overflow-hidden rounded-lg bg-white/5">
                             <img
                               src={p.thumbnail_url ?? THUMBS[p.game_type ?? "custom"] ?? THUMBS.custom}
