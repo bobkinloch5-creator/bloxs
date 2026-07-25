@@ -137,8 +137,16 @@ function StatusPage() {
           </ul>
         </div>
 
-        <p className="mt-6 text-center text-[11px] text-slate-500">
-          Auto-refreshes every 30 seconds. Report issues in the BloxSmith Discord.
+        <p className="mt-6 text-center text-xs font-semibold text-slate-400">
+          Auto-refreshes every 30 seconds. Need help? Join our{" "}
+          <a
+            href="https://discord.gg/YJ8xPFNSSX"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-cyan-300 underline underline-offset-4 hover:text-cyan-200"
+          >
+            BloxSmith Discord
+          </a>.
         </p>
       </div>
     </div>
