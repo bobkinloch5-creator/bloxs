@@ -12,7 +12,7 @@ import {
 } from "@/lib/admin.functions";
 import {
   getDashboardMetrics, listAllProjects, deleteProjectAsAdmin, renameProjectAsAdmin,
-  listPluginSessions, disconnectPluginSession, listStudioErrors, deleteStudioError,
+  listPluginSessions, disconnectPluginSession, listStudioErrors, deleteStudioError, clearAllStudioErrors,
   getPromptAnalytics, listBroadcasts, createBroadcast, setBroadcastActive,
   listAuditLogs, getGlobalSettings, updateGlobalSetting,
   grantUnlimitedCredits, resetActionQueue,
@@ -657,16 +657,42 @@ function ErrorsTab() {
   const qc = useQueryClient();
   const fn = useServerFn(listStudioErrors);
   const del = useServerFn(deleteStudioError);
+  const clearAllFn = useServerFn(clearAllStudioErrors);
   const { data, isLoading } = useQuery({ queryKey: ["adminErrors"], queryFn: () => fn({ data: { limit: 200 } }) });
   const delM = useMutation({
     mutationFn: (id: string) => del({ data: { id } }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["adminErrors"] }); toast.success("Deleted"); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["adminErrors"] }); qc.invalidateQueries({ queryKey: ["adminDashboardMetrics"] }); toast.success("Deleted"); },
+  });
+  const clearAllM = useMutation({
+    mutationFn: () => clearAllFn(),
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ["adminErrors"] });
+      qc.invalidateQueries({ queryKey: ["adminDashboardMetrics"] });
+      toast.success(`Cleared ${res.clearedCount} studio error records!`);
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Failed to clear errors"),
   });
 
   return (
     <>
       <Card>
-        <SectionTitle icon={AlertOctagon} title={`Studio errors${data?.studio ? ` · ${data.studio.length}` : ""}`} tint="rose" />
+        <SectionTitle
+          icon={AlertOctagon}
+          title={`Studio errors${data?.studio ? ` · ${data.studio.length}` : ""}`}
+          tint="rose"
+          right={
+            (data?.studio ?? []).length > 0 && (
+              <button
+                onClick={() => confirm("Are you sure you want to clear all error records?") && clearAllM.mutate()}
+                disabled={clearAllM.isPending}
+                className="flex items-center gap-1.5 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 text-xs font-bold text-rose-300 hover:bg-rose-500/20 transition-colors disabled:opacity-50"
+              >
+                {clearAllM.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                <span>Clear All Errors</span>
+              </button>
+            )
+          }
+        />
         {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> :
           (data?.studio ?? []).length === 0 ? <EmptyRow label="No studio errors 🎉" /> :
             <ul className="space-y-2">

@@ -4,6 +4,14 @@ All notable changes to BloxSmith are tracked here. Dates are UTC.
 
 ## [Unreleased]
 
+### 2026-07-25 - Error Ingestion Deduplication & Admin Log Purging
+
+**Studio Error Rate-Limiting & Purging (`src/routes/api/public/plugin/error.ts`, `src/lib/admin-control.functions.ts`, `src/routes/_authenticated/admin.tsx`)**
+- Fixed issue causing `ERRORS 24H` metric in Admin Control Center to inflate into thousands:
+  - Added **Error Deduplication**: `/api/public/plugin/error` now checks for duplicate messages over a 60-second window to prevent repeating log loops from spamming the database.
+  - Filtered out non-critical `info` log messages so only actionable `error` and `warn` levels enter `studio_errors`.
+- Added **"Clear All Errors"** server function (`clearAllStudioErrors`) and interactive purge button in the Admin Control Center to wipe accumulated error history in 1 click.
+
 ### 2026-07-25 - Drag & Drop Reparenting & Live Luau Code Editor
 
 **Drag & Drop Hierarchy Management & Live Studio Code Sync (`src/components/ProjectFilesPanel.tsx`, `src/lib/project-workspace.functions.ts`, `public/BloxSmithPlugin.lua`)**

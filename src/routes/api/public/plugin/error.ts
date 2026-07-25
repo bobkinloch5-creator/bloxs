@@ -47,20 +47,38 @@ export const Route = createFileRoute("/api/public/plugin/error")({
           const { data: profile } = await sb.from("profiles").select("id").eq("plugin_token", token).maybeSingle();
           if (!profile) return json({ error: "invalid token" }, 401);
 
-          const errors = (body.errors ?? []).slice(0, 25).filter((e) => e && typeof e.message === "string");
+          // Filter out info logs — only ingest actual errors or warnings
+          const errors = (body.errors ?? [])
+            .slice(0, 10)
+            .filter((e) => e && typeof e.message === "string" && e.level !== "info");
           if (errors.length === 0) return json({ ok: true, inserted: 0 });
 
-          const rows = errors.map((e) => ({
+          // Deduplicate: check recent errors from the last 60 seconds to avoid repeating identical error messages
+          const sixtySecAgo = new Date(Date.now() - 60_000).toISOString();
+          const { data: recentErrs } = await sb
+            .from("studio_errors")
+            .select("message")
+            .eq("user_id", profile.id)
+            .gte("created_at", sixtySecAgo)
+            .limit(50);
+          
+          const recentMsgSet = new Set((recentErrs ?? []).map((r) => r.message));
+
+          const uniqueErrors = errors.filter((e) => !recentMsgSet.has(e.message.slice(0, 4000)));
+          if (uniqueErrors.length === 0) return json({ ok: true, inserted: 0, deduplicated: true });
+
+          const rows = uniqueErrors.map((e) => ({
             user_id: profile.id,
             project_id: body.project_id ?? null,
             action_id: e.action_id ?? null,
             source: (e.source ?? "Output").slice(0, 200),
-            level: e.level === "warn" || e.level === "info" ? e.level : "error",
+            level: e.level === "warn" ? "warn" : "error",
             message: e.message.slice(0, 4000),
             stack: e.stack ? e.stack.slice(0, 4000) : null,
           }));
           const { error } = await sb.from("studio_errors").insert(rows);
           if (error) return json({ error: error.message }, 500);
+
 
           // ── SELF-HEALING LOOP ──
           // If any real error came in for a known project, auto-enqueue an

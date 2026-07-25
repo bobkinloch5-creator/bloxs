@@ -244,6 +244,21 @@ export const deleteStudioError = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const clearAllStudioErrors = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabaseAdmin } = await requireAdmin(context);
+    // Delete all studio_errors table rows
+    const { error, count } = await supabaseAdmin
+      .from("studio_errors")
+      .delete({ count: "exact" })
+      .neq("id", "00000000-0000-0000-0000-000000000000"); // deletes all rows
+    if (error) throw new Error(error.message);
+    await audit(context, supabaseAdmin, { action: "error.clear_all", metadata: { clearedCount: count ?? 0 } });
+    return { clearedCount: count ?? 0 };
+  });
+
+
 // ---------- Prompt analytics ------------------------------------------------
 
 export const getPromptAnalytics = createServerFn({ method: "GET" })
