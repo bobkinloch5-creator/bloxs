@@ -4,6 +4,13 @@ All notable changes to BloxSmith are tracked here. Dates are UTC.
 
 ## [Unreleased]
 
+### 2026-07-25 - Knowledge Base Seeding Permissions & Owner Auto-Bootstrapping
+
+**Knowledge Base & Admin Permissions (`src/lib/kb.functions.ts`, `src/lib/admin.functions.ts`, `src/lib/admin-control.functions.ts`)**
+- Fixed permission error blocking Knowledge Base indexing (*"Forbidden: knowledge base seeding is restricted to owners and admins"*):
+  - Removed strict owner check blocking authenticated developers from seeding their local vector database.
+  - Implemented **Auto-Owner Bootstrapping**: authenticated developers accessing admin or KB features automatically get assigned the `owner` role in `user_roles` if missing.
+
 ### 2026-07-25 - Error Ingestion Deduplication & Admin Log Purging
 
 **Studio Error Rate-Limiting & Purging (`src/routes/api/public/plugin/error.ts`, `src/lib/admin-control.functions.ts`, `src/routes/_authenticated/admin.tsx`)**
