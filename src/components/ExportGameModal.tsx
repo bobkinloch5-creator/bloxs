@@ -96,14 +96,11 @@ export function ExportGameModal({ projectId, projectName, onClose }: Props) {
     }
   };
 
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
-
-  if (!mounted) return null;
+  if (typeof window === "undefined") return null;
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[99999] flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-in fade-in duration-200"
+      className="fixed inset-0 z-[99999] flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4"
       onClick={onClose}
     >
       <div
@@ -120,7 +117,7 @@ export function ExportGameModal({ projectId, projectName, onClose }: Props) {
               <p className="text-xs text-slate-400">Export "{projectName}" to Roblox Studio, roblox-ts, or standalone Luau</p>
             </div>
           </div>
-          <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-white/10 hover:text-white transition">
+          <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-white/10 hover:text-white transition">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -177,6 +174,7 @@ export function ExportGameModal({ projectId, projectName, onClose }: Props) {
         {/* Actions */}
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-4">
           <button
+            type="button"
             onClick={copyInstallerToClipboard}
             disabled={exporting}
             className="rounded-xl border border-indigo-400/30 bg-indigo-500/10 hover:bg-indigo-500/20 px-4 py-2.5 text-xs font-semibold text-indigo-200 flex items-center gap-2 transition"
@@ -187,6 +185,7 @@ export function ExportGameModal({ projectId, projectName, onClose }: Props) {
 
           <div className="flex items-center gap-2 ml-auto">
             <button
+              type="button"
               onClick={onClose}
               className="rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 px-4 py-2.5 text-xs font-semibold text-slate-300"
             >
@@ -194,6 +193,7 @@ export function ExportGameModal({ projectId, projectName, onClose }: Props) {
             </button>
 
             <button
+              type="button"
               onClick={handleExport}
               disabled={exporting}
               className="rounded-xl bg-gradient-to-r from-violet-600 via-pink-600 to-cyan-500 hover:from-violet-500 hover:to-cyan-400 text-white px-5 py-2.5 text-xs font-bold flex items-center gap-2 shadow-lg shadow-pink-500/20 disabled:opacity-50 transition"
