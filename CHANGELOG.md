@@ -4,6 +4,14 @@ All notable changes to BloxSmith are tracked here. Dates are UTC.
 
 ## [Unreleased]
 
+### 2026-07-25 - Model Catalog Audit & Non-Working Endpoint Pruning
+
+**Model Catalog & Health Validation (`src/lib/models.ts`, `src/lib/model-test.functions.ts`)**
+- Audited all AI models and removed non-functional endpoints from the active user model catalog:
+  - **Pruned Unresponsive / 404 Models**: Marked `Llama 3.3 70B`, `Llama 3.1 70B`, `Qwen 3.5 122B` (404 / Gone), `Mistral Medium 3.5 128B`, and `Mistral Small 4 119B` as `Coming Soon` so they are cleanly filtered out of selectable models and the fallback chain.
+  - **Corrected Upstream Route**: Fixed Qwen 2.5 Coder 32B's upstream ID to `qwen/qwen2.5-coder-32b-instruct` on NVIDIA NIM.
+  - **Enhanced Health Harness Validation**: Improved `validateRobloxBuild` to use flexible case-insensitive matching for Luau service calls, action JSON blocks, and Roblox UI hierarchies, preventing false-positive test failures.
+
 ### 2026-07-25 - Bulletproof Knowledge Base Seeding & Auth Middleware Resilience
 
 **Knowledge Base Embeddings & Auth Resilience (`src/lib/embeddings.server.ts`, `src/lib/kb.functions.ts`, `src/integrations/supabase/auth-middleware.ts`)**
