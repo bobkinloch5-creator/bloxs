@@ -282,16 +282,16 @@ function deterministicImprove(input: string): string {
   if (!/[.!?)]$/.test(cleaned)) cleaned += ".";
   const lower = cleaned.toLowerCase();
 
-  const isScriptRequest = /\b(script|scripts|luau|code|localscript|modulescript|fly|fly script|double jump|sprint|dash|teleport|leaderstats|datastore|gui script|combat script)\b/i.test(lower);
+  const isScriptOrUIRequest = /\b(script|scripts|luau|code|localscript|modulescript|fly|fly script|double jump|sprint|dash|teleport|leaderstats|datastore|gui|ui|menu|main menu|loading screen|splash screen|button|buttons|hud|shop ui|inventory ui)\b/i.test(lower);
   const isNarrow = NARROW_VERBS.test(lower) && NARROW_NOUNS.test(lower) && !BIG_MARKERS.test(lower);
   if (!isNarrow) {
     const genre = detectGenre(lower);
     if (genre) return GENRE_EXPANSIONS[genre];
   }
 
-  if (isScriptRequest) {
-    if (!/clean|luau|script|no extras/i.test(cleaned)) {
-      cleaned = `${cleaned.replace(/[.!?]$/, "")} — clean working Luau script with proper keybind handling, no extra models.`;
+  if (isScriptOrUIRequest) {
+    if (!/clean|luau|script|ui|no extras/i.test(cleaned)) {
+      cleaned = `${cleaned.replace(/[.!?]$/, "")} — clean working Luau code & responsive UI layout with proper animations, no extra 3D models.`;
     }
   } else if (isNarrow && !/toolbox|creator store|safe|free|public|no extras|just this/i.test(cleaned)) {
     cleaned = `${cleaned.replace(/[.!?]$/, "")} — just this requested item, no extras.`;
