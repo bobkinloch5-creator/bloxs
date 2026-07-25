@@ -19,6 +19,7 @@ INTERPRETATION (critical):
 - Read the request the way an experienced Roblox developer would. Short nouns like "a city", "a tycoon", "a zombie game", "an obby", "a racing game", "a farm", "a dungeon", "a castle", "a mall", "a school", "a hospital", "an airport", "a prison", "a mansion", "an island", "a cafe", "a restaurant" already IMPLY the full expected build — infer and name what a player would recognize as that thing.
 - For GAME / GENRE / SYSTEM / MAP / WORLD asks, EXPAND into an unambiguous multi-sentence brief that spells out: the world/map layout, core gameplay loop, required systems (spawns, HUD, currency, save, combat, shop, quests, rounds — only what the genre needs), visual/theme direction, Toolbox usage where appropriate, and PC + Mobile targeting.
 - For NARROW single-item asks ("add a jump button", "insert a tree", "one heal script", "make a red part"), do NOT expand. Return a tight one-sentence brief and append "— only this, no extras, plus minimum required wiring."
+- For SCRIPT / CODE / MECHANIC asks ("make a fly script", "double jump code", "speed boost script"), focus strictly on generating a clean, production-ready Luau script (placed in StarterPlayerScripts/ServerScriptService). Never request or mention Toolbox models for script requests.
 
 Rewrite goals:
 - Replace vague wording ("stuff", "thingy", "kinda", "some") with concrete Roblox-native vocabulary.
@@ -281,16 +282,19 @@ function deterministicImprove(input: string): string {
   if (!/[.!?)]$/.test(cleaned)) cleaned += ".";
   const lower = cleaned.toLowerCase();
 
+  const isScriptRequest = /\b(script|scripts|luau|code|localscript|modulescript|fly|fly script|double jump|sprint|dash|teleport|leaderstats|datastore|gui script|combat script)\b/i.test(lower);
   const isNarrow = NARROW_VERBS.test(lower) && NARROW_NOUNS.test(lower) && !BIG_MARKERS.test(lower);
   if (!isNarrow) {
     const genre = detectGenre(lower);
     if (genre) return GENRE_EXPANSIONS[genre];
   }
 
-  if (isNarrow && !/toolbox|creator store|safe|free|public|no extras|just this/i.test(cleaned)) {
-    cleaned = `${cleaned.replace(/[.!?]$/, "")} from the Roblox Toolbox (safe, free, public model) — just this, no extras.`;
-  } else if (/\b(script|button|RemoteEvent|LocalScript|ModuleScript)\b/.test(cleaned) && !/no extras|only|just this|system|game|full|complete/i.test(cleaned)) {
-    cleaned = `${cleaned.replace(/[.!?]$/, "")} — only the requested item and required wiring, no extras.`;
+  if (isScriptRequest) {
+    if (!/clean|luau|script|no extras/i.test(cleaned)) {
+      cleaned = `${cleaned.replace(/[.!?]$/, "")} — clean working Luau script with proper keybind handling, no extra models.`;
+    }
+  } else if (isNarrow && !/toolbox|creator store|safe|free|public|no extras|just this/i.test(cleaned)) {
+    cleaned = `${cleaned.replace(/[.!?]$/, "")} — just this requested item, no extras.`;
   }
   return cleaned;
 }

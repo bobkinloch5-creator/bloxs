@@ -366,22 +366,6 @@ for i, pos in ipairs({ Vector3.new(-28, 2, -28), Vector3.new(28, 2, -28), Vector
   spawn.Parent = root
 end
 
-local sign = part("BloxSmith_Execution_Confirmed", Vector3.new(44, 18, 1), Vector3.new(0, 12, -54), Color3.fromRGB(23, 26, 38), Enum.Material.Metal)
-local gui = Instance.new("SurfaceGui")
-gui.Face = Enum.NormalId.Front
-gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-gui.PixelsPerStud = 24
-gui.Parent = sign
-local label = Instance.new("TextLabel")
-label.BackgroundTransparency = 1
-label.Size = UDim2.fromScale(1, 1)
-label.Font = Enum.Font.GothamBold
-label.TextScaled = true
-label.TextWrapped = true
-label.TextColor3 = Color3.fromRGB(245, 248, 255)
-label.Text = "BloxSmith executed this build in Studio. Request: " .. ${JSON.stringify(safePrompt)}
-label.Parent = gui
-
 Lighting.ClockTime = 14
 Lighting.Brightness = 2.2
 Workspace.StreamingEnabled = true
@@ -671,30 +655,6 @@ for i, data in ipairs({{-96,-72,12},{-42,86,8},{54,-58,10},{98,66,7},{8,34,5},{-
   rock.Parent = root
 end
 
-local marker = Instance.new("Part")
-marker.Name = "BloxSmith_Material_Built_Marker"
-marker.Anchored = true
-marker.CanCollide = false
-marker.Size = Vector3.new(26, 9, 1)
-marker.CFrame = CFrame.new(0, 7, -112)
-marker.Material = Enum.Material.Metal
-marker.Color = Color3.fromRGB(28, 34, 46)
-marker.Parent = root
-local gui = Instance.new("SurfaceGui")
-gui.Face = Enum.NormalId.Front
-gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-gui.PixelsPerStud = 24
-gui.Parent = marker
-local label = Instance.new("TextLabel")
-label.BackgroundTransparency = 1
-label.Size = UDim2.fromScale(1, 1)
-label.Font = Enum.Font.GothamBold
-label.TextScaled = true
-label.TextWrapped = true
-label.TextColor3 = Color3.fromRGB(245, 248, 255)
-label.Text = "BloxSmith applied ${label} ground"
-label.Parent = gui
-
 Lighting.ClockTime = math.max(Lighting.ClockTime, 12)
 Lighting.Brightness = math.max(Lighting.Brightness, 2.2)
 root:SetAttribute("BloxSmithRequest", request)
@@ -704,7 +664,7 @@ root:SetAttribute("GroundPartsChanged", changed)
 return {
   instance = root,
   path = root:GetFullName(),
-  created = { root, surface, marker },
+  created = { root, surface },
   visible = true,
   summary = "Applied visible " .. materialName .. " material to ground/baseplate and created a large visible surface"
 }
@@ -2937,22 +2897,6 @@ spawn.Material = Enum.Material.Ice
 spawn.Parent = root
 remember(spawn)
 
-local marker = part(root, "BloxSmith_Snow_Built_Marker", Vector3.new(18, 10, 1), CFrame.new(0, 7, -88), Color3.fromRGB(32, 45, 62), Enum.Material.Metal)
-local gui = Instance.new("SurfaceGui")
-gui.Face = Enum.NormalId.Front
-gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-gui.PixelsPerStud = 24
-gui.Parent = marker
-local label = Instance.new("TextLabel")
-label.BackgroundTransparency = 1
-label.Size = UDim2.fromScale(1, 1)
-label.Font = Enum.Font.GothamBold
-label.TextScaled = true
-label.TextWrapped = true
-label.TextColor3 = Color3.fromRGB(244, 250, 255)
-label.Text = "Snow terrain built"
-label.Parent = gui
-
 pcall(function()
   Lighting.ClockTime = 9.5
   Lighting.Brightness = 2.2
@@ -3808,27 +3752,6 @@ if wants.lighting then
   atmosphere.Color = Color3.fromRGB(205, 225, 255)
   atmosphere.Decay = Color3.fromRGB(110, 130, 160)
   atmosphere.Parent = Lighting
-end
-
-if wants.genericBuild then
-  local receipt = root:FindFirstChild("BloxSmith_Result_Receipt")
-  if not receipt then
-    receipt = part("BloxSmith_Result_Receipt", Vector3.new(34, 12, 1), CFrame.new(0, 9, -34), Color3.fromRGB(28, 32, 46), Enum.Material.Metal, root)
-    local sg = Instance.new("SurfaceGui")
-    sg.Face = Enum.NormalId.Front
-    sg.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-    sg.PixelsPerStud = 24
-    sg.Parent = receipt
-    local label = Instance.new("TextLabel")
-    label.BackgroundTransparency = 1
-    label.Size = UDim2.fromScale(1, 1)
-    label.Font = Enum.Font.GothamBold
-    label.TextScaled = true
-    label.TextWrapped = true
-    label.TextColor3 = Color3.fromRGB(245, 248, 255)
-    label.Text = "BloxSmith build applied visibly in Studio"
-    label.Parent = sg
-  end
 end
 
 root:SetAttribute("LastBloxSmithVisibilityGuard", os.time())
@@ -5543,22 +5466,6 @@ else
     end
   end
 end
-
-local sign = part(map, "Objective_Sign", Vector3.new(58, 18, 1), CFrame.new(0, 13, -124), Color3.fromRGB(24, 29, 42), Enum.Material.Metal)
-local signGui = Instance.new("SurfaceGui")
-signGui.Face = Enum.NormalId.Front
-signGui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-signGui.PixelsPerStud = 24
-signGui.Parent = sign
-local signText = Instance.new("TextLabel")
-signText.BackgroundTransparency = 1
-signText.Size = UDim2.fromScale(1, 1)
-signText.Font = Enum.Font.GothamBold
-signText.TextScaled = true
-signText.TextWrapped = true
-signText.TextColor3 = Color3.fromRGB(245, 248, 255)
-signText.Text = "BloxSmith playable " .. genre .. " build\\n" .. request
-signText.Parent = signGui
 
 local remotes = ReplicatedStorage:FindFirstChild("BloxSmith_Remotes") or Instance.new("Folder")
 remotes.Name = "BloxSmith_Remotes"
