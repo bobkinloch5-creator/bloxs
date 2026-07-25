@@ -4,6 +4,15 @@ All notable changes to BloxSmith are tracked here. Dates are UTC.
 
 ## [Unreleased]
 
+### 2026-07-25 - 3D Engine: Complete migration to NVIDIA Trellis 3D API
+
+**NVIDIA Trellis 3D NIM Migration (`src/lib/trellis3d.functions.ts`, `src/lib/models3d.functions.ts`)**
+- Replaced legacy Meshy.ai backend generation engine with NVIDIA Trellis 3D API (`https://ai.api.nvidia.com/v1/genai/microsoft/trellis`).
+- Full support for Trellis quality control parameters: `slat_cfg_scale`, `ss_cfg_scale`, `slat_sampling_steps`, `ss_sampling_steps`, and deterministic `seed`.
+- Automated text-to-image bridge: when given a text prompt, reference images are synthesized via the image generation pipeline before feeding to Trellis.
+- Solved RPC server function execution error ("Server function info not found") by refactoring generation code into direct `executeTrellis3D` server helper.
+- Updated public model proxy whitelist (`src/routes/api/public/model-proxy.ts`) to allow streaming from NVIDIA (`nvidia.com`, `nvcf.nvidia.com`) hosts for browser `<model-viewer>` rendering.
+
 ### 2026-07-25 - AI pass: throttling, context window, retrieval gate, evals
 
 **Chat rate limiting was failing open on every request.** `chat.ts` imported

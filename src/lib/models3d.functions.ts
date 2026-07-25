@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { enforceRateLimit } from "@/lib/rate-limit.server";
 import { z } from "zod";
-import { generateTrellis3D } from "@/lib/trellis3d.functions";
+import { executeTrellis3D } from "@/lib/trellis3d.functions";
 
 const COOLDOWN_MS = 24 * 60 * 60 * 1000;
 const MESHY_BASE = "https://api.meshy.ai/openapi";
@@ -245,12 +245,9 @@ export const startModelGeneration = createServerFn({ method: "POST" })
     // Call NVIDIA Trellis 3D generator
     let trellisResult;
     try {
-      trellisResult = await generateTrellis3D({
-        data: {
-          prompt: data.mode === "text" ? data.prompt : undefined,
-          imageUrl: data.mode === "image" ? data.imageUrl : undefined,
-        },
-        context,
+      trellisResult = await executeTrellis3D({
+        prompt: data.mode === "text" ? data.prompt : undefined,
+        imageUrl: data.mode === "image" ? data.imageUrl : undefined,
       });
     } catch (e) {
       throw new Error(`NVIDIA Trellis 3D generation failed: ${e instanceof Error ? e.message : String(e)}`);

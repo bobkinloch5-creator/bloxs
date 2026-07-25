@@ -4,9 +4,27 @@ import { checkChangelogCoverage, warnIfIncomplete } from "@/lib/changelog-covera
 import bloxsmithLogo from "@/assets/bloxsmith-logo.png.asset.json";
 
 
-const CHANGELOG_VERSION = "2026-07-08-auto-playtest-v2";
+const CHANGELOG_VERSION = "2026-07-25-nvidia-trellis-3d-overhaul";
 
 const CHANGELOG_ITEMS = [
+  {
+    title: "🧊 NVIDIA Trellis 3D Generator — Ultra-High Quality 3D Engine Migration",
+    date: "Jul 25",
+    icon: Box,
+    body: "Fully migrated 3D model generation from legacy Meshy.ai to the state-of-the-art NVIDIA Trellis 3D NIM API. Features fine-grained control over quality parameters (slat_cfg_scale, ss_cfg_scale, slat_sampling_steps, ss_sampling_steps, seed), automatic reference image generation from text prompts, direct model proxying for CORS-compliant browser <model-viewer> rendering, and direct backend execution for instant generation responses.",
+  },
+  {
+    title: "🧠 BloxSmith Pro AI Engine & Static Luau Analysis Overhaul",
+    date: "Jul 25",
+    icon: Brain,
+    body: "Upgraded AI script generation with token-aware context windowing, IDF-weighted semantic memory recall, retrieval confidence gates, and prompt prefix caching. Built-in Luau static analysis catches unhandled pcall calls, memory leaks, and infinite loops before scripts land in Roblox Studio.",
+  },
+  {
+    title: "⚡ Rate Limit Countdowns & Motion Interface Polish",
+    date: "Jul 25",
+    icon: Zap,
+    body: "Replaced static rate-limit error messages with live MM:SS countdown timers and progress bars across UI and 3D generation. Added subtle scroll-reveal animations, responsive touch-safe drawer navigation, and vaporwave typography themes throughout the workspace.",
+  },
   {
     title: "🔁 Auto-Playtest v2 — every build is verified in Studio and the AI auto-fixes failures (up to 4 retries)",
     date: "Jul 8",

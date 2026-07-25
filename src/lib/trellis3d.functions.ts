@@ -298,6 +298,60 @@ async function callTrellis(
   throw new Error(describeFailure(lastStatus || 500, lastDetail));
 }
 
+export async function executeTrellis3D(params: {
+  prompt?: string;
+  imageUrl?: string;
+  seed?: number;
+  slatCfgScale?: number;
+  ssCfgScale?: number;
+  slatSamplingSteps?: number;
+  ssSamplingSteps?: number;
+}) {
+  const key = nvidiaKey();
+
+  let imageUrl = params.imageUrl;
+  let generatedFromPrompt = false;
+  if (!imageUrl && params.prompt) {
+    imageUrl = await generateGeneralImage({
+      prompt: `${params.prompt}. Single centered subject, plain neutral background, even lighting, full object visible, no text, no watermark.`,
+      size: "1024x1024",
+      kind: "item_icon",
+    });
+    generatedFromPrompt = true;
+  }
+  if (!imageUrl) throw new Error("No reference image was available for Trellis.");
+
+  const image = await loadImage(imageUrl);
+  const result = await callTrellis(image, key, {
+    seed:               params.seed,
+    slatCfgScale:       params.slatCfgScale,
+    ssCfgScale:         params.ssCfgScale,
+    slatSamplingSteps:  params.slatSamplingSteps,
+    ssSamplingSteps:    params.ssSamplingSteps,
+  });
+
+  if (!result.glbUrl && !result.glbBase64) {
+    throw new Error("Trellis finished but returned no GLB data. Try a different reference image.");
+  }
+
+  return {
+    ok: true as const,
+    glbUrl: result.glbUrl,
+    glbBase64: result.glbBase64,
+    mimeType: "model/gltf-binary",
+    sourceImage: generatedFromPrompt ? imageUrl : undefined,
+    inlineUpload: image.bytes.length <= INLINE_LIMIT_BYTES,
+    params: {
+      seed:              params.seed,
+      slatCfgScale:      params.slatCfgScale,
+      ssCfgScale:        params.ssCfgScale,
+      slatSamplingSteps: params.slatSamplingSteps,
+      ssSamplingSteps:   params.ssSamplingSteps,
+    },
+    result: result.raw,
+  };
+}
+
 export const generateTrellis3D = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) =>
@@ -306,8 +360,6 @@ export const generateTrellis3D = createServerFn({ method: "POST" })
         prompt:             z.string().trim().min(2).max(300).optional(),
         imageUrl:           z.string().trim().min(4).optional(),
         seed:               z.number().int().optional(),
-        // Quality controls matching the NVIDIA Trellis API parameters.
-        // Defaults match the API's own defaults when omitted.
         slatCfgScale:       z.number().min(1).max(10).default(3).optional(),
         ssCfgScale:         z.number().min(1).max(20).default(7.5).optional(),
         slatSamplingSteps:  z.number().int().min(1).max(50).default(25).optional(),
@@ -318,51 +370,5 @@ export const generateTrellis3D = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     enforceRateLimit(context.userId, "model_generate");
-
-    const key = nvidiaKey();
-
-    // Trellis has no text input. When only a prompt is given, render a reference
-    // image first, then run image-to-3D on it.
-    let imageUrl = data.imageUrl;
-    let generatedFromPrompt = false;
-    if (!imageUrl && data.prompt) {
-      imageUrl = await generateGeneralImage({
-        prompt: `${data.prompt}. Single centered subject, plain neutral background, even lighting, full object visible, no text, no watermark.`,
-        size: "1024x1024",
-        kind: "item_icon",
-      });
-      generatedFromPrompt = true;
-    }
-    if (!imageUrl) throw new Error("No reference image was available for Trellis.");
-
-    const image = await loadImage(imageUrl);
-    const result = await callTrellis(image, key, {
-      seed:               data.seed,
-      slatCfgScale:       data.slatCfgScale,
-      ssCfgScale:         data.ssCfgScale,
-      slatSamplingSteps:  data.slatSamplingSteps,
-      ssSamplingSteps:    data.ssSamplingSteps,
-    });
-
-    if (!result.glbUrl && !result.glbBase64) {
-      throw new Error("Trellis finished but returned no GLB data. Try a different reference image.");
-    }
-
-    return {
-      ok: true as const,
-      glbUrl: result.glbUrl,
-      glbBase64: result.glbBase64,
-      mimeType: "model/gltf-binary",
-      sourceImage: generatedFromPrompt ? imageUrl : undefined,
-      inlineUpload: image.bytes.length <= INLINE_LIMIT_BYTES,
-      // Echo back the params used so the UI can display them.
-      params: {
-        seed:              data.seed,
-        slatCfgScale:      data.slatCfgScale,
-        ssCfgScale:        data.ssCfgScale,
-        slatSamplingSteps: data.slatSamplingSteps,
-        ssSamplingSteps:   data.ssSamplingSteps,
-      },
-      result: result.raw,
-    };
+    return executeTrellis3D(data);
   });
