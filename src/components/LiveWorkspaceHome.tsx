@@ -229,23 +229,33 @@ export function LiveWorkspaceHome({
   return (
     <div className="bs-msg-in flex flex-col gap-5">
       {/* HERO */}
-      <div className="bs-card relative overflow-hidden rounded-2xl p-5 sm:p-6">
-        <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full opacity-40 blur-3xl" style={{ background: "var(--bs-grad)" }} />
-        <div className="pointer-events-none absolute -left-16 bottom-0 h-48 w-48 rounded-full opacity-20 blur-3xl" style={{ background: "var(--bs-primary)" }} />
+      <div
+        className="relative overflow-hidden rounded-2xl p-5 sm:p-7"
+        style={{ background: "#07071a", border: "1px solid rgba(99,102,241,0.3)", boxShadow: "0 0 60px -20px rgba(99,102,241,0.5)" }}
+      >
+        <div className="pointer-events-none absolute -right-16 -top-20 h-72 w-72 rounded-full opacity-30 blur-3xl animate-pulse" style={{ background: "linear-gradient(135deg,#4f46e5,#a78bfa,#67e8f9)", animationDuration: "4s" }} />
+        <div className="pointer-events-none absolute -left-12 bottom-0 h-52 w-52 rounded-full opacity-20 blur-3xl animate-pulse" style={{ background: "#4f46e5", animationDuration: "6s", animationDelay: "1s" }} />
+        <div className="pointer-events-none absolute left-1/2 top-0 h-32 w-64 -translate-x-1/2 rounded-full opacity-10 blur-2xl" style={{ background: "#67e8f9" }} />
         <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4 min-w-0">
-            <div className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-2xl ring-1 ring-[var(--bs-border)]" style={{ background: "var(--bs-card-2)" }}>
-              <BrandMark className="bs-logo-float h-14 w-14 rounded-2xl" />
+            <div
+              className="relative grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-2xl"
+              style={{ background: "linear-gradient(135deg,#1e1b4b,#0c0c26)", border: "1px solid rgba(99,102,241,0.4)", boxShadow: "0 0 20px -4px rgba(99,102,241,0.6)" }}
+            >
+              <div className="absolute inset-0 rounded-2xl animate-pulse opacity-30" style={{ background: "radial-gradient(circle,#4f46e5,transparent 70%)", animationDuration: "3s" }} />
+              <BrandMark className="bs-logo-float relative h-14 w-14 rounded-2xl" />
             </div>
             <div className="min-w-0">
-              <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--bs-muted-fg)" }}>
-                <Sparkles className="h-3 w-3" style={{ color: "var(--bs-primary)" }} /> BloxSmith Workspace
+              <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.2em] text-indigo-300">
+                <Sparkles className="h-3 w-3 text-cyan-400 animate-pulse" style={{ animationDuration: "2s" }} /> BloxSmith Pro Workspace
               </div>
-              <h2 className="font-display truncate text-2xl font-bold sm:text-3xl">
+              <h2 className="font-display truncate text-2xl font-bold text-white sm:text-3xl" style={{ textShadow: "0 0 30px rgba(99,102,241,0.5)" }}>
                 Hey {display}, ready to build?
               </h2>
-              <p className="mt-1 truncate text-sm" style={{ color: "var(--bs-muted-fg)" }}>
-                {project?.title ? `Project: ${project.title}` : "Describe your game — I'll plan, script, and ship it."}
+              <p className="mt-1 truncate text-sm text-slate-400">
+                {project?.title
+                  ? <><span className="text-cyan-400 font-semibold">◆</span> {project.title}</>
+                  : "Describe your game — I'll plan, script, and ship it."}
               </p>
             </div>
           </div>
@@ -352,14 +362,33 @@ export function LiveWorkspaceHome({
       {/* QUICK ACTIONS BY CATEGORY */}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {CATEGORIES.map((cat) => (
-          <div key={cat.title} className="bs-card rounded-2xl p-4">
-            <div className="mb-3 flex items-center gap-2">
-              <div className="grid h-7 w-7 place-items-center rounded-lg" style={{ background: `color-mix(in oklab, ${cat.tone} 15%, transparent)`, color: cat.tone }}>
+          <div
+            key={cat.title}
+            className="relative overflow-hidden rounded-2xl p-4 transition-all"
+            style={{
+              background: "#08081c",
+              border: `1px solid color-mix(in oklab, ${cat.tone} 25%, transparent)`,
+              boxShadow: `0 0 30px -12px ${cat.tone}`,
+            }}
+          >
+            <div
+              className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full blur-2xl opacity-20"
+              style={{ background: cat.tone }}
+            />
+            <div className="relative mb-3 flex items-center gap-2.5">
+              <div
+                className="grid h-8 w-8 shrink-0 place-items-center rounded-xl"
+                style={{
+                  background: `color-mix(in oklab, ${cat.tone} 18%, #0a0a1e)`,
+                  color: cat.tone,
+                  boxShadow: `0 0 14px -3px ${cat.tone}`,
+                }}
+              >
                 <cat.icon className="h-4 w-4" />
               </div>
-              <div className="text-sm font-semibold">{cat.title}</div>
+              <div className="text-sm font-bold tracking-wide" style={{ color: cat.tone }}>{cat.title}</div>
             </div>
-            <div className="flex flex-col gap-1.5">
+            <div className="relative flex flex-col gap-1.5">
               {cat.items.map((it) => {
                 const help = ACTION_HELP[it.label];
                 const status = statusFor(it.label, { pluginOnline, failed: stats.failed, total: stats.total, pending: stats.pending, busy: !!busy });
@@ -371,25 +400,39 @@ export function LiveWorkspaceHome({
                   >
                     <button
                       onClick={() => handleAction(it.label)}
-                      className="group flex flex-col rounded-lg px-2.5 py-2 text-left text-[12.5px] font-medium transition-all hover:translate-x-0.5"
+                      className="group flex flex-col rounded-xl px-3 py-2.5 text-left text-[12.5px] font-medium transition-all duration-150 hover:-translate-y-px active:scale-[0.98]"
                       style={{
-                        background: "var(--bs-card-2)",
+                        background: recommended
+                          ? `color-mix(in oklab, ${cat.tone} 10%, #0d0d22)`
+                          : "#0d0d22",
                         border: "1px solid",
-                        borderColor: recommended ? "color-mix(in oklab, var(--bs-primary) 45%, transparent)" : "var(--bs-border)",
+                        borderColor: recommended
+                          ? `color-mix(in oklab, ${cat.tone} 45%, transparent)`
+                          : `color-mix(in oklab, ${cat.tone} 12%, transparent)`,
+                      }}
+                      onMouseEnter={(e) => {
+                        (e.currentTarget as HTMLButtonElement).style.boxShadow = `0 4px 20px -6px ${cat.tone}`;
+                        (e.currentTarget as HTMLButtonElement).style.borderColor = `color-mix(in oklab, ${cat.tone} 55%, transparent)`;
+                      }}
+                      onMouseLeave={(e) => {
+                        (e.currentTarget as HTMLButtonElement).style.boxShadow = "";
+                        (e.currentTarget as HTMLButtonElement).style.borderColor = recommended
+                          ? `color-mix(in oklab, ${cat.tone} 45%, transparent)`
+                          : `color-mix(in oklab, ${cat.tone} 12%, transparent)`;
                       }}
                     >
                       <div className="flex items-center gap-2">
-                        <it.icon className="h-3.5 w-3.5 shrink-0" style={{ color: cat.tone }} />
-                        <span className="truncate">{it.label}</span>
+                        <it.icon className="h-3.5 w-3.5 shrink-0 transition-transform group-hover:scale-110" style={{ color: cat.tone }} />
+                        <span className="truncate font-semibold text-slate-100 group-hover:text-white">{it.label}</span>
                         {status && (
                           <span
-                            className="ml-auto shrink-0 rounded-full px-1.5 py-0.5 text-[9.5px] font-bold"
-                            style={{ background: "color-mix(in oklab, var(--bs-primary) 12%, transparent)", color: "var(--bs-primary)" }}
+                            className="ml-auto shrink-0 rounded-full px-2 py-0.5 text-[9.5px] font-bold"
+                            style={{ background: `color-mix(in oklab, ${cat.tone} 20%, transparent)`, color: cat.tone }}
                           >
                             {status}
                           </span>
                         )}
-                        {!status && <ArrowRight className="ml-auto h-3 w-3 opacity-0 transition-opacity group-hover:opacity-70" />}
+                        {!status && <ArrowRight className="ml-auto h-3 w-3 opacity-0 transition-all group-hover:opacity-100 group-hover:translate-x-0.5" style={{ color: cat.tone }} />}
                       </div>
                       {help?.description && (
                         <HelpCaption text={help.description} badge={recommended ? "Recommended" : undefined} />

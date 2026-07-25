@@ -112,22 +112,25 @@ export function PageShell({
 
 function VaporSidebar({ isAdmin, activeKey }: { isAdmin: boolean; activeKey?: string }) {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
-
+  // We don't have pluginOnline here, but we can show a static pill that users can see
   return (
-    <aside className="vapor-frost sticky top-0 hidden h-screen w-[272px] shrink-0 flex-col border-r border-indigo-500/15 lg:flex">
-      <Link to="/dashboard" className="group flex items-center gap-3 px-6 py-7">
+    <aside className="vapor-frost sticky top-0 hidden h-screen w-[272px] shrink-0 flex-col border-r border-indigo-500/20 lg:flex" style={{ background: "#06061a" }}>
+      <Link to="/dashboard" className="group flex items-center gap-3 px-6 py-6 border-b border-indigo-500/10">
         <span className="relative shrink-0">
-          <span className="absolute -inset-1.5 rounded-2xl bg-gradient-to-br from-indigo-500/50 to-cyan-400/40 opacity-60 blur-md transition-opacity duration-300 group-hover:opacity-100" />
+          <span className="absolute -inset-2 rounded-2xl bg-gradient-to-br from-indigo-500/60 to-cyan-400/50 opacity-50 blur-lg transition-opacity duration-300 group-hover:opacity-90" />
           <img
             src={bloxsmithMascot.url}
             alt="BloxSmith"
-            className="relative h-10 w-10 rounded-xl object-contain transition-transform duration-300 group-hover:scale-105"
+            className="relative h-10 w-10 rounded-xl object-contain transition-transform duration-300 group-hover:scale-110"
           />
         </span>
-        <span className="vapor-title text-2xl font-bold">BloxSmith</span>
+        <div className="min-w-0">
+          <span className="vapor-title text-xl font-bold text-white">BloxSmith</span>
+          <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-400/70">Pro Workspace</div>
+        </div>
       </Link>
 
-      <nav className="scrollbar-thin flex-1 space-y-7 overflow-y-auto px-5 pb-4">
+      <nav className="scrollbar-thin flex-1 space-y-7 overflow-y-auto px-5 py-5">
         {isAdmin && (
           <Link
             to="/admin"
@@ -144,13 +147,21 @@ function VaporSidebar({ isAdmin, activeKey }: { isAdmin: boolean; activeKey?: st
         <NavGroup label="Integration" items={NAV_INTEGRATION} activeKey={activeKey} pathname={pathname} />
       </nav>
 
-      <div className="space-y-2 border-t border-indigo-500/10 bg-white/[0.02] p-4">
+      <div className="space-y-2 border-t border-indigo-500/10 p-4" style={{ background: "rgba(255,255,255,0.015)" }}>
+        {/* Plugin status indicator */}
+        <div className="mb-2 flex items-center justify-between rounded-xl border border-indigo-500/20 px-3 py-2" style={{ background: "#0a0a20" }}>
+          <span className="text-[11px] font-bold text-slate-300">Studio Plugin</span>
+          <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-400">
+            <span className="h-2 w-2 rounded-full bg-slate-500 animate-pulse" />
+            Check status
+          </span>
+        </div>
         <ProfileMenu />
         <a
-          href="https://discord.gg/6QDYT3RUkv"
+          href="https://discord.gg/YJ8xPFNSSX"
           target="_blank"
           rel="noreferrer"
-          className="vapor-ghost-btn flex items-center justify-center gap-2 px-3 py-2.5 text-[11px] font-bold uppercase tracking-[0.18em]"
+          className="flex items-center justify-center gap-2 rounded-xl border border-indigo-400/20 bg-indigo-500/10 px-3 py-2.5 text-[11px] font-bold uppercase tracking-[0.18em] text-indigo-200 transition hover:border-indigo-400/40 hover:bg-indigo-500/20 hover:text-white"
           style={{ fontFamily: "Space Mono, monospace" }}
         >
           <DiscordIcon className="h-3.5 w-3.5" /> Community
@@ -177,8 +188,6 @@ function NavGroup({
       <div className="space-y-1">
         {items.map((n) => {
           const Icon = n.icon;
-          // activeKey stays authoritative; the pathname is a fallback so routes
-          // that forget to pass it still highlight correctly.
           const active = activeKey ? activeKey === n.key : !!pathname?.startsWith(n.to);
           return (
             <Link
@@ -186,11 +195,17 @@ function NavGroup({
               to={n.to as any}
               aria-current={active ? "page" : undefined}
               className={`vapor-nav-item ${active ? "vapor-nav-active" : ""}`}
+              style={active ? {
+                boxShadow: "0 0 20px -6px rgba(99,102,241,0.8)",
+                background: "linear-gradient(90deg, rgba(99,102,241,0.2), rgba(99,102,241,0.05))",
+                borderLeft: "2px solid rgba(99,102,241,0.8)",
+              } : undefined}
             >
-              <span className="vapor-nav-icon">
+              <span className={`vapor-nav-icon ${active ? "text-cyan-300" : ""}`}>
                 <Icon className="h-4 w-4" />
               </span>
               {n.label}
+              {active && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-cyan-400 animate-pulse" />}
             </Link>
           );
         })}
