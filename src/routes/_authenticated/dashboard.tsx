@@ -11,7 +11,7 @@ import {
   Infinity as InfinityIcon, ChevronDown, Paperclip, Image as ImageIcon,
   Send, Hammer, TrendingUp, Wrench, Gamepad2, Upload, CheckCircle2,
   Code2, Package, Crown, ExternalLink, MoreHorizontal, ArrowRight,
-  Radio, HelpCircle, LayoutDashboard, Server, Gift,
+  Radio, HelpCircle, LayoutDashboard, Server, Gift, Download,
 } from "lucide-react";
 import thumbTycoon from "@/assets/thumbs/tycoon.jpg";
 import thumbObby from "@/assets/thumbs/obby.jpg";
@@ -27,6 +27,7 @@ import { ChangelogNotifications } from "@/components/ChangelogNotifications";
 import { ProjectMenu } from "@/components/ProjectMenu";
 import { WorkspaceChat } from "@/components/WorkspaceChat";
 import { NewProjectModal } from "@/components/NewProjectModal";
+import { ExportGameModal } from "@/components/ExportGameModal";
 import { Reveal, GlowCard, CountUp } from "@/components/Reveal";
 import { ProjectMemoryCard } from "@/components/ProjectMemoryCard";
 import { OnboardingChallenges } from "@/components/OnboardingChallenges";
@@ -113,6 +114,7 @@ function Dashboard() {
     try { return localStorage.getItem("bs:activeProjectId"); } catch { return null; }
   });
   const [newProjectOpen, setNewProjectOpen] = useState(false);
+  const [exportModalOpen, setExportModalOpen] = useState(false);
   // If localStorage's active id no longer exists, clear it once projects load.
   // Also auto-select the most recent project when none is active so clicking
   // Build doesn't force the user through the "Create a project" modal every
@@ -233,74 +235,88 @@ function Dashboard() {
               <p className="mt-0.5 hidden text-xs font-medium text-indigo-200/70 sm:block">What do you want to build today?</p>
             </div>
 
-            <div className="hidden items-center gap-2.5 md:flex">
-              <div className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold backdrop-blur-md transition-all ${pluginOnline ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300 shadow-[0_0_15px_rgba(52,211,153,0.15)]" : "border-white/10 bg-white/[0.03] text-slate-400"}`}>
-                <span className={`h-2 w-2 rounded-full ${pluginOnline ? "bg-emerald-400 shadow-[0_0_10px_#34d399] animate-pulse" : "bg-slate-500"}`} />
-                Studio: {pluginOnline ? "Connected" : "Offline"}
-              </div>
-              <Link to="/plugin" className="vapor-ghost-btn inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold">
-                <ExternalLink className="h-3.5 w-3.5 text-cyan-400" /> Send to Studio
-              </Link>
-              <ChangelogNotifications buttonClassName="vapor-ghost-btn inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold" iconClassName="h-3.5 w-3.5 text-indigo-300" />
-              <button
-                type="button"
-                disabled={createMut.isPending}
-                onClick={() => setNewProjectOpen(true)}
-                className="vapor-glow-btn inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white transition-transform active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <Plus className="h-4 w-4 text-cyan-300" /> New Project
-              </button>
-            </div>
-            <ProfileMenu />
-          </header>
-
-          <main className="mx-auto w-full max-w-[1240px] space-y-6 px-3 pb-28 pt-5 sm:space-y-8 sm:px-8 sm:pb-8 sm:pt-8">
-            {/* Active project banner — futuristic vapor-card with glowing borders */}
-            {activeProject && (
-              <section className="vapor-card hover-lift overflow-hidden rounded-2xl border border-indigo-500/30 bg-gradient-to-r from-indigo-900/40 via-purple-900/20 to-cyan-900/30 p-4 sm:p-5 shadow-[0_0_35px_rgba(79,70,229,0.15)]">
-                <div className="flex flex-wrap items-center gap-4">
-                  <div className="vapor-ring-avatar h-14 w-14 shrink-0 overflow-hidden shadow-[0_0_20px_rgba(167,139,250,0.3)]">
-                    <img
-                      src={activeProject.thumbnail_url ?? THUMBS[activeProject.game_type ?? "custom"] ?? THUMBS.custom}
-                      alt=""
-                      className="h-full w-full object-cover rounded-full"
-                    />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="vapor-label flex items-center gap-1.5 text-indigo-300">
-                      <Sparkles className="h-3 w-3 text-cyan-400" /> ACTIVE PROJECT
-                    </div>
-                    <div className="mt-1 flex items-center gap-2 truncate text-xl font-extrabold text-white tracking-tight">
-                      {activeProject.pinned_at && <span title="Pinned">📌</span>}
-                      {activeProject.is_favorite && <span title="Favorite" className="text-amber-300">★</span>}
-                      <span className="truncate">{activeProject.name}</span>
-                    </div>
-                    <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-medium text-slate-300">
-                      <span className="rounded-md bg-indigo-500/20 border border-indigo-400/30 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-indigo-200">{activeProject.game_type ?? "custom"}</span>
-                      <span>•</span>
-                      <span className="text-slate-300">{activeProject.build_count ?? 0} builds</span>
-                      <span>•</span>
-                      <span className="text-slate-400">Updated {timeAgo(activeProject.updated_at)}</span>
-                      <span>•</span>
-                      <span className="inline-flex items-center gap-1 text-emerald-400 font-semibold"><CheckCircle2 className="h-3 w-3" /> Chat & assets active</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        try { localStorage.removeItem("bs:activeProjectId"); } catch {}
-                        setActiveProjectId(null);
-                        try { window.dispatchEvent(new Event("bs:active-project-changed")); } catch {}
-                      }}
-                      className="vapor-ghost-btn px-3.5 py-2 text-xs font-semibold"
-                    >
-                      Switch project
-                    </button>
-                  </div>
+              <div className="hidden items-center gap-2.5 md:flex">
+                <div className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold backdrop-blur-md transition-all ${pluginOnline ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300 shadow-[0_0_15px_rgba(52,211,153,0.15)]" : "border-white/10 bg-white/[0.03] text-slate-400"}`}>
+                  <span className={`h-2 w-2 rounded-full ${pluginOnline ? "bg-emerald-400 shadow-[0_0_10px_#34d399] animate-pulse" : "bg-slate-500"}`} />
+                  Studio: {pluginOnline ? "Connected" : "Offline"}
                 </div>
-              </section>
-            )}
+                <button
+                  type="button"
+                  onClick={() => setExportModalOpen(true)}
+                  className="vapor-ghost-btn inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-cyan-300 hover:text-white"
+                >
+                  <Download className="h-3.5 w-3.5 text-cyan-400" /> Export Game
+                </button>
+                <Link to="/plugin" className="vapor-ghost-btn inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold">
+                  <ExternalLink className="h-3.5 w-3.5 text-indigo-300" /> Send to Studio
+                </Link>
+                <ChangelogNotifications buttonClassName="vapor-ghost-btn inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold" iconClassName="h-3.5 w-3.5 text-indigo-300" />
+                <button
+                  type="button"
+                  disabled={createMut.isPending}
+                  onClick={() => setNewProjectOpen(true)}
+                  className="vapor-glow-btn inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white transition-transform active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <Plus className="h-4 w-4 text-cyan-300" /> New Project
+                </button>
+              </div>
+              <ProfileMenu />
+            </header>
+
+            <main className="mx-auto w-full max-w-[1240px] space-y-6 px-3 pb-28 pt-5 sm:space-y-8 sm:px-8 sm:pb-8 sm:pt-8">
+              {/* Active project banner — futuristic vapor-card with glowing borders */}
+              {activeProject && (
+                <section className="vapor-card hover-lift overflow-hidden rounded-2xl border border-indigo-500/30 bg-gradient-to-r from-indigo-900/40 via-purple-900/20 to-cyan-900/30 p-4 sm:p-5 shadow-[0_0_35px_rgba(79,70,229,0.15)]">
+                  <div className="flex flex-wrap items-center gap-4">
+                    <div className="vapor-ring-avatar h-14 w-14 shrink-0 overflow-hidden shadow-[0_0_20px_rgba(167,139,250,0.3)]">
+                      <img
+                        src={activeProject.thumbnail_url ?? THUMBS[activeProject.game_type ?? "custom"] ?? THUMBS.custom}
+                        alt=""
+                        className="h-full w-full object-cover rounded-full"
+                      />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="vapor-label flex items-center gap-1.5 text-indigo-300">
+                        <Sparkles className="h-3 w-3 text-cyan-400" /> ACTIVE PROJECT
+                      </div>
+                      <div className="mt-1 flex items-center gap-2 truncate text-xl font-extrabold text-white tracking-tight">
+                        {activeProject.pinned_at && <span title="Pinned">📌</span>}
+                        {activeProject.is_favorite && <span title="Favorite" className="text-amber-300">★</span>}
+                        <span className="truncate">{activeProject.name}</span>
+                      </div>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-medium text-slate-300">
+                        <span className="rounded-md bg-indigo-500/20 border border-indigo-400/30 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-indigo-200">{activeProject.game_type ?? "custom"}</span>
+                        <span>•</span>
+                        <span className="text-slate-300">{activeProject.build_count ?? 0} builds</span>
+                        <span>•</span>
+                        <span className="text-slate-400">Updated {timeAgo(activeProject.updated_at)}</span>
+                        <span>•</span>
+                        <span className="inline-flex items-center gap-1 text-emerald-400 font-semibold"><CheckCircle2 className="h-3 w-3" /> Chat & assets active</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setExportModalOpen(true)}
+                        className="vapor-glow-btn inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white transition-transform active:scale-95"
+                      >
+                        <Download className="h-3.5 w-3.5 text-cyan-300" /> Export Game
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          try { localStorage.removeItem("bs:activeProjectId"); } catch {}
+                          setActiveProjectId(null);
+                          try { window.dispatchEvent(new Event("bs:active-project-changed")); } catch {}
+                        }}
+                        className="vapor-ghost-btn px-3.5 py-2 text-xs font-semibold"
+                      >
+                        Switch project
+                      </button>
+                    </div>
+                  </div>
+                </section>
+              )}
 
             {/* Composer — real AI Build flow */}
             <section id="build">
@@ -495,6 +511,13 @@ function Dashboard() {
           if (inp) setTimeout(() => inp.focus(), 100);
         }}
       />
+      {exportModalOpen && (
+        <ExportGameModal
+          projectId={activeProjectId ?? ""}
+          projectName={activeProject?.name ?? "Roblox Experience"}
+          onClose={() => setExportModalOpen(false)}
+        />
+      )}
       </div>
     </div>
   );
