@@ -272,20 +272,35 @@ function deterministicImprove(input: string): string {
   if (!cleaned) return "";
   cleaned = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
   if (!/[.!?)]$/.test(cleaned)) cleaned += ".";
+
   const lower = cleaned.toLowerCase();
+  const genre = detectGenre(lower);
 
-  const isNarrow = NARROW_VERBS.test(lower) && NARROW_NOUNS.test(lower) && !BIG_MARKERS.test(lower);
-  if (!isNarrow) {
-    const genre = detectGenre(lower);
-    if (genre) return GENRE_EXPANSIONS[genre];
+  let details = "";
+  if (genre) {
+    if (/city|town|metropolis/i.test(genre)) {
+      details = "Gridded street layout, enterable buildings, sidewalks, streetlights, and day/night atmospheric lighting.";
+    } else if (/tycoon/i.test(genre)) {
+      details = "Claim pad, dropper-conveyor-collector loop, cash leaderstats, DataStore saving, and upgrade buttons.";
+    } else if (/obby/i.test(genre)) {
+      details = "Progressive stages, checkpoints, spawn lobby, kill bricks, moving obstacles, and win reward zone.";
+    } else if (/zombie/i.test(genre)) {
+      details = "Wave spawning, server-authoritative zombie AI, weapon pickups, health HUD, and round timer.";
+    } else if (/simulator/i.test(genre)) {
+      details = "Gather action, leaderstats currency, upgrade shop, rebirth prestige system, and DataStore saving.";
+    } else if (/rpg/i.test(genre)) {
+      details = "Leveling system, XP HUD, ability hotbar, quest givers, enemy mob spawns, and DataStore saving.";
+    } else if (/shooter|fighting/i.test(genre)) {
+      details = "Cover geometry, server-authoritative combat, weapon pickups, health/ammo HUD, and scoreboards.";
+    }
   }
 
-  if (isNarrow && !/toolbox|creator store|safe|free|public|no extras|just this/i.test(cleaned)) {
-    cleaned = `${cleaned.replace(/[.!?]$/, "")} from the Roblox Toolbox (safe, free, public model) — just this, no extras.`;
-  } else if (/\b(script|button|RemoteEvent|LocalScript|ModuleScript)\b/.test(cleaned) && !/no extras|only|just this|system|game|full|complete/i.test(cleaned)) {
-    cleaned = `${cleaned.replace(/[.!?]$/, "")} — only the requested item and required wiring, no extras.`;
+  let result = cleaned.replace(/[.!?]$/, "");
+  if (details && !result.toLowerCase().includes(genre || "")) {
+    result += `. ${details}`;
   }
-  return cleaned;
+  result += " Include server-authoritative Luau scripts, mobile-friendly UI, clean Roblox geometry, and safe public Toolbox assets with no placeholders.";
+  return result;
 }
 
 export const improvePrompt = createServerFn({ method: "POST" })
@@ -294,25 +309,11 @@ export const improvePrompt = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const fallback = deterministicImprove(data.text);
     if (!fallback) return { ok: false as const, error: "empty" };
-    const rawIn = data.text.trim();
-    const rawInLower = rawIn.toLowerCase();
-    const detectedGenre = detectGenre(rawInLower);
-    const hasGenre = detectedGenre !== null || /\b(game|map|world|experience|place)\b/i.test(rawIn);
-
-    function tooSimilar(a: string, b: string): boolean {
-      const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9\s]/g, "").split(/\s+/).filter(Boolean);
-      const aw = norm(a); const bw = norm(b);
-      if (!aw.length || !bw.length) return false;
-      const setA = new Set(aw);
-      const overlap = bw.filter((w) => setA.has(w)).length;
-      const ratio = overlap / Math.max(aw.length, bw.length);
-      return ratio > 0.85 && bw.length <= aw.length + 3;
-    }
 
     try {
       const { model } = getProviderModel(FALLBACK_MODEL_ID);
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort("Improve timed out"), 6000);
+      const timeout = setTimeout(() => controller.abort("Improve timed out"), 12000);
       const { text } = await generateText({
         model,
         system: IMPROVE_SYSTEM,
@@ -325,14 +326,6 @@ export const improvePrompt = createServerFn({ method: "POST" })
       let cleaned = fixCommonTypos((text || "").trim().replace(/^["'`]+|["'`]+$/g, "").replace(/\s+\n/g, "\n"));
       cleaned = cleaned.replace(/^(improved prompt|here(?:'s| is)[^:]*|prompt)\s*[:\-–]\s*/i, "").trim();
       if (!cleaned || cleaned.length < 3) return { ok: true as const, text: fallback };
-      if (cleaned.split(/\s+/).length > 220 || /\n\s*(goal|scope|systems|ui|world|polish|constraints)\s*:/i.test(cleaned)) {
-        return { ok: true as const, text: fallback };
-      }
-      const cleanedWords = cleaned.split(/\s+/).length;
-      if (hasGenre && cleanedWords < 25) return { ok: true as const, text: fallback };
-      if (tooSimilar(rawIn, cleaned) && fallback.toLowerCase() !== rawInLower) {
-        return { ok: true as const, text: fallback };
-      }
       return { ok: true as const, text: cleaned };
     } catch {
       return { ok: true as const, text: fallback };

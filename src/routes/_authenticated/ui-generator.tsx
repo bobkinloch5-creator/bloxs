@@ -190,7 +190,7 @@ function UiGenerator() {
             value={prompt}
             onChange={(e) => setPrompt(e.target.value.slice(0, 2000))}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); generate(); }
+              if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); generate(); }
             }}
             placeholder="e.g. Simulator HUD with animated coin counter, multiplier and rebirth pills, and a side rail with Shop / Pets / Rebirth"
             rows={3}
@@ -198,7 +198,7 @@ function UiGenerator() {
           />
           <div className="flex items-center justify-between gap-2 border-t border-white/5 px-2 pt-2">
             <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wider text-violet-300/70">
-              <kbd className="rounded border border-white/10 bg-white/5 px-1.5 py-0.5">⌘ / Ctrl + Enter</kbd>
+              <kbd className="rounded border border-white/10 bg-white/5 px-1.5 py-0.5">Enter</kbd>
               <span className="text-muted-foreground">to generate</span>
             </div>
             <div className="flex items-center gap-2">
