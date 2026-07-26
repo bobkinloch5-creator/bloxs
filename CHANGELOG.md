@@ -4,7 +4,46 @@ All notable changes to BloxSmith are tracked here. Dates are UTC.
 
 ## [Unreleased]
 
-### 2026-07-26 - Audio Completion Feedback & Toggleable Chime
+### 2026-07-26 - AI Chat Persona Overhaul, Fancy Todo Checklist & UI Cleanup
+
+**AI Chat Personality & Expertise (`src/routes/api/chat.ts`)**
+- Completely rewrote `FAST_CHAT_SYSTEM_PROMPT` from a single vague sentence into a comprehensive developer persona guide:
+  - Enforces a **confident senior developer tone** — banned phrases include "I'll try", "I think", "I'd be happy to", "As an AI", "I hope this helps".
+  - AI now gives a **direct answer first**, then includes a working Luau code snippet when relevant, explains the reasoning briefly, and closes with a natural follow-up offer.
+  - Embedded a full **Roblox quick-reference** covering modern APIs (`task.wait`, `task.spawn`, `UpdateAsync`, `LinearVelocity`, `AlignOrientation`, `UDim2 Scale`, correct script placement rules) and common mistakes to actively warn users about.
+  - All code blocks use ` ```lua ` formatting and no internal tool/model/credit details are ever leaked.
+
+**Animated Build Todo Checklist (`src/routes/api/chat.ts`, `src/components/WorkspaceChat.tsx`)**
+- Updated `FAST_BUILD_SYSTEM_PROMPT` to mandate a structured 5-step visible response format around the hidden actions block:
+  - **Step 1**: Bold one-liner summary ("**Building X** — why")
+  - **Step 2**: Unchecked plan — `- [ ] Step one / - [ ] Step two ...` (3–6 items)
+  - **Step 3**: Hidden `bloxsmith-actions` execution block (stripped from view, execution unaffected)
+  - **Step 4**: Completed checklist — `- [x] Step one — done / - [x] Step two — done ...`
+  - **Step 5**: Confident closing line ("Sending to Studio now 🚀")
+- Added custom `markdownComponents` renderer in `WorkspaceChat.tsx` that intercepts `- [ ]` and `- [x]` markdown task list items and renders them as **premium animated checkbox chips**:
+  - Unchecked → dark glass chip with grey outlined circle
+  - Checked → **emerald glow chip** (`shadow-[0_0_12px_rgba(16,185,129,0.75)]`) with filled green checkmark, `scale-110` pulse, and green text
+  - Uses `transition-all duration-300` for smooth state changes
+  - All other markdown (code, headings, bold, normal lists) continues to render via standard prose styles
+
+**Removed "Need Help?" Widget (`src/routes/__root.tsx`)**
+- Removed the floating `<HelpChatWidget />` button and its import from the global root layout — the widget no longer appears on any page.
+
+**Model Router Updates (`src/lib/model-router.ts`)**
+- Replaced unavailable `nvidia/qwen-2.5-coder-32b` model with working alternatives
+- Set **Claude Sonnet 4.6** as primary for `scripting` and `bugfix` task routing
+- **Nemotron Super 49B** and **GLM 5.2** handle `hard` difficulty escalation
+
+**Premium Model Gatekeeping (`src/lib/models.ts`, `src/routes/api/chat.ts`, `src/components/VaporModelSelector.tsx`)**
+- Removed deprecated OneProvider GPT-5.6 series models from catalog
+- Marked unavailable models (e.g. `claude-fable-5`) as **Coming Soon** with disabled state
+- Added 🔒 **Top-Up Required** badge in `VaporModelSelector` for `paidOnly` flagged models
+- Wired `activeModelId` into `chargeCredits` so the API gateway correctly blocks unauthorized premium model access
+
+**Beta Banner Redesign (`src/routes/__root.tsx`)**
+- Replaced basic beta notification with a premium banner featuring multi-stop gradient, animated shimmer effect, glowing "Beta" pill, and prominent Discord CTA button
+
+
 
 **AI & Build Completion Chime (`src/lib/sound.ts`, `src/components/WorkspaceChat.tsx`)**
 - Integrated Web Audio API synthesized 2-tone chime (`E5` → `A5`) when AI text streaming finishes or Studio build execution reaches `done` status. Requires zero external audio downloads.
