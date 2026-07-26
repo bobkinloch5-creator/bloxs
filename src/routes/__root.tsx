@@ -250,12 +250,76 @@ function BetaBanner() {
 
   if (dismissed) return null;
   return (
-    <div className="sticky top-0 z-[70] flex items-center gap-2 border-b border-indigo-400/20 bg-gradient-to-r from-indigo-950 via-purple-950/80 to-indigo-950 px-3 py-1.5 text-[11px] font-semibold text-indigo-100 shadow-lg sm:px-4 sm:py-2 sm:text-xs">
-      <span className="hidden shrink-0 rounded-full bg-indigo-400/20 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-indigo-200 sm:inline">Beta</span>
-      <span className="flex-1 truncate text-center sm:text-left">
-        <span className="sm:hidden">In beta — updates daily. <a href="https://discord.gg/YJ8xPFNSSX" target="_blank" rel="noreferrer" className="underline decoration-cyan-400/50 text-cyan-300 hover:text-white">Join Discord</a> for help!</span>
-        <span className="hidden sm:inline">BloxSmith is in active beta — we update almost every day. Need help or found a bug? <a href="https://discord.gg/YJ8xPFNSSX" target="_blank" rel="noreferrer" className="underline decoration-cyan-400/50 text-cyan-300 hover:text-white">Join our Discord community →</a></span>
-      </span>
+    <div
+      className="sticky top-0 z-[70] flex items-center justify-between gap-3 px-4 py-2 sm:px-6"
+      style={{
+        background: "linear-gradient(90deg, #0d0d1f 0%, #1a0a3b 25%, #0d1a3b 50%, #1a0a3b 75%, #0d0d1f 100%)",
+        borderBottom: "1px solid rgba(139,92,246,0.35)",
+        boxShadow: "0 1px 24px rgba(99,102,241,0.18), inset 0 1px 0 rgba(255,255,255,0.04)",
+      }}
+    >
+      {/* Shimmer overlay */}
+      <div
+        className="pointer-events-none absolute inset-0 overflow-hidden"
+        aria-hidden
+        style={{ borderRadius: "inherit" }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            background: "linear-gradient(90deg, transparent 0%, rgba(139,92,246,0.07) 50%, transparent 100%)",
+            animation: "shimmer 3s ease-in-out infinite",
+          }}
+        />
+      </div>
+
+      {/* Left: badge + text */}
+      <div className="relative flex min-w-0 flex-1 items-center gap-2.5">
+        {/* Glowing BETA pill */}
+        <span
+          className="hidden shrink-0 sm:inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-widest"
+          style={{
+            background: "linear-gradient(135deg, rgba(139,92,246,0.3), rgba(99,102,241,0.2))",
+            border: "1px solid rgba(139,92,246,0.5)",
+            color: "#c4b5fd",
+            boxShadow: "0 0 10px rgba(139,92,246,0.3)",
+          }}
+        >
+          ✦ Beta
+        </span>
+
+        <span className="min-w-0 truncate text-[11px] font-medium leading-snug text-indigo-100/80 sm:text-xs">
+          <span className="sm:hidden">
+            In beta — updates daily. Join{" "}
+            <a href="https://discord.gg/YJ8xPFNSSX" target="_blank" rel="noreferrer" className="font-bold text-violet-300 hover:text-white">
+              Discord →
+            </a>
+          </span>
+          <span className="hidden sm:inline">
+            BloxSmith is in active beta — we ship updates almost every day. Found a bug or need help?
+          </span>
+        </span>
+      </div>
+
+      {/* Centre: Discord CTA button (desktop) */}
+      <a
+        href="https://discord.gg/YJ8xPFNSSX"
+        target="_blank"
+        rel="noreferrer"
+        className="relative hidden shrink-0 sm:inline-flex items-center gap-1.5 rounded-full px-4 py-1 text-[11px] font-bold transition-all duration-200 hover:scale-105 active:scale-95"
+        style={{
+          background: "linear-gradient(135deg, #7c3aed, #4f46e5)",
+          color: "#fff",
+          boxShadow: "0 0 16px rgba(124,58,237,0.5), 0 2px 8px rgba(0,0,0,0.4)",
+          border: "1px solid rgba(167,139,250,0.4)",
+        }}
+      >
+        💬 Join our Discord community
+        <span style={{ opacity: 0.75 }}>→</span>
+      </a>
+
+      {/* Dismiss */}
       <button
         type="button"
         onClick={() => {
@@ -263,10 +327,17 @@ function BetaBanner() {
           setDismissed(true);
         }}
         aria-label="Dismiss beta banner"
-        className="ml-1 shrink-0 rounded-md p-1 text-blue-200 transition hover:bg-blue-900 hover:text-white"
+        className="relative ml-1 shrink-0 rounded-full p-1 text-indigo-300 transition hover:bg-white/10 hover:text-white"
       >
         <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="currentColor" aria-hidden><path d="M6.28 6.28a.75.75 0 011.06 0L10 8.94l2.66-2.66a.75.75 0 111.06 1.06L11.06 10l2.66 2.66a.75.75 0 11-1.06 1.06L10 11.06l-2.66 2.66a.75.75 0 01-1.06-1.06L8.94 10 6.28 7.34a.75.75 0 010-1.06z"/></svg>
       </button>
+
+      <style>{`
+        @keyframes shimmer {
+          0%, 100% { transform: translateX(-100%); opacity: 0; }
+          40%, 60% { transform: translateX(100%); opacity: 1; }
+        }
+      `}</style>
     </div>
   );
 }
