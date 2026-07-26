@@ -107,6 +107,44 @@ const markdownComponents: Record<string, React.ComponentType<any>> = {
     }
     return <ul className={className} {...props}>{children}</ul>;
   },
+  // ── Code block: dark glass card + language badge + copy button ──
+  code: ({ node, inline, className, children, ...props }: any) => {
+    const lang = /language-(\w+)/.exec(className || "")?.[1] ?? "";
+    const code = String(children).replace(/\n$/, "");
+    if (inline) {
+      return (
+        <code
+          className="rounded-md bg-indigo-950/70 px-1.5 py-0.5 text-[11px] font-mono text-cyan-300 border border-indigo-500/20"
+          {...props}
+        >
+          {children}
+        </code>
+      );
+    }
+    return (
+      <div className="group relative my-3 overflow-hidden rounded-xl border border-indigo-500/25 bg-[#07071a] shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
+        {/* Header bar */}
+        <div className="flex items-center justify-between border-b border-white/[0.06] bg-white/[0.03] px-3 py-1.5">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-indigo-300">
+            {lang || "code"}
+          </span>
+          <button
+            type="button"
+            onClick={() => { try { navigator.clipboard.writeText(code); } catch {} }}
+            className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] font-semibold text-slate-300 opacity-0 transition-all duration-150 group-hover:opacity-100 hover:bg-white/[0.1] hover:text-white active:scale-95"
+          >
+            Copy
+          </button>
+        </div>
+        {/* Code body */}
+        <pre className="overflow-x-auto p-4 text-[12px] leading-relaxed">
+          <code className={`font-mono text-slate-200 ${className ?? ""}`} {...props}>
+            {children}
+          </code>
+        </pre>
+      </div>
+    );
+  },
 };
 
 // Detect a generate_image tool part (AI SDK exposes tool parts as
@@ -869,9 +907,27 @@ export function WorkspaceChat({
             );
           })}
           {(status === "submitted" || status === "streaming") && (
-            <div className="flex items-center gap-2 text-xs text-slate-300">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              {status === "submitted" ? "Planning your build…" : "Building and sending to Studio…"}
+            <div className="flex items-center gap-3 rounded-xl border border-indigo-500/25 bg-gradient-to-r from-indigo-950/60 to-[#08081c]/80 px-4 py-2.5 shadow-[0_0_20px_rgba(79,70,229,0.15)]">
+              {/* Animated pulse dots */}
+              <div className="flex items-center gap-1">
+                {[0, 1, 2].map((i) => (
+                  <span
+                    key={i}
+                    className="h-1.5 w-1.5 rounded-full bg-indigo-400"
+                    style={{ animation: `bounce 1.2s ease-in-out ${i * 0.2}s infinite` }}
+                  />
+                ))}
+              </div>
+              <span className="text-[12px] font-semibold text-indigo-200">
+                {status === "submitted"
+                  ? "BloxSmith is analysing your request…"
+                  : isBuild
+                    ? "Building & sending to Studio…"
+                    : "Thinking…"}
+              </span>
+              <span className="ml-auto text-[10px] text-indigo-400/60 font-mono">
+                {status === "streaming" ? "streaming" : "processing"}
+              </span>
             </div>
           )}
           {stopped && status !== "streaming" && status !== "submitted" && (

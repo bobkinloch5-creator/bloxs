@@ -1,6 +1,6 @@
 // Centralized credit charging used by every paid feature (chat, voice, image,
-// 3D, etc). Admins/owners are exempt. Auto-refills daily on first access after
-// `credits_reset_at` expires.
+// 3D, etc). Admins/owners are exempt. Auto-refills monthly (every 30 days) on
+// first access after `credits_reset_at` expires. Default monthly allowance: 50.
 //
 // Returns either `{ ok: true, remaining }` on success or
 // `{ ok: false, code, message, ... }` on insufficient credits. Callers should
@@ -123,7 +123,7 @@ export async function chargeCredits(
   // 3. Auto-refill if the 24h timer has passed.
   if (resetAt && resetMs <= nowMs && maxCredits > 0) {
     credits = maxCredits;
-    resetAt = new Date(nowMs + 24 * 60 * 60 * 1000).toISOString();
+    resetAt = new Date(nowMs + 30 * 24 * 60 * 60 * 1000).toISOString(); // 30-day monthly refill
     didRefill = true;
   }
 
@@ -144,7 +144,7 @@ export async function chargeCredits(
       remaining: credits,
       resetAt: resetAt ?? undefined,
       message: minutes
-        ? `You're out of credits. Free credits refill in ~${formatMinutes(minutes)}. Upgrade your plan for more.`
+        ? `You're out of credits. Your monthly credits refill in ~${formatMinutes(minutes)}. Top up or upgrade for more.`
         : "You're out of credits.",
     };
   }
