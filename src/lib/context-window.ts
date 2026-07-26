@@ -80,7 +80,11 @@ const BOUNDARY = /\n\n|\n|(?<=[.!?])\s|;\s|,\s/g;
  * Code fences are balanced afterwards so the model never receives a half-open
  * fence, which reliably derails formatting for the rest of the turn.
  */
-export function trimTextToTokens(text: string, maxTokens: number): string {
+export function trimTextToTokens(
+  text: string,
+  maxTokens: number,
+  preserveMode: "head" | "tail" = "tail"
+): string {
   const s = String(text ?? "");
   if (maxTokens <= 0) return "";
   if (estimateTokens(s) <= maxTokens) return s;
@@ -88,18 +92,27 @@ export function trimTextToTokens(text: string, maxTokens: number): string {
   // Convert the token budget back to an approximate character budget.
   const symbols = (s.match(/[^\w\s]/g) ?? []).length;
   const perToken = symbols / s.length > 0.12 ? 3 : 4;
-  const charBudget = Math.max(80, maxTokens * perToken);
+  const charBudget = Math.max(120, maxTokens * perToken);
 
-  let cut = s.slice(-charBudget);
-
-  // Advance to the next clean boundary so we never start mid-word.
-  BOUNDARY.lastIndex = 0;
-  const match = BOUNDARY.exec(cut);
-  if (match && match.index < cut.length * 0.25) {
-    cut = cut.slice(match.index + match[0].length);
+  let cut: string;
+  if (preserveMode === "head") {
+    cut = s.slice(0, charBudget);
+    // Cut back to the last clean line or sentence boundary
+    const lastBoundary = cut.search(/\n(?![\s\S]*\n)|(?<=[.!?])\s(?![\s\S]*[.!?])/);
+    if (lastBoundary > cut.length * 0.75) {
+      cut = cut.slice(0, lastBoundary);
+    }
+    return `${balanceCodeFences(cut)}\n[later part of this message trimmed due to extreme length]`;
+  } else {
+    cut = s.slice(-charBudget);
+    // Advance to the next clean boundary so we never start mid-word.
+    BOUNDARY.lastIndex = 0;
+    const match = BOUNDARY.exec(cut);
+    if (match && match.index < cut.length * 0.25) {
+      cut = cut.slice(match.index + match[0].length);
+    }
+    return `[earlier part of this message trimmed]\n${balanceCodeFences(cut)}`;
   }
-
-  return `[earlier part of this message trimmed]\n${balanceCodeFences(cut)}`;
 }
 
 /** Drop a dangling code fence left behind by truncation. */
@@ -186,7 +199,7 @@ export type WindowOptions = {
 
 export type WindowResult<T extends SimpleMessage> = {
   messages: T[];
-  /** Digest of everything that did not fit, or "" when nothing was dropped. */
+  /** Digest of whatever did not fit, or "" when nothing was dropped. */
   digest: string;
   estimatedTokens: number;
   droppedCount: number;
@@ -204,8 +217,8 @@ export function fitMessagesToWindow<T extends SimpleMessage>(
   options: WindowOptions,
 ): WindowResult<T> {
   const budget = Math.max(256, options.budgetTokens);
-  const latestUserTokens = options.latestUserTokens ?? Math.floor(budget * 0.45);
-  const perMessageTokens = options.perMessageTokens ?? Math.floor(budget * 0.18);
+  const latestUserTokens = options.latestUserTokens ?? Math.max(16000, Math.floor(budget * 0.75));
+  const perMessageTokens = options.perMessageTokens ?? Math.floor(budget * 0.25);
   const maxMessages = options.maxMessages ?? 24;
 
   if (messages.length === 0) {
@@ -219,11 +232,13 @@ export function fitMessagesToWindow<T extends SimpleMessage>(
   for (; index >= 0; index--) {
     const message = messages[index];
     const isLatest = index === messages.length - 1;
-    const cap = isLatest && message.role === "user" ? latestUserTokens : perMessageTokens;
+    const isUser = message.role === "user";
+    const cap = isLatest && isUser ? latestUserTokens : perMessageTokens;
+    const preserveMode = isUser ? "head" : "tail";
 
     const parts = (message.parts ?? []).map((p) => {
       if (p?.type !== "text" || typeof p.text !== "string") return p;
-      return { ...p, text: trimTextToTokens(p.text, cap) };
+      return { ...p, text: trimTextToTokens(p.text, cap, preserveMode) };
     });
 
     const candidate = { ...message, parts } as T;
@@ -250,8 +265,9 @@ export function fitMessagesToWindow<T extends SimpleMessage>(
 /**
  * Default history budgets. Chat answers are conversational so they need less
  * history than a build, which has to remember the structure it already created.
+ * Expanded to comfortably handle long, detailed multi-paragraph user specifications.
  */
 export const HISTORY_BUDGETS = {
-  chat: 6000,
-  build: 9000,
+  chat: 16000,
+  build: 24000,
 } as const;

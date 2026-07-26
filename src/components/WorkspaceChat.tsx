@@ -1192,7 +1192,13 @@ export function WorkspaceChat({
           id="home-composer"
           ref={taRef}
           value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
+          onChange={(e) => {
+            setPrompt(e.target.value);
+            const el = e.target;
+            el.style.height = "auto";
+            const nextH = Math.min(Math.max(el.scrollHeight, 64), 280);
+            el.style.height = `${nextH}px`;
+          }}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
@@ -1201,13 +1207,21 @@ export function WorkspaceChat({
           }}
           placeholder={
             isBuild
-              ? (activeProjectId ? "Describe what to build next… (⌘K to focus · ⌘/ to switch modes)" : "Describe your game — Build will create a project and start. (⌘K · ⌘/)")
+              ? (activeProjectId ? "Describe what to build next… (Paste long multi-system specs or detailed prompts!)" : "Describe your game specification — Build will create a project and start. (⌘K · ⌘/)")
               : "Ask BloxSmith Agent anything — plan, brainstorm, or refine an idea. (⌘K · ⌘/)"
           }
           rows={2}
-          className="w-full resize-none bg-transparent px-1 py-1 text-base leading-relaxed text-white outline-none placeholder:text-slate-500 sm:text-[15px]"
+          className="w-full resize-y bg-transparent px-1 py-1 text-base leading-relaxed text-white outline-none placeholder:text-slate-500 sm:text-[15px] min-h-[64px] max-h-[280px] overflow-y-auto bs-smooth-scroll"
           style={{ fontSize: "16px" }}
         />
+        {prompt.length > 150 && (
+          <div className="mt-1 flex items-center justify-between border-t border-white/5 pt-1.5 text-[10.5px] text-indigo-300/80 font-medium">
+            <span>Detailed Prompt Mode — Full spec will be parsed and executed</span>
+            <span className="rounded-md bg-indigo-500/20 px-1.5 py-0.5 font-mono text-[10px] text-cyan-300">
+              {prompt.length} chars · ~{Math.ceil(prompt.length / 4)} tokens
+            </span>
+          </div>
+        )}
 
         <input
           ref={attachInputRef}
