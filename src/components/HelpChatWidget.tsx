@@ -19,6 +19,7 @@ export function HelpChatWidget() {
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const didOpenRef = useRef(false);
 
   const { messages, sendMessage, status, error, setMessages } = useChat({
     id: "bloxsmith-help",
@@ -36,11 +37,17 @@ export function HelpChatWidget() {
   }, [open]);
 
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages, status]);
+    // Don't scroll on the very first render after open (no messages yet)
+    if (!open || !scrollRef.current) return;
+    if (!didOpenRef.current) { didOpenRef.current = true; return; }
+    scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [messages, status, open]);
 
   useEffect(() => {
-    if (open) setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 100);
+    if (open) {
+      didOpenRef.current = false;
+      setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 100);
+    }
   }, [open]);
 
   const busy = status === "submitted" || status === "streaming";
@@ -68,9 +75,9 @@ export function HelpChatWidget() {
       {!open && (
         <button
           type="button"
-          onClick={() => setOpen(true)}
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen(true); }}
           aria-label="Open BloxSmith help chat"
-          className="group fixed bottom-5 right-5 z-[9999] flex items-center gap-2.5 rounded-full border border-indigo-400/50 bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 px-4.5 py-3 text-white shadow-[0_0_30px_rgba(99,102,241,0.5)] transition-all hover:scale-105 hover:border-cyan-400 hover:shadow-[0_0_40px_rgba(34,211,238,0.6)] active:scale-95 sm:bottom-6 sm:right-6"
+          className="group fixed bottom-5 right-5 z-[9999] flex items-center gap-2.5 rounded-full border border-indigo-400/50 bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 px-5 py-3 text-white shadow-[0_0_30px_rgba(99,102,241,0.5)] transition-all hover:scale-105 hover:border-cyan-400 hover:shadow-[0_0_40px_rgba(34,211,238,0.6)] active:scale-95 sm:bottom-6 sm:right-6"
         >
           <MessageCircle className="h-5 w-5 text-cyan-300 transition-transform group-hover:scale-110" />
           <span className="hidden text-sm font-black tracking-wide text-white sm:inline">Need help?</span>

@@ -48,6 +48,14 @@ function NotFoundComponent() {
           >
             Open dashboard
           </Link>
+          <a
+            href="https://discord.gg/YJ8xPFNSSX"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-indigo-400/30 bg-indigo-500/10 px-5 py-2.5 text-sm font-semibold text-indigo-200 transition hover:bg-indigo-500/20 sm:w-auto"
+          >
+            💬 Get help on Discord
+          </a>
         </div>
       </div>
     </div>
@@ -107,7 +115,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:description", content: "BloxSmith is an AI-powered Roblox game builder. Describe your game, watch BloxSmith generate Luau scripts, GUIs, maps, and systems straight into Roblox Studio." },
       { property: "og:type", content: "website" },
       { property: "og:site_name", content: "BloxSmith" },
+      { property: "og:image", content: "https://bloxsmith.pro/og-image.png" },
+      { property: "og:image:width", content: "1200" },
+      { property: "og:image:height", content: "630" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:image", content: "https://bloxsmith.pro/og-image.png" },
       { name: "twitter:site", content: "@bloxsmith" },
       { name: "twitter:title", content: "BloxSmith — AI Roblox Game Builder" },
       { name: "twitter:description", content: "BloxSmith is an AI-powered Roblox game builder. Describe your game, watch BloxSmith generate Luau scripts, GUIs, maps, and systems straight into Roblox Studio." },
@@ -238,11 +250,11 @@ function BetaBanner() {
 
   if (dismissed) return null;
   return (
-    <div className="sticky top-0 z-[70] flex items-center gap-2 border-b border-blue-400/25 bg-blue-950 px-3 py-1.5 text-[11px] font-semibold text-blue-100 shadow-lg shadow-blue-950/20 sm:px-4 sm:py-2 sm:text-xs">
-      <span className="hidden shrink-0 rounded-full bg-blue-400/20 px-2 py-0.5 text-[10px] uppercase tracking-wider text-blue-100 sm:inline">Beta</span>
+    <div className="sticky top-0 z-[70] flex items-center gap-2 border-b border-indigo-400/20 bg-gradient-to-r from-indigo-950 via-purple-950/80 to-indigo-950 px-3 py-1.5 text-[11px] font-semibold text-indigo-100 shadow-lg sm:px-4 sm:py-2 sm:text-xs">
+      <span className="hidden shrink-0 rounded-full bg-indigo-400/20 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-indigo-200 sm:inline">Beta</span>
       <span className="flex-1 truncate text-center sm:text-left">
-        <span className="sm:hidden">In beta — updates daily. Thanks for your patience!</span>
-        <span className="hidden sm:inline">BloxSmith is still in beta and we update almost every day — if something is not working, please be patient while we improve it.</span>
+        <span className="sm:hidden">In beta — updates daily. <a href="https://discord.gg/YJ8xPFNSSX" target="_blank" rel="noreferrer" className="underline decoration-cyan-400/50 text-cyan-300 hover:text-white">Join Discord</a> for help!</span>
+        <span className="hidden sm:inline">BloxSmith is in active beta — we update almost every day. Need help or found a bug? <a href="https://discord.gg/YJ8xPFNSSX" target="_blank" rel="noreferrer" className="underline decoration-cyan-400/50 text-cyan-300 hover:text-white">Join our Discord community →</a></span>
       </span>
       <button
         type="button"
