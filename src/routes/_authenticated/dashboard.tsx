@@ -231,63 +231,51 @@ function Dashboard() {
 
         <div className="min-w-0 flex-1">
           {/* Top bar with Vapor Frost & Hairline Border */}
-          <header className="sticky top-0 z-30 flex items-center gap-3 vapor-frost vapor-hairline-b px-4 py-3.5 sm:px-8 sm:py-4">
-            <MobileNavTrigger isAdmin={isAdmin} className="lg:hidden" />
-            <div className="min-w-0 flex-1">
-              <h1 className="truncate text-lg font-extrabold tracking-tight sm:text-[28px]">
-                Welcome back, <span className="vapor-title">{shortName}</span> <span aria-hidden className="inline-block animate-bounce">👋</span>
-              </h1>
-              <p className="mt-0.5 hidden text-xs font-medium text-indigo-200/70 sm:block">What do you want to build today?</p>
+          <header className="sticky top-0 z-30 flex items-center justify-between gap-4 vapor-frost vapor-hairline-b px-4 py-3 sm:px-8 sm:py-4 overflow-hidden">
+            <div className="flex items-center gap-3 shrink-0 min-w-0">
+              <MobileNavTrigger isAdmin={isAdmin} className="lg:hidden" />
+              <div className="min-w-0 shrink-0">
+                <h1 className="truncate text-base font-extrabold tracking-tight sm:text-2xl">
+                  Welcome back, <span className="vapor-title">{shortName}</span> <span aria-hidden className="inline-block animate-bounce">👋</span>
+                </h1>
+                <p className="mt-0.5 hidden text-xs font-medium text-indigo-200/70 whitespace-nowrap sm:block">What do you want to build today?</p>
+              </div>
             </div>
 
-              <div className="hidden items-center gap-2.5 md:flex">
-                <div className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold backdrop-blur-md transition-all ${pluginOnline ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300 shadow-[0_0_15px_rgba(52,211,153,0.15)]" : "border-white/10 bg-white/[0.03] text-slate-400"}`}>
-                  <span className={`h-2 w-2 rounded-full ${pluginOnline ? "bg-emerald-400 shadow-[0_0_10px_#34d399] animate-pulse" : "bg-slate-500"}`} />
-                  Studio: {pluginOnline ? "Connected" : "Offline"}
-                </div>
-                <CreditsPill />
-                <Link
-                  to="/pricing"
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-cyan-400/40 bg-gradient-to-r from-cyan-500/20 to-indigo-500/20 px-3 py-2 text-xs font-bold text-cyan-200 hover:border-cyan-400 hover:from-cyan-500/30 hover:to-indigo-500/30 transition shadow-sm"
-                >
-                  <Zap className="h-3.5 w-3.5 text-cyan-300" /> Top Up Credits
-                </Link>
-                <a
-                  href="https://discord.gg/YJ8xPFNSSX"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="vapor-ghost-btn inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-indigo-200 hover:text-white"
-                >
-                  <MessageSquare className="h-3.5 w-3.5 text-indigo-300" /> Discord
-                </a>
-                <Link
-                  to="/"
-                  className="vapor-ghost-btn inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-indigo-200 hover:text-white"
-                >
-                  <Globe className="h-3.5 w-3.5 text-indigo-300" /> Front Page
-                </Link>
-                <button
-                  type="button"
-                  onClick={() => setExportModalOpen(true)}
-                  className="vapor-ghost-btn inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-cyan-300 hover:text-white"
-                >
-                  <Download className="h-3.5 w-3.5 text-cyan-400" /> Export Game
-                </button>
-                <Link to="/plugin" className="vapor-ghost-btn inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold">
-                  <ExternalLink className="h-3.5 w-3.5 text-indigo-300" /> Send to Studio
-                </Link>
-                <ChangelogNotifications buttonClassName="vapor-ghost-btn inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold" iconClassName="h-3.5 w-3.5 text-indigo-300" />
-                <button
-                  type="button"
-                  disabled={createMut.isPending}
-                  onClick={() => setNewProjectOpen(true)}
-                  className="vapor-glow-btn inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white transition-transform active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <Plus className="h-4 w-4 text-cyan-300" /> New Project
-                </button>
+            <div className="flex items-center gap-2 overflow-x-auto bs-smooth-scroll py-1 no-scrollbar">
+              <div className={`hidden sm:flex items-center gap-2 rounded-xl border px-2.5 py-1.5 text-xs font-semibold backdrop-blur-md transition-all shrink-0 ${pluginOnline ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300 shadow-[0_0_15px_rgba(52,211,153,0.15)]" : "border-white/10 bg-white/[0.03] text-slate-400"}`}>
+                <span className={`h-2 w-2 rounded-full ${pluginOnline ? "bg-emerald-400 shadow-[0_0_10px_#34d399] animate-pulse" : "bg-slate-500"}`} />
+                Studio: {pluginOnline ? "Connected" : "Offline"}
               </div>
+              <CreditsPill />
+              <Link
+                to="/pricing"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-cyan-400/40 bg-gradient-to-r from-cyan-500/20 to-indigo-500/20 px-3 py-1.5 text-xs font-bold text-cyan-200 hover:border-cyan-400 hover:from-cyan-500/30 hover:to-indigo-500/30 transition shadow-sm shrink-0"
+              >
+                <Zap className="h-3.5 w-3.5 text-cyan-300" /> Top Up
+              </Link>
+              <button
+                type="button"
+                onClick={() => setExportModalOpen(true)}
+                className="vapor-ghost-btn hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-cyan-300 hover:text-white shrink-0"
+              >
+                <Download className="h-3.5 w-3.5 text-cyan-400" /> Export
+              </button>
+              <Link to="/plugin" className="vapor-ghost-btn hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold shrink-0">
+                <ExternalLink className="h-3.5 w-3.5 text-indigo-300" /> Studio Plugin
+              </Link>
+              <ChangelogNotifications buttonClassName="vapor-ghost-btn hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold shrink-0" iconClassName="h-3.5 w-3.5 text-indigo-300" />
+              <button
+                type="button"
+                disabled={createMut.isPending}
+                onClick={() => setNewProjectOpen(true)}
+                className="vapor-glow-btn inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-white transition-transform active:scale-95 disabled:cursor-not-allowed disabled:opacity-60 shrink-0"
+              >
+                <Plus className="h-3.5 w-3.5 text-cyan-300" /> New Project
+              </button>
               <ProfileMenu />
-            </header>
+            </div>
+          </header>
 
             <main className="mx-auto w-full max-w-[1440px] px-3 pb-28 pt-5 sm:px-8 sm:pb-8 sm:pt-8">
               <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">

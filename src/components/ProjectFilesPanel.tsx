@@ -7,6 +7,7 @@ import {
   saveScriptFile,
   moveProjectFile,
   deleteProjectFile,
+  clearStaleScan,
 } from "@/lib/project-workspace.functions";
 import {
   FolderTree,
@@ -73,10 +74,15 @@ export function ProjectFilesPanel({ projectId, projectName }: Props) {
   const [draggedFile, setDraggedFile] = useState<ProjectFile | null>(null);
   const [dragOverTarget, setDragOverTarget] = useState<string | null>(null);
 
-  const listFn = useServerFn(listProjectFiles);
-  const saveFn = useServerFn(saveScriptFile);
-  const moveFn = useServerFn(moveProjectFile);
-  const deleteFn = useServerFn(deleteProjectFile);
+  const clearScanFn = useServerFn(clearStaleScan);
+
+  const handleManualRefresh = async () => {
+    try {
+      await clearScanFn();
+    } catch {}
+    refetch();
+    toast.success("Refreshed project files!");
+  };
 
   const {
     data: files = [],
@@ -501,7 +507,7 @@ export function ProjectFilesPanel({ projectId, projectName }: Props) {
         <div className="flex items-center gap-1.5">
           <button
             type="button"
-            onClick={() => refetch()}
+            onClick={handleManualRefresh}
             title="Refresh Files"
             className="rounded-xl border border-white/10 bg-slate-800/80 p-2 text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
           >

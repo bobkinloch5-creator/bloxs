@@ -13,7 +13,8 @@ export type AutoTask =
   | "performance"
   | "testing"
   | "shortedit"
-  | "vision";
+  | "vision"
+  | "design";
 
 export interface ModelPick {
   task: AutoTask;
@@ -31,42 +32,16 @@ export interface ModelPick {
 // nvidia/z-ai-glm-5.2, nvidia/openai-gpt-oss-20b, nvidia/nemotron-nano-9b-v2,
 // nvidia/ministral-14b, nvidia/gemma-3-27b, nvidia/llama-3.1-8b, nvidia/llama-3.3-nemotron-super-49b
 const TASK_PREF: Record<AutoTask, { ids: string[]; reason: string }> = {
-  planning: {
-    ids: ["nvidia/nemotron-nano-9b-v2", "nvidia/gemma-3-27b", "nvidia/z-ai-glm-5.2", DEFAULT_MODEL_ID],
-    reason: "Auto: fast model for responsive Roblox planning.",
-  },
-  scripting: {
-    ids: ["oneprovider/claude-sonnet-4-6", "nvidia/z-ai-glm-5.2", "nvidia/openai-gpt-oss-20b", "nvidia/gemma-3-27b", "nvidia/ministral-14b", "nvidia/llama-3.1-8b"],
-    reason: "Auto: Claude Sonnet for high-quality runnable Luau scripting.",
-  },
-  ui: {
-    ids: ["nvidia/gemma-3-27b", "nvidia/nemotron-nano-9b-v2", "oneprovider/claude-sonnet-4-6", DEFAULT_MODEL_ID],
-    reason: "Auto: fast model for ScreenGui layout.",
-  },
-  assets: {
-    ids: ["nvidia/llama-3.1-8b", "nvidia/ministral-14b", "nvidia/nemotron-nano-9b-v2"],
-    reason: "Auto: small fast model for Toolbox asset planning.",
-  },
-  bugfix: {
-    ids: ["oneprovider/claude-sonnet-4-6", "nvidia/z-ai-glm-5.2", "nvidia/gemma-3-27b", "nvidia/ministral-14b", DEFAULT_MODEL_ID],
-    reason: "Auto: Claude Sonnet for precise bug tracing and fixes.",
-  },
-  performance: {
-    ids: ["nvidia/z-ai-glm-5.2", "oneprovider/claude-sonnet-4-6", "nvidia/gemma-3-27b", "nvidia/ministral-14b"],
-    reason: "Auto: reasoning model for performance analysis.",
-  },
-  testing: {
-    ids: ["nvidia/nemotron-nano-9b-v2", "nvidia/gemma-3-27b", "nvidia/openai-gpt-oss-20b"],
-    reason: "Auto: fast model for playtest checks.",
-  },
-  shortedit: {
-    ids: ["nvidia/llama-3.1-8b", "nvidia/ministral-14b", "oneprovider/claude-haiku-4-5"],
-    reason: "Auto: tiny fast model for short edits.",
-  },
-  vision: {
-    ids: ["nvidia/gemma-3-27b", "nvidia/nemotron-nano-9b-v2", DEFAULT_MODEL_ID],
-    reason: "Auto: fast model with injected vision summaries.",
-  },
+  planning:    { ids: ["nvidia/deepseek-v4-flash", "nvidia/nemotron-nano-9b-v2", "nvidia/gemma-3-27b", "nvidia/z-ai-glm-5.2", DEFAULT_MODEL_ID], reason: "Auto: DeepSeek V4 Flash for fast Roblox build planning." },
+  scripting:   { ids: ["oneprovider/claude-sonnet-4-6", "nvidia/deepseek-v4-flash", "nvidia/z-ai-glm-5.2", "nvidia/openai-gpt-oss-20b", "nvidia/gemma-3-27b", "nvidia/ministral-14b", "nvidia/llama-3.1-8b"], reason: "Auto: Claude Sonnet or DeepSeek V4 Flash for high-quality Luau." },
+  ui:          { ids: ["nvidia/deepseek-v4-flash", "nvidia/gemma-3-27b", "nvidia/nemotron-nano-9b-v2", "oneprovider/claude-sonnet-4-6", DEFAULT_MODEL_ID], reason: "Auto: DeepSeek V4 Flash for ScreenGui layout." },
+  assets:      { ids: ["nvidia/llama-3.1-8b", "nvidia/ministral-14b", "nvidia/nemotron-nano-9b-v2"], reason: "Auto: small fast model for Toolbox asset planning." },
+  bugfix:      { ids: ["oneprovider/claude-sonnet-4-6", "nvidia/deepseek-v4-flash", "nvidia/z-ai-glm-5.2", "nvidia/gemma-3-27b", "nvidia/ministral-14b", DEFAULT_MODEL_ID], reason: "Auto: Claude Sonnet or DeepSeek V4 Flash for bug tracing." },
+  performance: { ids: ["nvidia/deepseek-v4-flash", "nvidia/z-ai-glm-5.2", "oneprovider/claude-sonnet-4-6", "nvidia/gemma-3-27b"], reason: "Auto: DeepSeek V4 Flash for performance analysis." },
+  testing:     { ids: ["nvidia/nemotron-nano-9b-v2", "nvidia/gemma-3-27b", "nvidia/openai-gpt-oss-20b"], reason: "Auto: fast model for playtest checks." },
+  shortedit:   { ids: ["nvidia/llama-3.1-8b", "nvidia/ministral-14b", "oneprovider/claude-haiku-4-5"], reason: "Auto: tiny fast model for short edits." },
+  vision:      { ids: ["nvidia/deepseek-v4-flash", "nvidia/gemma-3-27b", "nvidia/nemotron-nano-9b-v2", DEFAULT_MODEL_ID], reason: "Auto: DeepSeek V4 Flash for vision analysis." },
+  design:      { ids: ["nvidia/deepseek-v4-pro", "nvidia/deepseek-v4-flash", "oneprovider/claude-sonnet-4-6", "nvidia/z-ai-glm-5.2"], reason: "Auto: DeepSeek V4 Pro for game design and architecture." },
 };
 
 
@@ -118,17 +93,17 @@ export function estimateDifficulty(text: string): Difficulty {
   return "normal";
 }
 
-// Stronger models to prefer for hard requests, per task. First Working id wins.
 const HARD_PREF: Partial<Record<AutoTask, string[]>> = {
-  planning:    ["nvidia/llama-3.3-nemotron-super-49b", "nvidia/z-ai-glm-5.2", "oneprovider/claude-sonnet-4-6"],
-  scripting:   ["nvidia/llama-3.3-nemotron-super-49b", "nvidia/z-ai-glm-5.2", "nvidia/openai-gpt-oss-20b", "oneprovider/claude-sonnet-4-6"],
-  ui:          ["nvidia/llama-3.3-nemotron-super-49b", "nvidia/z-ai-glm-5.2", "nvidia/gemma-3-27b"],
-  bugfix:      ["nvidia/llama-3.3-nemotron-super-49b", "nvidia/z-ai-glm-5.2", "oneprovider/claude-sonnet-4-6"],
-  performance: ["nvidia/llama-3.3-nemotron-super-49b", "nvidia/z-ai-glm-5.2", "oneprovider/claude-sonnet-4-6"],
+  planning:    ["nvidia/deepseek-v4-pro", "nvidia/deepseek-v4-flash", "nvidia/llama-3.3-nemotron-super-49b", "nvidia/z-ai-glm-5.2", "oneprovider/claude-sonnet-4-6"],
+  scripting:   ["nvidia/deepseek-v4-pro", "nvidia/deepseek-v4-flash", "nvidia/llama-3.3-nemotron-super-49b", "nvidia/z-ai-glm-5.2", "nvidia/openai-gpt-oss-20b", "oneprovider/claude-sonnet-4-6"],
+  ui:          ["nvidia/deepseek-v4-flash", "nvidia/llama-3.3-nemotron-super-49b", "nvidia/z-ai-glm-5.2", "nvidia/gemma-3-27b"],
+  bugfix:      ["nvidia/deepseek-v4-pro", "nvidia/deepseek-v4-flash", "nvidia/llama-3.3-nemotron-super-49b", "nvidia/z-ai-glm-5.2", "oneprovider/claude-sonnet-4-6"],
+  performance: ["nvidia/deepseek-v4-pro", "nvidia/deepseek-v4-flash", "nvidia/llama-3.3-nemotron-super-49b", "nvidia/z-ai-glm-5.2", "oneprovider/claude-sonnet-4-6"],
   testing:     ["nvidia/nemotron-nano-9b-v2", "nvidia/gemma-3-27b", "nvidia/openai-gpt-oss-20b"],
   assets:      ["nvidia/nemotron-nano-9b-v2", "nvidia/ministral-14b", "nvidia/llama-3.1-8b"],
   shortedit:   ["oneprovider/claude-haiku-4-5", "nvidia/ministral-14b", "nvidia/llama-3.1-8b"],
-  vision:      ["nvidia/llama-3.3-nemotron-super-49b", "nvidia/gemma-3-27b"],
+  vision:      ["nvidia/deepseek-v4-flash", "nvidia/llama-3.3-nemotron-super-49b", "nvidia/gemma-3-27b"],
+  design:      ["nvidia/deepseek-v4-pro", "nvidia/deepseek-v4-flash", "oneprovider/claude-sonnet-4-6", "nvidia/z-ai-glm-5.2"],
 };
 
 export function pickModelForTask(task: AutoTask, difficulty: Difficulty = "normal"): ModelPick {
@@ -215,14 +190,8 @@ export function pickFallbackAfterFailure(
 }
 
 export const AUTO_TASKS: AutoTask[] = [
-  "planning",
-  "scripting",
-  "ui",
-  "assets",
-  "bugfix",
-  "performance",
-  "testing",
-  "shortedit",
+  "planning", "scripting", "ui", "assets", "bugfix",
+  "performance", "testing", "shortedit", "design",
 ];
 
 export function pickAllTaskModels(): ModelPick[] {
@@ -230,15 +199,16 @@ export function pickAllTaskModels(): ModelPick[] {
 }
 
 export const TASK_LABELS: Record<AutoTask, string> = {
-  planning: "Planning & build graph",
-  scripting: "Roblox Lua scripting",
-  ui: "UI design",
-  assets: "Toolbox asset search",
-  bugfix: "Bug fixing",
+  planning:    "Planning & build graph",
+  scripting:   "Roblox Lua scripting",
+  ui:          "UI design",
+  assets:      "Toolbox asset search",
+  bugfix:      "Bug fixing",
   performance: "Performance optimizer",
-  testing: "Playtesting",
-  shortedit: "Short edits & retries",
-  vision: "Screenshot / vision",
+  testing:     "Playtesting",
+  shortedit:   "Short edits & retries",
+  vision:      "Screenshot / vision",
+  design:      "Game design & architecture",
 };
 
 // ── NVIDIA Super AI Ensemble ──────────────────────────────────────────────

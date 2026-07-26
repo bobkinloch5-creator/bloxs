@@ -369,13 +369,19 @@ export const listProjectFiles = createServerFn({ method: "GET" })
     }
 
     // 3. Check plugin_sessions for live Roblox Studio scene scan tree
+    // STALENESS GUARD: only use last_scan if it was received within the last 30 minutes.
+    // If the scan is older, it's from a previous Studio session and should be ignored.
     const { data: session } = await ctx.supabase
       .from("plugin_sessions")
       .select("last_scan, last_scan_at")
       .eq("user_id", ctx.userId)
       .maybeSingle();
 
-    if (session?.last_scan) {
+    const SCAN_MAX_AGE_MS = 30 * 60 * 1000; // 30 minutes
+    const scanIsStale = !session?.last_scan_at ||
+      (Date.now() - new Date(session.last_scan_at).getTime()) > SCAN_MAX_AGE_MS;
+
+    if (session?.last_scan && !scanIsStale) {
       let rawScan = session.last_scan;
       if (typeof rawScan === "string") {
         try {
@@ -578,6 +584,22 @@ export const deleteProjectFile = createServerFn({ method: "POST" })
 
     return { ok: true, deleted: true };
   });
+
+// ---------- Clear Stale Studio Scan ----------
+// Call this before refetching project files to guarantee a clean slate.
+// Wipes last_scan from plugin_sessions so the next listProjectFiles call
+// returns only real plugin_actions, not a ghost scan from an old Studio session.
+export const clearStaleScan = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const ctx = context as any;
+    await ctx.supabase
+      .from("plugin_sessions")
+      .update({ last_scan: null, last_scan_at: null })
+      .eq("user_id", ctx.userId);
+    return { ok: true };
+  });
+
 
 
 
