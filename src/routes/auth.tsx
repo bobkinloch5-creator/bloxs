@@ -5,6 +5,8 @@ import { lovable } from "@/integrations/lovable";
 import { Loader2 } from "lucide-react";
 import bloxsmithMascot from "@/assets/bloxsmith-mascot.png.asset.json";
 
+import { toast } from "sonner";
+
 export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
@@ -27,6 +29,7 @@ function AuthPage() {
   const [username, setUsername] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -36,6 +39,7 @@ function AuthPage() {
 
   async function handleOAuth(provider: "google" | "apple") {
     setError(null);
+    setSuccessMessage(null);
     setBusy(true);
     const result = await lovable.auth.signInWithOAuth(provider, {
       redirect_uri: window.location.origin,
@@ -53,10 +57,11 @@ function AuthPage() {
   async function handleEmail(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setSuccessMessage(null);
     setBusy(true);
     try {
       if (mode === "signup") {
-        const { error: err } = await supabase.auth.signUp({
+        const { error: err, data } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -65,12 +70,32 @@ function AuthPage() {
           },
         });
         if (err) throw err;
+
+        if (data?.session) {
+          toast.success("Account created successfully! Welcome to BloxSmith.");
+          router.invalidate();
+          navigate({ to: "/dashboard" });
+          return;
+        }
+
+        const { error: signInErr, data: signInData } = await supabase.auth.signInWithPassword({ email, password });
+        if (!signInErr && signInData?.session) {
+          toast.success("Account created! Welcome to BloxSmith.");
+          router.invalidate();
+          navigate({ to: "/dashboard" });
+          return;
+        }
+
+        setSuccessMessage("Account created! If you don't log in automatically, please check your email inbox to confirm your sign up.");
+        toast.info("Account created! Check your email to confirm.");
+        setMode("signin");
       } else {
         const { error: err } = await supabase.auth.signInWithPassword({ email, password });
         if (err) throw err;
+        toast.success("Signed in successfully!");
+        router.invalidate();
+        navigate({ to: "/dashboard" });
       }
-      router.invalidate();
-      navigate({ to: "/dashboard" });
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Authentication failed.");
     } finally {
@@ -141,7 +166,8 @@ function AuthPage() {
             placeholder="Password (6+ chars)"
             className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm outline-none focus:border-primary"
           />
-          {error && <p className="text-xs text-destructive">{error}</p>}
+          {error && <p className="text-xs text-destructive bg-destructive/10 p-2.5 rounded-lg border border-destructive/20">{error}</p>}
+          {successMessage && <p className="text-xs text-emerald-300 bg-emerald-500/10 p-2.5 rounded-lg border border-emerald-500/20">{successMessage}</p>}
           <button
             type="submit"
             disabled={busy}

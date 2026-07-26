@@ -41,11 +41,7 @@ BEGIN
     CASE WHEN lower(coalesce(new.email, '')) = lower(owner_email) THEN 1000000 ELSE 50 END,
     CASE WHEN lower(coalesce(new.email, '')) = lower(owner_email) THEN 1000000 ELSE 50 END
   )
-  ON CONFLICT (id) DO UPDATE SET
-    is_admin = public.profiles.is_admin OR (lower(coalesce(new.email, '')) = lower(owner_email)),
-    plan = CASE WHEN lower(coalesce(new.email, '')) = lower(owner_email) THEN 'Owner' ELSE public.profiles.plan END,
-    max_credits = CASE WHEN lower(coalesce(new.email, '')) = lower(owner_email) THEN greatest(public.profiles.max_credits, 1000000) ELSE public.profiles.max_credits END,
-    credits = CASE WHEN lower(coalesce(new.email, '')) = lower(owner_email) THEN greatest(public.profiles.credits, 1000000) ELSE public.profiles.credits END;
+  ON CONFLICT (id) DO NOTHING;
 
   INSERT INTO public.user_roles (user_id, role) VALUES (new.id, 'user')
     ON CONFLICT DO NOTHING;
