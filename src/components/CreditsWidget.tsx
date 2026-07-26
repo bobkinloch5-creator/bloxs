@@ -9,12 +9,13 @@ import { PayPalTopUpModal } from "@/components/PayPalTopUpModal";
 export function useResetTimer(resetAt?: string | null) {
   const [label, setLabel] = useState<string>("");
   useEffect(() => {
-    if (!resetAt) {
-      setLabel("");
-      return;
-    }
+    // If resetAt is missing, compute default fallback (30 days from now)
+    const targetDate = resetAt
+      ? new Date(resetAt)
+      : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
     const tick = () => {
-      const ms = new Date(resetAt).getTime() - Date.now();
+      const ms = targetDate.getTime() - Date.now();
       if (ms <= 0) {
         setLabel("Resets now");
         return;
@@ -22,16 +23,20 @@ export function useResetTimer(resetAt?: string | null) {
       const days = Math.floor(ms / (24 * 3600 * 1000));
       const h = Math.floor((ms % (24 * 3600 * 1000)) / 3.6e6);
       const m = Math.floor((ms % 3.6e6) / 6e4);
+      const s = Math.floor((ms % 6e4) / 1000);
+
       if (days > 0) {
         setLabel(`Resets in ${days}d ${h}h`);
       } else if (h > 0) {
         setLabel(`Resets in ${h}h ${m}m`);
+      } else if (m > 0) {
+        setLabel(`Resets in ${m}m ${s}s`);
       } else {
-        setLabel(`Resets in ${m}m`);
+        setLabel(`Resets in ${s}s`);
       }
     };
     tick();
-    const id = setInterval(tick, 30_000);
+    const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   }, [resetAt]);
   return label;
