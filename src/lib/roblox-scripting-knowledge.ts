@@ -466,7 +466,7 @@ TweenService:Create(platform, info, { CFrame = endCFrame }):Play()`,
 		cache[name] = track
 	end
 
-	load("swing", "rbxassetid://0") -- replace with a real owned animation id
+	load("swing", "") -- set to a valid owned animation id if available (or skip loading if unassigned)
 
 	return {
 		play = function(name: string)
