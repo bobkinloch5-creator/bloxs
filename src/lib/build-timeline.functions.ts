@@ -9,7 +9,8 @@ export const listBuildMilestones = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) => ProjectInput.parse(input))
   .handler(async ({ data, context }) => {
-    const sb = context.supabase as any;
+    const ctx = context as any;
+    const sb = ctx.supabase;
     const { data: rows, error } = await sb
       .from("build_milestones")
       .select("id, label, summary, kind, parts_count, scripts_count, gui_count, size_bytes, place_id, created_at")
@@ -30,10 +31,11 @@ export const createBuildMilestone = createServerFn({ method: "POST" })
     }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    const sb = context.supabase as any;
+    const ctx = context as any;
+    const sb = ctx.supabase;
     const { error } = await sb.from("plugin_actions").insert({
       project_id: data.projectId,
-      user_id: context.userId,
+      user_id: ctx.userId,
       kind: "snapshot",
       parent_path: "Workspace",
       name: `Snapshot: ${data.label}`,
@@ -54,12 +56,13 @@ export const restoreBuildMilestone = createServerFn({ method: "POST" })
     }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    const sb = context.supabase as any;
+    const ctx = context as any;
+    const sb = ctx.supabase;
     const { data: ms, error: e0 } = await sb
       .from("build_milestones")
       .select("id, label")
       .eq("id", data.milestoneId)
-      .eq("user_id", context.userId)
+      .eq("user_id", ctx.userId)
       .maybeSingle();
     if (e0) throw new Error(e0.message);
     if (!ms) throw new Error("Milestone not found");
@@ -68,7 +71,7 @@ export const restoreBuildMilestone = createServerFn({ method: "POST" })
     if (data.createBackupFirst) {
       queue.push({
         project_id: data.projectId,
-        user_id: context.userId,
+        user_id: ctx.userId,
         kind: "snapshot",
         parent_path: "Workspace",
         name: `Auto-backup before restoring ${ms.label}`,
@@ -82,7 +85,7 @@ export const restoreBuildMilestone = createServerFn({ method: "POST" })
     }
     queue.push({
       project_id: data.projectId,
-      user_id: context.userId,
+      user_id: ctx.userId,
       kind: "restore_snapshot",
       parent_path: "Workspace",
       name: `Restore: ${ms.label}`,
@@ -99,12 +102,13 @@ export const deleteBuildMilestone = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) => z.object({ milestoneId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const sb = context.supabase as any;
+    const ctx = context as any;
+    const sb = ctx.supabase;
     const { error } = await sb
       .from("build_milestones")
       .delete()
       .eq("id", data.milestoneId)
-      .eq("user_id", context.userId);
+      .eq("user_id", ctx.userId);
     if (error) throw new Error(error.message);
     return { ok: true };
   });

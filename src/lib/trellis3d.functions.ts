@@ -348,7 +348,7 @@ export async function executeTrellis3D(params: {
       slatSamplingSteps: params.slatSamplingSteps,
       ssSamplingSteps:   params.ssSamplingSteps,
     },
-    result: result.raw,
+    result: JSON.stringify(result.raw ?? {}),
   };
 }
 
@@ -369,6 +369,6 @@ export const generateTrellis3D = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    enforceRateLimit(context.userId, "model_generate");
+    enforceRateLimit((context as any)?.userId ?? "dev-user", "model_generate");
     return executeTrellis3D(data);
   });

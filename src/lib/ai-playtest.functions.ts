@@ -70,12 +70,13 @@ export const runAiPlaytest = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => z.object({ project_id: uuid }).parse(i))
   .handler(async ({ data, context }) => {
-    const sb = context.supabase as any;
+    const ctx = context as any;
+    const sb = ctx.supabase;
 
     // Access check reuses the existing RPC used by the rest of the app.
     const { data: canAccess } = await sb.rpc("can_access_project", {
       _project_id: data.project_id,
-      _user_id: context.userId,
+      _user_id: ctx.userId,
     });
     if (!canAccess) throw new Error("No access to this project");
 
@@ -98,7 +99,7 @@ export const runAiPlaytest = createServerFn({ method: "POST" })
         .limit(20),
       sb.from("plugin_sessions")
         .select("last_scan, last_scan_at, plugin_version, place_id")
-        .eq("user_id", context.userId)
+        .eq("user_id", ctx.userId)
         .order("last_seen", { ascending: false })
         .limit(1)
         .maybeSingle(),
@@ -238,7 +239,7 @@ export const runAiPlaytest = createServerFn({ method: "POST" })
     };
 
     const { data: row, error } = await sb.from("playtest_reports").insert({
-      user_id: context.userId,
+      user_id: ctx.userId,
       place_id: session?.place_id ?? null,
       summary: finalSummary,
       findings,
@@ -250,7 +251,7 @@ export const runAiPlaytest = createServerFn({ method: "POST" })
     try {
       await sb.from("project_activity").insert({
         project_id: data.project_id,
-        user_id: context.userId,
+        user_id: ctx.userId,
         kind: "playtest.ai",
         summary: `AI playtest ran — ${counts.critical + counts.high} blocker(s), ${counts.medium + counts.low} note(s)`,
         meta: { report_id: row.id, verdict: finalSummary.verdict, score: finalSummary.score },
@@ -264,10 +265,11 @@ export const listAiPlaytest = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => z.object({ project_id: uuid.optional(), limit: z.number().int().min(1).max(20).default(5) }).parse(i ?? {}))
   .handler(async ({ data, context }) => {
-    const sb = context.supabase as any;
+    const ctx = context as any;
+    const sb = ctx.supabase;
     let q = sb.from("playtest_reports")
       .select("id, created_at, summary, findings, metrics, place_id")
-      .eq("user_id", context.userId)
+      .eq("user_id", ctx.userId)
       .order("created_at", { ascending: false })
       .limit(data.limit);
     // Filter by project via the summary JSON we store above.

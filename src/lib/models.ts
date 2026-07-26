@@ -381,6 +381,58 @@ export const MODELS: ModelOption[] = [
     modelSettings: { temperature: 0.55, topP: 0.9, maxOutputTokens: 3072 },
   },
 
+  // ─── Z.AI on NVIDIA ────────────────────────────────────────────────────────
+  {
+    id: "nvidia/z-ai-glm-5.2",
+    upstreamId: "z-ai/glm-5.2",
+    gateway: "nvidia",
+    label: "GLM 5.2 (Z.AI)",
+    provider: "Z.AI",
+    via: "NVIDIA NIM",
+    tier: "balanced",
+    speed: "Fast",
+    quality: "Best",
+    credits: "Low",
+    status: "Working",
+    bestFor: "Advanced reasoning and large-context Luau code generation by Z.AI via NVIDIA NIM.",
+    description: "Z.AI GLM 5.2 via NVIDIA build.nvidia.com.",
+    modelSettings: { temperature: 1, topP: 1, maxOutputTokens: 16384 },
+  },
+
+  // ─── OpenAI on NVIDIA ──────────────────────────────────────────────────────
+  {
+    id: "nvidia/openai-gpt-oss-20b",
+    upstreamId: "openai/gpt-oss-20b",
+    gateway: "nvidia",
+    label: "GPT OSS 20B (OpenAI)",
+    provider: "OpenAI",
+    via: "NVIDIA NIM",
+    tier: "fast",
+    speed: "Fast",
+    quality: "Great",
+    credits: "Low",
+    status: "Working",
+    bestFor: "Fast open-weights OpenAI model via NVIDIA NIM.",
+    description: "OpenAI GPT OSS 20B via NVIDIA build.nvidia.com.",
+    modelSettings: { temperature: 0.7, topP: 0.95, maxOutputTokens: 8192 },
+  },
+  {
+    id: "nvidia/openai-gpt-oss-120b",
+    upstreamId: "openai/gpt-oss-120b",
+    gateway: "nvidia",
+    label: "GPT OSS 120B (OpenAI)",
+    provider: "OpenAI",
+    via: "NVIDIA NIM",
+    tier: "premium",
+    speed: "Medium",
+    quality: "Best",
+    credits: "Low",
+    status: "Working",
+    bestFor: "High-capability open-weights OpenAI reasoning and code model via NVIDIA NIM.",
+    description: "OpenAI GPT OSS 120B via NVIDIA build.nvidia.com.",
+    modelSettings: { temperature: 0.7, topP: 0.95, maxOutputTokens: 16384 },
+  },
+
   // ─── OneProvider (Anthropic Claude family, sans Fable) ────────────────────
   {
     id: "oneprovider/claude-opus-4-8",
@@ -542,6 +594,9 @@ export const FALLBACK_MODEL_ID = "nvidia/qwen-2.5-coder-32b";
 // Larger reasoning models are kept as later fallbacks for hard requests.
 export const FALLBACK_CHAIN: string[] = [
   "nvidia/qwen-2.5-coder-32b",
+  "nvidia/z-ai-glm-5.2",
+  "nvidia/openai-gpt-oss-20b",
+  "nvidia/openai-gpt-oss-120b",
   "oneprovider/claude-haiku-4-5",
   "nvidia/nemotron-nano-9b-v2",
   "nvidia/ministral-14b",

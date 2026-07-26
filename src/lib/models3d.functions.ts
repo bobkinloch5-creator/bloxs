@@ -114,7 +114,8 @@ export const getModelStatus = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((i: unknown) => z.object({ projectId: z.string().uuid().optional() }).parse(i ?? {}))
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const ctx = context as any;
+    const { supabase, userId } = ctx;
     const { data: rows } = await supabase
       .from("model_generations")
       .select("*")
@@ -123,7 +124,7 @@ export const getModelStatus = createServerFn({ method: "GET" })
       .limit(120);
 
     const projectRows = data.projectId
-      ? (rows || []).filter((r) => r.project_id === data.projectId)
+      ? (rows || []).filter((r: any) => r.project_id === data.projectId)
       : (rows || []);
 
     // Check if the user is an owner/admin to grant unlimited generations.
@@ -136,7 +137,7 @@ export const getModelStatus = createServerFn({ method: "GET" })
     } catch {}
 
     // 24h cooldown only counts brand-new text/image generations, not animations/retexture/refine of existing ones.
-    const lastNew = (rows || []).find((r) => r.mode === "text" || r.mode === "image");
+    const lastNew = (rows || []).find((r: any) => r.mode === "text" || r.mode === "image");
     const lastTs = lastNew ? new Date(lastNew.created_at).getTime() : 0;
     const remaining = isAdmin ? 0 : Math.max(0, COOLDOWN_MS - (Date.now() - lastTs));
 
@@ -156,14 +157,15 @@ export const deleteModelGeneration = createServerFn({ method: "POST" })
     deleteRelated: z.boolean().default(true),
   }).parse(i))
   .handler(async ({ data, context }) => {
-    const { data: rows, error: readError } = await context.supabase
+    const ctx = context as any;
+    const { data: rows, error: readError } = await ctx.supabase
       .from("model_generations")
       .select("id, parent_id")
-      .eq("user_id", context.userId);
+      .eq("user_id", ctx.userId);
     if (readError) throw new Error(readError.message);
 
     const allRows = rows ?? [];
-    const target = allRows.find((row) => row.id === data.generationId);
+    const target = allRows.find((row: any) => row.id === data.generationId);
     if (!target) throw new Error("3D model not found.");
 
     const ids = new Set<string>([data.generationId]);
@@ -181,10 +183,10 @@ export const deleteModelGeneration = createServerFn({ method: "POST" })
     }
 
     const idList = Array.from(ids);
-    const { error } = await context.supabase
+    const { error } = await ctx.supabase
       .from("model_generations")
       .delete()
-      .eq("user_id", context.userId)
+      .eq("user_id", ctx.userId)
       .in("id", idList);
     if (error) throw new Error(error.message);
     return { ok: true, deleted: idList.length };
@@ -205,7 +207,8 @@ export const startModelGeneration = createServerFn({ method: "POST" })
     autoRefine: z.boolean().default(true),
   }).parse(i))
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const ctx = context as any;
+    const { supabase, userId } = ctx;
 
     enforceRateLimit(userId, "model_generate");
 
@@ -299,6 +302,7 @@ export const registerTripoBridgeModel = createServerFn({ method: "POST" })
     source: z.enum(["tripo_api", "tripo_bridge", "external_model"]).default("tripo_bridge"),
   }).parse(i))
   .handler(async ({ data, context }) => {
+    const ctx = context as any;
     const modelUrl = data.modelUrl?.trim() || "";
     const robloxAssetId = normalizeRobloxAssetId(data.robloxAssetId);
     if (!modelUrl && !robloxAssetId) {
@@ -315,10 +319,10 @@ export const registerTripoBridgeModel = createServerFn({ method: "POST" })
       }
     }
     const format = modelUrl ? inferFormat(modelUrl, data.format) : (data.format ?? "glb");
-    const { data: row, error } = await context.supabase
+    const { data: row, error } = await ctx.supabase
       .from("model_generations")
       .insert({
-        user_id: context.userId,
+        user_id: ctx.userId,
         project_id: data.projectId ?? null,
         mode: data.source,
         prompt: data.prompt,
@@ -348,11 +352,12 @@ export const uploadBridgeModelToRoblox = createServerFn({ method: "POST" })
     description: z.string().trim().max(1000).optional(),
   }).parse(i))
   .handler(async ({ data, context }) => {
-    const { data: gen } = await context.supabase
+    const ctx = context as any;
+    const { data: gen } = await ctx.supabase
       .from("model_generations")
       .select("*")
       .eq("id", data.generationId)
-      .eq("user_id", context.userId)
+      .eq("user_id", ctx.userId)
       .maybeSingle();
     if (!gen) throw new Error("Model not found.");
     if (!gen.model_url) throw new Error("No GLB/FBX model URL is available to upload.");
@@ -394,7 +399,7 @@ export const uploadBridgeModelToRoblox = createServerFn({ method: "POST" })
     try { json = text ? JSON.parse(text) : null; } catch { /* keep text */ }
     if (!uploadRes.ok) {
       const msg = json?.message || json?.error || text || `Roblox upload failed (${uploadRes.status})`;
-      await context.supabase.from("model_generations").update({
+      await ctx.supabase.from("model_generations").update({
         roblox_upload_status: "failed",
         roblox_upload_error: String(msg),
         bridge_status: "Failed",
@@ -404,7 +409,7 @@ export const uploadBridgeModelToRoblox = createServerFn({ method: "POST" })
 
     const operationPath = json?.path || json?.operation?.path || json?.name || null;
     const assetId = normalizeRobloxAssetId(json?.response?.assetId || json?.assetId || json?.asset?.assetId);
-    const { data: updated, error } = await context.supabase
+    const { data: updated, error } = await ctx.supabase
       .from("model_generations")
       .update({
         roblox_asset_id: assetId || null,
@@ -424,11 +429,12 @@ export const checkRobloxUploadOperation = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((i: unknown) => z.object({ generationId: z.string().uuid() }).parse(i))
   .handler(async ({ data, context }) => {
-    const { data: gen } = await context.supabase
+    const ctx = context as any;
+    const { data: gen } = await ctx.supabase
       .from("model_generations")
       .select("*")
       .eq("id", data.generationId)
-      .eq("user_id", context.userId)
+      .eq("user_id", ctx.userId)
       .maybeSingle();
     if (!gen) throw new Error("Model not found.");
     if ((gen as any).roblox_asset_id) return gen;
@@ -443,7 +449,7 @@ export const checkRobloxUploadOperation = createServerFn({ method: "POST" })
     const assetId = normalizeRobloxAssetId(json?.response?.assetId || json?.assetId || json?.asset?.assetId);
     const done = !!json?.done || !!assetId;
     const errorMessage = json?.error?.message || json?.error;
-    const { data: updated, error } = await context.supabase
+    const { data: updated, error } = await ctx.supabase
       .from("model_generations")
       .update({
         roblox_asset_id: assetId || null,
@@ -468,19 +474,20 @@ export const queueBridgeModelToStudio = createServerFn({ method: "POST" })
     scale: z.number().min(0.01).max(100).default(1),
   }).parse(i))
   .handler(async ({ data, context }) => {
-    const { data: gen } = await context.supabase
+    const ctx = context as any;
+    const { data: gen } = await ctx.supabase
       .from("model_generations")
       .select("*")
       .eq("id", data.generationId)
-      .eq("user_id", context.userId)
+      .eq("user_id", ctx.userId)
       .maybeSingle();
     if (!gen) throw new Error("Model not found.");
     const assetId = normalizeRobloxAssetId(data.assetId || (gen as any).roblox_asset_id);
     if (!assetId) throw new Error("Roblox asset ID is missing. Upload the GLB/FBX to Roblox first, or paste an existing Roblox model asset ID.");
     const safeName = (data.name || gen.prompt || "BloxSmith_Imported_Model").replace(/[^\w\s-]/g, "").trim().slice(0, 80) || "BloxSmith_Imported_Model";
-    const { data: inserted, error } = await context.supabase.from("plugin_actions").insert({
+    const { data: inserted, error } = await ctx.supabase.from("plugin_actions").insert({
       project_id: data.projectId,
-      user_id: context.userId,
+      user_id: ctx.userId,
       kind: "insert_asset",
       parent_path: "Workspace.BloxSmith_Imported_Models",
       name: safeName,
@@ -493,7 +500,7 @@ export const queueBridgeModelToStudio = createServerFn({ method: "POST" })
       position: 0,
     }).select("id").maybeSingle();
     if (error) throw new Error(error.message);
-    await context.supabase.from("model_generations").update({
+    await ctx.supabase.from("model_generations").update({
       roblox_asset_id: assetId,
       bridge_status: "Importing to Roblox Studio",
     } as any).eq("id", gen.id);
@@ -504,7 +511,8 @@ export const pollModelGeneration = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((i: unknown) => z.object({ generationId: z.string().uuid() }).parse(i))
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const ctx = context as any;
+    const { supabase, userId } = ctx;
     const { data: gen } = await supabase
       .from("model_generations")
       .select("*")
@@ -640,7 +648,8 @@ export const rigModel = createServerFn({ method: "POST" })
     sourceId: z.string().uuid(),
   }).parse(i))
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const ctx = context as any;
+    const { supabase, userId } = ctx;
     const { data: source } = await supabase
       .from("model_generations").select("*")
       .eq("id", data.sourceId).eq("user_id", userId).maybeSingle();
@@ -729,7 +738,8 @@ export const animateModel = createServerFn({ method: "POST" })
     animation: z.enum(ANIMATION_PRESETS),
   }).parse(i))
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const ctx = context as any;
+    const { supabase, userId } = ctx;
     const { data: source } = await supabase
       .from("model_generations").select("*")
       .eq("id", data.sourceId).eq("user_id", userId).maybeSingle();
@@ -777,7 +787,8 @@ export const retextureModel = createServerFn({ method: "POST" })
     artStyle: z.enum(["realistic", "fake-3d-cartoon", "japanese-anime", "cartoon-line-art", "realistic-hand-drawn", "fake-3d-hand-drawn", "oriental-comic-ink"]).default("realistic"),
   }).parse(i))
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const ctx = context as any;
+    const { supabase, userId } = ctx;
     const { data: source } = await supabase
       .from("model_generations").select("*")
       .eq("id", data.sourceId).eq("user_id", userId).maybeSingle();

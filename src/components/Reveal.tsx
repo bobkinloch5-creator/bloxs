@@ -87,10 +87,11 @@ export function Reveal({
     className,
   ].filter(Boolean).join(" ");
 
+  const Component = Tag as any;
   return (
-    <Tag ref={ref} className={classes}>
+    <Component ref={ref} className={classes}>
       {children}
-    </Tag>
+    </Component>
   );
 }
 

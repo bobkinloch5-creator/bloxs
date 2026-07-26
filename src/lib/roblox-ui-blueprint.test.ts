@@ -45,7 +45,7 @@ describe("detectUiKind", () => {
     ["Crafting bench with material slots", "crafting"],
     ["NPC dialogue box with choices", "dialog"],
     ["Trading window with both player offers", "trading"],
-  ])("detects %s", (prompt, expected) => {
+  ])("detects %s", (prompt: any, expected: any) => {
     expect(detectUiKind(prompt)).toBe(expected);
   });
 

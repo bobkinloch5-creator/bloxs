@@ -104,7 +104,8 @@ export const planBuild = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => PlanInput.parse(input))
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const ctx = context as any;
+    const { supabase, userId } = ctx;
 
     // Ownership check (RLS also enforces, this gives a friendlier error).
     const { data: project, error: pErr } = await supabase
@@ -186,7 +187,8 @@ export const updateBuildPlan = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => UpdateInput.parse(input))
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const ctx = context as any;
+    const { supabase, userId } = ctx;
     const patch: {
       steps?: PlanStep[];
       est_credits?: number;
@@ -215,7 +217,8 @@ export const cancelBuildPlan = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => SimpleId.parse(input))
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const ctx = context as any;
+    const { supabase, userId } = ctx;
     const { error } = await supabase
       .from("build_plans")
       .update({ status: "cancelled" })
@@ -229,7 +232,8 @@ export const executeBuildPlan = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => ExecuteInput.parse(input))
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const ctx = context as any;
+    const { supabase, userId } = ctx;
     const { data: row, error } = await supabase
       .from("build_plans")
       .select("*")
@@ -262,7 +266,8 @@ export const getActiveBuildPlan = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => ListInput.parse(input))
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const ctx = context as any;
+    const { supabase, userId } = ctx;
     const { data: row, error } = await supabase
       .from("build_plans")
       .select("*")

@@ -189,7 +189,8 @@ export const queueGameBuild = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => PlanInput.extend({ projectId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const ctx = context as any;
+    const { supabase, userId } = ctx;
     await assertProject(supabase, data.projectId, userId);
 
     const plan = planBuild(toPlanRequest(data));
@@ -210,7 +211,8 @@ export const regenerateScripts = createServerFn({ method: "POST" })
     }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const ctx = context as any;
+    const { supabase, userId } = ctx;
     await assertProject(supabase, data.projectId, userId);
 
     const plan = planBuild(toPlanRequest(data));
@@ -236,7 +238,8 @@ export const installMarketplacePack = createServerFn({ method: "POST" })
     z.object({ projectId: z.string().uuid(), packId: z.string().min(1).max(60) }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const ctx = context as any;
+    const { supabase, userId } = ctx;
     await assertProject(supabase, data.projectId, userId);
 
     const pack = getPack(data.packId);
@@ -291,7 +294,8 @@ export const importProjectScripts = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const ctx = context as any;
+    const { supabase, userId } = ctx;
     await assertProject(supabase, data.projectId, userId);
 
     const imported = importScripts(data.files);

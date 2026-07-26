@@ -21,10 +21,11 @@ export const submitDonationClaim = createServerFn({ method: "POST" })
     return { paypalReference: ref, amountNote: note };
   })
   .handler(async ({ data, context }) => {
-    const { error, data: row } = await context.supabase
+    const ctx = context as any;
+    const { error, data: row } = await ctx.supabase
       .from("donation_claims")
       .insert({
-        user_id: context.userId,
+        user_id: ctx.userId,
         paypal_reference: data.paypalReference,
         amount_note: data.amountNote || null,
       })
@@ -37,16 +38,17 @@ export const submitDonationClaim = createServerFn({ method: "POST" })
 export const listMyDonationClaims = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data, error } = await context.supabase
+    const ctx = context as any;
+    const { data, error } = await ctx.supabase
       .from("donation_claims")
       .select("id, paypal_reference, amount_note, status, admin_note, created_at, decided_at")
-      .eq("user_id", context.userId)
+      .eq("user_id", ctx.userId)
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
-    const { data: roles } = await context.supabase
+    const { data: roles } = await ctx.supabase
       .from("user_roles")
       .select("role")
-      .eq("user_id", context.userId);
+      .eq("user_id", ctx.userId);
     const isDonator = (roles ?? []).some((r: any) => r.role === "donator");
     return { claims: data ?? [], isDonator };
   });
@@ -54,7 +56,8 @@ export const listMyDonationClaims = createServerFn({ method: "GET" })
 export const listPendingDonationClaims = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    if (!(await callerIsAdmin(context.supabase, context.userId))) throw new Error("Forbidden");
+    const ctx = context as any;
+    if (!(await callerIsAdmin(ctx.supabase, ctx.userId))) throw new Error("Forbidden");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data, error } = await supabaseAdmin
       .from("donation_claims")
@@ -81,7 +84,8 @@ export const decideDonationClaim = createServerFn({ method: "POST" })
     return { id: data.id, approve: !!data.approve, note: (data.note ?? "").trim().slice(0, 300) };
   })
   .handler(async ({ data, context }) => {
-    if (!(await callerIsAdmin(context.supabase, context.userId))) throw new Error("Forbidden");
+    const ctx = context as any;
+    if (!(await callerIsAdmin(ctx.supabase, ctx.userId))) throw new Error("Forbidden");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const { data: claim, error: cErr } = await supabaseAdmin
@@ -98,7 +102,7 @@ export const decideDonationClaim = createServerFn({ method: "POST" })
       .update({
         status: newStatus,
         admin_note: data.note || null,
-        decided_by: context.userId,
+        decided_by: ctx.userId,
         decided_at: new Date().toISOString(),
       })
       .eq("id", data.id);

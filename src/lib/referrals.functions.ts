@@ -6,6 +6,7 @@ import { z } from "zod";
 export const getMyReferral = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    const ctx = context as any;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     // profiles is intentionally locked down at the Data API grant layer, so
@@ -14,7 +15,7 @@ export const getMyReferral = createServerFn({ method: "GET" })
     let { data: profile, error: profileError } = await supabaseAdmin
       .from("profiles")
       .select("referral_code")
-      .eq("id", context.userId)
+      .eq("id", ctx.userId)
       .maybeSingle();
     if (profileError) throw new Error(profileError.message);
 
@@ -26,7 +27,7 @@ export const getMyReferral = createServerFn({ method: "GET" })
         const { data: updated, error: updateError } = await supabaseAdmin
           .from("profiles")
           .update({ referral_code: gen })
-          .eq("id", context.userId)
+          .eq("id", ctx.userId)
           .is("referral_code", null)
           .select("referral_code")
           .maybeSingle();
@@ -39,23 +40,23 @@ export const getMyReferral = createServerFn({ method: "GET" })
         const { data: reread, error: rereadError } = await supabaseAdmin
           .from("profiles")
           .select("referral_code")
-          .eq("id", context.userId)
+          .eq("id", ctx.userId)
           .maybeSingle();
         if (rereadError) throw new Error(rereadError.message);
         profile = reread ?? profile;
       }
     }
 
-    const { data: mine } = await context.supabase
+    const { data: mine } = await ctx.supabase
       .from("referrals")
       .select("referred_user_id,created_at")
-      .eq("referrer_user_id", context.userId)
+      .eq("referrer_user_id", ctx.userId)
       .order("created_at", { ascending: false });
 
-    const { data: incoming } = await context.supabase
+    const { data: incoming } = await ctx.supabase
       .from("referrals")
       .select("referrer_user_id, code, created_at")
-      .eq("referred_user_id", context.userId)
+      .eq("referred_user_id", ctx.userId)
       .maybeSingle();
 
     const rows = (mine ?? []).slice(0, 25);
@@ -98,6 +99,7 @@ export const applyReferralCode = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ code: z.string().min(4).max(24) }).parse(d))
   .handler(async ({ data, context }) => {
+    const ctx = context as any;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const bonusCredits = 25;
 
@@ -108,13 +110,13 @@ export const applyReferralCode = createServerFn({ method: "POST" })
       .eq("referral_code", data.code.trim().toUpperCase())
       .maybeSingle();
     if (error || !refProfile) throw new Error("Invalid referral code");
-    if (refProfile.id === context.userId) throw new Error("You can't refer yourself.");
+    if (refProfile.id === ctx.userId) throw new Error("You can't refer yourself.");
 
-    const { error: insErr } = await context.supabase
+    const { error: insErr } = await ctx.supabase
       .from("referrals")
       .insert({
         referrer_user_id: refProfile.id,
-        referred_user_id: context.userId,
+        referred_user_id: ctx.userId,
         code: refProfile.referral_code ?? data.code,
       });
     if (insErr) {
@@ -141,7 +143,7 @@ export const applyReferralCode = createServerFn({ method: "POST" })
         .update({ credits: newCredits, max_credits: newMax })
         .eq("id", uid);
     }
-    await Promise.all([grantBonus(refProfile.id), grantBonus(context.userId)]);
+    await Promise.all([grantBonus(refProfile.id), grantBonus(ctx.userId)]);
 
     return { ok: true, referrer: refProfile.id, bonus: bonusCredits };
   });

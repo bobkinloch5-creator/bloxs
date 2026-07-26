@@ -5,7 +5,8 @@ import { z } from "zod";
 export const listProjects = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data, error } = await context.supabase
+    const ctx = context as any;
+    const { data, error } = await ctx.supabase
       .from("projects")
       .select("id, name, description, game_type, plugin_connected, build_count, updated_at, created_at, thumbnail_url, is_favorite, pinned_at, archived_at, is_public, default_build_mode")
       .order("updated_at", { ascending: false });
@@ -23,10 +24,11 @@ export const createProject = createServerFn({ method: "POST" })
     }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { data: row, error } = await context.supabase
+    const ctx = context as any;
+    const { data: row, error } = await ctx.supabase
       .from("projects")
       .insert({
-        user_id: context.userId,
+        user_id: ctx.userId,
         name: data.name,
         description: data.description,
         game_type: data.game_type,
@@ -41,7 +43,8 @@ export const getProject = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const { data: row, error } = await context.supabase
+    const ctx = context as any;
+    const { data: row, error } = await ctx.supabase
       .from("projects")
       .select("*")
       .eq("id", data.id)
@@ -55,7 +58,8 @@ export const deleteProject = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase.from("projects").delete().eq("id", data.id);
+    const ctx = context as any;
+    const { error } = await ctx.supabase.from("projects").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });

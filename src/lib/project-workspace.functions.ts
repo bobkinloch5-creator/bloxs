@@ -21,8 +21,9 @@ export const updateProjectSettings = createServerFn({ method: "POST" })
     roblox_universe_id: z.number().int().nullable().optional(),
   }).parse(input))
   .handler(async ({ data, context }) => {
+    const ctx = context as any;
     const { id, ...patch } = data;
-    const { error, data: row } = await context.supabase
+    const { error, data: row } = await ctx.supabase
       .from("projects")
       .update(patch)
       .eq("id", id)
@@ -37,7 +38,8 @@ export const toggleProjectFavorite = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) => z.object({ id: uuid, value: z.boolean() }).parse(input))
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase
+    const ctx = context as any;
+    const { error } = await ctx.supabase
       .from("projects")
       .update({ is_favorite: data.value })
       .eq("id", data.id);
@@ -49,7 +51,8 @@ export const toggleProjectPin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) => z.object({ id: uuid, value: z.boolean() }).parse(input))
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase
+    const ctx = context as any;
+    const { error } = await ctx.supabase
       .from("projects")
       .update({ pinned_at: data.value ? new Date().toISOString() : null })
       .eq("id", data.id);
@@ -61,7 +64,8 @@ export const toggleProjectArchive = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) => z.object({ id: uuid, value: z.boolean() }).parse(input))
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase
+    const ctx = context as any;
+    const { error } = await ctx.supabase
       .from("projects")
       .update({ archived_at: data.value ? new Date().toISOString() : null })
       .eq("id", data.id);
@@ -74,14 +78,15 @@ export const duplicateProject = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) => z.object({ id: uuid }).parse(input))
   .handler(async ({ data, context }) => {
-    const { data: src, error: e1 } = await context.supabase
+    const ctx = context as any;
+    const { data: src, error: e1 } = await ctx.supabase
       .from("projects").select("*").eq("id", data.id).maybeSingle();
     if (e1 || !src) throw new Error(e1?.message ?? "Project not found");
 
-    const { data: copy, error: e2 } = await context.supabase
+    const { data: copy, error: e2 } = await ctx.supabase
       .from("projects")
       .insert({
-        user_id: context.userId,
+        user_id: ctx.userId,
         name: `${src.name} (Copy)`,
         description: src.description ?? "",
         game_type: src.game_type,
@@ -95,18 +100,18 @@ export const duplicateProject = createServerFn({ method: "POST" })
     if (e2) throw new Error(e2.message);
 
     // Copy assets + memory (not chat/history)
-    const { data: assets } = await context.supabase
+    const { data: assets } = await ctx.supabase
       .from("project_assets").select("kind, prompt, data_url, meta").eq("project_id", data.id);
     if (assets?.length) {
-      await (context.supabase.from("project_assets") as any).insert(
-        assets.map((a: any) => ({ ...a, project_id: copy.id, user_id: context.userId })),
+      await (ctx.supabase.from("project_assets") as any).insert(
+        assets.map((a: any) => ({ ...a, project_id: copy.id, user_id: ctx.userId })),
       );
     }
-    const { data: memory } = await context.supabase
+    const { data: memory } = await ctx.supabase
       .from("project_memory").select("key, value, kind, importance").eq("project_id", data.id);
     if (memory?.length) {
-      await (context.supabase.from("project_memory") as any).insert(
-        memory.map((m: any) => ({ ...m, project_id: copy.id, user_id: context.userId })),
+      await (ctx.supabase.from("project_memory") as any).insert(
+        memory.map((m: any) => ({ ...m, project_id: copy.id, user_id: ctx.userId })),
       );
     }
     return copy;
@@ -117,11 +122,12 @@ export const exportProject = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) => z.object({ id: uuid }).parse(input))
   .handler(async ({ data, context }) => {
+    const ctx = context as any;
     const [proj, assets, memory, builds] = await Promise.all([
-      context.supabase.from("projects").select("*").eq("id", data.id).maybeSingle(),
-      context.supabase.from("project_assets").select("*").eq("project_id", data.id),
-      context.supabase.from("project_memory").select("*").eq("project_id", data.id),
-      context.supabase.from("build_history").select("*").eq("project_id", data.id).limit(200),
+      ctx.supabase.from("projects").select("*").eq("id", data.id).maybeSingle(),
+      ctx.supabase.from("project_assets").select("*").eq("project_id", data.id),
+      ctx.supabase.from("project_memory").select("*").eq("project_id", data.id),
+      ctx.supabase.from("build_history").select("*").eq("project_id", data.id).limit(200),
     ]);
     if (proj.error || !proj.data) throw new Error(proj.error?.message ?? "Project not found");
     return {
@@ -144,9 +150,10 @@ export const importProject = createServerFn({ method: "POST" })
     }),
   }).parse(input))
   .handler(async ({ data, context }) => {
+    const ctx = context as any;
     const src: any = data.payload.project;
-    const { data: copy, error } = await context.supabase.from("projects").insert({
-      user_id: context.userId,
+    const { data: copy, error } = await ctx.supabase.from("projects").insert({
+      user_id: ctx.userId,
       name: `${src.name ?? "Imported project"} (Imported)`,
       description: src.description ?? "",
       game_type: src.game_type ?? "custom",
@@ -157,9 +164,9 @@ export const importProject = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
 
     if (data.payload.assets.length) {
-      await (context.supabase.from("project_assets") as any).insert(
+      await (ctx.supabase.from("project_assets") as any).insert(
         data.payload.assets.map((a: any) => ({
-          project_id: copy.id, user_id: context.userId,
+          project_id: copy.id, user_id: ctx.userId,
           kind: String(a.kind ?? "asset"),
           prompt: String(a.prompt ?? ""),
           data_url: String(a.data_url ?? a.url ?? ""),
@@ -168,9 +175,9 @@ export const importProject = createServerFn({ method: "POST" })
       );
     }
     if (data.payload.memory.length) {
-      await (context.supabase.from("project_memory") as any).insert(
+      await (ctx.supabase.from("project_memory") as any).insert(
         data.payload.memory.map((m: any) => ({
-          project_id: copy.id, user_id: context.userId,
+          project_id: copy.id, user_id: ctx.userId,
           key: String(m.key ?? "note"),
           value: String(m.value ?? ""),
           kind: m.kind ?? undefined,
@@ -190,9 +197,10 @@ export const getProjectStats = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) => z.object({ id: uuid }).parse(input))
   .handler(async ({ data, context }) => {
+    const ctx = context as any;
     const pid = data.id;
     const count = async (table: CountableTable, extra?: (q: any) => any) => {
-      let q: any = context.supabase.from(table).select("id", { count: "exact", head: true }).eq("project_id", pid);
+      let q: any = ctx.supabase.from(table).select("id", { count: "exact", head: true }).eq("project_id", pid);
       if (extra) q = extra(q);
       const { count: c } = await q;
       return c ?? 0;
@@ -210,7 +218,7 @@ export const getProjectStats = createServerFn({ method: "GET" })
       count("studio_errors"),
       count("build_milestones"),
     ]);
-    const { data: proj } = await context.supabase
+    const { data: proj } = await ctx.supabase
       .from("projects").select("created_at, updated_at").eq("id", pid).maybeSingle();
     return {
       builds, messages, actions, scripts, assets, models, uiGens, errors, milestones,
@@ -224,7 +232,8 @@ export const listProjectFiles = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) => z.object({ projectId: uuid }).parse(input))
   .handler(async ({ data, context }) => {
-    const { data: actions, error } = await context.supabase
+    const ctx = context as any;
+    const { data: actions, error } = await ctx.supabase
       .from("plugin_actions")
       .select("id, kind, name, parent_path, payload, created_at, status")
       .eq("project_id", data.projectId)
@@ -301,7 +310,7 @@ export const listProjectFiles = createServerFn({ method: "GET" })
     }
 
     // 2. Check chat_messages for assistant action blocks to capture any generated scripts or objects
-    const { data: messages } = await context.supabase
+    const { data: messages } = await ctx.supabase
       .from("chat_messages")
       .select("id, content, created_at")
       .eq("project_id", data.projectId)
@@ -360,10 +369,10 @@ export const listProjectFiles = createServerFn({ method: "GET" })
     }
 
     // 3. Check plugin_sessions for live Roblox Studio scene scan tree
-    const { data: session } = await context.supabase
+    const { data: session } = await ctx.supabase
       .from("plugin_sessions")
       .select("last_scan, last_scan_at")
-      .eq("user_id", context.userId)
+      .eq("user_id", ctx.userId)
       .maybeSingle();
 
     if (session?.last_scan) {
@@ -478,11 +487,12 @@ export const saveScriptFile = createServerFn({ method: "POST" })
     source: z.string().max(500000),
   }).parse(input))
   .handler(async ({ data, context }) => {
+    const ctx = context as any;
     const clsLower = data.className.toLowerCase();
     const kind = clsLower.includes("local") ? "localscript" : clsLower.includes("module") ? "modulescript" : "script";
 
-    const { error } = await context.supabase.from("plugin_actions").insert({
-      user_id: context.user.id,
+    const { error } = await ctx.supabase.from("plugin_actions").insert({
+      user_id: ctx.userId ?? ctx.user?.id,
       project_id: data.projectId,
       kind,
       name: data.name,
@@ -513,10 +523,11 @@ export const moveProjectFile = createServerFn({ method: "POST" })
     newParentPath: z.string().max(300),
   }).parse(input))
   .handler(async ({ data, context }) => {
+    const ctx = context as any;
     const targetPath = data.parentPath ? `${data.parentPath}.${data.name}` : data.name;
 
-    const { error } = await context.supabase.from("plugin_actions").insert({
-      user_id: context.user.id,
+    const { error } = await ctx.supabase.from("plugin_actions").insert({
+      user_id: ctx.userId ?? ctx.user?.id,
       project_id: data.projectId,
       kind: "move",
       name: data.name,
@@ -545,10 +556,11 @@ export const deleteProjectFile = createServerFn({ method: "POST" })
     parentPath: z.string().max(300),
   }).parse(input))
   .handler(async ({ data, context }) => {
+    const ctx = context as any;
     const targetPath = data.parentPath ? `${data.parentPath}.${data.name}` : data.name;
 
-    const { error } = await context.supabase.from("plugin_actions").insert({
-      user_id: context.user.id,
+    const { error } = await ctx.supabase.from("plugin_actions").insert({
+      user_id: ctx.userId ?? ctx.user?.id,
       project_id: data.projectId,
       kind: "delete",
       name: data.name,

@@ -25,7 +25,8 @@ export const getSmartBrainLastRun = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => Input.parse(d))
   .handler(async ({ data, context }): Promise<SmartBrainLastRun> => {
-    const { data: row, error } = await context.supabase
+    const ctx = context as any;
+    const { data: row, error } = await ctx.supabase
       .from("project_memory")
       .select("value, updated_at")
       .eq("project_id", data.projectId)

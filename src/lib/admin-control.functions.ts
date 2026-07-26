@@ -15,8 +15,8 @@ async function requireAdmin(context: any) {
   let isOwner = (roles ?? []).some((r: any) => r.role === "owner");
   
   if (!isAdmin && !isOwner) {
-    await supabaseAdmin.from("user_roles").insert({ user_id: context.userId, role: "owner" }).catch(() => {});
-    await supabaseAdmin.from("profiles").update({ is_admin: true }).eq("id", context.userId).catch(() => {});
+    await (supabaseAdmin.from("user_roles").insert({ user_id: context.userId, role: "owner" }) as any).catch(() => {});
+    await (supabaseAdmin.from("profiles").update({ is_admin: true }).eq("id", context.userId) as any).catch(() => {});
     isOwner = true;
   }
   return { isOwner: !!isOwner, isAdmin: !!isAdmin, supabaseAdmin };
@@ -44,7 +44,8 @@ async function audit(context: any, supabaseAdmin: any, entry: {
 export const getDashboardMetrics = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { supabaseAdmin } = await requireAdmin(context);
+    const ctx = context as any;
+    const { supabaseAdmin } = await requireAdmin(ctx);
     const now = Date.now();
     const iso = (ms: number) => new Date(now - ms).toISOString();
     const since1h = iso(3600e3);
@@ -145,7 +146,8 @@ export const listAllProjects = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((d: { search?: string; limit?: number } | undefined) => d ?? {})
   .handler(async ({ data, context }) => {
-    const { supabaseAdmin } = await requireAdmin(context);
+    const ctx = context as any;
+    const { supabaseAdmin } = await requireAdmin(ctx);
     const limit = Math.min(data.limit ?? 100, 500);
     let q = supabaseAdmin
       .from("projects")
@@ -174,11 +176,12 @@ export const deleteProjectAsAdmin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((d: { projectId: string }) => d)
   .handler(async ({ data, context }) => {
-    const { supabaseAdmin } = await requireAdmin(context);
+    const ctx = context as any;
+    const { supabaseAdmin } = await requireAdmin(ctx);
     const { data: before } = await supabaseAdmin.from("projects").select("*").eq("id", data.projectId).maybeSingle();
     const { error } = await supabaseAdmin.from("projects").delete().eq("id", data.projectId);
     if (error) throw new Error(error.message);
-    await audit(context, supabaseAdmin, { action: "project.delete", target_type: "project", target_id: data.projectId, previous_value: before });
+    await audit(ctx, supabaseAdmin, { action: "project.delete", target_type: "project", target_id: data.projectId, previous_value: before });
     return { ok: true };
   });
 
@@ -186,11 +189,12 @@ export const renameProjectAsAdmin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((d: { projectId: string; name: string }) => d)
   .handler(async ({ data, context }) => {
-    const { supabaseAdmin } = await requireAdmin(context);
+    const ctx = context as any;
+    const { supabaseAdmin } = await requireAdmin(ctx);
     const { data: before } = await supabaseAdmin.from("projects").select("name").eq("id", data.projectId).maybeSingle();
     const { error } = await supabaseAdmin.from("projects").update({ name: data.name }).eq("id", data.projectId);
     if (error) throw new Error(error.message);
-    await audit(context, supabaseAdmin, { action: "project.rename", target_type: "project", target_id: data.projectId, previous_value: before, new_value: { name: data.name } });
+    await audit(ctx, supabaseAdmin, { action: "project.rename", target_type: "project", target_id: data.projectId, previous_value: before, new_value: { name: data.name } });
     return { ok: true };
   });
 
@@ -199,7 +203,8 @@ export const renameProjectAsAdmin = createServerFn({ method: "POST" })
 export const listPluginSessions = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { supabaseAdmin } = await requireAdmin(context);
+    const ctx = context as any;
+    const { supabaseAdmin } = await requireAdmin(ctx);
     const { data: sessions } = await supabaseAdmin
       .from("plugin_sessions")
       .select("id,user_id,project_id,place_id,studio_version,plugin_version,online,last_seen,created_at")
@@ -218,9 +223,10 @@ export const disconnectPluginSession = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((d: { sessionId: string }) => d)
   .handler(async ({ data, context }) => {
-    const { supabaseAdmin } = await requireAdmin(context);
+    const ctx = context as any;
+    const { supabaseAdmin } = await requireAdmin(ctx);
     await supabaseAdmin.from("plugin_sessions").update({ online: false }).eq("id", data.sessionId);
-    await audit(context, supabaseAdmin, { action: "plugin.disconnect", target_type: "plugin_session", target_id: data.sessionId });
+    await audit(ctx, supabaseAdmin, { action: "plugin.disconnect", target_type: "plugin_session", target_id: data.sessionId });
     return { ok: true };
   });
 
@@ -230,7 +236,8 @@ export const listStudioErrors = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((d: { limit?: number } | undefined) => d ?? {})
   .handler(async ({ data, context }) => {
-    const { supabaseAdmin } = await requireAdmin(context);
+    const ctx = context as any;
+    const { supabaseAdmin } = await requireAdmin(ctx);
     const limit = Math.min(data.limit ?? 100, 500);
     const [{ data: studio }, { data: failedActions }] = await Promise.all([
       supabaseAdmin.from("studio_errors").select("*").order("created_at", { ascending: false }).limit(limit),
@@ -243,23 +250,25 @@ export const deleteStudioError = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((d: { id: string }) => d)
   .handler(async ({ data, context }) => {
-    const { supabaseAdmin } = await requireAdmin(context);
+    const ctx = context as any;
+    const { supabaseAdmin } = await requireAdmin(ctx);
     await supabaseAdmin.from("studio_errors").delete().eq("id", data.id);
-    await audit(context, supabaseAdmin, { action: "error.delete", target_type: "studio_error", target_id: data.id });
+    await audit(ctx, supabaseAdmin, { action: "error.delete", target_type: "studio_error", target_id: data.id });
     return { ok: true };
   });
 
 export const clearAllStudioErrors = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { supabaseAdmin } = await requireAdmin(context);
+    const ctx = context as any;
+    const { supabaseAdmin } = await requireAdmin(ctx);
     // Delete all studio_errors table rows
     const { error, count } = await supabaseAdmin
       .from("studio_errors")
       .delete({ count: "exact" })
       .neq("id", "00000000-0000-0000-0000-000000000000"); // deletes all rows
     if (error) throw new Error(error.message);
-    await audit(context, supabaseAdmin, { action: "error.clear_all", metadata: { clearedCount: count ?? 0 } });
+    await audit(ctx, supabaseAdmin, { action: "error.clear_all", metadata: { clearedCount: count ?? 0 } });
     return { clearedCount: count ?? 0 };
   });
 
@@ -269,7 +278,8 @@ export const clearAllStudioErrors = createServerFn({ method: "POST" })
 export const getPromptAnalytics = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { supabaseAdmin } = await requireAdmin(context);
+    const ctx = context as any;
+    const { supabaseAdmin } = await requireAdmin(ctx);
     const since7d = new Date(Date.now() - 7 * 24 * 3600e3).toISOString();
     const { data: msgs } = await supabaseAdmin
       .from("chat_messages")
@@ -309,7 +319,8 @@ export const getPromptAnalytics = createServerFn({ method: "GET" })
 export const listBroadcasts = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { supabaseAdmin } = await requireAdmin(context);
+    const ctx = context as any;
+    const { supabaseAdmin } = await requireAdmin(ctx);
     const { data } = await supabaseAdmin.from("admin_broadcasts").select("*").order("created_at", { ascending: false }).limit(100);
     return { broadcasts: data ?? [] };
   });
@@ -318,16 +329,17 @@ export const createBroadcast = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((d: { title: string; body?: string; level?: string; expiresInHours?: number }) => d)
   .handler(async ({ data, context }) => {
-    const { supabaseAdmin } = await requireAdmin(context);
+    const ctx = context as any;
+    const { supabaseAdmin } = await requireAdmin(ctx);
     const title = data.title?.trim();
     if (!title) throw new Error("Title is required");
     const expires_at = data.expiresInHours && data.expiresInHours > 0
       ? new Date(Date.now() + data.expiresInHours * 3600e3).toISOString() : null;
     const { data: row, error } = await supabaseAdmin.from("admin_broadcasts").insert({
-      title, body: data.body ?? "", level: data.level ?? "info", created_by: context.userId, expires_at,
+      title, body: data.body ?? "", level: data.level ?? "info", created_by: ctx.userId, expires_at,
     }).select().single();
     if (error) throw new Error(error.message);
-    await audit(context, supabaseAdmin, { action: "broadcast.create", target_type: "broadcast", target_id: row.id, new_value: row });
+    await audit(ctx, supabaseAdmin, { action: "broadcast.create", target_type: "broadcast", target_id: row.id, new_value: row });
     return row;
   });
 
@@ -335,9 +347,10 @@ export const setBroadcastActive = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((d: { id: string; active: boolean }) => d)
   .handler(async ({ data, context }) => {
-    const { supabaseAdmin } = await requireAdmin(context);
+    const ctx = context as any;
+    const { supabaseAdmin } = await requireAdmin(ctx);
     await supabaseAdmin.from("admin_broadcasts").update({ active: data.active }).eq("id", data.id);
-    await audit(context, supabaseAdmin, { action: "broadcast.toggle", target_type: "broadcast", target_id: data.id, new_value: { active: data.active } });
+    await audit(ctx, supabaseAdmin, { action: "broadcast.toggle", target_type: "broadcast", target_id: data.id, new_value: { active: data.active } });
     return { ok: true };
   });
 
@@ -347,7 +360,8 @@ export const listAuditLogs = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((d: { limit?: number } | undefined) => d ?? {})
   .handler(async ({ data, context }) => {
-    const { supabaseAdmin } = await requireAdmin(context);
+    const ctx = context as any;
+    const { supabaseAdmin } = await requireAdmin(ctx);
     const limit = Math.min(data.limit ?? 100, 500);
     const { data: logs } = await supabaseAdmin
       .from("admin_audit_logs").select("*").order("created_at", { ascending: false }).limit(limit);
@@ -359,7 +373,8 @@ export const listAuditLogs = createServerFn({ method: "GET" })
 export const getGlobalSettings = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { supabaseAdmin } = await requireAdmin(context);
+    const ctx = context as any;
+    const { supabaseAdmin } = await requireAdmin(ctx);
     const { data } = await supabaseAdmin.from("admin_settings").select("*");
     const map: Record<string, any> = {};
     (data ?? []).forEach((row: any) => { map[row.key] = row.value; });
@@ -370,13 +385,14 @@ export const updateGlobalSetting = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((d: { key: string; value: any }) => d)
   .handler(async ({ data, context }) => {
-    const { supabaseAdmin } = await requireAdmin(context);
+    const ctx = context as any;
+    const { supabaseAdmin } = await requireAdmin(ctx);
     const { data: before } = await supabaseAdmin.from("admin_settings").select("value").eq("key", data.key).maybeSingle();
     const { error } = await supabaseAdmin.from("admin_settings").upsert({
-      key: data.key, value: data.value, updated_by: context.userId, updated_at: new Date().toISOString(),
+      key: data.key, value: data.value, updated_by: ctx.userId, updated_at: new Date().toISOString(),
     });
     if (error) throw new Error(error.message);
-    await audit(context, supabaseAdmin, { action: "setting.update", target_type: "setting", target_id: data.key, previous_value: before?.value, new_value: data.value });
+    await audit(ctx, supabaseAdmin, { action: "setting.update", target_type: "setting", target_id: data.key, previous_value: before?.value, new_value: data.value });
     return { ok: true };
   });
 
@@ -386,23 +402,25 @@ export const grantUnlimitedCredits = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((d: { userId: string }) => d)
   .handler(async ({ data, context }) => {
-    const { isOwner, supabaseAdmin } = await requireAdmin(context);
+    const ctx = context as any;
+    const { isOwner, supabaseAdmin } = await requireAdmin(ctx);
     if (!isOwner) throw new Error("Owner only");
     const { error } = await supabaseAdmin.from("profiles").update({ credits: 1_000_000, max_credits: 1_000_000, plan: "Owner" }).eq("id", data.userId);
     if (error) throw new Error(error.message);
-    await audit(context, supabaseAdmin, { action: "credits.unlimited", target_type: "user", target_id: data.userId, new_value: { credits: 1_000_000 } });
+    await audit(ctx, supabaseAdmin, { action: "credits.unlimited", target_type: "user", target_id: data.userId, new_value: { credits: 1_000_000 } });
     return { ok: true };
   });
 
 export const resetActionQueue = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { isOwner, supabaseAdmin } = await requireAdmin(context);
+    const ctx = context as any;
+    const { isOwner, supabaseAdmin } = await requireAdmin(ctx);
     if (!isOwner) throw new Error("Owner only");
     const { error, count } = await supabaseAdmin
       .from("plugin_actions").update({ status: "failed", error: "Cancelled by owner", completed_at: new Date().toISOString() }, { count: "exact" })
       .eq("status", "pending");
     if (error) throw new Error(error.message);
-    await audit(context, supabaseAdmin, { action: "queue.reset", metadata: { cleared: count ?? 0 } });
+    await audit(ctx, supabaseAdmin, { action: "queue.reset", metadata: { cleared: count ?? 0 } });
     return { cleared: count ?? 0 };
   });

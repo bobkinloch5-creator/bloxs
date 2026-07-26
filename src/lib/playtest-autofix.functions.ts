@@ -10,8 +10,9 @@ export const runPlaytestAutofix = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => RunInput.parse(input))
   .handler(async ({ data, context }) => {
+    const ctx = context as any;
     const { runPlaytestAutofixCore } = await import("./playtest-autofix.server");
-    return runPlaytestAutofixCore(context.supabase as any, context.userId as string, data.run_id);
+    return runPlaytestAutofixCore(ctx.supabase as any, ctx.userId as string, data.run_id);
   });
 
 const TimelineInput = z.object({ run_id: z.string().uuid() });
@@ -20,7 +21,8 @@ export const getPlaytestRunTimeline = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => TimelineInput.parse(input))
   .handler(async ({ data, context }) => {
-    const sb = context.supabase as any;
+    const ctx = context as any;
+    const sb = ctx.supabase as any;
     const { data: reports } = await sb
       .from("playtest_reports")
       .select("id, created_at, attempt, status, summary, findings, phase_results, screenshot_urls, duration_ms, finding_fingerprint")
@@ -40,7 +42,8 @@ export const stopPlaytestLoop = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => StopInput.parse(input))
   .handler(async ({ data, context }) => {
-    const sb = context.supabase as any;
+    const ctx = context as any;
+    const sb = ctx.supabase as any;
     const { error } = await sb.from("playtest_loop_state").update({
       directive: "stop",
       reason: "Stopped by user.",

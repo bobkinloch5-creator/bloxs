@@ -35,10 +35,11 @@ export const generateQaReport = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((i: unknown) => z.object({ project_id: uuid }).parse(i))
   .handler(async ({ data, context }) => {
-    const sb = context.supabase as any;
+    const ctx = context as any;
+    const sb = ctx.supabase as any;
 
     // access check
-    const { data: ok } = await sb.rpc("can_access_project", { _project_id: data.project_id, _user_id: context.userId });
+    const { data: ok } = await sb.rpc("can_access_project", { _project_id: data.project_id, _user_id: ctx.userId });
     if (!ok) throw new Error("No access to this project");
 
     const [{ data: project }, { data: actions }, { data: chats }, { data: errors }, { data: session }] = await Promise.all([
@@ -91,7 +92,7 @@ export const generateQaReport = createServerFn({ method: "POST" })
 
     const { data: row, error } = await sb.from("project_qa_reports").insert({
       project_id: data.project_id,
-      user_id: context.userId,
+      user_id: ctx.userId,
       overall_score: overall,
       scores,
       issues,
@@ -102,7 +103,7 @@ export const generateQaReport = createServerFn({ method: "POST" })
 
     await sb.from("project_activity").insert({
       project_id: data.project_id,
-      user_id: context.userId,
+      user_id: ctx.userId,
       kind: "qa.report",
       summary: `ran a QA report (score ${overall})`,
       meta: { report_id: row.id, overall },
@@ -115,7 +116,8 @@ export const listQaReports = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((i: unknown) => z.object({ project_id: uuid, limit: z.number().int().min(1).max(20).default(5) }).parse(i))
   .handler(async ({ data, context }) => {
-    const sb = context.supabase as any;
+    const ctx = context as any;
+    const sb = ctx.supabase as any;
     const { data: rows, error } = await sb
       .from("project_qa_reports")
       .select("*")

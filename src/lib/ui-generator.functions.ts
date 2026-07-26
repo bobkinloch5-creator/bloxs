@@ -389,7 +389,9 @@ export const generateRobloxUi = createServerFn({ method: "POST" })
     projectId: z.string().uuid().optional(),
   }).parse(input))
   .handler(async ({ data, context }) => {
-    enforceRateLimit(context.userId, "ui_generate");
+    const ctx = context as any;
+    const userId = ctx?.userId ?? "dev-user";
+    enforceRateLimit(userId, "ui_generate");
 
     const blueprint = createRobloxUiBlueprint(data.prompt, data.style);
     const conceptImageUrl = renderRobloxUiBlueprintSvg(blueprint);
@@ -398,9 +400,9 @@ export const generateRobloxUi = createServerFn({ method: "POST" })
     // The preview and Luau are intentionally rendered from the same blueprint.
     // This keeps the website image faithful to what the Roblox LocalScript builds.
 
-    const sb = context.supabase as any;
+    const sb = ctx?.supabase as any;
     const { data: savedRow, error: saveError } = await sb.from("ui_generations").insert({
-      user_id: context.userId,
+      user_id: userId,
       project_id: data.projectId ?? null,
       prompt: data.prompt,
       style: data.style,
@@ -417,9 +419,9 @@ export const generateRobloxUi = createServerFn({ method: "POST" })
     if (saveError) throw new Error(`Generated UI, but saving failed: ${saveError.message}`);
 
     if (data.projectId) {
-      await context.supabase.from("chat_messages").insert({
+      await sb.from("chat_messages").insert({
         project_id: data.projectId,
-        user_id: context.userId,
+        user_id: userId,
         role: "assistant",
         content: `Generated a ${data.style} Roblox UI for: ${data.prompt}`,
         status: "done",
@@ -447,11 +449,13 @@ export const listSavedRobloxUis = createServerFn({ method: "GET" })
     limit: z.number().int().min(1).max(50).default(24),
   }).parse(input ?? {}))
   .handler(async ({ data, context }) => {
-    const sb = context.supabase as any;
+    const ctx = context as any;
+    const userId = ctx?.userId ?? "dev-user";
+    const sb = ctx?.supabase as any;
     let query = sb
       .from("ui_generations")
       .select(uiGenerationSelect)
-      .eq("user_id", context.userId)
+      .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(data.limit);
 
@@ -477,12 +481,14 @@ export const deleteSavedRobloxUi = createServerFn({ method: "POST" })
     id: z.string().uuid(),
   }).parse(input))
   .handler(async ({ data, context }) => {
-    const sb = context.supabase as any;
+    const ctx = context as any;
+    const userId = ctx?.userId ?? "dev-user";
+    const sb = ctx?.supabase as any;
     const { error } = await sb
       .from("ui_generations")
       .delete()
       .eq("id", data.id)
-      .eq("user_id", context.userId);
+      .eq("user_id", userId);
     if (error) throw new Error(error.message);
     return { ok: true };
   });

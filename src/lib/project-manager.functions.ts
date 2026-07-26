@@ -71,7 +71,8 @@ export const generateRoadmap = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((i: unknown) => ProjectInput.parse(i))
   .handler(async ({ data, context }) => {
-    const sb = context.supabase as any;
+    const ctx = context as any;
+    const sb = ctx.supabase as any;
     const { data: project } = await sb.from("projects")
       .select("id, name, description, game_type, prompt")
       .eq("id", data.projectId).maybeSingle();
@@ -97,11 +98,11 @@ export const generateRoadmap = createServerFn({ method: "POST" })
     }));
 
     if (!milestones.length) throw new Error("AI returned an empty roadmap");
-    await saveRoadmap(sb, data.projectId, context.userId, milestones);
+    await saveRoadmap(sb, data.projectId, ctx.userId, milestones);
 
     await sb.from("project_activity").insert({
       project_id: data.projectId,
-      user_id: context.userId,
+      user_id: ctx.userId,
       kind: "pm.roadmap_generated",
       summary: `generated a ${milestones.length}-step roadmap`,
       meta: { count: milestones.length },
@@ -114,7 +115,8 @@ export const getRoadmap = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((i: unknown) => ProjectInput.parse(i))
   .handler(async ({ data, context }) => {
-    const sb = context.supabase as any;
+    const ctx = context as any;
+    const sb = ctx.supabase as any;
     const milestones = await loadRoadmap(sb, data.projectId);
     const done = milestones.filter((m) => m.done).length;
     return {
@@ -133,16 +135,17 @@ export const toggleMilestone = createServerFn({ method: "POST" })
     done: z.boolean(),
   }).parse(i))
   .handler(async ({ data, context }) => {
-    const sb = context.supabase as any;
+    const ctx = context as any;
+    const sb = ctx.supabase as any;
     const milestones = await loadRoadmap(sb, data.projectId);
     const updated = milestones.map((m) => m.id === data.milestoneId ? { ...m, done: data.done } : m);
-    await saveRoadmap(sb, data.projectId, context.userId, updated);
+    await saveRoadmap(sb, data.projectId, ctx.userId, updated);
 
     if (data.done) {
       const target = updated.find((m) => m.id === data.milestoneId);
       await sb.from("project_activity").insert({
         project_id: data.projectId,
-        user_id: context.userId,
+        user_id: ctx.userId,
         kind: "pm.milestone_done",
         summary: `completed milestone: ${target?.title ?? data.milestoneId}`,
         meta: { milestone_id: data.milestoneId },
@@ -156,7 +159,8 @@ export const getAutoChangelog = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((i: unknown) => ProjectInput.parse(i))
   .handler(async ({ data, context }) => {
-    const sb = context.supabase as any;
+    const ctx = context as any;
+    const sb = ctx.supabase as any;
 
     const [acts, snaps, activity] = await Promise.all([
       sb.from("plugin_actions")

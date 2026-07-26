@@ -70,7 +70,9 @@ export const queueToolboxInsert = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => InsertInput.parse(input))
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const ctx = context as any;
+    const supabase = ctx?.supabase;
+    const userId = ctx?.userId;
 
     // Confirm the project belongs to the caller (defence-in-depth on top of RLS).
     const { data: project, error: projErr } = await supabase
@@ -170,7 +172,7 @@ export const queueToolboxInsert = createServerFn({ method: "POST" })
     return {
       ok: true as const,
       queued: insertable.length,
-      actionIds: (queuedRows ?? []).map((row) => row.id),
+      actionIds: (queuedRows ?? []).map((row: any) => row.id),
       folder,
       dropped: rows.length - insertable.length,
       dropDetails: report.dropped,

@@ -16,13 +16,14 @@ export const saveProjectAsset = createServerFn({ method: "POST" })
     meta: z.record(z.string(), z.any()).optional(),
   }).parse(i))
   .handler(async ({ data, context }) => {
-    const sb = context.supabase as any;
-    const { data: ok } = await sb.rpc("can_access_project", { _project_id: data.project_id, _user_id: context.userId });
+    const ctx = context as any;
+    const sb = ctx.supabase as any;
+    const { data: ok } = await sb.rpc("can_access_project", { _project_id: data.project_id, _user_id: ctx.userId });
     if (!ok) throw new Error("No access to this project");
 
     const { data: row, error } = await sb.from("project_assets").insert({
       project_id: data.project_id,
-      user_id: context.userId,
+      user_id: ctx.userId,
       kind: data.kind,
       prompt: data.prompt,
       data_url: data.data_url,
@@ -32,7 +33,7 @@ export const saveProjectAsset = createServerFn({ method: "POST" })
 
     await sb.from("project_activity").insert({
       project_id: data.project_id,
-      user_id: context.userId,
+      user_id: ctx.userId,
       kind: "visual.generated",
       summary: `generated a ${data.kind.replace("_", " ")}`,
       meta: { asset_id: row.id, kind: data.kind },
@@ -44,7 +45,8 @@ export const listProjectAssets = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((i: unknown) => z.object({ project_id: uuid }).parse(i))
   .handler(async ({ data, context }) => {
-    const sb = context.supabase as any;
+    const ctx = context as any;
+    const sb = ctx.supabase as any;
     const { data: rows, error } = await sb
       .from("project_assets")
       .select("id, kind, prompt, data_url, meta, created_at")
@@ -59,7 +61,8 @@ export const deleteProjectAsset = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((i: unknown) => z.object({ asset_id: uuid }).parse(i))
   .handler(async ({ data, context }) => {
-    const sb = context.supabase as any;
+    const ctx = context as any;
+    const sb = ctx.supabase as any;
     const { error } = await sb.from("project_assets").delete().eq("id", data.asset_id);
     if (error) throw new Error(error.message);
     return { ok: true };

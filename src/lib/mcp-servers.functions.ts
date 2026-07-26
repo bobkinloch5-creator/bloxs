@@ -55,7 +55,8 @@ async function probeMcpServer(url: string, token?: string | null): Promise<{
 export const listMcpServers = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { supabase, userId } = context;
+    const ctx = context as any;
+    const { supabase, userId } = ctx;
     const { data, error } = await supabase
       .from("mcp_servers")
       .select("id, name, url, enabled, tools, status, status_message, last_tested_at, created_at")
@@ -75,7 +76,8 @@ export const addMcpServer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => AddInput.parse(input))
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const ctx = context as any;
+    const { supabase, userId } = ctx;
     const probe = await probeMcpServer(data.url, data.token);
     const { data: row, error } = await supabase.from("mcp_servers").insert({
       user_id: userId,
@@ -96,7 +98,8 @@ export const testMcpServer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const ctx = context as any;
+    const { supabase, userId } = ctx;
     const { data: row, error } = await supabase.from("mcp_servers").select("id, url, token").eq("id", data.id).eq("user_id", userId).maybeSingle();
     if (error) throw new Error(error.message);
     if (!row) throw new Error("Server not found");
@@ -115,7 +118,8 @@ export const toggleMcpServer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ id: z.string().uuid(), enabled: z.boolean() }).parse(input))
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const ctx = context as any;
+    const { supabase, userId } = ctx;
     const { error } = await supabase.from("mcp_servers").update({ enabled: data.enabled }).eq("id", data.id).eq("user_id", userId);
     if (error) throw new Error(error.message);
     return { ok: true as const };
@@ -125,7 +129,8 @@ export const removeMcpServer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const ctx = context as any;
+    const { supabase, userId } = ctx;
     const { error } = await supabase.from("mcp_servers").delete().eq("id", data.id).eq("user_id", userId);
     if (error) throw new Error(error.message);
     return { ok: true as const };

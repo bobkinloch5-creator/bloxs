@@ -23,7 +23,7 @@ export function ExportGameModal({ projectId, projectName, onClose }: Props) {
   const handleExport = async () => {
     setExporting(true);
     try {
-      const data = await expFn({ data: { id: projectId } });
+      const data: any = await expFn({ data: { id: projectId } });
       const rawScripts: ExportScript[] = (data.scripts ?? []).map((s: any) => ({
         name: s.name,
         className: s.class_name as any,
@@ -36,7 +36,7 @@ export function ExportGameModal({ projectId, projectName, onClose }: Props) {
       if (format === "rojo-zip") {
         const studioExp = buildStudioExport(projectName, rawScripts);
         const zipBytes = zipFiles(studioExp.files);
-        const blob = new Blob([zipBytes], { type: "application/zip" });
+        const blob = new Blob([zipBytes as any], { type: "application/zip" });
         downloadBlob(blob, `${safeName}-rojo.zip`);
         toast.success(`Exported ${rawScripts.length} scripts to Rojo ZIP!`);
       } else if (format === "installer-lua") {
@@ -50,7 +50,7 @@ export function ExportGameModal({ projectId, projectName, onClose }: Props) {
         // Build roblox-ts structure
         const files = buildRobloxTsStructure(projectName, rawScripts);
         const zipBytes = zipFiles(files);
-        const blob = new Blob([zipBytes], { type: "application/zip" });
+        const blob = new Blob([zipBytes as any], { type: "application/zip" });
         downloadBlob(blob, `${safeName}-roblox-ts.zip`);
         toast.success("Exported roblox-ts TypeScript project ZIP!");
       } else if (format === "json-manifest") {
@@ -80,7 +80,7 @@ export function ExportGameModal({ projectId, projectName, onClose }: Props) {
   const copyInstallerToClipboard = async () => {
     try {
       setExporting(true);
-      const data = await expFn({ data: { id: projectId } });
+      const data: any = await expFn({ data: { id: projectId } });
       const rawScripts: ExportScript[] = (data.scripts ?? []).map((s: any) => ({
         name: s.name,
         className: s.class_name as any,

@@ -85,9 +85,10 @@ export const runAutoGenius = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => Input.parse(input))
   .handler(async ({ data, context }): Promise<AutoGeniusResult> => {
+    const ctx = context as any;
     // Verify project belongs to caller (RLS would also enforce, but explicit check = friendly error).
     try {
-      const { data: project, error } = await context.supabase
+      const { data: project, error } = await ctx.supabase
         .from("projects")
         .select("id, name, game_type")
         .eq("id", data.projectId)

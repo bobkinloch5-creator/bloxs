@@ -8,7 +8,8 @@ export const getLatestPlaytest = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) => Input.parse(input ?? {}))
   .handler(async ({ data, context }) => {
-    const sb = context.supabase as any;
+    const ctx = context as any;
+    const sb = ctx.supabase as any;
     const { data: rows, error } = await sb
       .from("playtest_reports")
       .select("id, run_id, attempt, status, created_at, summary, findings, metrics, phase_results, screenshot_urls, duration_ms, place_id")

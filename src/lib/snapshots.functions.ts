@@ -14,13 +14,14 @@ export const createSnapshot = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => CreateSchema.parse(d))
   .handler(async ({ data, context }) => {
+    const ctx = context as any;
     const payload = data.workspaceJson ?? {};
     const size = JSON.stringify(payload).length;
-    const { data: row, error } = await context.supabase
+    const { data: row, error } = await ctx.supabase
       .from("build_snapshots")
       .insert({
         project_id: data.projectId,
-        user_id: context.userId,
+        user_id: ctx.userId,
         label: data.label,
         kind: data.kind,
         workspace_json: payload,
@@ -36,7 +37,8 @@ export const listSnapshots = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ projectId: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
-    const { data: rows, error } = await context.supabase
+    const ctx = context as any;
+    const { data: rows, error } = await ctx.supabase
       .from("build_snapshots")
       .select("id,label,kind,size_bytes,created_at")
       .eq("project_id", data.projectId)
@@ -50,7 +52,8 @@ export const getSnapshot = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
-    const { data: row, error } = await context.supabase
+    const ctx = context as any;
+    const { data: row, error } = await ctx.supabase
       .from("build_snapshots")
       .select("*")
       .eq("id", data.id)
@@ -63,7 +66,8 @@ export const deleteSnapshot = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase.from("build_snapshots").delete().eq("id", data.id);
+    const ctx = context as any;
+    const { error } = await ctx.supabase.from("build_snapshots").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -74,15 +78,16 @@ export const restoreSnapshot = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid(), projectId: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
-    const { data: snap, error: se } = await context.supabase
+    const ctx = context as any;
+    const { data: snap, error: se } = await ctx.supabase
       .from("build_snapshots")
       .select("workspace_json,label")
       .eq("id", data.id)
       .single();
     if (se || !snap) throw new Error(se?.message ?? "Snapshot not found");
-    const { error } = await context.supabase.from("plugin_actions").insert({
+    const { error } = await ctx.supabase.from("plugin_actions").insert({
       project_id: data.projectId,
-      user_id: context.userId,
+      user_id: ctx.userId,
       kind: "restore_snapshot",
       name: `Restore: ${snap.label}`,
       parent_path: "Workspace",

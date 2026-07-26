@@ -231,7 +231,7 @@ function ReferralsPage() {
               </div>
             ) : (
               <ul className="divide-y divide-white/5">
-                {data!.recent.map((r) => (
+                {data!.recent.map((r: any) => (
                   <li key={r.user_id} className="flex items-center gap-3 p-3">
                     {r.avatar_url ? (
                       <img src={r.avatar_url} alt="" className="h-9 w-9 rounded-full object-cover" />

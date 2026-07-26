@@ -50,7 +50,8 @@ export const listBuildInsights = createServerFn({ method: "GET" })
   .inputValidator((i: unknown) => z.object({ project_id: uuid, limit: z.number().int().min(1).max(30).default(12) }).parse(i))
   .middleware([requireSupabaseAuth])
   .handler(async ({ data, context }) => {
-    const sb = context.supabase as any;
+    const ctx = context as any;
+    const sb = ctx.supabase;
     const [{ data: sugg }, { data: reports }] = await Promise.all([
       sb.from("ai_suggestions")
         .select("id, area, severity, title, detail, suggested_prompt, auto_fixable, source, dismissed_at, created_at")
@@ -71,7 +72,8 @@ export const dismissBuildSuggestion = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => z.object({ id: uuid }).parse(i))
   .middleware([requireSupabaseAuth])
   .handler(async ({ data, context }) => {
-    const sb = context.supabase as any;
+    const ctx = context as any;
+    const sb = ctx.supabase;
     const { error } = await sb
       .from("ai_suggestions")
       .update({ dismissed_at: new Date().toISOString() })
@@ -84,9 +86,10 @@ export const generateBuildInsights = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => z.object({ project_id: uuid }).parse(i))
   .middleware([requireSupabaseAuth])
   .handler(async ({ data, context }) => {
-    const sb = context.supabase as any;
+    const ctx = context as any;
+    const sb = ctx.supabase;
 
-    const { data: ok } = await sb.rpc("can_access_project", { _project_id: data.project_id, _user_id: context.userId });
+    const { data: ok } = await sb.rpc("can_access_project", { _project_id: data.project_id, _user_id: ctx.userId });
     if (!ok) throw new Error("No access to this project");
 
     const [{ data: project }, { data: session }, { data: report }, { data: memory }] = await Promise.all([
@@ -134,7 +137,7 @@ export const generateBuildInsights = createServerFn({ method: "POST" })
 
     const rows = list.map((s: any) => ({
       project_id: data.project_id,
-      user_id: context.userId,
+      user_id: ctx.userId,
       area: ALLOWED_AREAS.has(String(s?.area)) ? String(s.area) : "general",
       severity: ALLOWED_SEV.has(String(s?.severity)) ? String(s.severity) : "medium",
       title: String(s?.title ?? "Suggestion").slice(0, 120),

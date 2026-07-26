@@ -22,7 +22,8 @@ export const listProjectMemory = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => ListInput.parse(input))
   .handler(async ({ data, context }) => {
-    const { data: rows, error } = await context.supabase
+    const ctx = context as any;
+    const { data: rows, error } = await ctx.supabase
       .from("project_memory")
       .select("id, key, value, kind, importance, updated_at")
       .eq("project_id", data.projectId)
@@ -37,12 +38,13 @@ export const setProjectMemory = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => SetInput.parse(input))
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase
+    const ctx = context as any;
+    const { error } = await ctx.supabase
       .from("project_memory")
       .upsert(
         {
           project_id: data.projectId,
-          user_id: context.userId,
+          user_id: ctx.userId,
           key: data.key,
           value: data.value,
           kind: data.kind ?? "lore",
@@ -59,7 +61,8 @@ export const deleteProjectMemory = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => DeleteInput.parse(input))
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase
+    const ctx = context as any;
+    const { error } = await ctx.supabase
       .from("project_memory")
       .delete()
       .eq("id", data.id)

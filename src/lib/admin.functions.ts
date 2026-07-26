@@ -14,8 +14,8 @@ async function requireAdmin(context: any) {
   
   if (!isAdmin && !isOwner) {
     // Auto-bootstrap active user as owner so they are never locked out of admin/seeding
-    await supabaseAdmin.from("user_roles").insert({ user_id: context.userId, role: "owner" }).catch(() => {});
-    await supabaseAdmin.from("profiles").update({ is_admin: true }).eq("id", context.userId).catch(() => {});
+    await (supabaseAdmin.from("user_roles").insert({ user_id: context.userId, role: "owner" }) as any).catch(() => {});
+    await (supabaseAdmin.from("profiles").update({ is_admin: true }).eq("id", context.userId) as any).catch(() => {});
     isOwner = true;
   }
   return { isOwner: !!isOwner, supabaseAdmin };
@@ -24,22 +24,23 @@ async function requireAdmin(context: any) {
 export const getAdminOverview = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { supabaseAdmin } = await requireAdmin(context);
+    const ctx = context as any;
+    const { supabaseAdmin } = await requireAdmin(ctx);
 
-    const { data: authUser } = await context.supabase.auth.getUser();
+    const { data: authUser } = await ctx.supabase.auth.getUser();
     const email = authUser.user?.email ?? "";
 
     const { data: profile } = await supabaseAdmin
       .from("profiles")
       .select("id, username, display_name, plan, credits, max_credits, is_admin, created_at")
-      .eq("id", context.userId)
+      .eq("id", ctx.userId)
       .maybeSingle();
 
     const since24h = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
     const since7d = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
 
     const [{ data: roles }, projectCount, messageCount, pendingActions, totalUsers, newUsers24h, newUsers7d, bannedUsers, donatorCount] = await Promise.all([
-      supabaseAdmin.from("user_roles").select("role").eq("user_id", context.userId),
+      supabaseAdmin.from("user_roles").select("role").eq("user_id", ctx.userId),
       supabaseAdmin.from("projects").select("id", { count: "exact", head: true }),
       supabaseAdmin.from("chat_messages").select("id", { count: "exact", head: true }),
       supabaseAdmin.from("plugin_actions").select("id", { count: "exact", head: true }).eq("status", "pending"),
@@ -71,7 +72,8 @@ export const listAllUsers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((d: { search?: string; limit?: number } | undefined) => d ?? {})
   .handler(async ({ data, context }) => {
-    const { supabaseAdmin } = await requireAdmin(context);
+    const ctx = context as any;
+    const { supabaseAdmin } = await requireAdmin(ctx);
     const limit = Math.min(data.limit ?? 100, 500);
 
     let q = supabaseAdmin
@@ -113,7 +115,8 @@ export const giftCredits = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((d: { userId: string; amount: number }) => d)
   .handler(async ({ data, context }) => {
-    const { supabaseAdmin } = await requireAdmin(context);
+    const ctx = context as any;
+    const { supabaseAdmin } = await requireAdmin(ctx);
     if (!Number.isFinite(data.amount)) throw new Error("Invalid amount");
     const { data: prof, error: e1 } = await supabaseAdmin.from("profiles").select("credits, max_credits").eq("id", data.userId).maybeSingle();
     if (e1 || !prof) throw new Error(e1?.message ?? "User not found");
@@ -128,7 +131,8 @@ export const setUserBanned = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((d: { userId: string; banned: boolean; reason?: string }) => d)
   .handler(async ({ data, context }) => {
-    const { supabaseAdmin } = await requireAdmin(context);
+    const ctx = context as any;
+    const { supabaseAdmin } = await requireAdmin(ctx);
     const patch: any = { banned: data.banned, banned_reason: data.banned ? (data.reason ?? "") : null, banned_at: data.banned ? new Date().toISOString() : null };
     const { error } = await supabaseAdmin.from("profiles").update(patch).eq("id", data.userId);
     if (error) throw new Error(error.message);
@@ -139,10 +143,11 @@ export const setUserRole = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((d: { userId: string; role: "admin" | "moderator" | "donator" | "user" | "owner"; grant: boolean }) => d)
   .handler(async ({ data, context }) => {
-    const { isOwner, supabaseAdmin } = await requireAdmin(context);
+    const ctx = context as any;
+    const { isOwner, supabaseAdmin } = await requireAdmin(ctx);
     if ((data.role === "admin" || data.role === "owner") && !isOwner) throw new Error("Only the owner can grant admin/owner roles");
     if (data.role === "user") throw new Error("Cannot toggle the base user role");
-    if (!data.grant && data.role === "owner" && data.userId === context.userId) throw new Error("The owner cannot remove their own owner access");
+    if (!data.grant && data.role === "owner" && data.userId === ctx.userId) throw new Error("The owner cannot remove their own owner access");
 
     if (data.grant) {
       const { error } = await supabaseAdmin.from("user_roles").insert({ user_id: data.userId, role: data.role });

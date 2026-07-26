@@ -262,7 +262,8 @@ export const startAgentPipeline = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => StartInput.parse(input))
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const ctx = context as any;
+    const { supabase, userId } = ctx;
 
     // ── Validate project exists and belongs to caller (RLS enforces ownership) ──
     let project: { id: string; name: string | null; game_type: string | null } | null = null;
@@ -332,14 +333,14 @@ export const startAgentPipeline = createServerFn({ method: "POST" })
 
     const digest = summarizeSceneScan(session?.last_scan ?? null);
     const memBlock = memories && memories.length > 0
-      ? `PROJECT LORE (do not contradict):\n${memories.map((m) => `• [${m.kind}] ${m.key}: ${String(m.value).slice(0, 200)}`).join("\n")}`
+      ? `PROJECT LORE (do not contradict):\n${memories.map((m: any) => `• [${m.kind}] ${m.key}: ${String(m.value).slice(0, 200)}`).join("\n")}`
       : "";
 
     const narrowScope: NarrowScope = detectNarrowScopeIntent(data.prompt);
     const singleAssetPipeline = narrowScope === "single_asset";
     const narrowPipeline = narrowScope !== null;
     const toolboxRequested = explicitToolboxAssetRequest(data.prompt);
-    const ctx: AgentContext = {
+    const agentCtx: AgentContext = {
       prompt: data.prompt,
       projectName: project.name ?? "Project",
       projectType: project.game_type ?? "Roblox game",
@@ -378,8 +379,8 @@ export const startAgentPipeline = createServerFn({ method: "POST" })
     // ── 1. Planner ──
     try {
       await markAgent("planner", { status: "running", started_at: new Date().toISOString() });
-      const result = await runAgent("planner", ctx, partialWriter("planner"));
-      ctx.planSummary = result.text;
+      const result = await runAgent("planner", agentCtx, partialWriter("planner"));
+      agentCtx.planSummary = result.text;
       summaries.planner = result.text;
       await markAgent("planner", {
         status: "done",
@@ -414,7 +415,7 @@ export const startAgentPipeline = createServerFn({ method: "POST" })
       else if (narrowScope === "single_ui") middle = ["ui_designer"];
       else middle = ["world_builder", "scripter", "ui_designer"];
 
-      const retrievalQuery = `${data.prompt}\n\n${ctx.planSummary}`;
+      const retrievalQuery = `${data.prompt}\n\n${agentCtx.planSummary}`;
       const [kbWorld, kbScripter, kbUi] = await Promise.all([
         middle.includes("world_builder") ? retrieveKnowledge(supabase, "world_builder", retrievalQuery, 2) : Promise.resolve(""),
         middle.includes("scripter") ? retrieveKnowledge(supabase, "scripter", retrievalQuery, 3) : Promise.resolve(""),
@@ -429,8 +430,8 @@ export const startAgentPipeline = createServerFn({ method: "POST" })
         middle.map(async (agent) => {
           try {
             await markAgent(agent, { status: "running", started_at: new Date().toISOString() });
-            const agentCtx: AgentContext = { ...ctx, knowledgeBlock: kbByAgent[agent] };
-            const result = await runAgent(agent, agentCtx, partialWriter(agent));
+            const subAgentCtx: AgentContext = { ...agentCtx, knowledgeBlock: kbByAgent[agent] };
+            const result = await runAgent(agent, subAgentCtx, partialWriter(agent));
             allActions.push(...result.actions);
             summaries[agent] = result.text;
             await markAgent(agent, {
@@ -480,7 +481,7 @@ export const startAgentPipeline = createServerFn({ method: "POST" })
 
       try {
         await markAgent("qa", { status: "running", started_at: new Date().toISOString() });
-        const result = await runAgent("qa", ctx, partialWriter("qa"));
+        const result = await runAgent("qa", agentCtx, partialWriter("qa"));
         allActions.push(...result.actions);
         summaries.qa = result.text;
         await markAgent("qa", {
@@ -513,7 +514,7 @@ export const startAgentPipeline = createServerFn({ method: "POST" })
     } else {
     try {
       await markAgent("critic", { status: "running", started_at: new Date().toISOString() });
-      const result = await runAgent("critic", ctx, partialWriter("critic"), summaries);
+      const result = await runAgent("critic", agentCtx, partialWriter("critic"), summaries);
       const parsed = parseCriticScore(result.text);
       criticScore = parsed.overall;
       await markAgent("critic", {
@@ -525,7 +526,7 @@ export const startAgentPipeline = createServerFn({ method: "POST" })
 
       // ── 4. Auto re-plan loop (one shot) if score is too low ──
       if (parsed.overall < 7 && parsed.revision) {
-        ctx.critique = parsed.revision;
+        agentCtx.critique = parsed.revision;
 
         // Reset middle + QA agents to pending so the UI shows them re-running.
         await supabase
@@ -536,8 +537,8 @@ export const startAgentPipeline = createServerFn({ method: "POST" })
 
         // Re-run planner with the critique baked in.
         await markAgent("planner", { status: "running", summary: "Re-planning with critic feedback…" });
-        const replan = await runAgent("planner", ctx, partialWriter("planner"));
-        ctx.planSummary = replan.text;
+        const replan = await runAgent("planner", agentCtx, partialWriter("planner"));
+        agentCtx.planSummary = replan.text;
         summaries.planner = replan.text;
         await markAgent("planner", {
           status: "done",
@@ -671,7 +672,8 @@ export const runPipelineRepair = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => RepairInput.parse(input))
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const ctx = context as any;
+    const { supabase, userId } = ctx;
 
     const { data: pipeline, error: pipeErr } = await supabase
       .from("agent_pipeline_runs")
@@ -787,7 +789,8 @@ export const queueManualPlaytest = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => ManualPlaytestInput.parse(input))
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const ctx = context as any;
+    const { supabase, userId } = ctx;
     if (data.pipelineId) {
       await supabase
         .from("agent_pipeline_runs")
@@ -820,7 +823,8 @@ export const listAgentPipelines = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => ListInput.parse(input))
   .handler(async ({ data, context }) => {
-    const { data: pipelines, error } = await context.supabase
+    const ctx = context as any;
+    const { data: pipelines, error } = await ctx.supabase
       .from("agent_pipeline_runs")
       .select("id, prompt, status, total_actions, error_message, created_at, completed_at, verification_status, latest_report_id, repair_actions_count")
       .eq("project_id", data.projectId)
@@ -829,10 +833,10 @@ export const listAgentPipelines = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
     if (!pipelines || pipelines.length === 0) return { pipelines: [] };
 
-    const { data: agents } = await context.supabase
+    const { data: agents } = await ctx.supabase
       .from("agent_runs")
       .select("pipeline_id, agent, status, summary, actions_count, position, started_at, completed_at")
-      .in("pipeline_id", pipelines.map((p) => p.id))
+      .in("pipeline_id", pipelines.map((p: any) => p.id))
       .order("position", { ascending: true });
 
     const byPipeline = new Map<string, typeof agents>();
@@ -843,7 +847,7 @@ export const listAgentPipelines = createServerFn({ method: "GET" })
     }
 
     return {
-      pipelines: pipelines.map((p) => ({
+      pipelines: pipelines.map((p: any) => ({
         ...p,
         agents: byPipeline.get(p.id) ?? [],
       })),
@@ -854,14 +858,15 @@ export const getAgentPipeline = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => GetInput.parse(input))
   .handler(async ({ data, context }) => {
-    const { data: pipeline, error } = await context.supabase
+    const ctx = context as any;
+    const { data: pipeline, error } = await ctx.supabase
       .from("agent_pipeline_runs")
       .select("id, project_id, prompt, status, total_actions, error_message, created_at, completed_at")
       .eq("id", data.pipelineId)
       .maybeSingle();
     if (error || !pipeline) throw new Error("Pipeline not found");
 
-    const { data: agents } = await context.supabase
+    const { data: agents } = await ctx.supabase
       .from("agent_runs")
       .select("agent, status, summary, actions_count, position, started_at, completed_at")
       .eq("pipeline_id", data.pipelineId)

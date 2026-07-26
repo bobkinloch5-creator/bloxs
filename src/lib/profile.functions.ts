@@ -7,6 +7,7 @@ const PROFILE_COLS = "id, username, display_name, avatar_url, bio, roblox_userna
 export const getMyProfile = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    const ctx = context as any;
     // Sensitive columns (credits, plan, is_admin, banned, settings) are no longer
     // granted to the authenticated role at the column level, so own-profile reads
     // go through supabaseAdmin scoped to auth.uid().
@@ -14,7 +15,7 @@ export const getMyProfile = createServerFn({ method: "GET" })
     const { data, error } = await supabaseAdmin
       .from("profiles")
       .select(PROFILE_COLS)
-      .eq("id", context.userId)
+      .eq("id", ctx.userId)
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!data) return data;
@@ -22,7 +23,7 @@ export const getMyProfile = createServerFn({ method: "GET" })
     const { data: roles } = await supabaseAdmin
       .from("user_roles")
       .select("role")
-      .eq("user_id", context.userId)
+      .eq("user_id", ctx.userId)
       .in("role", ["admin", "owner"]);
     const isPrivileged = (roles ?? []).some((r: any) => r.role === "admin" || r.role === "owner");
     const profile = { ...data, is_admin: isPrivileged, plan: isPrivileged && data.plan === "Free" ? "Owner" : data.plan };
@@ -32,7 +33,7 @@ export const getMyProfile = createServerFn({ method: "GET" })
       const { data: refreshed } = await supabaseAdmin
         .from("profiles")
         .update({ credits: profile.max_credits, credits_reset_at: nextReset })
-        .eq("id", context.userId)
+        .eq("id", ctx.userId)
         .select(PROFILE_COLS)
         .single();
       if (refreshed) return { ...refreshed, is_admin: isPrivileged, plan: profile.plan };
@@ -56,6 +57,7 @@ export const updateMyProfile = createServerFn({ method: "POST" })
     }).parse(input),
   )
   .handler(async ({ data, context }) => {
+    const ctx = context as any;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { asset_mode, ...rest } = data;
     const patch: Record<string, unknown> = { ...rest };
@@ -63,7 +65,7 @@ export const updateMyProfile = createServerFn({ method: "POST" })
       const { data: cur } = await supabaseAdmin
         .from("profiles")
         .select("settings")
-        .eq("id", context.userId)
+        .eq("id", ctx.userId)
         .maybeSingle();
       const settings = (cur?.settings && typeof cur.settings === "object" ? cur.settings : {}) as Record<string, unknown>;
       patch.settings = { ...settings, asset_mode };
@@ -74,7 +76,7 @@ export const updateMyProfile = createServerFn({ method: "POST" })
     const { data: row, error } = await supabaseAdmin
       .from("profiles")
       .update(patch as never)
-      .eq("id", context.userId)
+      .eq("id", ctx.userId)
       .select(PROFILE_COLS)
       .single();
     if (error) throw new Error(error.message);
@@ -84,12 +86,13 @@ export const updateMyProfile = createServerFn({ method: "POST" })
 export const regeneratePluginToken = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    const ctx = context as any;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const newToken = "BS-" + Math.random().toString(36).slice(2, 14).toUpperCase();
     const { error } = await supabaseAdmin
       .from("profiles")
       .update({ plugin_token: newToken })
-      .eq("id", context.userId);
+      .eq("id", ctx.userId);
     if (error) throw new Error(error.message);
     return { plugin_token: newToken };
   });
@@ -97,11 +100,12 @@ export const regeneratePluginToken = createServerFn({ method: "POST" })
 export const getMyPluginToken = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    const ctx = context as any;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data, error } = await supabaseAdmin
       .from("profiles")
       .select("plugin_token")
-      .eq("id", context.userId)
+      .eq("id", ctx.userId)
       .maybeSingle();
     if (error) throw new Error(error.message);
     return { plugin_token: (data?.plugin_token as string | null) ?? null };
@@ -118,10 +122,11 @@ export const deleteMyAccount = createServerFn({ method: "POST" })
     z.object({ confirm: z.literal("DELETE") }).parse(input),
   )
   .handler(async ({ context }) => {
+    const ctx = context as any;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // Best-effort cleanup of app tables that may not cascade.
-    await supabaseAdmin.from("profiles").delete().eq("id", context.userId);
-    const { error } = await supabaseAdmin.auth.admin.deleteUser(context.userId);
+    await supabaseAdmin.from("profiles").delete().eq("id", ctx.userId);
+    const { error } = await supabaseAdmin.auth.admin.deleteUser(ctx.userId);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -133,10 +138,11 @@ export const changeMyUsername = createServerFn({ method: "POST" })
     z.object({ username: z.string().trim().toLowerCase().regex(/^[a-z0-9_]{3,24}$/, "3–24 chars, a–z 0–9 _ only") }).parse(input),
   )
   .handler(async ({ data, context }) => {
+    const ctx = context as any;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // Explicit validation because we update via admin (bypasses trigger)
     const { data: cur, error: cErr } = await supabaseAdmin
-      .from("profiles").select("username, username_changed_at").eq("id", context.userId).maybeSingle();
+      .from("profiles").select("username, username_changed_at").eq("id", ctx.userId).maybeSingle();
     if (cErr) throw new Error(cErr.message);
     if (cur?.username_changed_at) {
       const last = new Date(cur.username_changed_at).getTime();
@@ -144,12 +150,12 @@ export const changeMyUsername = createServerFn({ method: "POST" })
       if (daysLeft > 0) throw new Error(`You can change your username again in ${daysLeft} day${daysLeft === 1 ? "" : "s"}.`);
     }
     const { data: dup } = await supabaseAdmin
-      .from("profiles").select("id").ilike("username", data.username).neq("id", context.userId).maybeSingle();
+      .from("profiles").select("id").ilike("username", data.username).neq("id", ctx.userId).maybeSingle();
     if (dup) throw new Error("That username is already taken.");
     const { data: row, error } = await supabaseAdmin
       .from("profiles")
       .update({ username: data.username, username_changed_at: new Date().toISOString() } as never)
-      .eq("id", context.userId)
+      .eq("id", ctx.userId)
       .select("id, username, username_changed_at")
       .single();
     if (error) throw new Error(error.message);
@@ -161,13 +167,14 @@ export const checkUsernameAvailable = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) => z.object({ username: z.string().trim().toLowerCase() }).parse(input))
   .handler(async ({ data, context }) => {
+    const ctx = context as any;
     if (!/^[a-z0-9_]{3,24}$/.test(data.username)) return { available: false, reason: "format" };
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: existing } = await supabaseAdmin
       .from("profiles")
       .select("id")
       .ilike("username", data.username)
-      .neq("id", context.userId)
+      .neq("id", ctx.userId)
       .maybeSingle();
     return { available: !existing, reason: existing ? "taken" : null };
   });
@@ -177,16 +184,17 @@ export const setMyAvatar = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) => z.object({ url: z.string().url().max(2000), storage_path: z.string().max(400).nullable().optional() }).parse(input))
   .handler(async ({ data, context }) => {
+    const ctx = context as any;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const settings_patch: Record<string, unknown> = {};
     if (data.storage_path !== undefined) settings_patch.avatar_storage_path = data.storage_path;
     let patch: Record<string, unknown> = { avatar_url: data.url };
     if (Object.keys(settings_patch).length) {
-      const { data: cur } = await supabaseAdmin.from("profiles").select("settings").eq("id", context.userId).maybeSingle();
+      const { data: cur } = await supabaseAdmin.from("profiles").select("settings").eq("id", ctx.userId).maybeSingle();
       const s = (cur?.settings && typeof cur.settings === "object" ? cur.settings : {}) as Record<string, unknown>;
       patch.settings = { ...s, ...settings_patch };
     }
-    const { error } = await supabaseAdmin.from("profiles").update(patch as never).eq("id", context.userId);
+    const { error } = await supabaseAdmin.from("profiles").update(patch as never).eq("id", ctx.userId);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -194,15 +202,16 @@ export const setMyAvatar = createServerFn({ method: "POST" })
 export const clearMyAvatar = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    const ctx = context as any;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: cur } = await supabaseAdmin.from("profiles").select("settings").eq("id", context.userId).maybeSingle();
+    const { data: cur } = await supabaseAdmin.from("profiles").select("settings").eq("id", ctx.userId).maybeSingle();
     const s = (cur?.settings && typeof cur.settings === "object" ? cur.settings : {}) as Record<string, unknown>;
     const path = s.avatar_storage_path as string | undefined;
     if (path) {
       try { await supabaseAdmin.storage.from("avatars").remove([path]); } catch {}
     }
     delete s.avatar_storage_path;
-    const { error } = await supabaseAdmin.from("profiles").update({ avatar_url: null, settings: s } as never).eq("id", context.userId);
+    const { error } = await supabaseAdmin.from("profiles").update({ avatar_url: null, settings: s } as never).eq("id", ctx.userId);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -217,9 +226,10 @@ export const changeMyPassword = createServerFn({ method: "POST" })
     }).parse(input),
   )
   .handler(async ({ data, context }) => {
+    const ctx = context as any;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // Get user's email to verify current password
-    const { data: userRes, error: uErr } = await supabaseAdmin.auth.admin.getUserById(context.userId);
+    const { data: userRes, error: uErr } = await supabaseAdmin.auth.admin.getUserById(ctx.userId);
     if (uErr) throw new Error(uErr.message);
     const email = userRes?.user?.email;
     if (!email) throw new Error("This account has no email — use Reset password instead.");
@@ -233,7 +243,7 @@ export const changeMyPassword = createServerFn({ method: "POST" })
     if (signInErr) throw new Error("Current password is incorrect");
     try { await verify.auth.signOut(); } catch {}
 
-    const { error } = await supabaseAdmin.auth.admin.updateUserById(context.userId, { password: data.new_password });
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(ctx.userId, { password: data.new_password });
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -242,8 +252,9 @@ export const sendMyPasswordResetEmail = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) => z.object({ redirect_to: z.string().url() }).parse(input))
   .handler(async ({ data, context }) => {
+    const ctx = context as any;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: userRes, error: uErr } = await supabaseAdmin.auth.admin.getUserById(context.userId);
+    const { data: userRes, error: uErr } = await supabaseAdmin.auth.admin.getUserById(ctx.userId);
     if (uErr) throw new Error(uErr.message);
     const email = userRes?.user?.email;
     if (!email) throw new Error("This account has no email on file.");

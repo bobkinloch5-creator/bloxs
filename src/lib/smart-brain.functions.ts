@@ -427,7 +427,8 @@ export const runSmartBrain = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => Input.parse(input))
   .handler(async ({ data, context }): Promise<BrainResult> => {
     const started = Date.now();
-    const sb = context.supabase as any;
+    const ctx = context as any;
+    const sb = ctx.supabase as any;
 
     // Stage 1+2: intent (LLM) + deterministic surface extraction
     const intent = await analyzeIntent(data.goal);
@@ -499,7 +500,7 @@ export const runSmartBrain = createServerFn({ method: "POST" })
     await sb.from("project_memory").upsert(
       {
         project_id: data.projectId,
-        user_id: context.userId,
+        user_id: ctx.userId,
         key: "smart_brain_last_run",
         value: JSON.stringify({
           goal: data.goal.slice(0, 300),

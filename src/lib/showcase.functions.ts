@@ -41,10 +41,11 @@ export const publishShowcase = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => PublishSchema.parse(d))
   .handler(async ({ data, context }) => {
-    const { data: row, error } = await context.supabase
+    const ctx = context as any;
+    const { data: row, error } = await ctx.supabase
       .from("showcase_posts")
       .insert({
-        user_id: context.userId,
+        user_id: ctx.userId,
         project_id: data.projectId,
         title: data.title,
         description: data.description,
@@ -62,9 +63,10 @@ export const likeShowcase = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ postId: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase
+    const ctx = context as any;
+    const { error } = await ctx.supabase
       .from("showcase_likes")
-      .insert({ post_id: data.postId, user_id: context.userId });
+      .insert({ post_id: data.postId, user_id: ctx.userId });
     if (error && !/duplicate|conflict/i.test(error.message)) throw new Error(error.message);
     // Denorm bump handled by the app on read side; skip RPC.
 
@@ -75,11 +77,12 @@ export const unlikeShowcase = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ postId: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase
+    const ctx = context as any;
+    const { error } = await ctx.supabase
       .from("showcase_likes")
       .delete()
       .eq("post_id", data.postId)
-      .eq("user_id", context.userId);
+      .eq("user_id", ctx.userId);
     if (error) throw new Error(error.message);
     return { ok: true };
   });

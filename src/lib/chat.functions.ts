@@ -230,7 +230,8 @@ export const listMessages = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) => z.object({ projectId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const { data: rows, error } = await context.supabase
+    const ctx = context as any;
+    const { data: rows, error } = await ctx.supabase
       .from("chat_messages")
       .select("id, role, content, status, model, actions, image_url, error, created_at")
       .eq("project_id", data.projectId)
@@ -246,10 +247,11 @@ export const listMessages = createServerFn({ method: "GET" })
 export const listChatThreads = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data: msgs, error } = await context.supabase
+    const ctx = context as any;
+    const { data: msgs, error } = await ctx.supabase
       .from("chat_messages")
       .select("project_id, role, content, created_at")
-      .eq("user_id", context.userId)
+      .eq("user_id", ctx.userId)
       .order("created_at", { ascending: false })
       .limit(1000);
     if (error) throw new Error(error.message);
@@ -287,7 +289,7 @@ export const listChatThreads = createServerFn({ method: "GET" })
     const ids = Array.from(byProject.keys());
     if (ids.length === 0) return [] as Array<Agg & { name: string; gameType: string | null }>;
 
-    const { data: projects, error: pErr } = await context.supabase
+    const { data: projects, error: pErr } = await ctx.supabase
       .from("projects")
       .select("id, name, game_type")
       .in("id", ids);
@@ -308,14 +310,12 @@ export const listChatThreads = createServerFn({ method: "GET" })
       .sort((a, b) => new Date(b.lastAt).getTime() - new Date(a.lastAt).getTime());
   });
 
-
-
-
 export const listProjectActions = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) => z.object({ projectId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const { data: rows, error } = await context.supabase
+    const ctx = context as any;
+    const { data: rows, error } = await ctx.supabase
       .from("plugin_actions")
       .select("id, message_id, kind, name, parent_path, status, error, result, created_at, sent_at, completed_at")
       .eq("project_id", data.projectId)
@@ -328,10 +328,11 @@ export const listProjectActions = createServerFn({ method: "GET" })
 export const getPluginSession = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data } = await context.supabase
+    const ctx = context as any;
+    const { data } = await ctx.supabase
       .from("plugin_sessions")
       .select("last_seen, online, place_id, studio_version, plugin_version, last_scan, last_scan_at")
-      .eq("user_id", context.userId)
+      .eq("user_id", ctx.userId)
       .maybeSingle();
     return data;
   });
@@ -357,35 +358,36 @@ export const getBuildExecutionStatus = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) => z.object({ projectId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const { data: msgs } = await context.supabase
+    const ctx = context as any;
+    const { data: msgs } = await ctx.supabase
       .from("chat_messages")
       .select("id, status, error, created_at, actions")
       .eq("project_id", data.projectId)
-      .eq("user_id", context.userId)
+      .eq("user_id", ctx.userId)
       .eq("role", "assistant")
       .order("created_at", { ascending: false })
       .limit(10);
 
-    const msg = (msgs ?? []).find((row) => {
+    const msg = (msgs ?? []).find((row: any) => {
       const actionCount = Array.isArray(row.actions) ? row.actions.length : 0;
       return actionCount > 0 || row.status === "sending" || row.status === "failed";
     });
 
     if (!msg) return { state: "idle" as const, message: "No build has been sent yet." };
 
-    const { data: actions, error } = await context.supabase
+    const { data: actions, error } = await ctx.supabase
       .from("plugin_actions")
       .select("id, kind, name, status, error, created_at, sent_at, completed_at")
       .eq("project_id", data.projectId)
-      .eq("user_id", context.userId)
+      .eq("user_id", ctx.userId)
       .eq("message_id", msg.id)
       .order("position", { ascending: true });
     if (error) throw new Error(error.message);
 
-    const { data: session } = await context.supabase
+    const { data: session } = await ctx.supabase
       .from("plugin_sessions")
       .select("last_seen, online, plugin_version")
-      .eq("user_id", context.userId)
+      .eq("user_id", ctx.userId)
       .maybeSingle();
     const pluginOnline = !!(
       session?.online &&
@@ -397,21 +399,21 @@ export const getBuildExecutionStatus = createServerFn({ method: "GET" })
 
     const rows = actions ?? [];
     const total = rows.length;
-    const sent = rows.filter((a) => !!a.sent_at || a.status === "sent" || a.status === "done" || a.status === "failed").length;
-    const done = rows.filter((a) => a.status === "done").length;
-    const failedRows = rows.filter((a) => a.status === "failed");
+    const sent = rows.filter((a: any) => !!a.sent_at || a.status === "sent" || a.status === "done" || a.status === "failed").length;
+    const done = rows.filter((a: any) => a.status === "done").length;
+    const failedRows = rows.filter((a: any) => a.status === "failed");
     const failed = failedRows.length;
-    const pending = rows.filter((a) => a.status === "pending").length;
-    const inFlight = rows.filter((a) => a.status === "sent").length;
+    const pending = rows.filter((a: any) => a.status === "pending").length;
+    const inFlight = rows.filter((a: any) => a.status === "sent").length;
     const firstCreated = rows[0]?.created_at ?? msg.created_at;
-    const newestCompleted = rows.reduce<string | null>((latest, a) => {
+    const newestCompleted = rows.reduce((latest: string | null, a: any) => {
       if (!a.completed_at) return latest;
       if (!latest || new Date(a.completed_at).getTime() > new Date(latest).getTime()) return a.completed_at;
       return latest;
-    }, null);
+    }, null as string | null);
     const ageMs = Date.now() - new Date(firstCreated).getTime();
     const durationMs = newestCompleted ? Math.max(0, new Date(newestCompleted).getTime() - new Date(firstCreated).getTime()) : null;
-    const errors = failedRows.map((a) => `${a.kind} ${a.name}: ${a.error || "failed"}`).slice(0, 8);
+    const errors = failedRows.map((a: any) => `${a.kind} ${a.name}: ${a.error || "failed"}`).slice(0, 8);
 
     let state: "idle" | "queued" | "sent" | "done" | "failed" | "stalled" = "queued";
     let message = `${total} action(s) ready for Studio.`;
@@ -462,22 +464,23 @@ export const executeQueuedActionsNow = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) => z.object({ projectId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const { data: latestAction, error: latestError } = await context.supabase
+    const ctx = context as any;
+    const { data: latestAction, error: latestError } = await ctx.supabase
       .from("plugin_actions")
       .select("message_id, project_id, created_at")
       .eq("project_id", data.projectId)
-      .eq("user_id", context.userId)
+      .eq("user_id", ctx.userId)
       .in("status", ["pending", "sent"])
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
     if (latestError) throw new Error(latestError.message);
 
-    let pendingQuery = context.supabase
+    let pendingQuery = ctx.supabase
       .from("plugin_actions")
       .select("id")
       .eq("project_id", data.projectId)
-      .eq("user_id", context.userId)
+      .eq("user_id", ctx.userId)
       .eq("status", "pending")
       .limit(200);
     if (latestAction?.message_id) pendingQuery = pendingQuery.eq("message_id", latestAction.message_id);
@@ -488,11 +491,11 @@ export const executeQueuedActionsNow = createServerFn({ method: "POST" })
     // executes them instead of leaving the user stuck. A short grace period
     // avoids duplicating actions that Studio is actively processing.
     const staleCutoff = new Date(Date.now() - 20_000).toISOString();
-    let rearmQuery = context.supabase
+    let rearmQuery = ctx.supabase
       .from("plugin_actions")
       .update({ status: "pending", sent_at: null, completed_at: null, error: null })
       .eq("project_id", data.projectId)
-      .eq("user_id", context.userId)
+      .eq("user_id", ctx.userId)
       .eq("status", "sent")
       .lt("sent_at", staleCutoff)
       .select("id");
@@ -513,9 +516,10 @@ export const queuePluginCommand = createServerFn({ method: "POST" })
     name: z.string().min(1).max(80).optional(),
   }).parse(input))
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase.from("plugin_actions").insert({
+    const ctx = context as any;
+    const { error } = await ctx.supabase.from("plugin_actions").insert({
       project_id: data.projectId,
-      user_id: context.userId,
+      user_id: ctx.userId,
       kind: data.kind,
       parent_path: "Workspace",
       name: data.name ?? data.kind,
@@ -530,6 +534,7 @@ export const queueFixAll = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) => z.object({ projectId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
+    const ctx = context as any;
     const actions = [
       { kind: "scan_project", name: "FixAll_1_Scan", parent_path: "Workspace", payload: {}, position: 0 },
       { kind: "autofix_project", name: "FixAll_2_AutoFix", parent_path: "Workspace", payload: {}, position: 1 },
@@ -537,10 +542,10 @@ export const queueFixAll = createServerFn({ method: "POST" })
       { kind: "scan_project", name: "FixAll_4_VerifyScan", parent_path: "Workspace", payload: {}, position: 3 },
     ];
 
-    const { error } = await context.supabase.from("plugin_actions").insert(
+    const { error } = await ctx.supabase.from("plugin_actions").insert(
       actions.map((action) => ({
         project_id: data.projectId,
-        user_id: context.userId,
+        user_id: ctx.userId,
         ...action,
       })),
     );
@@ -552,6 +557,7 @@ export const queueTestInsert = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) => z.object({ projectId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
+    const ctx = context as any;
     const actions = [
       {
         kind: "part",
@@ -587,10 +593,10 @@ export const queueTestInsert = createServerFn({ method: "POST" })
       },
     ];
 
-    const { error } = await context.supabase.from("plugin_actions").insert(
+    const { error } = await ctx.supabase.from("plugin_actions").insert(
       actions.map((action) => ({
         project_id: data.projectId,
-        user_id: context.userId,
+        user_id: ctx.userId,
         ...action,
       })),
     );
@@ -636,6 +642,7 @@ export const queuePreparedStudioActions = createServerFn({ method: "POST" })
     }).passthrough()).min(1).max(80),
   }).parse(input))
   .handler(async ({ data, context }) => {
+    const ctx = context as any;
     const normalizedInputActions = data.actions
       .map((action) => ({ ...action, kind: pickPreparedActionKind(action), payload: preparedActionPayload(action) }))
       .filter((action) => action.kind);
@@ -643,11 +650,11 @@ export const queuePreparedStudioActions = createServerFn({ method: "POST" })
     if (normalizedActions.length === 0) {
       throw new Error("No valid Studio actions were generated. Please resend the build request so BloxSmith can regenerate it instead of sending empty scripts.");
     }
-    const { data: recent } = await context.supabase
+    const { data: recent } = await ctx.supabase
       .from("plugin_actions")
       .select("id, created_at")
       .eq("project_id", data.projectId)
-      .eq("user_id", context.userId)
+      .eq("user_id", ctx.userId)
       .eq("status", "pending")
       .order("created_at", { ascending: false })
       .limit(normalizedActions.length);
@@ -659,10 +666,10 @@ export const queuePreparedStudioActions = createServerFn({ method: "POST" })
     const sanitizedActions = normalizedActions as Array<typeof normalizedActions[number] & Record<string, unknown>>;
     await sanitizeInsertAssetActions(sanitizedActions as unknown as Array<Record<string, unknown>>);
 
-    const { error } = await context.supabase.from("plugin_actions").insert(
+    const { error } = await ctx.supabase.from("plugin_actions").insert(
       sanitizedActions.map((action, i) => ({
         project_id: data.projectId,
-        user_id: context.userId,
+        user_id: ctx.userId,
         kind: action.kind,
         parent_path: action.parent_path,
         name: action.name,
@@ -690,18 +697,19 @@ export const clearMessages = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) => z.object({ projectId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
+    const ctx = context as any;
     // Wipe chat memory + queued/pending plugin actions for this project.
-    const { error: e1 } = await context.supabase
+    const { error: e1 } = await ctx.supabase
       .from("chat_messages")
       .delete()
       .eq("project_id", data.projectId)
-      .eq("user_id", context.userId);
+      .eq("user_id", ctx.userId);
     if (e1) throw new Error(e1.message);
-    const { error: e2 } = await context.supabase
+    const { error: e2 } = await ctx.supabase
       .from("plugin_actions")
       .delete()
       .eq("project_id", data.projectId)
-      .eq("user_id", context.userId);
+      .eq("user_id", ctx.userId);
     if (e2) throw new Error(e2.message);
     return { ok: true };
   });
@@ -712,7 +720,8 @@ export const clearActionQueue = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) => z.object({ projectId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const { data: rows, error } = await context.supabase
+    const ctx = context as any;
+    const { data: rows, error } = await ctx.supabase
       .from("plugin_actions")
       .update({
         status: "failed",
@@ -720,7 +729,7 @@ export const clearActionQueue = createServerFn({ method: "POST" })
         completed_at: new Date().toISOString(),
       })
       .eq("project_id", data.projectId)
-      .eq("user_id", context.userId)
+      .eq("user_id", ctx.userId)
       .in("status", ["pending", "sent"])
       .select("id");
     if (error) throw new Error(error.message);
@@ -735,19 +744,20 @@ export const undoLastBuild = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) => z.object({ projectId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
+    const ctx = context as any;
     // Find the most recent assistant message that produced actions.
-    const { data: msgs } = await context.supabase
+    const { data: msgs } = await ctx.supabase
       .from("chat_messages")
       .select("id, created_at")
       .eq("project_id", data.projectId)
-      .eq("user_id", context.userId)
+      .eq("user_id", ctx.userId)
       .eq("role", "assistant")
       .order("created_at", { ascending: false })
       .limit(10);
     const targetMsg = (msgs ?? []).find(() => true);
     if (!targetMsg) return { ok: false, error: "no_build_to_undo" };
 
-    const { data: rows, error } = await context.supabase
+    const { data: rows, error } = await ctx.supabase
       .from("plugin_actions")
       .update({
         status: "failed",
@@ -755,15 +765,15 @@ export const undoLastBuild = createServerFn({ method: "POST" })
         completed_at: new Date().toISOString(),
       })
       .eq("project_id", data.projectId)
-      .eq("user_id", context.userId)
+      .eq("user_id", ctx.userId)
       .eq("message_id", targetMsg.id)
       .select("id");
     if (error) throw new Error(error.message);
 
     // Drop a marker message into the chat so the AI knows the last build was undone.
-    await context.supabase.from("chat_messages").insert({
+    await ctx.supabase.from("chat_messages").insert({
       project_id: data.projectId,
-      user_id: context.userId,
+      user_id: ctx.userId,
       role: "user",
       content: "[SYSTEM] I just undid the last build. Do NOT rebuild it unless I explicitly ask again.",
       status: "done",

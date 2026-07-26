@@ -268,12 +268,13 @@ export const queueOptimize = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) => Input.parse(input))
   .handler(async ({ data, context }) => {
-    const sb = context.supabase as any;
+    const ctx = context as any;
+    const sb = ctx.supabase as any;
     const actions = buildActions(data.kind);
     const { error } = await sb.from("plugin_actions").insert(
       actions.map((a) => ({
         project_id: data.projectId,
-        user_id: context.userId,
+        user_id: ctx.userId,
         ...a,
       })),
     );
@@ -281,7 +282,7 @@ export const queueOptimize = createServerFn({ method: "POST" })
 
     await sb.from("project_activity").insert({
       project_id: data.projectId,
-      user_id: context.userId,
+      user_id: ctx.userId,
       kind: `optimize.${data.kind}`,
       summary: `queued ${LABELS[data.kind]} (${actions.length} actions)`,
       meta: { count: actions.length },

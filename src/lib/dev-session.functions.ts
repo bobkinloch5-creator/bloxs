@@ -48,7 +48,8 @@ export const listActiveDevSession = createServerFn({ method: "GET" })
   .inputValidator((i: unknown) => z.object({ project_id: uuid }).parse(i))
   .middleware([requireSupabaseAuth])
   .handler(async ({ data, context }) => {
-    const sb = context.supabase as any;
+    const ctx = context as any;
+    const sb = ctx.supabase;
     const { data: session } = await sb
       .from("dev_sessions")
       .select("id, goal, status, auto_run, summary, created_at, updated_at, finished_at")
@@ -69,7 +70,8 @@ export const stopDevSession = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => z.object({ session_id: uuid, status: z.enum(["stopped","complete","paused"]).default("stopped") }).parse(i))
   .middleware([requireSupabaseAuth])
   .handler(async ({ data, context }) => {
-    const sb = context.supabase as any;
+    const ctx = context as any;
+    const sb = ctx.supabase;
     const { error } = await sb.from("dev_sessions")
       .update({ status: data.status, finished_at: new Date().toISOString(), updated_at: new Date().toISOString() })
       .eq("id", data.session_id);
@@ -81,7 +83,8 @@ export const setDevSessionAutoRun = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => z.object({ session_id: uuid, auto_run: z.boolean() }).parse(i))
   .middleware([requireSupabaseAuth])
   .handler(async ({ data, context }) => {
-    const sb = context.supabase as any;
+    const ctx = context as any;
+    const sb = ctx.supabase;
     const { error } = await sb.from("dev_sessions").update({ auto_run: data.auto_run, updated_at: new Date().toISOString() }).eq("id", data.session_id);
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -95,8 +98,9 @@ export const startDevSession = createServerFn({ method: "POST" })
   }).parse(i))
   .middleware([requireSupabaseAuth])
   .handler(async ({ data, context }) => {
-    const sb = context.supabase as any;
-    const { data: canEdit } = await sb.rpc("can_edit_project", { _project_id: data.project_id, _user_id: context.userId });
+    const ctx = context as any;
+    const sb = ctx.supabase;
+    const { data: canEdit } = await sb.rpc("can_edit_project", { _project_id: data.project_id, _user_id: ctx.userId });
     if (!canEdit) throw new Error("No edit access to this project");
 
     const [{ data: project }, { data: session }, { data: memory }] = await Promise.all([
@@ -131,7 +135,7 @@ export const startDevSession = createServerFn({ method: "POST" })
 
     const { data: sess, error: sErr } = await sb.from("dev_sessions").insert({
       project_id: data.project_id,
-      user_id: context.userId,
+      user_id: ctx.userId,
       goal: data.goal,
       quality_target: data.quality_target,
       status: "active",
@@ -143,7 +147,7 @@ export const startDevSession = createServerFn({ method: "POST" })
     const rows = rawTasks.map((t: any, i: number) => ({
       session_id: sess.id,
       project_id: data.project_id,
-      user_id: context.userId,
+      user_id: ctx.userId,
       position: i,
       agent: (AGENTS as readonly string[]).includes(String(t?.agent)) ? String(t.agent) : "generalist",
       title: String(t?.title ?? `Task ${i + 1}`).slice(0, 120),
@@ -166,7 +170,8 @@ export const advanceDevSession = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => z.object({ session_id: uuid, force: z.boolean().default(false) }).parse(i))
   .middleware([requireSupabaseAuth])
   .handler(async ({ data, context }) => {
-    const sb = context.supabase as any;
+    const ctx = context as any;
+    const sb = ctx.supabase;
     const { data: session } = await sb.from("dev_sessions").select("id, project_id, status").eq("id", data.session_id).maybeSingle();
     if (!session) throw new Error("Session not found");
     if (session.status !== "active") return { advanced: false, reason: "not_active" };

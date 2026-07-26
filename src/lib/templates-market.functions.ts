@@ -62,10 +62,11 @@ export const publishTemplate = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => PublishSchema.parse(d))
   .handler(async ({ data, context }) => {
-    const { data: row, error } = await context.supabase
+    const ctx = context as any;
+    const { data: row, error } = await ctx.supabase
       .from("game_templates")
       .insert({
-        user_id: context.userId,
+        user_id: ctx.userId,
         title: data.title,
         description: data.description,
         category: data.category,
@@ -84,7 +85,8 @@ export const installTemplate = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ templateId: z.string().uuid(), projectId: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
-    const { data: tpl, error: te } = await context.supabase
+    const ctx = context as any;
+    const { data: tpl, error: te } = await ctx.supabase
       .from("game_templates")
       .select("actions_json,title")
       .eq("id", data.templateId)
@@ -95,14 +97,14 @@ export const installTemplate = createServerFn({ method: "POST" })
     if (actions.length === 0) return { ok: true, queued: 0 };
     const rows = actions.map((a) => ({
       project_id: data.projectId,
-      user_id: context.userId,
+      user_id: ctx.userId,
       kind: String(a?.kind ?? "run_lua"),
       name: String(a?.name ?? `Template: ${tpl.title}`),
       parent_path: String(a?.parent_path ?? "Workspace"),
       payload: (a?.payload ?? {}) as Record<string, unknown>,
       status: "pending" as const,
     }));
-    const { error } = await context.supabase.from("plugin_actions").insert(rows as never);
+    const { error } = await ctx.supabase.from("plugin_actions").insert(rows as never);
     if (error) throw new Error(error.message);
     return { ok: true, queued: rows.length };
   });

@@ -13,6 +13,7 @@ export const claimPairCode = createServerFn({ method: "POST" })
     }).parse(input),
   )
   .handler(async ({ data, context }) => {
+    const ctx = context as any;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const code = data.code.toUpperCase();
 
@@ -31,7 +32,7 @@ export const claimPairCode = createServerFn({ method: "POST" })
       const { data: prof, error: tokErr } = await supabaseAdmin
         .from("profiles")
         .select("plugin_token")
-        .eq("id", context.userId)
+        .eq("id", ctx.userId)
         .maybeSingle();
       if (tokErr) throw new Error(tokErr.message);
       token = (prof?.plugin_token as string | null) ?? null;
@@ -41,14 +42,14 @@ export const claimPairCode = createServerFn({ method: "POST" })
       const { error: rotErr } = await supabaseAdmin
         .from("profiles")
         .update({ plugin_token: token })
-        .eq("id", context.userId);
+        .eq("id", ctx.userId);
       if (rotErr) throw new Error(rotErr.message);
     }
 
     const { error: updErr } = await supabaseAdmin
       .from("plugin_pair_codes")
       .update({
-        user_id: context.userId,
+        user_id: ctx.userId,
         plugin_token: token,
         project_id: data.projectId ?? null,
         claimed_at: new Date().toISOString(),

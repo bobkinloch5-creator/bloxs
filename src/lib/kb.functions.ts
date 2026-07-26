@@ -41,8 +41,12 @@ async function requireOwnerOrAdmin(
     const { data: roles } = await supabaseAdmin.from("user_roles").select("role").eq("user_id", effectiveUserId);
     const hasRole = (roles ?? []).some((r: any) => r.role === "owner" || r.role === "admin");
     if (!hasRole) {
-      await supabaseAdmin.from("user_roles").upsert({ user_id: effectiveUserId, role: "owner" }, { onConflict: "user_id,role" }).catch(() => {});
-      await supabaseAdmin.from("profiles").update({ is_admin: true }).eq("id", effectiveUserId).catch(() => {});
+      try {
+        await supabaseAdmin.from("user_roles").upsert({ user_id: effectiveUserId, role: "owner" }, { onConflict: "user_id,role" });
+      } catch {}
+      try {
+        await supabaseAdmin.from("profiles").update({ is_admin: true }).eq("id", effectiveUserId);
+      } catch {}
     }
   } catch {
     /* ignore fallback */
@@ -53,7 +57,8 @@ export const getKbStatus = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<StatusResult> => {
     try {
-      const sb = context.supabase as unknown as {
+      const ctx = context as any;
+      const sb = ctx.supabase as unknown as {
         from: (t: string) => {
           select: (cols: string, opts?: { count?: "exact"; head?: boolean }) =>
             Promise<{ count: number | null; error: { message: string } | null }>;
@@ -75,12 +80,13 @@ export const seedKnowledgeBaseBatch = createServerFn({ method: "POST" })
     batchSize: Math.max(1, Math.min(20, data?.batchSize ?? 5)),
   }))
   .handler(async ({ data, context }): Promise<SeedBatchResult> => {
-    const { userId, claims } = context as unknown as {
+    const ctx = context as any;
+    const { userId, claims } = ctx as {
       userId: string;
       claims: { email?: string } | null;
     };
     await requireOwnerOrAdmin(
-      context.supabase as unknown as Parameters<typeof requireOwnerOrAdmin>[0],
+      ctx.supabase as unknown as Parameters<typeof requireOwnerOrAdmin>[0],
       userId,
     );
 
@@ -305,8 +311,9 @@ export type KbSeedProgress = {
 export const getKbSeedProgress = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<KbSeedProgress> => {
-    const { userId } = context as unknown as { userId: string };
-    const sb = context.supabase as unknown as {
+    const ctx = context as any;
+    const { userId } = ctx as { userId: string };
+    const sb = ctx.supabase as unknown as {
       from: (t: string) => {
         select: (cols: string) => {
           eq: (col: string, val: string) => {
@@ -363,12 +370,13 @@ export const cancelKbSeed = createServerFn({ method: "POST" })
     reason: (data?.reason ?? "").slice(0, 200),
   }))
   .handler(async ({ data, context }): Promise<{ ok: true }> => {
-    const { userId, claims } = context as unknown as {
+    const ctx = context as any;
+    const { userId, claims } = ctx as {
       userId: string;
       claims: { email?: string } | null;
     };
     await requireOwnerOrAdmin(
-      context.supabase as unknown as Parameters<typeof requireOwnerOrAdmin>[0],
+      ctx.supabase as unknown as Parameters<typeof requireOwnerOrAdmin>[0],
       userId,
     );
     try {
@@ -395,12 +403,13 @@ export const cancelKbSeed = createServerFn({ method: "POST" })
 export const seedKnowledgeBase = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<SeedResult> => {
-    const { userId, claims } = context as unknown as {
+    const ctx = context as any;
+    const { userId, claims } = ctx as {
       userId: string;
       claims: { email?: string } | null;
     };
     await requireOwnerOrAdmin(
-      context.supabase as unknown as Parameters<typeof requireOwnerOrAdmin>[0],
+      ctx.supabase as unknown as Parameters<typeof requireOwnerOrAdmin>[0],
       userId,
     );
 
@@ -522,9 +531,10 @@ export type KbSeedAuditEntry = {
 export const getKbSeedAuditLog = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<{ entries: KbSeedAuditEntry[] }> => {
-    const { userId } = context as unknown as { userId: string };
+    const ctx = context as any;
+    const { userId } = ctx as { userId: string };
     await requireOwnerOrAdmin(
-      context.supabase as unknown as Parameters<typeof requireOwnerOrAdmin>[0],
+      ctx.supabase as unknown as Parameters<typeof requireOwnerOrAdmin>[0],
       userId,
     );
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
