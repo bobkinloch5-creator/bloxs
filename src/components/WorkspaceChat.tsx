@@ -47,6 +47,68 @@ function stripInternalBlocks(text: string): string {
   return out.replace(/\n{3,}/g, "\n\n").trim();
 }
 
+// ─── Fancy task-list renderer ─────────────────────────────────────────────────
+// Intercepts react-markdown's `li` render for task list items (- [ ] / - [x])
+// and replaces the default bullet with a glowing animated checkbox chip.
+// Execution is unaffected — this is purely visual prose enhancement.
+const markdownComponents: Record<string, React.ComponentType<any>> = {
+  li: ({ node, children, ...props }: any) => {
+    const childArray = Array.isArray(children) ? children : [children];
+    const first = childArray[0];
+    const isCheckbox =
+      first &&
+      typeof first === "object" &&
+      "type" in first &&
+      (first as any).type === "input" &&
+      (first as any).props?.type === "checkbox";
+    if (isCheckbox) {
+      const checked = !!(first as any).props?.checked;
+      const rest = childArray.slice(1);
+      return (
+        <li style={{ listStyle: "none", margin: 0, padding: 0 }}>
+          <div
+            className={`flex items-start gap-2.5 rounded-xl px-3 py-2 my-1 text-[12.5px] font-medium transition-all duration-300 ${
+              checked
+                ? "bg-emerald-500/10 border border-emerald-500/30 shadow-[0_0_14px_rgba(16,185,129,0.18)]"
+                : "bg-white/[0.025] border border-white/[0.07]"
+            }`}
+          >
+            {/* Checkbox circle */}
+            <span
+              className={`mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full text-[9px] font-black transition-all duration-300 ${
+                checked
+                  ? "bg-emerald-500 text-white shadow-[0_0_12px_rgba(16,185,129,0.75)] scale-110"
+                  : "border-2 border-slate-600 text-transparent"
+              }`}
+            >
+              {checked ? "✓" : ""}
+            </span>
+            {/* Item text */}
+            <span
+              className={`leading-relaxed ${
+                checked ? "text-emerald-200" : "text-slate-300"
+              }`}
+            >
+              {rest}
+            </span>
+          </div>
+        </li>
+      );
+    }
+    return <li {...props}>{children}</li>;
+  },
+  ul: ({ node, children, className, ...props }: any) => {
+    if (className?.includes("contains-task-list")) {
+      return (
+        <ul className="my-2.5 list-none space-y-0 p-0 pl-0" style={{ paddingInlineStart: 0 }}>
+          {children}
+        </ul>
+      );
+    }
+    return <ul className={className} {...props}>{children}</ul>;
+  },
+};
+
 // Detect a generate_image tool part (AI SDK exposes tool parts as
 // `tool-<name>` with output on `output` when settled).
 function extractGeneratedImages(parts: any[]): Array<{ url: string; prompt: string }> {
@@ -767,7 +829,7 @@ export function WorkspaceChat({
                     </div>
                   )}
                   <div className="prose prose-invert prose-sm max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-                    <ReactMarkdown>{text || (m.role === "assistant" && status === "streaming" ? "Working on it…" : "")}</ReactMarkdown>
+                    <ReactMarkdown components={markdownComponents}>{text || (m.role === "assistant" && status === "streaming" ? "Working on it…" : "")}</ReactMarkdown>
                   </div>
                   {genImages.length > 0 && (
                     <div className="mt-2 space-y-2">

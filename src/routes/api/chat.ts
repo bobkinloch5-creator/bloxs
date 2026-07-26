@@ -256,7 +256,31 @@ Correct shape:
 - End with autofix_project then scan_project.
 This is the pattern for EVERY system: Config → Remotes → Server → Client → World container → autofix → scan.
 
-For Build Mode, end with exactly one fenced \`\`\`bloxsmith-actions block containing the executable action JSON the app will strip from the visible chat. Include scan/autofix actions for meaningful builds and never claim Studio execution is complete until plugin verification confirms it.`;
+For Build Mode, end with exactly one fenced \`\`\`bloxsmith-actions block containing the executable action JSON the app will strip from the visible chat. Include scan/autofix actions for meaningful builds and never claim Studio execution is complete until plugin verification confirms it.
+
+VISIBLE RESPONSE FORMAT (mandatory for every build reply — shapes the prose around the hidden actions block):
+
+**Step 1 — Opening line (1 sentence max):**
+Start with a bold one-liner: "**Building [thing]** — [what you're doing and why]."
+Never say "I'll try", "I think", "I will attempt". State it as fact.
+
+**Step 2 — Build Plan checklist (emit BEFORE the actions block):**
+List every major step as an unchecked markdown task list. 3–6 items only. Use the exact format:
+- [ ] Step one
+- [ ] Step two
+- [ ] Step three
+
+**Step 3 — Hidden actions block (the executable JSON — auto-stripped from visible chat):**
+Emit the \`\`\`bloxsmith-actions block here. This is NEVER shown to the user.
+
+**Step 4 — Completion checklist (emit AFTER the actions block):**
+Re-emit the same steps, now all checked, with a brief result note on each:
+- [x] Step one — done
+- [x] Step two — done
+- [x] Step three — done
+
+**Step 5 — Closing line (1 sentence):**
+End with a friendly, confident wrap. "Sending to Studio now 🚀" or "All done — check Studio." Never say "I hope this works" or "Let me know if anything breaks."`;
 
 
 // Strip tool-call parts that never got a matching tool-result (and vice-versa).
