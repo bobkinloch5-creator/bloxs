@@ -85,6 +85,9 @@ function Header() {
         <Link to="/pricing" className="text-cyan-300 font-semibold hover:text-white transition">Pricing & Models</Link>
         <Link to="/docs" className="hover:text-white transition">Docs</Link>
         <Link to="/support" className="hover:text-white transition">Support</Link>
+        <a href="https://discord.gg/YJ8xPFNSSX" target="_blank" rel="noreferrer" className="flex items-center gap-1.5 font-semibold text-indigo-300 hover:text-white transition">
+          <DiscordIcon className="h-4 w-4" /> Discord
+        </a>
       </nav>
       <div className="flex items-center gap-2">
         <Link to="/donate" aria-label="Donate to BloxSmith" title="Support BloxSmith" className="inline-flex items-center gap-1 rounded-lg border border-pink-400/30 bg-pink-500/10 px-2.5 py-1.5 text-xs font-semibold text-pink-200 hover:border-pink-400/60 hover:bg-pink-500/15 hover:text-white transition">
@@ -545,7 +548,7 @@ function Footer() {
           <FootCol title="Support" links={[["Support", "/support"], ["Contact", "/contact"], ["Terms", "/terms"], ["Privacy", "/privacy"], ["Discord", "https://discord.gg/YJ8xPFNSSX"]]} />
         </div>
         <div className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-6 text-xs text-slate-400">
-          <div className="font-medium text-slate-300">Made for Roblox creators. 100% free.</div>
+          <div className="font-medium text-slate-300">Made with ❤️ for Roblox creators. 100% free.</div>
           <div>© {new Date().getFullYear()} BloxSmith. All rights reserved.</div>
         </div>
       </div>
