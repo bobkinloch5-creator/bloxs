@@ -851,7 +851,7 @@ export function WorkspaceChat({
       )}
 
       {/* Interactive Game Brainstormer & Planner */}
-      {(messages.length === 0 || showBrainstormer) && (
+      {showBrainstormer && (
         <div className="mb-4">
           <GameBrainstormer
             onSelectPlan={handleBrainstormSelectPlan}

@@ -4,6 +4,22 @@ All notable changes to BloxSmith are tracked here. Dates are UTC.
 
 ## [Unreleased]
 
+### 2026-07-26 - Authentication Fix, Multi-Language Sync, AI Asset ID Safety & UI Polish
+
+**Authentication & User Registration (`supabase/migrations`, `src/routes/auth.tsx`)**
+- Fixed account registration failure caused by RLS trigger conflict during initial profile creation (`handle_new_user` trigger updated to `ON CONFLICT DO NOTHING`).
+- Enhanced auth user experience with automatic post-signup sign-in attempts, toast notifications, and clear visual state feedback banners.
+
+**Global Multi-Language Expansion (`src/lib/language-sync.ts`)**
+- Enabled support for 27 languages (including Hindi, Spanish, French, German, Japanese, Korean, Portuguese, Russian, and more) across the platform with persistent language selection.
+
+**AI Engine & Luau Asset Safety (`src/lib/roblox-scripting-knowledge.ts`, `src/lib/luau-validator.ts`)**
+- Removed dummy animation asset ID (`rbxassetid://0`) to prevent Studio asset-loading errors and missing permission warnings.
+- Verified preflight Luau syntax repair (`task.wait`, `task.spawn`, `task.delay`, `:Connect`, and JSON key assignment conversion).
+
+**Workspace UI Refinement (`src/components/WorkspaceChat.tsx`)**
+- Streamlined fresh chat interface by keeping the Game Brainstormer card clean and accessible via the 💡 **AI Game Architect** chip toggle, ensuring prompt composer and chat stream remain the primary workspace view.
+
 ### 2026-07-26 - AI Chat Persona Overhaul, Fancy Todo Checklist & UI Cleanup
 
 **AI Chat Personality & Expertise (`src/routes/api/chat.ts`)**
