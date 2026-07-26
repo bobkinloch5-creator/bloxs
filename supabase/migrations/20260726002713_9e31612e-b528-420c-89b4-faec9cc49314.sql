@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS "profiles read own or public" ON public.profiles;
