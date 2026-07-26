@@ -31,9 +31,76 @@ export interface ModelOption {
     topP?: number;
     maxOutputTokens?: number;
   };
+  /** Whether model requires top-up purchase or Owner status. */
+  paidOnly?: boolean;
 }
 
 export const MODELS: ModelOption[] = [
+  // ─── Frontier Paid-Only / Owner Models ───────────────────────────────────────
+  {
+    id: "gpt-5.6-sol",
+    gateway: "lovable",
+    label: "GPT-5.6 Sol (Frontier 372K)",
+    provider: "OpenAI",
+    via: "OpenAI / BloxSmith Gateway",
+    tier: "premium",
+    speed: "Slow",
+    quality: "Best",
+    credits: "High",
+    status: "Working",
+    paidOnly: true,
+    bestFor: "Frontier reasoning, massive 372K context, complex Roblox architectures ($5 / $30 per MTok).",
+    description: "GPT-5.6 Sol Frontier model with 372K context window. Reserved for Top-Up Supporters & Owners.",
+    modelSettings: { temperature: 0.5, topP: 0.95, maxOutputTokens: 8192 },
+  },
+  {
+    id: "gpt-5.6-terra",
+    gateway: "lovable",
+    label: "GPT-5.6 Terra (Balanced 372K)",
+    provider: "OpenAI",
+    via: "OpenAI / BloxSmith Gateway",
+    tier: "balanced",
+    speed: "Medium",
+    quality: "Great",
+    credits: "Medium",
+    status: "Working",
+    paidOnly: true,
+    bestFor: "Balanced gameplay logic, state machines, and module systems ($2.50 / $15 per MTok).",
+    description: "GPT-5.6 Terra Balanced model with 372K context window. Reserved for Top-Up Supporters & Owners.",
+    modelSettings: { temperature: 0.6, topP: 0.9, maxOutputTokens: 6144 },
+  },
+  {
+    id: "gpt-5.6-luna",
+    gateway: "lovable",
+    label: "GPT-5.6 Luna (Fast 372K)",
+    provider: "OpenAI",
+    via: "OpenAI / BloxSmith Gateway",
+    tier: "fast",
+    speed: "Fast",
+    quality: "Good",
+    credits: "Low",
+    status: "Working",
+    paidOnly: true,
+    bestFor: "Ultra-fast bug fixes and concise Luau snippet generation with 372K context.",
+    description: "GPT-5.6 Luna High-speed model with 372K context window. Reserved for Top-Up Supporters & Owners.",
+    modelSettings: { temperature: 0.7, topP: 0.9, maxOutputTokens: 4096 },
+  },
+  {
+    id: "claude-fable-5",
+    gateway: "lovable",
+    label: "Claude Fable 5 (Reasoning 372K)",
+    provider: "Anthropic",
+    via: "Anthropic / BloxSmith Gateway",
+    tier: "premium",
+    speed: "Slow",
+    quality: "Best",
+    credits: "Very High",
+    status: "Working",
+    paidOnly: true,
+    bestFor: "State-of-the-art architectural design, refactoring, and complex 3D systems (372K context).",
+    description: "Anthropic Claude Fable 5 model with 372K context window. Reserved for Top-Up Supporters & Owners.",
+    modelSettings: { temperature: 0.4, topP: 0.95, maxOutputTokens: 8192 },
+  },
   // ─── NVIDIA Nemotron family ────────────────────────────────────────────────
   {
     id: "nvidia/llama-3.1-nemotron-ultra-253b",

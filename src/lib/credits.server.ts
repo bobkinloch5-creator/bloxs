@@ -51,12 +51,12 @@ export async function chargeCredits(
   userSupabase: SupabaseClient,
   userId: string,
   amount: number,
-  opts: { allowZero?: boolean } = {},
+  opts: { allowZero?: boolean; modelId?: string } = {},
 ): Promise<ChargeResult> {
-  if (amount <= 0 && !opts.allowZero) return { ok: true, charged: 0 };
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
   // 1. Admin / Owner check via user_roles or profile plan (RLS-safe via admin client)
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  let isOwnerOrAdmin = false;
   try {
     const { data: roles } = await supabaseAdmin
       .from("user_roles")
@@ -64,10 +64,14 @@ export async function chargeCredits(
       .eq("user_id", userId)
       .in("role", ["admin", "owner"]);
     if ((roles ?? []).length > 0) {
-      return { ok: true, charged: 0, remaining: Infinity };
+      isOwnerOrAdmin = true;
     }
   } catch {
-    // fall through and check profile table
+    // fall through
+  }
+
+  if (isOwnerOrAdmin) {
+    return { ok: true, charged: 0, remaining: Infinity };
   }
 
   const { data: profile, error: readErr } = await supabaseAdmin
@@ -90,6 +94,24 @@ export async function chargeCredits(
   if (profile.is_admin || profile.plan === "Owner" || profile.plan === "Pro") {
     return { ok: true, charged: 0, remaining: Infinity };
   }
+
+  // 1.5 Validate paidOnly model access (GPT-5.6 series, Claude Fable 5)
+  if (opts.modelId) {
+    const { MODELS } = await import("./models");
+    const m = MODELS.find((x) => x.id === opts.modelId);
+    if (m?.paidOnly) {
+      const isTopUpOrPaid = profile.plan === "Donator" || (profile.max_credits ?? 50) > 50;
+      if (!isTopUpOrPaid) {
+        return {
+          ok: false,
+          code: "no_credits",
+          message: "GPT-5.6 Sol/Terra/Luna and Claude Fable 5 models are exclusive to Top-Up Supporters & Owners. Please top up your credits to unlock these frontier models!",
+        };
+      }
+    }
+  }
+
+  if (amount <= 0 && !opts.allowZero) return { ok: true, charged: 0 };
 
   let credits = Number(profile.credits ?? 0);
   const maxCredits = Number(profile.max_credits ?? 0);

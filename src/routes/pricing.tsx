@@ -272,13 +272,19 @@ function PricingPage() {
               <tbody className="divide-y divide-white/5">
                 {MODELS.filter((m) => m.status === "Working").map((model) => {
                   const isFree = model.credits === "Free";
+                  const isPaidOnly = model.paidOnly;
                   return (
                     <tr key={model.id} className="hover:bg-white/[0.02] transition">
-                      <td className="px-6 py-4 font-bold text-white flex items-center gap-2">
+                      <td className="px-6 py-4 font-bold text-white flex flex-wrap items-center gap-2">
                         {model.label}
                         {isFree && (
                           <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[9px] font-extrabold text-emerald-300 border border-emerald-500/40">
                             100% FREE MODEL
+                          </span>
+                        )}
+                        {isPaidOnly && (
+                          <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[9px] font-extrabold text-amber-300 border border-amber-500/40">
+                            PAID & OWNER UNLOCKED
                           </span>
                         )}
                       </td>
@@ -320,7 +326,11 @@ function PricingPage() {
             />
             <FaqItem
               question="Can I use BloxSmith for free without consuming credits?"
-              answer="Yes! We offer 1 completely free model (Meta Llama 3.1 8B) which costs 0 credits per generation. You can use it indefinitely even if your daily credit balance runs out!"
+              answer="Yes! We offer 1 completely free model (Meta Llama 3.1 8B) which costs 0 credits per generation. You can use it indefinitely even if your monthly credit balance runs out!"
+            />
+            <FaqItem
+              question="Which models require a top-up or Owner status?"
+              answer="Our frontier model family — GPT-5.6 Sol (Frontier 372K context, $5/$30 MTok), GPT-5.6 Terra (Balanced 372K context, $2.50/$15 MTok), GPT-5.6 Luna (Fast 372K context), and Claude Fable 5 (Reasoning 372K context) — are exclusive models unlocked after your first credit top-up! Platform Owners get instant unlimited access to all of them."
             />
             <FaqItem
               question="Why do I need to join Discord before topping up?"
