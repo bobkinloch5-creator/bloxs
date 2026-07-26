@@ -54,7 +54,7 @@ export function HelpChatWidget() {
 
   const handleSuggestion = (text: string) => {
     sendMessage({ text });
-    setTimeout(() => inputRef.current?.focus(), 100);
+    setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 100);
   };
 
   const clearChat = () => {
