@@ -148,13 +148,19 @@ export function VaporModelSelector({ selectedModel, onSelectModel, availableMode
                   }`}
                 >
                   <div className="min-w-0 flex-1 pr-2">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-1.5">
                       <span className="text-xs font-black text-cyan-300">⚡ Auto — Smart Routing</span>
                       <span
                         style={{ backgroundColor: "#0284c7" }}
                         className="rounded-full px-2 py-[1px] text-[9px] font-black uppercase tracking-wider text-white"
                       >
                         Recommended
+                      </span>
+                      <span
+                        style={{ backgroundColor: "#1e1b4b", color: "#a5b4fc" }}
+                        className="rounded-full border border-indigo-500/50 px-2 py-[1px] text-[9px] font-black uppercase tracking-wider"
+                      >
+                        ⚡ 1–4 Credits
                       </span>
                     </div>
                     <p className="mt-1 text-[11px] font-medium leading-snug text-slate-200">
@@ -170,6 +176,16 @@ export function VaporModelSelector({ selectedModel, onSelectModel, availableMode
               {/* Filtered Models List */}
               {filteredModels.map((m) => {
                 const isSelected = selectedModel === m.id;
+                const costNum = m.credits === "Very High" ? 6 : m.credits === "High" ? 4 : m.credits === "Medium" ? 2 : 1;
+                const badgeColor =
+                  m.credits === "Very High"
+                    ? { bg: "#881337", text: "#fecdd3", border: "#f43f5e" }
+                    : m.credits === "High"
+                      ? { bg: "#581c87", text: "#e9d5ff", border: "#a855f7" }
+                      : m.credits === "Medium"
+                        ? { bg: "#1e1b4b", text: "#a5b4fc", border: "#6366f1" }
+                        : { bg: "#064e3b", text: "#6ee7b7", border: "#10b981" };
+
                 return (
                   <button
                     key={m.id}
@@ -204,6 +220,12 @@ export function VaporModelSelector({ selectedModel, onSelectModel, availableMode
                           className="rounded-full px-2 py-[1px] text-[9px] font-black uppercase text-white"
                         >
                           {m.speed}
+                        </span>
+                        <span
+                          style={{ backgroundColor: badgeColor.bg, color: badgeColor.text, borderColor: badgeColor.border }}
+                          className="rounded-full border px-2 py-[1px] text-[9px] font-black uppercase tracking-wider shadow-sm"
+                        >
+                          ⚡ {costNum} Credit{costNum === 1 ? "" : "s"}
                         </span>
                       </div>
                       <p className="mt-1 text-[11px] font-medium leading-snug text-slate-200 group-hover:text-white line-clamp-2">

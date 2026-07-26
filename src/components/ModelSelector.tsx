@@ -180,6 +180,9 @@ export function ModelSelector({ selectedModel, onSelectModel, availableModels }:
                         <span className="rounded bg-amber-400/20 px-1.5 py-0.5 text-[9.5px] font-bold text-amber-300">
                           RECOMMENDED
                         </span>
+                        <span className="rounded bg-indigo-500/20 border border-indigo-400/30 px-1.5 py-0.5 text-[9.5px] font-bold text-indigo-300">
+                          ⚡ 1–4 CREDITS
+                        </span>
                       </div>
                       <p className="mt-0.5 text-[11px] leading-tight text-slate-300">
                         Dynamically picks fast NVIDIA models for planning & Qwen Coder for high-quality Luau scripts.
@@ -199,6 +202,15 @@ export function ModelSelector({ selectedModel, onSelectModel, availableModels }:
             {filteredModels.map((m) => {
               const isSelected = selectedModel === m.id;
               const providerStyle = PROVIDER_COLORS[m.provider] || PROVIDER_COLORS.default;
+              const costNum = m.credits === "Very High" ? 6 : m.credits === "High" ? 4 : m.credits === "Medium" ? 2 : 1;
+              const creditBadgeStyle =
+                m.credits === "Very High"
+                  ? "bg-rose-500/20 border-rose-500/40 text-rose-300"
+                  : m.credits === "High"
+                    ? "bg-purple-500/20 border-purple-500/40 text-purple-300"
+                    : m.credits === "Medium"
+                      ? "bg-indigo-500/20 border-indigo-500/40 text-indigo-300"
+                      : "bg-emerald-500/20 border-emerald-500/40 text-emerald-300";
 
               return (
                 <button
@@ -225,6 +237,11 @@ export function ModelSelector({ selectedModel, onSelectModel, availableModels }:
                         </span>
                         <span className="text-[10px] font-medium text-slate-400">
                           {m.speed} • {m.quality}
+                        </span>
+                        <span
+                          className={`rounded border px-1.5 py-0.5 text-[9.5px] font-extrabold uppercase tracking-wider ${creditBadgeStyle}`}
+                        >
+                          ⚡ {costNum} Credit{costNum === 1 ? "" : "s"}
                         </span>
                       </div>
                       <p className="mt-1 text-[11px] leading-snug text-slate-400 line-clamp-2">
