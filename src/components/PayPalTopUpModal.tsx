@@ -110,7 +110,7 @@ export function PayPalTopUpModal({ isOpen, onClose, currentCredits = 0 }: Props)
               </p>
             </div>
             <a
-              href="https://discord.gg/6QDYT3RUkv"
+              href="https://discord.gg/YJ8xPFNSSX"
               target="_blank"
               rel="noreferrer"
               className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-indigo-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-indigo-400 transition shadow-md"

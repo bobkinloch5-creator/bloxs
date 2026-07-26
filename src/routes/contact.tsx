@@ -17,7 +17,7 @@ export const Route = createFileRoute("/contact")({
       <p>We read every message. The fastest way to reach us is our Discord community.</p>
 
       <h2>Community</h2>
-      <p><a href="https://discord.gg/6QDYT3RUkv" target="_blank" rel="noreferrer" className="text-blue-400 hover:underline">Discord server</a> — ask other builders, share what you're working on.</p>
+      <p><a href="https://discord.gg/YJ8xPFNSSX" target="_blank" rel="noreferrer" className="text-blue-400 hover:underline">Discord server</a> — ask other builders, share what you're working on.</p>
     </LegalShell>
   ),
 });

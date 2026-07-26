@@ -192,7 +192,7 @@ export function ProfileMenu({ compact = false }: { compact?: boolean }) {
         <DropdownMenuSeparator className="my-1.5 bg-white/5" />
 
         <DropdownMenuItem asChild className="cursor-pointer rounded-lg px-2 py-2 text-xs font-medium text-white/70 focus:bg-white/5 focus:text-white">
-          <a href="https://discord.gg/6QDYT3RUkv" target="_blank" rel="noreferrer" className="flex items-center gap-2">
+          <a href="https://discord.gg/YJ8xPFNSSX" target="_blank" rel="noreferrer" className="flex items-center gap-2">
             <DiscordIcon className="h-3.5 w-3.5 text-indigo-300" /> Join our Discord
             <ExternalLink className="ml-auto h-3 w-3 text-white/30" />
           </a>

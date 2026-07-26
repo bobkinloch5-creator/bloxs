@@ -61,7 +61,7 @@ export const Route = createFileRoute("/support")({
       <p>The fastest way to reach us is the <Link to="/contact" className="text-blue-400 hover:underline">Contact</Link> page. We typically reply within a few days.</p>
 
       <h2>Community</h2>
-      <p>Join other BloxSmith builders on <a href="https://discord.gg/6QDYT3RUkv" target="_blank" rel="noreferrer" className="text-blue-400 hover:underline">Discord</a>.</p>
+      <p>Join other BloxSmith builders on <a href="https://discord.gg/YJ8xPFNSSX" target="_blank" rel="noreferrer" className="text-blue-400 hover:underline">Discord</a>.</p>
     </LegalShell>
   ),
 });

@@ -113,7 +113,7 @@ export function MobileNavTrigger({ isAdmin, className = "" }: { isAdmin?: boolea
                 <Heart className="h-3.5 w-3.5" /> Donate
               </Link>
               <a
-                href="https://discord.gg/6QDYT3RUkv"
+                href="https://discord.gg/YJ8xPFNSSX"
                 target="_blank"
                 rel="noreferrer"
                 className="vapor-ghost-btn flex min-h-[48px] items-center justify-center gap-2 px-3 py-2.5 text-xs font-bold uppercase tracking-[0.18em]"

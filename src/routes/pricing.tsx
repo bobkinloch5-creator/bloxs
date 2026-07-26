@@ -53,7 +53,7 @@ function PricingPage() {
             <Link to="/dashboard" className="text-slate-300 hover:text-white transition">Dashboard</Link>
             <Link to="/docs" className="text-slate-300 hover:text-white transition">Docs</Link>
             <a
-              href="https://discord.gg/6QDYT3RUkv"
+              href="https://discord.gg/YJ8xPFNSSX"
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-3 py-1.5 text-indigo-300 hover:bg-indigo-500/20 hover:text-white transition"
@@ -86,7 +86,7 @@ function PricingPage() {
               </div>
             </div>
             <a
-              href="https://discord.gg/6QDYT3RUkv"
+              href="https://discord.gg/YJ8xPFNSSX"
               target="_blank"
               rel="noreferrer"
               className="inline-flex shrink-0 items-center gap-2 rounded-2xl bg-indigo-500 px-5 py-3 text-xs font-black text-white hover:bg-indigo-400 transition shadow-[0_0_25px_rgba(99,102,241,0.5)] active:scale-95"
@@ -239,7 +239,7 @@ function PricingPage() {
             </div>
 
             <a
-              href="https://discord.gg/6QDYT3RUkv"
+              href="https://discord.gg/YJ8xPFNSSX"
               target="_blank"
               rel="noreferrer"
               className="mt-8 block w-full rounded-2xl border border-indigo-500/40 bg-indigo-500/10 py-3 text-center text-xs font-bold text-indigo-200 hover:bg-indigo-500/20 hover:text-white transition"
@@ -350,7 +350,7 @@ function PricingPage() {
           <p>© 2026 BloxSmith Studio. All rights reserved.</p>
           <div className="flex gap-4">
             <a href="https://paypal.me/kinloch930" target="_blank" rel="noreferrer" className="hover:text-slate-300">PayPal Direct</a>
-            <a href="https://discord.gg/6QDYT3RUkv" target="_blank" rel="noreferrer" className="hover:text-slate-300">Discord Support</a>
+            <a href="https://discord.gg/YJ8xPFNSSX" target="_blank" rel="noreferrer" className="hover:text-slate-300">Discord Support</a>
             <Link to="/docs" className="hover:text-slate-300">Documentation</Link>
           </div>
         </div>

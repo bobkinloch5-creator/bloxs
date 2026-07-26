@@ -207,7 +207,7 @@ function PluginPage() {
           <li><b className="text-foreground">Approval link asks me to sign in?</b> Sign in to BloxSmith first, then click Connect again in the plugin.</li>
           <li><b className="text-foreground">Execution stuck?</b> Click <span className="font-mono">Execute Now</span>, or <span className="font-mono">Clear Stuck</span> and ask the AI to retry.</li>
           <li><b className="text-foreground">Toolbox asset failed?</b> The asset may be private or removed. Pick another and try again.</li>
-          <li><b className="text-foreground">Still stuck?</b> Tap <span className="font-mono">Verbose</span>, then <span className="font-mono">Copy log</span>, and share in the <a className="text-primary underline" href="https://discord.gg/6QDYT3RUkv" target="_blank" rel="noreferrer">Discord</a>.</li>
+          <li><b className="text-foreground">Still stuck?</b> Tap <span className="font-mono">Verbose</span>, then <span className="font-mono">Copy log</span>, and share in the <a className="text-primary underline" href="https://discord.gg/YJ8xPFNSSX" target="_blank" rel="noreferrer">Discord</a>.</li>
         </ul>
       </div>
     </div>

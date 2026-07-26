@@ -14,7 +14,7 @@ Key facts:
 - Building: prompt in the project workspace. Auto Build prefers Toolbox assets; full-game asks build the whole package, narrow asks stay exact-scope.
 - Pages: /, /dashboard, /projects, /plugin, /docs, /support, /contact, /showcase, /templates-market, /settings, /referrals.
 - Fixes: nothing appears → plugin paired + green status + Studio active. Delete errors → update plugin (v2.1.23+). Slow AI → auto-falls back across providers.
-- Support: /support, /contact, Discord https://discord.gg/6QDYT3RUkv.
+- Support: /support, /contact, Discord https://discord.gg/YJ8xPFNSSX.
 
 Style: friendly, very concise, short bullets. If unsure, point to /docs, /support, /contact, or Discord. Do NOT write Luau here — redirect code/build requests to the project workspace. Never mention infra, keys, or model providers.`;
 

@@ -132,7 +132,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           name: "BloxSmith",
           url: "https://bloxsmith.pro",
           logo: "https://bloxsmith.pro/favicon.ico",
-          sameAs: ["https://discord.gg/6QDYT3RUkv", "https://www.tiktok.com/@bloxsmith"],
+          sameAs: ["https://discord.gg/YJ8xPFNSSX", "https://www.tiktok.com/@bloxsmith"],
         }),
       },
       {

@@ -253,7 +253,7 @@ function Dashboard() {
                   <Zap className="h-3.5 w-3.5 text-cyan-300" /> Top Up Credits
                 </Link>
                 <a
-                  href="https://discord.gg/6QDYT3RUkv"
+                  href="https://discord.gg/YJ8xPFNSSX"
                   target="_blank"
                   rel="noreferrer"
                   className="vapor-ghost-btn inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-indigo-200 hover:text-white"
@@ -647,7 +647,7 @@ function Sidebar({ isOwner, isAdmin, profile, credits, maxCredits }: {
           <span>Settings</span>
         </Link>
         <a
-          href="https://discord.gg/6QDYT3RUkv"
+          href="https://discord.gg/YJ8xPFNSSX"
           target="_blank"
           rel="noreferrer"
           className="vapor-nav-item text-indigo-300 hover:text-white"
