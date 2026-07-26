@@ -705,8 +705,13 @@ export function selectableModels(): ModelOption[] {
  * instead of every model on that gateway reporting "Not Working".
  */
 export const GATEWAY_ENV_KEYS: Record<Gateway, string[]> = {
-  lovable: ["LOVABLE_API_KEY"],
+  lovable: ["LOVABLE_API_KEY", "ONEPROVIDER_API_KEY", "OPENAI_API_KEY"],
   groq: ["GROQ_API_KEY"],
   nvidia: ["NVIDIA_API_KEY", "NIM_API_KEY", "NGC_API_KEY"],
-  oneprovider: ["ONEPROVIDER_API_KEY"],
+  oneprovider: ["ONEPROVIDER_API_KEY", "LOVABLE_API_KEY", "OPENAI_API_KEY"],
 };
+
+/** Whether a model is a paid-only frontier model (requires top-up or Owner status). */
+export function isPaidOnlyModel(m: ModelOption): boolean {
+  return !!m.paidOnly;
+}

@@ -17,15 +17,21 @@ type LanguageModel = ReturnType<Provider>;
 
 function buildProvider(gateway: Gateway): Provider {
   if (gateway === "lovable") {
-    const key = process.env.LOVABLE_API_KEY;
+    const key = process.env.LOVABLE_API_KEY || process.env.ONEPROVIDER_API_KEY || process.env.OPENAI_API_KEY || process.env.NVIDIA_API_KEY;
     if (!key) throw new Error("Lovable AI is not configured.");
+    const isLovableKey = !!process.env.LOVABLE_API_KEY;
+    const isOneProviderKey = !isLovableKey && !!process.env.ONEPROVIDER_API_KEY;
+
     return createOpenAICompatible({
       name: "lovable",
-      baseURL: "https://ai.gateway.lovable.dev/v1",
-      headers: {
-        "Lovable-API-Key": key,
-        "X-Lovable-AIG-SDK": "vercel-ai-sdk",
-      },
+      baseURL: isLovableKey
+        ? "https://ai.gateway.lovable.dev/v1"
+        : isOneProviderKey
+        ? "https://api.oneprovider.dev/v1"
+        : "https://api.openai.com/v1",
+      headers: isLovableKey
+        ? { "Lovable-API-Key": key, "X-Lovable-AIG-SDK": "vercel-ai-sdk" }
+        : { Authorization: `Bearer ${key}` },
     });
   }
   if (gateway === "groq") {
@@ -47,12 +53,20 @@ function buildProvider(gateway: Gateway): Provider {
     });
   }
   if (gateway === "oneprovider") {
-    const key = process.env.ONEPROVIDER_API_KEY;
+    const key = process.env.ONEPROVIDER_API_KEY || process.env.LOVABLE_API_KEY || process.env.OPENAI_API_KEY;
     if (!key) throw new Error("OneProvider is not configured — set ONEPROVIDER_API_KEY.");
     return createOpenAICompatible({
       name: "oneprovider",
-      baseURL: "https://api.oneprovider.dev/v1",
-      headers: { Authorization: `Bearer ${key}` },
+      baseURL: process.env.ONEPROVIDER_API_KEY
+        ? "https://api.oneprovider.dev/v1"
+        : process.env.LOVABLE_API_KEY
+        ? "https://ai.gateway.lovable.dev/v1"
+        : "https://api.openai.com/v1",
+      headers: process.env.ONEPROVIDER_API_KEY
+        ? { Authorization: `Bearer ${key}` }
+        : process.env.LOVABLE_API_KEY
+        ? { "Lovable-API-Key": key, "X-Lovable-AIG-SDK": "vercel-ai-sdk" }
+        : { Authorization: `Bearer ${key}` },
     });
   }
   throw new Error(`Unsupported AI gateway: ${gateway}`);

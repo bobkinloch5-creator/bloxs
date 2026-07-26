@@ -8,6 +8,7 @@ import {
   findModel,
   isSelectable,
   selectableModels,
+  isPaidOnlyModel,
 } from "./models";
 
 // These are the invariants that decide whether a model can perform at all.
@@ -120,10 +121,12 @@ describe("fallback chain", () => {
     expect(gateways.size).toBeGreaterThan(1);
   });
 
-  it("can reach every working model", () => {
-    // A model the user can select but the router can never fall back to is a
-    // model that silently disappears under load.
+  it("can reach every working non-paidOnly model", () => {
+    // paidOnly models (GPT-5.6 series, Claude Fable 5) are reserved for
+    // top-up supporters & owners and intentionally excluded from the public
+    // fallback chain — they are user-selected, not routed automatically.
     const unreachable = selectableModels()
+      .filter((m) => !isPaidOnlyModel(m))
       .map((m) => m.id)
       .filter((id) => !FALLBACK_CHAIN.includes(id));
     expect(unreachable).toEqual([]);
