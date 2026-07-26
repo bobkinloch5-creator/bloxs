@@ -160,15 +160,18 @@ export const seedKnowledgeBaseBatch = createServerFn({ method: "POST" })
       };
     };
     const writeProgress = (patch: Record<string, unknown>): void => {
-      void progressAdmin.from("kb_seed_progress").upsert(
-        [{
-          user_id: userId,
-          total: KB_CORPUS.length,
-          updated_at: new Date().toISOString(),
-          ...patch,
-        }],
-        { onConflict: "user_id" },
-      ).catch(() => {});
+      try {
+        const p = progressAdmin.from("kb_seed_progress").upsert(
+          [{
+            user_id: userId,
+            total: KB_CORPUS.length,
+            updated_at: new Date().toISOString(),
+            ...patch,
+          }],
+          { onConflict: "user_id" },
+        ) as unknown as Promise<unknown>;
+        void Promise.resolve(p).then(() => {}, () => {});
+      } catch { /* ignore */ }
     };
 
     writeProgress({
