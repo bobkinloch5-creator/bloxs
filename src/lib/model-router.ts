@@ -27,37 +27,40 @@ export interface ModelPick {
 
 // Preference ranking per task. Fastest reliable model for the task first, then
 // stronger fallbacks. Order matters: the first Working entry wins.
+// Working non-paidOnly models: oneprovider/claude-sonnet-4-6, oneprovider/claude-haiku-4-5,
+// nvidia/z-ai-glm-5.2, nvidia/openai-gpt-oss-20b, nvidia/nemotron-nano-9b-v2,
+// nvidia/ministral-14b, nvidia/gemma-3-27b, nvidia/llama-3.1-8b, nvidia/llama-3.3-nemotron-super-49b
 const TASK_PREF: Record<AutoTask, { ids: string[]; reason: string }> = {
   planning: {
-    ids: ["nvidia/nemotron-nano-9b-v2", "nvidia/gemma-3-27b", "nvidia/qwen-2.5-coder-32b", DEFAULT_MODEL_ID],
-    reason: "Auto: very fast model for responsive Roblox planning.",
+    ids: ["nvidia/nemotron-nano-9b-v2", "nvidia/gemma-3-27b", "nvidia/z-ai-glm-5.2", DEFAULT_MODEL_ID],
+    reason: "Auto: fast model for responsive Roblox planning.",
   },
   scripting: {
-    ids: ["nvidia/qwen-2.5-coder-32b", "nvidia/gemma-3-27b", "nvidia/ministral-14b", "nvidia/llama-3.1-8b", "nvidia/nemotron-nano-9b-v2"],
-    reason: "Auto: stable fast NVIDIA route for runnable Luau.",
+    ids: ["oneprovider/claude-sonnet-4-6", "nvidia/z-ai-glm-5.2", "nvidia/openai-gpt-oss-20b", "nvidia/gemma-3-27b", "nvidia/ministral-14b", "nvidia/llama-3.1-8b"],
+    reason: "Auto: Claude Sonnet for high-quality runnable Luau scripting.",
   },
   ui: {
-    ids: ["nvidia/gemma-3-27b", "nvidia/nemotron-nano-9b-v2", "nvidia/qwen-2.5-coder-32b", DEFAULT_MODEL_ID],
-    reason: "Auto: very fast model for ScreenGui layout.",
+    ids: ["nvidia/gemma-3-27b", "nvidia/nemotron-nano-9b-v2", "oneprovider/claude-sonnet-4-6", DEFAULT_MODEL_ID],
+    reason: "Auto: fast model for ScreenGui layout.",
   },
   assets: {
-    ids: ["nvidia/llama-3.1-8b", "nvidia/ministral-14b", "nvidia/llama-3.3-70b"],
+    ids: ["nvidia/llama-3.1-8b", "nvidia/ministral-14b", "nvidia/nemotron-nano-9b-v2"],
     reason: "Auto: small fast model for Toolbox asset planning.",
   },
   bugfix: {
-    ids: ["nvidia/qwen-2.5-coder-32b", "nvidia/gemma-3-27b", "nvidia/ministral-14b", DEFAULT_MODEL_ID],
-    reason: "Auto: coder-tuned model for bug tracing and fixes.",
+    ids: ["oneprovider/claude-sonnet-4-6", "nvidia/z-ai-glm-5.2", "nvidia/gemma-3-27b", "nvidia/ministral-14b", DEFAULT_MODEL_ID],
+    reason: "Auto: Claude Sonnet for precise bug tracing and fixes.",
   },
   performance: {
-    ids: ["nvidia/qwen-2.5-coder-32b", "nvidia/gemma-3-27b", "nvidia/ministral-14b"],
-    reason: "Auto: stable fast coder model for performance fixes.",
+    ids: ["nvidia/z-ai-glm-5.2", "oneprovider/claude-sonnet-4-6", "nvidia/gemma-3-27b", "nvidia/ministral-14b"],
+    reason: "Auto: reasoning model for performance analysis.",
   },
   testing: {
-    ids: ["nvidia/nemotron-nano-9b-v2", "nvidia/gemma-3-27b", "nvidia/qwen-2.5-coder-32b"],
+    ids: ["nvidia/nemotron-nano-9b-v2", "nvidia/gemma-3-27b", "nvidia/openai-gpt-oss-20b"],
     reason: "Auto: fast model for playtest checks.",
   },
   shortedit: {
-    ids: ["nvidia/llama-3.1-8b", "nvidia/ministral-14b", "nvidia/llama-3.3-70b"],
+    ids: ["nvidia/llama-3.1-8b", "nvidia/ministral-14b", "oneprovider/claude-haiku-4-5"],
     reason: "Auto: tiny fast model for short edits.",
   },
   vision: {
@@ -116,18 +119,16 @@ export function estimateDifficulty(text: string): Difficulty {
 }
 
 // Stronger models to prefer for hard requests, per task. First Working id wins.
-// Kept separate from the fast defaults so "hard" reliably escalates instead of
-// just reversing the fast list (which used to pick a smaller model).
 const HARD_PREF: Partial<Record<AutoTask, string[]>> = {
-  planning: ["nvidia/llama-3.3-nemotron-super-49b", "nvidia/qwen-2.5-72b", "nvidia/mistral-large-2", "nvidia/llama-3.3-70b"],
-  scripting: ["nvidia/mistral-large-2", "nvidia/qwen-2.5-72b", "nvidia/llama-3.3-nemotron-super-49b", "nvidia/qwen-2.5-coder-32b"],
-  ui: ["nvidia/mistral-large-2", "nvidia/llama-3.3-nemotron-super-49b", "nvidia/gemma-3-27b"],
-  bugfix: ["nvidia/mistral-large-2", "nvidia/qwen-2.5-72b", "nvidia/llama-3.3-nemotron-super-49b", "nvidia/qwen-2.5-coder-32b"],
-  performance: ["nvidia/mistral-large-2", "nvidia/qwen-2.5-72b", "nvidia/qwen-2.5-coder-32b"],
-  testing: ["nvidia/llama-3.3-70b", "nvidia/qwen-2.5-72b", "nvidia/nemotron-nano-9b-v2"],
-  assets: ["nvidia/llama-3.3-70b", "nvidia/mixtral-8x22b", "nvidia/llama-3.1-70b"],
-  shortedit: ["nvidia/qwen-2.5-coder-32b", "nvidia/ministral-14b", "nvidia/llama-3.1-8b"],
-  vision: ["nvidia/mistral-large-2", "nvidia/gemma-3-27b"],
+  planning:    ["nvidia/llama-3.3-nemotron-super-49b", "nvidia/z-ai-glm-5.2", "oneprovider/claude-sonnet-4-6"],
+  scripting:   ["nvidia/llama-3.3-nemotron-super-49b", "nvidia/z-ai-glm-5.2", "nvidia/openai-gpt-oss-20b", "oneprovider/claude-sonnet-4-6"],
+  ui:          ["nvidia/llama-3.3-nemotron-super-49b", "nvidia/z-ai-glm-5.2", "nvidia/gemma-3-27b"],
+  bugfix:      ["nvidia/llama-3.3-nemotron-super-49b", "nvidia/z-ai-glm-5.2", "oneprovider/claude-sonnet-4-6"],
+  performance: ["nvidia/llama-3.3-nemotron-super-49b", "nvidia/z-ai-glm-5.2", "oneprovider/claude-sonnet-4-6"],
+  testing:     ["nvidia/nemotron-nano-9b-v2", "nvidia/gemma-3-27b", "nvidia/openai-gpt-oss-20b"],
+  assets:      ["nvidia/nemotron-nano-9b-v2", "nvidia/ministral-14b", "nvidia/llama-3.1-8b"],
+  shortedit:   ["oneprovider/claude-haiku-4-5", "nvidia/ministral-14b", "nvidia/llama-3.1-8b"],
+  vision:      ["nvidia/llama-3.3-nemotron-super-49b", "nvidia/gemma-3-27b"],
 };
 
 export function pickModelForTask(task: AutoTask, difficulty: Difficulty = "normal"): ModelPick {
