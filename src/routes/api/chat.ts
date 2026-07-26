@@ -6146,7 +6146,7 @@ export const Route = createFileRoute("/api/chat")({
             const modelBaseCost = creditCostForTier(chosenModelOption.credits);
             const totalCreditCost = modelBaseCost + (mode === "build" ? BUILD_ACTIONS_BONUS : 0);
 
-            const chargeResult = await chargeCredits(supabase, userId, totalCreditCost);
+            const chargeResult = await chargeCredits(supabase, userId, totalCreditCost, { modelId: activeModelId });
             if (!chargeResult.ok) {
               return new Response(
                 JSON.stringify({

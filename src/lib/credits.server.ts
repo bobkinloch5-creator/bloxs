@@ -95,7 +95,7 @@ export async function chargeCredits(
     return { ok: true, charged: 0, remaining: Infinity };
   }
 
-  // 1.5 Validate paidOnly model access (GPT-5.6 series, Claude Fable 5)
+  // 1.5 Validate paidOnly model access (Claude Fable 5, Claude Opus series, Claude Sonnet 5, GPT OSS 120B)
   if (opts.modelId) {
     const { MODELS } = await import("./models");
     const m = MODELS.find((x) => x.id === opts.modelId);
@@ -105,7 +105,7 @@ export async function chargeCredits(
         return {
           ok: false,
           code: "no_credits",
-          message: "GPT-5.6 Sol/Terra/Luna and Claude Fable 5 models are exclusive to Top-Up Supporters & Owners. Please top up your credits to unlock these frontier models!",
+          message: `${m.label} is exclusive to Top-Up Supporters & Owners. Please top up your credits to unlock this premium model!`,
         };
       }
     }

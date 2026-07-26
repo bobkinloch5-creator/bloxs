@@ -38,57 +38,6 @@ export interface ModelOption {
 export const MODELS: ModelOption[] = [
   // ─── Frontier Paid-Only / Owner Models ───────────────────────────────────────
   {
-    id: "gpt-5.6-sol",
-    upstreamId: "gpt-5.6-sol",
-    gateway: "oneprovider",
-    label: "GPT-5.6 Sol (Frontier 372K)",
-    provider: "OpenAI",
-    via: "OneProvider",
-    tier: "premium",
-    speed: "Slow",
-    quality: "Best",
-    credits: "High",
-    status: "Working",
-    paidOnly: true,
-    bestFor: "Frontier reasoning, massive 372K context, complex Roblox architectures ($5 / $30 per MTok).",
-    description: "GPT-5.6 Sol Frontier model with 372K context window. Reserved for Top-Up Supporters & Owners.",
-    modelSettings: { temperature: 0.5, topP: 0.95, maxOutputTokens: 8192 },
-  },
-  {
-    id: "gpt-5.6-terra",
-    upstreamId: "gpt-5.6-terra",
-    gateway: "oneprovider",
-    label: "GPT-5.6 Terra (Balanced 372K)",
-    provider: "OpenAI",
-    via: "OneProvider",
-    tier: "balanced",
-    speed: "Medium",
-    quality: "Great",
-    credits: "Medium",
-    status: "Working",
-    paidOnly: true,
-    bestFor: "Balanced gameplay logic, state machines, and module systems ($2.50 / $15 per MTok).",
-    description: "GPT-5.6 Terra Balanced model with 372K context window. Reserved for Top-Up Supporters & Owners.",
-    modelSettings: { temperature: 0.6, topP: 0.9, maxOutputTokens: 6144 },
-  },
-  {
-    id: "gpt-5.6-luna",
-    upstreamId: "gpt-5.6-luna",
-    gateway: "oneprovider",
-    label: "GPT-5.6 Luna (Fast 372K)",
-    provider: "OpenAI",
-    via: "OneProvider",
-    tier: "fast",
-    speed: "Fast",
-    quality: "Good",
-    credits: "Low",
-    status: "Working",
-    paidOnly: true,
-    bestFor: "Ultra-fast bug fixes and concise Luau snippet generation with 372K context.",
-    description: "GPT-5.6 Luna High-speed model with 372K context window. Reserved for Top-Up Supporters & Owners.",
-    modelSettings: { temperature: 0.7, topP: 0.9, maxOutputTokens: 4096 },
-  },
-  {
     id: "claude-fable-5",
     upstreamId: "claude-fable-5",
     gateway: "oneprovider",
@@ -266,9 +215,9 @@ export const MODELS: ModelOption[] = [
     speed: "Fast",
     quality: "Great",
     credits: "Medium",
-    status: "Working",
-    bestFor: "Fast general-purpose Qwen model — strong Luau generation, bug fixes, and build actions.",
-    description: "Qwen 2.5 Coder 32B via NVIDIA build.nvidia.com.",
+    status: "Coming Soon",
+    bestFor: "Currently unavailable on NVIDIA NIM.",
+    description: "Qwen 2.5 Coder 32B via NVIDIA build.nvidia.com — endpoint unavailable.",
     modelSettings: { temperature: 0.4, topP: 0.9, maxOutputTokens: 8192 },
   },
   {
@@ -499,8 +448,9 @@ export const MODELS: ModelOption[] = [
     quality: "Best",
     credits: "High",
     status: "Working",
+    paidOnly: true,
     bestFor: "High-capability open-weights OpenAI reasoning and code model via NVIDIA NIM.",
-    description: "OpenAI GPT OSS 120B via NVIDIA build.nvidia.com.",
+    description: "OpenAI GPT OSS 120B via NVIDIA build.nvidia.com. Reserved for Top-Up Supporters & Owners.",
     modelSettings: { temperature: 0.7, topP: 0.95, maxOutputTokens: 16384 },
   },
 
@@ -517,8 +467,9 @@ export const MODELS: ModelOption[] = [
     quality: "Best",
     credits: "High",
     status: "Working",
+    paidOnly: true,
     bestFor: "Top-tier Claude for hardest Roblox builds, complex systems, and deep reasoning.",
-    description: "Anthropic Claude Opus 4.8 via OneProvider (api.oneprovider.dev).",
+    description: "Anthropic Claude Opus 4.8 via OneProvider. Reserved for Top-Up Supporters & Owners.",
     modelSettings: { temperature: 0.45, topP: 0.9, maxOutputTokens: 8192 },
   },
   {
@@ -533,8 +484,9 @@ export const MODELS: ModelOption[] = [
     quality: "Best",
     credits: "High",
     status: "Working",
+    paidOnly: true,
     bestFor: "Powerful Claude Opus revision for complex Roblox game logic.",
-    description: "Anthropic Claude Opus 4.7 via OneProvider.",
+    description: "Anthropic Claude Opus 4.7 via OneProvider. Reserved for Top-Up Supporters & Owners.",
     modelSettings: { temperature: 0.45, topP: 0.9, maxOutputTokens: 8192 },
   },
   {
@@ -549,8 +501,9 @@ export const MODELS: ModelOption[] = [
     quality: "Best",
     credits: "High",
     status: "Working",
+    paidOnly: true,
     bestFor: "Claude Opus 4.6 for polished Luau and full game systems.",
-    description: "Anthropic Claude Opus 4.6 via OneProvider.",
+    description: "Anthropic Claude Opus 4.6 via OneProvider. Reserved for Top-Up Supporters & Owners.",
     modelSettings: { temperature: 0.45, topP: 0.9, maxOutputTokens: 8192 },
   },
   {
@@ -565,8 +518,9 @@ export const MODELS: ModelOption[] = [
     quality: "Best",
     credits: "Very High",
     status: "Working",
+    paidOnly: true,
     bestFor: "Flagship Claude Opus 5 for the most demanding Roblox architectures.",
-    description: "Anthropic Claude Opus 5 via OneProvider.",
+    description: "Anthropic Claude Opus 5 via OneProvider. Reserved for Top-Up Supporters & Owners.",
     modelSettings: { temperature: 0.4, topP: 0.9, maxOutputTokens: 8192 },
   },
   {
@@ -581,8 +535,9 @@ export const MODELS: ModelOption[] = [
     quality: "Great",
     credits: "Medium",
     status: "Working",
+    paidOnly: true,
     bestFor: "Balanced Claude Sonnet 5 for fast, high-quality Roblox builds.",
-    description: "Anthropic Claude Sonnet 5 via OneProvider.",
+    description: "Anthropic Claude Sonnet 5 via OneProvider. Reserved for Top-Up Supporters & Owners.",
     modelSettings: { temperature: 0.5, topP: 0.9, maxOutputTokens: 8192 },
   },
   {
@@ -655,31 +610,23 @@ export const MODELS: ModelOption[] = [
 
 
 
-export const DEFAULT_MODEL_ID = "nvidia/qwen-2.5-coder-32b";
-export const FALLBACK_MODEL_ID = "nvidia/qwen-2.5-coder-32b";
+export const DEFAULT_MODEL_ID = "oneprovider/claude-sonnet-4-6";
+export const FALLBACK_MODEL_ID = "oneprovider/claude-sonnet-4-6";
 
 // Ordered chain of models to try when the primary is rate-limited / at capacity.
-// Rotates across NVIDIA-hosted model families so a 429 on one endpoint routes
+// Rotates across NVIDIA & OneProvider-hosted model families so a 429 on one endpoint routes
 // straight to a different one instead of failing.
-// Fastest-first: small/medium fast models handle most Roblox turns quickly.
-// Larger reasoning models are kept as later fallbacks for hard requests.
+// Spans all working non-paidOnly models.
 export const FALLBACK_CHAIN: string[] = [
-  "nvidia/qwen-2.5-coder-32b",
+  "oneprovider/claude-sonnet-4-6",
+  "oneprovider/claude-haiku-4-5",
   "nvidia/z-ai-glm-5.2",
   "nvidia/openai-gpt-oss-20b",
-  "nvidia/openai-gpt-oss-120b",
-  "oneprovider/claude-haiku-4-5",
   "nvidia/nemotron-nano-9b-v2",
   "nvidia/ministral-14b",
-  "nvidia/llama-3.1-8b",
   "nvidia/gemma-3-27b",
-  "oneprovider/claude-sonnet-4-6",
+  "nvidia/llama-3.1-8b",
   "nvidia/llama-3.3-nemotron-super-49b",
-  "oneprovider/claude-sonnet-5",
-  "oneprovider/claude-opus-4-6",
-  "oneprovider/claude-opus-4-7",
-  "oneprovider/claude-opus-4-8",
-  "oneprovider/claude-opus-5",
 ];
 
 

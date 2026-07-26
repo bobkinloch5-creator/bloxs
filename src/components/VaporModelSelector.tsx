@@ -227,6 +227,14 @@ export function VaporModelSelector({ selectedModel, onSelectModel, availableMode
                         >
                           ⚡ {costNum} Credit{costNum === 1 ? "" : "s"}
                         </span>
+                        {m.paidOnly && (
+                          <span
+                            style={{ backgroundColor: "#7c2d12", color: "#ffedd5", borderColor: "#f97316" }}
+                            className="rounded-full border px-2 py-[1px] text-[9px] font-black uppercase tracking-wider shadow-sm"
+                          >
+                            🔒 Top-Up Required
+                          </span>
+                        )}
                       </div>
                       <p className="mt-1 text-[11px] font-medium leading-snug text-slate-200 group-hover:text-white line-clamp-2">
                         {m.bestFor}
