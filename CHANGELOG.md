@@ -4,6 +4,14 @@ All notable changes to BloxSmith are tracked here. Dates are UTC.
 
 ## [Unreleased]
 
+### 2026-07-26 - Dynamic Model-Tiered Credit Costs & Anti-Abuse Enforcement
+
+**Model Credit Tier Scaling & API Enforcement (`src/lib/models.ts`, `src/routes/api/chat.ts`, `src/components/WorkspaceChat.tsx`)**
+- Assigned tiered credit multipliers across model catalog (`Low`: 1 credit, `Medium`: 2 credits, `High`: 4 credits, `Very High`: 6 credits) to prevent high-capability model abuse. Flagship models (e.g. Claude Opus 5, Claude Opus 4.8, OpenAI GPT OSS 120B, Z.AI GLM 5.2) now require higher credit consumption proportionate to computational cost.
+- Integrated atomic `chargeCredits` verification directly into `/api/chat` route execution to block requests with HTTP 402 ("Insufficient credits") when users lack required balance for selected model tiers.
+- Updated `WorkspaceChat.tsx` composer tagline and message badges to dynamically render real-time credit cost estimates based on the selected AI model (e.g., `⚡ Cost: 4 Credits / Request (Claude Opus 4.8)`).
+- Preserved full 100% exemption for Owners and Admins (0 credits charged).
+
 ### 2026-07-26 - Per-Message AI Credit Transparency & Real-time Usage Feedback
 
 **AI Chat Credit Feedback & Response Badges (`src/components/WorkspaceChat.tsx`, `src/lib/credits.server.ts`)**

@@ -25,7 +25,7 @@ import { Plug } from "lucide-react";
 import { VoiceBuildButton } from "@/components/VoiceBuildButton";
 import { useBloxSmithSpeaker } from "@/components/VoiceControls";
 import { friendlyError } from "@/lib/friendly-error";
-import { MODELS, isSelectable } from "@/lib/models";
+import { MODELS, isSelectable, findModel } from "@/lib/models";
 import { pickModelForTask, estimateDifficulty } from "@/lib/model-router";
 import { ChatHistoryButton } from "@/components/ChatHistoryButton";
 import { VaporModelSelector } from "@/components/VaporModelSelector";
@@ -269,6 +269,21 @@ export function WorkspaceChat({
       setSelectedModel("auto");
     }
   }, [selectedModel]);
+
+  const isBuild = mode === "build";
+
+  const activeModelOption = useMemo(() => {
+    if (selectedModel === "auto") {
+      return isBuild ? findModel("oneprovider/claude-opus-4-8") : findModel("nvidia/qwen-2.5-coder-32b");
+    }
+    return findModel(selectedModel);
+  }, [selectedModel, isBuild]);
+
+  const activeModelCost = useMemo(() => {
+    const tierCostMap: Record<string, number> = { Low: 1, Medium: 2, High: 4, "Very High": 6 };
+    const base = tierCostMap[activeModelOption.credits] ?? 1;
+    return base + (isBuild ? 1 : 0);
+  }, [activeModelOption, isBuild]);
 
   // NVIDIA-powered TTS speaker — speaks AI replies back through the user's speakers
   const speaker = useBloxSmithSpeaker(ttsEnabled);
@@ -566,7 +581,6 @@ export function WorkspaceChat({
   }
 
   const busy = status === "submitted" || status === "streaming" || createMut.isPending;
-  const isBuild = mode === "build";
 
   return (
     <div className="vapor-card rounded-2xl border border-indigo-500/35 bg-gradient-to-b from-[#141432]/95 via-[#0e0e26]/95 to-[#0a0a1a]/95 p-4 sm:p-6 shadow-[0_0_50px_rgba(79,70,229,0.25)]">
@@ -640,10 +654,8 @@ export function WorkspaceChat({
         </span>
         <span className="font-extrabold text-cyan-300">
           {isOwner
-            ? "⚡ Cost: 0 Credits (Unlimited Owner Exemption)"
-            : isBuild
-              ? "⚡ Cost: 2 Credits / Request"
-              : "⚡ Cost: 1 Credit / Request"}
+            ? `⚡ Cost: 0 Credits (Unlimited Owner Plan — ${activeModelOption.label})`
+            : `⚡ Cost: ${activeModelCost} Credit${activeModelCost === 1 ? "" : "s"} / Request (${activeModelOption.label})`}
         </span>
       </div>
 
@@ -760,9 +772,7 @@ export function WorkspaceChat({
                           <span className="text-cyan-200 font-semibold">
                             {genImages.length > 0
                               ? "2 Credits Taken (Image Generation)"
-                              : (m as any).actions?.length || rawText.includes("bloxsmith-actions")
-                                ? "2 Credits Taken (Build Actions)"
-                                : "1 Credit Taken (AI Chat)"}
+                              : `${activeModelCost} Credit${activeModelCost === 1 ? "" : "s"} Taken (${activeModelOption.label})`}
                           </span>
                         )}
                       </span>

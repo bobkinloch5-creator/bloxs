@@ -6139,6 +6139,31 @@ export const Route = createFileRoute("/api/chat")({
             console.warn("[chat] rate limit check failed", e);
           }
 
+          // Enforce model tier credit cost per request (Exempts Owners/Admins)
+          try {
+            const chosenModelOption = findModel(activeModelId);
+            const { creditCostForTier, BUILD_ACTIONS_BONUS, chargeCredits } = await import("@/lib/credits.server");
+            const modelBaseCost = creditCostForTier(chosenModelOption.credits);
+            const totalCreditCost = modelBaseCost + (mode === "build" ? BUILD_ACTIONS_BONUS : 0);
+
+            const chargeResult = await chargeCredits(supabase, userId, totalCreditCost);
+            if (!chargeResult.ok) {
+              return new Response(
+                JSON.stringify({
+                  error: chargeResult.message || `Insufficient credits for ${chosenModelOption.label} (${totalCreditCost} credits required).`,
+                  code: chargeResult.code || "no_credits",
+                  remaining: chargeResult.remaining,
+                  resetAt: chargeResult.resetAt,
+                }),
+                {
+                  status: 402,
+                  headers: { "Content-Type": "application/json" },
+                },
+              );
+            }
+          } catch (creditErr) {
+            console.warn("[chat] credit charge error (non-fatal)", creditErr);
+          }
 
 
           if (executionMode === "owner") {
