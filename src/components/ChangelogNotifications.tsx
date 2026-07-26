@@ -65,6 +65,12 @@ const CHANGELOG_ITEMS = [
     body: "Plugin v2.1.27 — the purple square in the plugin header now displays a real ImageLabel pulling rbxassetid://122260441773119 instead of the placeholder ✦ glyph. The asset is fit-scaled inside the gradient tile with 4px inset padding so the logo art breathes correctly against the purple→pink UIGradient background. Re-download BloxSmithPlugin.lua from /plugin and replace the file in your Studio Plugins folder to see it.",
   },
   {
+    title: "🔄 Studio plugin v2.1.28 — live scene mirroring + script source capture",
+    date: "Jul 26",
+    icon: Sparkles,
+    body: "Plugin v2.1.28 — fixes the live Roblox Studio hierarchy mirror so the Project Explorer shows the real tree instead of a stale or empty snapshot. Scanning now captures script source on every LuaSourceContainer (Script, LocalScript, ModuleScript) up to 50 KB, truncated safely, and raises the child-per-instance cap from 80 to 120. The first successful poll after connecting also auto-uploads a fresh scan so the website is in sync immediately. Re-download BloxSmithPlugin.lua from /plugin and replace the file in your Studio Plugins folder to keep mirroring accurate.",
+  },
+  {
     title: "⚡ Plugin credits card — live credit balance, plan badge, and depletion bar",
     date: "Jul 8",
     icon: Zap,
