@@ -48,10 +48,10 @@ export const MODELS: ModelOption[] = [
     speed: "Slow",
     quality: "Best",
     credits: "Very High",
-    status: "Working",
+    status: "Coming Soon",
     paidOnly: true,
-    bestFor: "State-of-the-art architectural design, refactoring, and complex 3D systems (372K context).",
-    description: "Anthropic Claude Fable 5 model with 372K context window. Reserved for Top-Up Supporters & Owners.",
+    bestFor: "Pending access provisioning on OneProvider — available soon for Top-Up Supporters & Owners.",
+    description: "Anthropic Claude Fable 5 — endpoint access pending on OneProvider.",
     modelSettings: { temperature: 0.4, topP: 0.95, maxOutputTokens: 8192 },
   },
   // ─── NVIDIA Nemotron family ────────────────────────────────────────────────
