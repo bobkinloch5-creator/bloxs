@@ -1,12 +1,30 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, Bell, Bot, Box, Brain, Check, CheckCircle2, ChevronDown, Copy, Folder, Gauge, ImageIcon, Lightbulb, Link2, ListChecks, Palette, Rocket, ScrollText, Search, Share2, ShieldCheck, Sparkles, Users, Wrench, X, Zap } from "lucide-react";
+import { AlertTriangle, Bell, Bot, Box, Brain, Check, CheckCircle2, ChevronDown, Copy, Folder, Gauge, ImageIcon, Lightbulb, Link2, ListChecks, Palette, Rocket, ScrollText, Search, Share2, ShieldCheck, Sparkles, Users, Volume2, Wrench, X, Zap } from "lucide-react";
 import { checkChangelogCoverage, warnIfIncomplete } from "@/lib/changelog-coverage";
 import bloxsmithLogo from "@/assets/bloxsmith-logo.png.asset.json";
 
 
-const CHANGELOG_VERSION = "2026-07-26-plugin-v2-1-28-mirror-fix";
+const CHANGELOG_VERSION = "2026-07-26-completion-sound-discord-ux";
 
 const CHANGELOG_ITEMS = [
+  {
+    title: "🔊 AI & Build Completion Sound Chime + Toggleable Preference",
+    date: "Jul 26",
+    icon: Volume2,
+    body: "Integrated zero-dependency Web Audio API synthesized completion chime (E5 → A5) that plays whenever AI text generation completes or Studio build execution status reaches 'done'. Features an interactive Sound On / Sound Off toggle button directly in the AI Workspace composer toolbar with volume icons, audio preview, and persistent localStorage setting.",
+  },
+  {
+    title: "💬 Universal Discord Community Integration & CTA Placement",
+    date: "Jul 26",
+    icon: Sparkles,
+    body: "Integrated official Discord community link (https://discord.gg/YJ8xPFNSSX) across main site navigation, Beta hero banner, 404 error support page, and site-wide footer to streamline community help and user feedback.",
+  },
+  {
+    title: "🩹 UX Polish & AI System Prompt Knowledge Alignment",
+    date: "Jul 26",
+    icon: Bot,
+    body: "Patched auto-scroll jump issue in the 'Need Help' widget on open. Updated the AI Help Chat backend system prompt with the latest model lineup details, credit consumption rules, and structured Roblox Studio plugin troubleshooting steps.",
+  },
   {
     title: "📂 Roblox Studio Hierarchy Mirroring & Project Explorer",
     date: "Jul 25",

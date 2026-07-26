@@ -53,16 +53,17 @@ function buildProvider(gateway: Gateway): Provider {
     });
   }
   if (gateway === "oneprovider") {
-    const key = process.env.ONEPROVIDER_API_KEY || process.env.LOVABLE_API_KEY || process.env.OPENAI_API_KEY;
-    if (!key) throw new Error("OneProvider is not configured — set ONEPROVIDER_API_KEY.");
+    const key = process.env.ONEPROVIDER_KEY || process.env.ONEPROVIDER_API_KEY || process.env.LOVABLE_API_KEY || process.env.OPENAI_API_KEY;
+    if (!key) throw new Error("OneProvider is not configured — set ONEPROVIDER_KEY or ONEPROVIDER_API_KEY.");
+    const isOneProviderKey = !!(process.env.ONEPROVIDER_KEY || process.env.ONEPROVIDER_API_KEY);
     return createOpenAICompatible({
       name: "oneprovider",
-      baseURL: process.env.ONEPROVIDER_API_KEY
+      baseURL: isOneProviderKey
         ? "https://api.oneprovider.dev/v1"
         : process.env.LOVABLE_API_KEY
         ? "https://ai.gateway.lovable.dev/v1"
         : "https://api.openai.com/v1",
-      headers: process.env.ONEPROVIDER_API_KEY
+      headers: isOneProviderKey
         ? { Authorization: `Bearer ${key}` }
         : process.env.LOVABLE_API_KEY
         ? { "Lovable-API-Key": key, "X-Lovable-AIG-SDK": "vercel-ai-sdk" }

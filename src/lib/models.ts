@@ -39,10 +39,11 @@ export const MODELS: ModelOption[] = [
   // ─── Frontier Paid-Only / Owner Models ───────────────────────────────────────
   {
     id: "gpt-5.6-sol",
-    gateway: "lovable",
+    upstreamId: "gpt-5.6-sol",
+    gateway: "oneprovider",
     label: "GPT-5.6 Sol (Frontier 372K)",
     provider: "OpenAI",
-    via: "OpenAI / BloxSmith Gateway",
+    via: "OneProvider",
     tier: "premium",
     speed: "Slow",
     quality: "Best",
@@ -55,10 +56,11 @@ export const MODELS: ModelOption[] = [
   },
   {
     id: "gpt-5.6-terra",
-    gateway: "lovable",
+    upstreamId: "gpt-5.6-terra",
+    gateway: "oneprovider",
     label: "GPT-5.6 Terra (Balanced 372K)",
     provider: "OpenAI",
-    via: "OpenAI / BloxSmith Gateway",
+    via: "OneProvider",
     tier: "balanced",
     speed: "Medium",
     quality: "Great",
@@ -71,10 +73,11 @@ export const MODELS: ModelOption[] = [
   },
   {
     id: "gpt-5.6-luna",
-    gateway: "lovable",
+    upstreamId: "gpt-5.6-luna",
+    gateway: "oneprovider",
     label: "GPT-5.6 Luna (Fast 372K)",
     provider: "OpenAI",
-    via: "OpenAI / BloxSmith Gateway",
+    via: "OneProvider",
     tier: "fast",
     speed: "Fast",
     quality: "Good",
@@ -87,10 +90,11 @@ export const MODELS: ModelOption[] = [
   },
   {
     id: "claude-fable-5",
-    gateway: "lovable",
+    upstreamId: "claude-fable-5",
+    gateway: "oneprovider",
     label: "Claude Fable 5 (Reasoning 372K)",
     provider: "Anthropic",
-    via: "Anthropic / BloxSmith Gateway",
+    via: "OneProvider",
     tier: "premium",
     speed: "Slow",
     quality: "Best",
@@ -680,7 +684,7 @@ export const FALLBACK_CHAIN: string[] = [
 
 
 export function findModel(id: string): ModelOption {
-  const exact = MODELS.find((m) => m.id === id);
+  const exact = MODELS.find((m) => m.id === id || m.upstreamId === id);
   if (exact) return exact;
   // Unknown / renamed id. Never fall back to MODELS[0] - the catalog is ordered
   // by family, and the first entry is a "Coming Soon" model, so that silently
@@ -705,10 +709,10 @@ export function selectableModels(): ModelOption[] {
  * instead of every model on that gateway reporting "Not Working".
  */
 export const GATEWAY_ENV_KEYS: Record<Gateway, string[]> = {
-  lovable: ["LOVABLE_API_KEY", "ONEPROVIDER_API_KEY", "OPENAI_API_KEY"],
+  lovable: ["LOVABLE_API_KEY", "ONEPROVIDER_KEY", "ONEPROVIDER_API_KEY", "OPENAI_API_KEY"],
   groq: ["GROQ_API_KEY"],
   nvidia: ["NVIDIA_API_KEY", "NIM_API_KEY", "NGC_API_KEY"],
-  oneprovider: ["ONEPROVIDER_API_KEY", "LOVABLE_API_KEY", "OPENAI_API_KEY"],
+  oneprovider: ["ONEPROVIDER_KEY", "ONEPROVIDER_API_KEY", "LOVABLE_API_KEY", "OPENAI_API_KEY"],
 };
 
 /** Whether a model is a paid-only frontier model (requires top-up or Owner status). */

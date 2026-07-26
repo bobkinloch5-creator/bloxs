@@ -4,6 +4,24 @@ All notable changes to BloxSmith are tracked here. Dates are UTC.
 
 ## [Unreleased]
 
+### 2026-07-26 - Audio Completion Feedback & Toggleable Chime
+
+**AI & Build Completion Chime (`src/lib/sound.ts`, `src/components/WorkspaceChat.tsx`)**
+- Integrated Web Audio API synthesized 2-tone chime (`E5` → `A5`) when AI text streaming finishes or Studio build execution reaches `done` status. Requires zero external audio downloads.
+- Added interactive **Sound On / Sound Off** toggle button in `WorkspaceChat` toolbar with volume status icons (`Volume2`, `VolumeX`), live sound preview on enable, and persistent setting saved in `localStorage` (`bs:sound-enabled`).
+
+### 2026-07-26 - Universal Discord Community Integration
+
+**Site-Wide Discord Community CTAs (`src/routes/index.tsx`, `src/routes/not-found.tsx`)**
+- Added direct Discord community invite link (`https://discord.gg/YJ8xPFNSSX`) across key platform surfaces: header desktop navigation, Beta banner CTA, footer links, and 404 error page help support.
+
+### 2026-07-26 - UX Polish, Page-Scroll Fix & AI System Prompt Refresh
+
+**UX Polish & AI System Alignment (`src/components/HelpChatWidget.tsx`, `src/routes/api/help-chat.ts`, `src/routes/__root.tsx`)**
+- Fixed auto-scroll jump bug in "Need Help" widget on open by guarding effect with `didOpenRef` and suppressing event default.
+- Updated `/api/help-chat` AI knowledge base with current model suite details, credit tier rules, and structured Roblox Studio troubleshooting.
+- Added OpenGraph and Twitter card meta image tags for social preview sharing.
+
 ### 2026-07-26 - Dynamic Model-Tiered Credit Costs & Anti-Abuse Enforcement
 
 **Model Credit Tier Scaling & API Enforcement (`src/lib/models.ts`, `src/routes/api/chat.ts`, `src/components/WorkspaceChat.tsx`)**
