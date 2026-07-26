@@ -24,7 +24,7 @@ export function friendlyError(err: unknown, opts: FriendlyErrorOptions = {}): st
   let friendly: string;
   if (!msg) friendly = fallback;
   else if (/project not found/i.test(msg)) friendly = "Project not found — refresh the page and try again.";
-  else if (/credits.*exhausted|402/i.test(msg)) friendly = "AI credits exhausted on this workspace. Add credits to keep building.";
+  else if (/credits.*exhausted|no_credits|out of credits|insufficient credits|402/i.test(msg)) friendly = "You're out of credits! Click 'Top Up' in your AI Credits widget to add more credits via PayPal or upgrade your plan.";
   else if (/rate.?limit|429/i.test(msg)) friendly = "AI gateway is rate-limited. Try again in a moment.";
   else if (/ResourceExhausted|worker.*limit|request limit reached|capacity|overloaded|503/i.test(msg)) friendly = "That fast AI route is busy. Resend once — BloxSmith will use the stable fallback route.";
   else if (/unauthorized|401|forbidden|403/i.test(msg)) friendly = "Your session expired. Sign in again and retry.";

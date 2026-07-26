@@ -19,9 +19,12 @@ export function useResetTimer(resetAt?: string | null) {
         setLabel("Resets now");
         return;
       }
-      const h = Math.floor(ms / 3.6e6);
+      const days = Math.floor(ms / (24 * 3600 * 1000));
+      const h = Math.floor((ms % (24 * 3600 * 1000)) / 3.6e6);
       const m = Math.floor((ms % 3.6e6) / 6e4);
-      if (h > 0) {
+      if (days > 0) {
+        setLabel(`Resets in ${days}d ${h}h`);
+      } else if (h > 0) {
         setLabel(`Resets in ${h}h ${m}m`);
       } else {
         setLabel(`Resets in ${m}m`);
