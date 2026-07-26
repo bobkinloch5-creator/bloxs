@@ -23,8 +23,6 @@ import { improvePrompt } from "@/lib/improve.functions";
 import { saveProjectAsset } from "@/lib/project-assets.functions";
 import { Link } from "@tanstack/react-router";
 import { Plug } from "lucide-react";
-import { VoiceBuildButton } from "@/components/VoiceBuildButton";
-import { useBloxSmithSpeaker } from "@/components/VoiceControls";
 import { friendlyError } from "@/lib/friendly-error";
 import { MODELS, isSelectable, findModel } from "@/lib/models";
 import { pickModelForTask, estimateDifficulty } from "@/lib/model-router";
@@ -632,13 +630,6 @@ export function WorkspaceChat({
   }
 
 
-  const handleVoiceUtterance = useCallback((text: string) => {
-    // Voice utterances always go to Build mode so they execute in Studio
-    setComposerMode("build");
-    setTimeout(() => {
-      submit(text, "build");
-    }, 0);
-  }, [token, status, activeProjectId, onRequestNewProject, createMut, sendMessage]);
 
   async function submit(override?: string, overrideMode?: Mode) {
 
@@ -1083,12 +1074,6 @@ export function WorkspaceChat({
 
       <div className="mt-3.5 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 sm:flex sm:flex-wrap sm:justify-between sm:gap-3">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
-          {/* 🎙️ NVIDIA Voice Build Button */}
-          <VoiceBuildButton
-            onUtterance={handleVoiceUtterance}
-            setTtsEnabled={setTtsEnabled}
-            disabled={busy}
-          />
           <button
             type="button"
             onClick={pickFiles}
