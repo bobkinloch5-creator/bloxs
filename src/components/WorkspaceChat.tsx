@@ -28,6 +28,7 @@ import { MODELS, isSelectable } from "@/lib/models";
 import { pickModelForTask, estimateDifficulty } from "@/lib/model-router";
 import { ChatHistoryButton } from "@/components/ChatHistoryButton";
 import { VaporModelSelector } from "@/components/VaporModelSelector";
+import { CreditsPill } from "@/components/CreditsWidget";
 
 
 
@@ -596,16 +597,19 @@ export function WorkspaceChat({
         </div>
 
         <div className="flex flex-col items-end gap-1">
-          <div className="flex items-center gap-2">
-            <label className="hidden sm:flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-indigo-300">
-              <Sparkles className="h-3 w-3 text-cyan-400" />
-              Model
-            </label>
-            <VaporModelSelector
-              selectedModel={selectedModel}
-              onSelectModel={setSelectedModel}
-              availableModels={availableModels}
-            />
+          <div className="flex flex-wrap items-center gap-2">
+            <CreditsPill />
+            <div className="flex items-center gap-1.5">
+              <label className="hidden sm:flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-indigo-300">
+                <Sparkles className="h-3 w-3 text-cyan-400" />
+                Model
+              </label>
+              <VaporModelSelector
+                selectedModel={selectedModel}
+                onSelectModel={setSelectedModel}
+                availableModels={availableModels}
+              />
+            </div>
           </div>
           {/* Roblox-focused description of what the current model does for your games */}
           <p className="max-w-[280px] text-right text-[10.5px] font-medium leading-snug text-slate-400">

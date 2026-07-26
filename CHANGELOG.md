@@ -4,6 +4,14 @@ All notable changes to BloxSmith are tracked here. Dates are UTC.
 
 ## [Unreleased]
 
+### 2026-07-25 - Rate Limit & AI Credit Visibility Suite
+
+**Credit & Rate Limit Tracking (`src/components/CreditsWidget.tsx`, `src/routes/_authenticated/dashboard.tsx`, `src/components/PageShell.tsx`, `src/components/WorkspaceChat.tsx`)**
+- Created `CreditsWidget.tsx` featuring live `CreditsPill` badges and `CreditsSidebarCard` with dynamic percentage progress bars and real-time rate limit countdown timers (`Resets in Xh Ym`).
+- Integrated `CreditsPill` into top bar headers across `Dashboard` and `PageShell` workspace routes for constant visibility.
+- Embedded `CreditsPill` directly inside the `WorkspaceChat` AI composer toolbar next to the model selector so users immediately know their remaining allowance before sending prompts.
+- Enhanced the `Dashboard` and `PageShell` sidebars with `CreditsSidebarCard` providing color-coded progress bars (green/amber/rose) and daily rate-limit reset timers.
+
 ### 2026-07-25 - Front Page Navigation Accessibility
 
 **Dashboard & Navigation Shell (`src/routes/_authenticated/dashboard.tsx`, `src/components/PageShell.tsx`, `src/components/MobileNav.tsx`)**

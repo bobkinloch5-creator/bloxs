@@ -35,6 +35,7 @@ import { ProjectMemoryCard } from "@/components/ProjectMemoryCard";
 import { OnboardingChallenges } from "@/components/OnboardingChallenges";
 import { AiPlaytestCard } from "@/components/AiPlaytestCard";
 import { LivePlaytestCard } from "@/components/LivePlaytestCard";
+import { CreditsPill, CreditsSidebarCard } from "@/components/CreditsWidget";
 import robloxBg from "@/assets/backgrounds/roblox-dashboard.jpg";
 import bloxsmithLogo from "@/assets/bloxsmith-logo.png.asset.json";
 
@@ -243,6 +244,7 @@ function Dashboard() {
                   <span className={`h-2 w-2 rounded-full ${pluginOnline ? "bg-emerald-400 shadow-[0_0_10px_#34d399] animate-pulse" : "bg-slate-500"}`} />
                   Studio: {pluginOnline ? "Connected" : "Offline"}
                 </div>
+                <CreditsPill />
                 <Link
                   to="/"
                   className="vapor-ghost-btn inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-indigo-200 hover:text-white"
@@ -617,12 +619,12 @@ function Sidebar({ isOwner, isAdmin, profile, credits, maxCredits }: {
       </nav>
 
       <div className="mt-4 space-y-1.5 border-t border-white/10 pt-3">
-        <div className="flex items-center justify-between rounded-xl bg-white/[0.03] border border-white/5 px-3 py-2 text-xs font-semibold text-slate-300">
-          <span className="flex items-center gap-2 text-indigo-300"><HelpCircle className="h-3.5 w-3.5" /> Credits</span>
-          <span className="font-mono text-cyan-300">
-            {isOwner ? <InfinityIcon className="h-4 w-4 inline text-amber-300" /> : `${credits}/${maxCredits}`}
-          </span>
-        </div>
+        <CreditsSidebarCard
+          credits={credits}
+          maxCredits={maxCredits}
+          resetAt={profile?.credits_reset_at}
+          isOwner={isOwner}
+        />
         <Link to="/settings" className="vapor-nav-item">
           <div className="vapor-nav-icon">
             <SettingsIcon className="h-4 w-4" />

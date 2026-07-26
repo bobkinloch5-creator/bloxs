@@ -3,6 +3,7 @@ import bloxsmithMascot from "@/assets/bloxsmith-mascot.png.asset.json";
 import { ReactNode, useEffect, useState } from "react";
 import { MobileNavTrigger } from "./MobileNav";
 import { ProfileMenu, DiscordIcon } from "./ProfileMenu";
+import { CreditsPill, CreditsSidebarCard } from "./CreditsWidget";
 import {
   Folder, Users, Plug, Wand2, Heart,
   Hammer,
@@ -84,6 +85,7 @@ export function PageShell({
               )}
             </div>
             {actions && <div className="hidden shrink-0 items-center gap-2 md:flex">{actions}</div>}
+            <CreditsPill className="hidden sm:inline-flex" />
             <Link
               to="/"
               title="Go to Front Page"
@@ -156,6 +158,7 @@ function VaporSidebar({ isAdmin, activeKey }: { isAdmin: boolean; activeKey?: st
       </nav>
 
       <div className="space-y-2 border-t border-indigo-500/10 p-4" style={{ background: "rgba(255,255,255,0.015)" }}>
+        <CreditsSidebarCard className="mb-2" />
         {/* Plugin status indicator */}
         <div className="mb-2 flex items-center justify-between rounded-xl border border-indigo-500/20 px-3 py-2" style={{ background: "#0a0a20" }}>
           <span className="text-[11px] font-bold text-slate-300">Studio Plugin</span>
