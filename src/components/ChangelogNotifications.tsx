@@ -4,7 +4,7 @@ import { checkChangelogCoverage, warnIfIncomplete } from "@/lib/changelog-covera
 import bloxsmithLogo from "@/assets/bloxsmith-logo.png.asset.json";
 
 
-const CHANGELOG_VERSION = "2026-07-25-roblox-project-explorer-mirroring";
+const CHANGELOG_VERSION = "2026-07-26-plugin-v2-1-28-mirror-fix";
 
 const CHANGELOG_ITEMS = [
   {
