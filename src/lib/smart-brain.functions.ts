@@ -156,6 +156,7 @@ const SPECIALIST_TOPIC: Record<AutoTask, string> = {
   testing: "auto-test checks to run after the build",
   shortedit: "the smallest safe edit that satisfies the request",
   vision: "reading screenshots or thumbnails for visual verification",
+  design: "game design, game mechanics, and core architectural vision",
 };
 
 async function analyzeIntent(goal: string): Promise<Intent> {

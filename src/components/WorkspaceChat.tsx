@@ -29,6 +29,8 @@ import { pickModelForTask, estimateDifficulty } from "@/lib/model-router";
 import { ChatHistoryButton } from "@/components/ChatHistoryButton";
 import { VaporModelSelector } from "@/components/VaporModelSelector";
 import { CreditsPill } from "@/components/CreditsWidget";
+import { useBloxSmithSpeaker } from "@/components/VoiceControls";
+import { GameBrainstormer } from "@/components/GameBrainstormer";
 
 
 
@@ -380,6 +382,8 @@ export function WorkspaceChat({
     }
   }, [selectedModel]);
 
+  const [showBrainstormer, setShowBrainstormer] = useState(false);
+
   const isBuild = mode === "build";
 
   const activeModelOption = useMemo(() => {
@@ -697,6 +701,30 @@ export function WorkspaceChat({
 
   const busy = status === "submitted" || status === "streaming" || createMut.isPending;
 
+  const handleBrainstormSelectPlan = (p: string) => {
+    liveModeRef.current = "chat";
+    if (mode !== "chat") setComposerMode("chat");
+    setPrompt(p);
+    setShowBrainstormer(false);
+    submit(p, "chat");
+  };
+
+  const handleBrainstormSelectBrainstorm = (p: string) => {
+    liveModeRef.current = "chat";
+    if (mode !== "chat") setComposerMode("chat");
+    setPrompt(p);
+    setShowBrainstormer(false);
+    submit(p, "chat");
+  };
+
+  const handleBrainstormSelectBuild = (p: string) => {
+    liveModeRef.current = "build";
+    if (mode !== "build") setComposerMode("build");
+    setPrompt(p);
+    setShowBrainstormer(false);
+    submit(p, "build");
+  };
+
   return (
     <div className="vapor-card rounded-2xl border border-indigo-500/35 bg-gradient-to-b from-[#141432]/95 via-[#0e0e26]/95 to-[#0a0a1a]/95 p-4 sm:p-6 shadow-[0_0_50px_rgba(79,70,229,0.25)]">
       {/* Chat / Build segmented toggle */}
@@ -796,6 +824,18 @@ export function WorkspaceChat({
           >
             <Plug className="h-3.5 w-3.5" /> Connect Studio plugin
           </Link>
+        </div>
+      )}
+
+      {/* Interactive Game Brainstormer & Planner */}
+      {(messages.length === 0 || showBrainstormer) && (
+        <div className="mb-4">
+          <GameBrainstormer
+            onSelectPlan={handleBrainstormSelectPlan}
+            onSelectBrainstorm={handleBrainstormSelectBrainstorm}
+            onSelectBuild={handleBrainstormSelectBuild}
+            busy={busy}
+          />
         </div>
       )}
 
@@ -1018,6 +1058,19 @@ export function WorkspaceChat({
             ];
         return (
           <div className="mb-2 flex flex-wrap gap-1.5">
+            <button
+              type="button"
+              onClick={() => setShowBrainstormer((prev) => !prev)}
+              className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-black transition ${
+                showBrainstormer
+                  ? "border-cyan-400 bg-cyan-500/25 text-cyan-200 shadow-[0_0_15px_rgba(34,211,238,0.35)]"
+                  : "border-indigo-400/50 bg-gradient-to-r from-indigo-900/60 to-purple-900/60 text-cyan-200 hover:border-cyan-400 hover:shadow-[0_0_12px_rgba(34,211,238,0.2)]"
+              }`}
+              title="Toggle Game Brainstormer, Architecture Planner, and One-Tap Builder"
+            >
+              <span className="text-[13px] leading-none">💡</span>
+              Game Brainstormer & Planner
+            </button>
             {chips.map((c) => (
               <button
                 key={c.label}

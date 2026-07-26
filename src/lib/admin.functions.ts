@@ -70,23 +70,38 @@ export const getAdminOverview = createServerFn({ method: "GET" })
 
 export const listAllUsers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .validator((d: { search?: string; limit?: number } | undefined) => d ?? {})
+  .validator((d: { search?: string; page?: number; perPage?: number; limit?: number } | undefined) => d ?? {})
   .handler(async ({ data, context }) => {
     const ctx = context as any;
     const { supabaseAdmin } = await requireAdmin(ctx);
-    const limit = Math.min(data.limit ?? 100, 500);
 
-    let q = supabaseAdmin
+    const page = Math.max(1, data.page ?? 1);
+    const perPage = Math.min(Math.max(1, data.perPage ?? data.limit ?? 50), 1000);
+    const from = (page - 1) * perPage;
+    const to = from + perPage - 1;
+
+    let countQuery = supabaseAdmin.from("profiles").select("id", { count: "exact", head: true });
+    let query = supabaseAdmin
       .from("profiles")
       .select("id, username, display_name, avatar_url, plan, credits, max_credits, is_admin, banned, banned_reason, created_at")
       .order("created_at", { ascending: false })
-      .limit(limit);
+      .range(from, to);
+
     if (data.search && data.search.trim()) {
       const s = `%${data.search.trim()}%`;
-      q = q.or(`username.ilike.${s},display_name.ilike.${s}`);
+      countQuery = countQuery.or(`username.ilike.${s},display_name.ilike.${s}`);
+      query = query.or(`username.ilike.${s},display_name.ilike.${s}`);
     }
-    const { data: profiles, error } = await q;
+
+    const [{ count: totalUsersCount }, { data: profiles, error }] = await Promise.all([
+      countQuery,
+      query,
+    ]);
+
     if (error) throw new Error(error.message);
+
+    const totalUsers = totalUsersCount ?? 0;
+    const totalPages = Math.ceil(totalUsers / perPage) || 1;
 
     const ids = (profiles ?? []).map((p) => p.id);
     const { data: rolesData } = await supabaseAdmin.from("user_roles").select("user_id, role").in("user_id", ids.length ? ids : ["00000000-0000-0000-0000-000000000000"]);
@@ -98,8 +113,17 @@ export const listAllUsers = createServerFn({ method: "GET" })
     // Email lookup via admin client
     const emailById: Record<string, string> = {};
     try {
-      const { data: usersList } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
-      (usersList?.users ?? []).forEach((u: any) => { if (u.id) emailById[u.id] = u.email ?? ""; });
+      let allAuthUsers: any[] = [];
+      let authPage = 1;
+      let hasMore = true;
+      while (hasMore && authPage <= 10) {
+        const { data: usersList } = await supabaseAdmin.auth.admin.listUsers({ page: authPage, perPage: 1000 });
+        const users = usersList?.users ?? [];
+        allAuthUsers.push(...users);
+        if (users.length < 1000) hasMore = false;
+        authPage++;
+      }
+      allAuthUsers.forEach((u: any) => { if (u.id) emailById[u.id] = u.email ?? ""; });
     } catch {}
 
     return {
@@ -108,6 +132,10 @@ export const listAllUsers = createServerFn({ method: "GET" })
         email: emailById[p.id] ?? "",
         roles: rolesByUser[p.id] ?? [],
       })),
+      totalUsers,
+      totalPages,
+      currentPage: page,
+      perPage,
     };
   });
 

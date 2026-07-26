@@ -75,6 +75,10 @@ export function ProjectFilesPanel({ projectId, projectName }: Props) {
   const [dragOverTarget, setDragOverTarget] = useState<string | null>(null);
 
   const clearScanFn = useServerFn(clearStaleScan);
+  const listFn = useServerFn(listProjectFiles);
+  const saveFn = useServerFn(saveScriptFile);
+  const moveFn = useServerFn(moveProjectFile);
+  const deleteFn = useServerFn(deleteProjectFile);
 
   const handleManualRefresh = async () => {
     try {

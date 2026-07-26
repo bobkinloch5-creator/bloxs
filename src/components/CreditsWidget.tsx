@@ -54,7 +54,7 @@ export function CreditsPill({ className = "" }: { className?: string }) {
   return (
     <>
       <div
-        title={isOwner ? "Unlimited Owner Plan Credits" : `Credits: ${credits}/${maxCredits}. ${resetLabel || "Daily reset"}`}
+        title={isOwner ? "Unlimited Owner Plan Credits" : `Credits: ${credits}/${maxCredits}. ${resetLabel || "Monthly reset"}`}
         className={`inline-flex items-center gap-2 rounded-xl border border-indigo-500/30 bg-gradient-to-r from-indigo-950/60 to-purple-950/60 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-md shadow-[0_0_15px_rgba(99,102,241,0.15)] ${className}`}
       >
         <Zap className="h-3.5 w-3.5 text-cyan-300 animate-pulse" />
@@ -169,7 +169,7 @@ export function CreditsSidebarCard({
             </div>
             {pct === 0 && (
               <div className="flex items-center gap-1 text-[10px] font-bold text-rose-300">
-                <ShieldAlert className="h-3 w-3" /> Daily limit reached. Top up below or wait.
+                <ShieldAlert className="h-3 w-3" /> Monthly limit reached. Top up below or wait.
               </div>
             )}
 

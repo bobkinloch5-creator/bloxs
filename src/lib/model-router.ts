@@ -59,6 +59,7 @@ export const TASK_MAX_TOKENS: Record<AutoTask, number> = {
   testing:     3000,
   shortedit:   1800,
   vision:      2500,
+  design:      8000,
 };
 
 // Hard-difficulty multiplier applied to TASK_MAX_TOKENS for large builds.

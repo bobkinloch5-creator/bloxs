@@ -290,12 +290,18 @@ function UsersPanel({ isOwner }: { isOwner: boolean }) {
   const banFn = useServerFn(setUserBanned);
   const roleFn = useServerFn(setUserRole);
 
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(50);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "admin" | "moderator" | "donator" | "banned">("all");
+
   const { data, isLoading } = useQuery({
-    queryKey: ["adminUsers", search],
-    queryFn: () => listFn({ data: { search } }),
+    queryKey: ["adminUsers", search, page, perPage],
+    queryFn: () => listFn({ data: { search, page, perPage } }),
   });
+
+  const totalUsers = data?.totalUsers ?? data?.users?.length ?? 0;
+  const totalPages = data?.totalPages ?? 1;
 
   const users = useMemo(() => {
     const list = data?.users ?? [];
@@ -323,25 +329,38 @@ function UsersPanel({ isOwner }: { isOwner: boolean }) {
   return (
     <Card>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <SectionTitle icon={Users} title={`All users${data?.users ? ` · ${data.users.length}` : ""}`} />
+        <SectionTitle icon={Users} title={`All users · ${totalUsers} total`} />
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative">
             <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
             <input
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
               placeholder="Search username…"
               className="w-56 rounded-lg border border-indigo-500/20 bg-white/[0.03] py-1.5 pl-7 pr-2 text-xs focus:border-indigo-400/60 focus:outline-none"
             />
           </div>
           <div className="flex gap-1 rounded-lg border border-indigo-500/20 bg-white/[0.02] p-1">
             {(["all", "admin", "moderator", "donator", "banned"] as const).map((f) => (
-              <button key={f} onClick={() => setFilter(f)}
+              <button key={f} onClick={() => { setFilter(f); setPage(1); }}
                 className={`rounded-md px-2 py-1 text-[11px] font-semibold capitalize transition ${
                   filter === f ? "bg-indigo-500/25 text-indigo-100" : "text-slate-400 hover:text-slate-200"
                 }`}>{f}</button>
             ))}
           </div>
+          <select
+            value={perPage}
+            onChange={(e) => { setPerPage(Number(e.target.value)); setPage(1); }}
+            className="rounded-lg border border-indigo-500/20 bg-[#0a0a1a] px-2 py-1 text-xs text-slate-200 focus:outline-none"
+            title="Rows per page"
+          >
+            <option value={25}>25 / page</option>
+            <option value={50}>50 / page</option>
+            <option value={100}>100 / page</option>
+            <option value={250}>250 / page</option>
+            <option value={500}>500 / page</option>
+            <option value={1000}>1000 / page</option>
+          </select>
         </div>
       </div>
 
@@ -377,6 +396,48 @@ function UsersPanel({ isOwner }: { isOwner: boolean }) {
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* Pagination Bar */}
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-indigo-500/15 bg-white/[0.02] px-4 py-2.5 text-xs text-slate-400">
+          <div>
+            Showing <strong className="text-white">{users.length > 0 ? (page - 1) * perPage + 1 : 0}</strong> to{" "}
+            <strong className="text-white">{Math.min(page * perPage, totalUsers)}</strong> of{" "}
+            <strong className="text-indigo-300">{totalUsers}</strong> users
+          </div>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setPage(1)}
+              disabled={page <= 1 || isLoading}
+              className="rounded-md border border-white/10 bg-white/[0.03] px-2 py-1 text-[11px] font-semibold text-slate-300 hover:bg-white/[0.08] disabled:opacity-40 transition"
+            >
+              First
+            </button>
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1 || isLoading}
+              className="rounded-md border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[11px] font-semibold text-slate-300 hover:bg-white/[0.08] disabled:opacity-40 transition"
+            >
+              Previous
+            </button>
+            <span className="px-2 font-bold text-white text-[11px]">
+              Page {page} of {totalPages}
+            </span>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages || isLoading}
+              className="rounded-md border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[11px] font-semibold text-slate-300 hover:bg-white/[0.08] disabled:opacity-40 transition"
+            >
+              Next
+            </button>
+            <button
+              onClick={() => setPage(totalPages)}
+              disabled={page >= totalPages || isLoading}
+              className="rounded-md border border-white/10 bg-white/[0.03] px-2 py-1 text-[11px] font-semibold text-slate-300 hover:bg-white/[0.08] disabled:opacity-40 transition"
+            >
+              Last
+            </button>
+          </div>
         </div>
       </div>
     </Card>
