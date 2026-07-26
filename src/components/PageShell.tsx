@@ -6,7 +6,7 @@ import { ProfileMenu, DiscordIcon } from "./ProfileMenu";
 import {
   Folder, Users, Plug, Wand2, Heart,
   Hammer,
-  History as HistoryIcon, BookOpen, Settings as SettingsIcon, Crown, Box, LayoutDashboard,
+  History as HistoryIcon, BookOpen, Settings as SettingsIcon, Crown, Box, LayoutDashboard, Globe,
 } from "lucide-react";
 
 type Accent = "default" | "chat" | "admin" | "mcp" | "history" | "plugin" | "settings" | "collaborators";
@@ -14,11 +14,12 @@ type Accent = "default" | "chat" | "admin" | "mcp" | "history" | "plugin" | "set
 type NavItem = { key: string; label: string; to: string; icon: typeof Folder; accent: Accent };
 
 const NAV_CORE: NavItem[] = [
-  { key: "proj",    label: "Projects",      to: "/projects",      icon: Folder,          accent: "default" },
-  { key: "models",  label: "3D Models",     to: "/models",        icon: Box,             accent: "chat" },
-  { key: "uigen",   label: "UI Generator",  to: "/ui-generator",  icon: LayoutDashboard, accent: "chat" },
-  { key: "builder", label: "Game Builder",  to: "/builder",       icon: Hammer,          accent: "chat" },
-  { key: "co",      label: "Collaborators", to: "/collaborators", icon: Users,           accent: "collaborators" },
+  { key: "frontpage", label: "Front Page",   to: "/",               icon: Globe,           accent: "default" },
+  { key: "proj",      label: "Projects",     to: "/projects",      icon: Folder,          accent: "default" },
+  { key: "models",    label: "3D Models",    to: "/models",        icon: Box,             accent: "chat" },
+  { key: "uigen",     label: "UI Generator", to: "/ui-generator",  icon: LayoutDashboard, accent: "chat" },
+  { key: "builder",   label: "Game Builder", to: "/builder",       icon: Hammer,          accent: "chat" },
+  { key: "co",        label: "Collaborators",to: "/collaborators", icon: Users,           accent: "collaborators" },
 ];
 
 const NAV_INTEGRATION: NavItem[] = [
@@ -83,6 +84,13 @@ export function PageShell({
               )}
             </div>
             {actions && <div className="hidden shrink-0 items-center gap-2 md:flex">{actions}</div>}
+            <Link
+              to="/"
+              title="Go to Front Page"
+              className="hidden shrink-0 items-center gap-1.5 rounded-full border border-indigo-400/30 bg-indigo-500/10 px-3 py-1.5 text-[11px] font-semibold text-indigo-200 transition hover:border-indigo-400/60 hover:bg-indigo-500/20 hover:text-white sm:inline-flex"
+            >
+              <Globe className="h-3 w-3 text-indigo-300" /> Front Page
+            </Link>
             <Link
               to="/donate"
               title="Support BloxSmith"

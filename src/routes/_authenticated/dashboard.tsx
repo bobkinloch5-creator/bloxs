@@ -11,7 +11,7 @@ import {
   Infinity as InfinityIcon, ChevronDown, Paperclip, Image as ImageIcon,
   Send, Hammer, TrendingUp, Wrench, Gamepad2, Upload, CheckCircle2,
   Code2, Package, Crown, ExternalLink, MoreHorizontal, ArrowRight,
-  Radio, HelpCircle, LayoutDashboard, Server, Gift, Download, FolderTree,
+  Radio, HelpCircle, LayoutDashboard, Server, Gift, Download, FolderTree, Globe,
 } from "lucide-react";
 import thumbTycoon from "@/assets/thumbs/tycoon.jpg";
 import thumbObby from "@/assets/thumbs/obby.jpg";
@@ -58,6 +58,7 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
 type NavItem = { key: string; label: string; icon: typeof Box; to: string; exact?: boolean };
 const NAV: NavItem[] = [
   { key: "home",     label: "Home",          icon: HomeIcon,        to: "/dashboard", exact: true },
+  { key: "frontpage",label: "Front Page",    icon: Globe,           to: "/" },
   { key: "projects", label: "Projects",      icon: Folder,          to: "/projects" },
   { key: "models",   label: "3D Models",     icon: Box,             to: "/models" },
   { key: "ui",       label: "UI Generator",  icon: LayoutDashboard, to: "/ui-generator" },
@@ -242,6 +243,12 @@ function Dashboard() {
                   <span className={`h-2 w-2 rounded-full ${pluginOnline ? "bg-emerald-400 shadow-[0_0_10px_#34d399] animate-pulse" : "bg-slate-500"}`} />
                   Studio: {pluginOnline ? "Connected" : "Offline"}
                 </div>
+                <Link
+                  to="/"
+                  className="vapor-ghost-btn inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-indigo-200 hover:text-white"
+                >
+                  <Globe className="h-3.5 w-3.5 text-indigo-300" /> Front Page
+                </Link>
                 <button
                   type="button"
                   onClick={() => setExportModalOpen(true)}

@@ -4,6 +4,13 @@ All notable changes to BloxSmith are tracked here. Dates are UTC.
 
 ## [Unreleased]
 
+### 2026-07-25 - Front Page Navigation Accessibility
+
+**Dashboard & Navigation Shell (`src/routes/_authenticated/dashboard.tsx`, `src/components/PageShell.tsx`, `src/components/MobileNav.tsx`)**
+- Added direct **Front Page** (`/`) navigation link to the Dashboard top bar header actions next to Export Game.
+- Integrated **Front Page** with `Globe` icon into the left sidebar `NAV` array on the Dashboard and `NAV_CORE` array in `PageShell.tsx`.
+- Updated mobile navigation drawer (`MobileNav.tsx`) to feature a direct link to the Front Page (`/`).
+
 ### 2026-07-25 - Backend Infrastructure Stabilization & Type Safety Completion
 
 **Backend Server Functions & Supabase Auth Middleware (`src/lib/*.functions.ts`, `src/integrations/supabase/auth-middleware.ts`)**

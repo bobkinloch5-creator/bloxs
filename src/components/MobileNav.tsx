@@ -4,18 +4,17 @@ import { useEffect, useState } from "react";
 import {
   Users, Plug, Folder, Wand2, Gift, Hammer,
   History as HistoryIcon, BookOpen, Settings as SettingsIcon, Crown, Box, LayoutDashboard,
-  Menu, X, Home as HomeIcon, CreditCard, Heart,
+  Menu, X, Home as HomeIcon, CreditCard, Heart, Globe,
 } from "lucide-react";
 
 type Item = { label: string; to: string; icon: any };
 
 const CORE: Item[] = [
   { label: "Home",           to: "/dashboard",     icon: HomeIcon },
+  { label: "Front Page",     to: "/",              icon: Globe },
   { label: "Projects",       to: "/projects",      icon: Folder },
   { label: "3D Models",      to: "/models",        icon: Box },
   { label: "UI Generator",   to: "/ui-generator",  icon: LayoutDashboard },
-  // Game Builder existed in the desktop sidebar but was missing here, so the
-  // whole feature was unreachable on a phone.
   { label: "Game Builder",   to: "/builder",       icon: Hammer },
   { label: "Studio Plugin",  to: "/plugin",        icon: Plug },
   { label: "MCP / Tools",    to: "/mcp",           icon: Wand2 },
