@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import heroBg from "@/assets/hero-roblox-background.jpg";
 import bloxsmithMascot from "@/assets/bloxsmith-mascot.png.asset.json";
+import { LanguageHeaderSelector } from "@/components/LanguageHeaderSelector";
 
 const HOME_FAQS = [
   { q: "Is BloxSmith really free?", a: "Yes — BloxSmith is 100% free to use. Generate scripts, GUIs, maps, and full Roblox games with no credit card and no trial." },
@@ -90,6 +91,7 @@ function Header() {
         </a>
       </nav>
       <div className="flex items-center gap-2">
+        <LanguageHeaderSelector />
         <Link to="/donate" aria-label="Donate to BloxSmith" title="Support BloxSmith" className="inline-flex items-center gap-1 rounded-lg border border-pink-400/30 bg-pink-500/10 px-2.5 py-1.5 text-xs font-semibold text-pink-200 hover:border-pink-400/60 hover:bg-pink-500/15 hover:text-white transition">
           <Heart className="h-3.5 w-3.5" /> Donate
         </Link>

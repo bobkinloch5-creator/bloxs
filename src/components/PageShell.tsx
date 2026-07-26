@@ -32,6 +32,8 @@ const NAV_INTEGRATION: NavItem[] = [
   { key: "set",     label: "Settings",      to: "/settings",    icon: SettingsIcon, accent: "settings" },
 ];
 
+import { LanguageHeaderSelector } from "./LanguageHeaderSelector";
+
 export function PageShell({
   title, description, accent = "default", actions, sidebar, rightPanel, isAdmin, activeKey, children,
 }: {
@@ -100,6 +102,7 @@ export function PageShell({
             >
               <Heart className="h-3 w-3" /> Donate
             </Link>
+            <LanguageHeaderSelector />
             <ProfileMenu />
           </header>
 
@@ -120,7 +123,10 @@ export function PageShell({
   );
 }
 
+import { useT } from "@/lib/i18n";
+
 function VaporSidebar({ isAdmin, activeKey }: { isAdmin: boolean; activeKey?: string }) {
+  const t = useT();
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   // We don't have pluginOnline here, but we can show a static pill that users can see
   return (
@@ -153,18 +159,18 @@ function VaporSidebar({ isAdmin, activeKey }: { isAdmin: boolean; activeKey?: st
           </Link>
         )}
 
-        <NavGroup label="Core Suite" items={NAV_CORE} activeKey={activeKey} pathname={pathname} />
-        <NavGroup label="Integration" items={NAV_INTEGRATION} activeKey={activeKey} pathname={pathname} />
+        <NavGroup label={t("Core Suite")} items={NAV_CORE} activeKey={activeKey} pathname={pathname} />
+        <NavGroup label={t("Integration")} items={NAV_INTEGRATION} activeKey={activeKey} pathname={pathname} />
       </nav>
 
       <div className="space-y-2 border-t border-indigo-500/10 p-4" style={{ background: "rgba(255,255,255,0.015)" }}>
         <CreditsSidebarCard className="mb-2" />
         {/* Plugin status indicator */}
         <div className="mb-2 flex items-center justify-between rounded-xl border border-indigo-500/20 px-3 py-2" style={{ background: "#0a0a20" }}>
-          <span className="text-[11px] font-bold text-slate-300">Studio Plugin</span>
+          <span className="text-[11px] font-bold text-slate-300">{t("Studio Plugin")}</span>
           <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-400">
             <span className="h-2 w-2 rounded-full bg-slate-500 animate-pulse" />
-            Check status
+            {t("Check status")}
           </span>
         </div>
         <ProfileMenu />
@@ -175,7 +181,7 @@ function VaporSidebar({ isAdmin, activeKey }: { isAdmin: boolean; activeKey?: st
           className="flex items-center justify-center gap-2 rounded-xl border border-indigo-400/20 bg-indigo-500/10 px-3 py-2.5 text-[11px] font-bold uppercase tracking-[0.18em] text-indigo-200 transition hover:border-indigo-400/40 hover:bg-indigo-500/20 hover:text-white"
           style={{ fontFamily: "Space Mono, monospace" }}
         >
-          <DiscordIcon className="h-3.5 w-3.5" /> Community
+          <DiscordIcon className="h-3.5 w-3.5" /> {t("Community")}
         </a>
       </div>
     </aside>
@@ -185,6 +191,7 @@ function VaporSidebar({ isAdmin, activeKey }: { isAdmin: boolean; activeKey?: st
 function NavGroup({
   label, items, activeKey, pathname,
 }: { label: string; items: NavItem[]; activeKey?: string; pathname?: string }) {
+  const t = useT();
   return (
     <div>
       <div className="mb-2 flex items-center gap-2 px-2">
@@ -215,7 +222,7 @@ function NavGroup({
               <span className={`vapor-nav-icon ${active ? "text-cyan-300" : ""}`}>
                 <Icon className="h-4 w-4" />
               </span>
-              {n.label}
+              {t(n.label)}
               {active && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-cyan-400 animate-pulse" />}
             </Link>
           );

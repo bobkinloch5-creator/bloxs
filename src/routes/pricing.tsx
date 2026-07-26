@@ -7,6 +7,7 @@ import { PayPalTopUpModal } from "@/components/PayPalTopUpModal";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getMyProfile } from "@/lib/profile.functions";
+import { LanguageHeaderSelector } from "@/components/LanguageHeaderSelector";
 
 export const Route = createFileRoute("/pricing")({
   head: () => ({
@@ -50,6 +51,7 @@ function PricingPage() {
             <span className="text-base font-extrabold tracking-tight text-white">BloxSmith</span>
           </Link>
           <div className="flex items-center gap-4 text-xs font-semibold">
+            <LanguageHeaderSelector />
             <Link to="/dashboard" className="text-slate-300 hover:text-white transition">Dashboard</Link>
             <Link to="/docs" className="text-slate-300 hover:text-white transition">Docs</Link>
             <a
