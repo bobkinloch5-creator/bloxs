@@ -2,24 +2,38 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 
 export type LangCode =
   | "en" | "es" | "pt" | "fr" | "de" | "it" | "ru"
-  | "ar" | "zh" | "ja" | "ko" | "hi" | "tr" | "pl" | "nl";
+  | "ar" | "zh" | "ja" | "ko" | "hi" | "bn" | "id"
+  | "vi" | "th" | "ms" | "fil" | "tr" | "pl" | "nl"
+  | "sv" | "uk" | "el" | "ro" | "hu" | "cs";
 
 export const LANGUAGES: { code: LangCode; label: string; nativeLabel: string; rtl?: boolean; aiName: string }[] = [
-  { code: "en", label: "English",    nativeLabel: "English",     aiName: "English" },
-  { code: "es", label: "Spanish",    nativeLabel: "Español",     aiName: "Spanish" },
-  { code: "pt", label: "Portuguese", nativeLabel: "Português",   aiName: "Portuguese" },
-  { code: "fr", label: "French",     nativeLabel: "Français",    aiName: "French" },
-  { code: "de", label: "German",     nativeLabel: "Deutsch",     aiName: "German" },
-  { code: "it", label: "Italian",    nativeLabel: "Italiano",    aiName: "Italian" },
-  { code: "ru", label: "Russian",    nativeLabel: "Русский",     aiName: "Russian" },
-  { code: "ar", label: "Arabic",     nativeLabel: "العربية",     rtl: true, aiName: "Arabic" },
-  { code: "zh", label: "Chinese",    nativeLabel: "中文",         aiName: "Chinese (Simplified)" },
-  { code: "ja", label: "Japanese",   nativeLabel: "日本語",       aiName: "Japanese" },
-  { code: "ko", label: "Korean",     nativeLabel: "한국어",       aiName: "Korean" },
-  { code: "hi", label: "Hindi",      nativeLabel: "हिन्दी",        aiName: "Hindi" },
-  { code: "tr", label: "Turkish",    nativeLabel: "Türkçe",       aiName: "Turkish" },
-  { code: "pl", label: "Polish",     nativeLabel: "Polski",       aiName: "Polish" },
-  { code: "nl", label: "Dutch",      nativeLabel: "Nederlands",   aiName: "Dutch" },
+  { code: "en",  label: "English",    nativeLabel: "English",          aiName: "English" },
+  { code: "es",  label: "Spanish",    nativeLabel: "Español",          aiName: "Spanish" },
+  { code: "pt",  label: "Portuguese", nativeLabel: "Português",        aiName: "Portuguese" },
+  { code: "fr",  label: "French",     nativeLabel: "Français",         aiName: "French" },
+  { code: "de",  label: "German",     nativeLabel: "Deutsch",          aiName: "German" },
+  { code: "it",  label: "Italian",    nativeLabel: "Italiano",         aiName: "Italian" },
+  { code: "ru",  label: "Russian",    nativeLabel: "Русский",          aiName: "Russian" },
+  { code: "ar",  label: "Arabic",     nativeLabel: "العربية",          rtl: true, aiName: "Arabic" },
+  { code: "zh",  label: "Chinese",    nativeLabel: "中文",              aiName: "Chinese (Simplified)" },
+  { code: "ja",  label: "Japanese",   nativeLabel: "日本語",            aiName: "Japanese" },
+  { code: "ko",  label: "Korean",     nativeLabel: "한국어",            aiName: "Korean" },
+  { code: "hi",  label: "Hindi",      nativeLabel: "हिन्दी",             aiName: "Hindi" },
+  { code: "bn",  label: "Bengali",    nativeLabel: "বাংলা",             aiName: "Bengali" },
+  { code: "id",  label: "Indonesian", nativeLabel: "Bahasa Indonesia", aiName: "Indonesian" },
+  { code: "vi",  label: "Vietnamese", nativeLabel: "Tiếng Việt",       aiName: "Vietnamese" },
+  { code: "th",  label: "Thai",       nativeLabel: "ไทย",              aiName: "Thai" },
+  { code: "ms",  label: "Malay",      nativeLabel: "Bahasa Melayu",    aiName: "Malay" },
+  { code: "fil", label: "Filipino",   nativeLabel: "Tagalog",          aiName: "Filipino" },
+  { code: "tr",  label: "Turkish",    nativeLabel: "Türkçe",           aiName: "Turkish" },
+  { code: "pl",  label: "Polish",     nativeLabel: "Polski",           aiName: "Polish" },
+  { code: "nl",  label: "Dutch",      nativeLabel: "Nederlands",       aiName: "Dutch" },
+  { code: "sv",  label: "Swedish",    nativeLabel: "Svenska",          aiName: "Swedish" },
+  { code: "uk",  label: "Ukrainian",  nativeLabel: "Українська",       aiName: "Ukrainian" },
+  { code: "el",  label: "Greek",      nativeLabel: "Ελληνικά",         aiName: "Greek" },
+  { code: "ro",  label: "Romanian",   nativeLabel: "Română",           aiName: "Romanian" },
+  { code: "hu",  label: "Hungarian",  nativeLabel: "Magyar",           aiName: "Hungarian" },
+  { code: "cs",  label: "Czech",      nativeLabel: "Čeština",          aiName: "Czech" },
 ];
 
 // Translations: key → per-language string. English is the canonical fallback.
