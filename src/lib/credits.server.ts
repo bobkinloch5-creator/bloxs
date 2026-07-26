@@ -54,9 +54,10 @@ export async function chargeCredits(
 ): Promise<ChargeResult> {
   if (amount <= 0 && !opts.allowZero) return { ok: true, charged: 0 };
 
-  // 1. Admin check via user_roles (RLS-safe through user client).
+  // 1. Admin / Owner check via user_roles or profile plan (RLS-safe via admin client)
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   try {
-    const { data: roles } = await userSupabase
+    const { data: roles } = await supabaseAdmin
       .from("user_roles")
       .select("role")
       .eq("user_id", userId)
@@ -65,15 +66,12 @@ export async function chargeCredits(
       return { ok: true, charged: 0, remaining: Infinity };
     }
   } catch {
-    // fall through and treat as non-admin
+    // fall through and check profile table
   }
 
-  // 2. Need privileged client to mutate `credits` (profile trigger blocks
-  //    non-admin updates of the credits column).
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data: profile, error: readErr } = await supabaseAdmin
     .from("profiles")
-    .select("credits, max_credits, credits_reset_at, banned, banned_reason")
+    .select("credits, max_credits, credits_reset_at, banned, banned_reason, plan, is_admin")
     .eq("id", userId)
     .maybeSingle();
   if (readErr || !profile) {
@@ -85,6 +83,11 @@ export async function chargeCredits(
       code: "banned",
       message: profile.banned_reason || "Your account is suspended.",
     };
+  }
+
+  // Owners, admins, and Owner/Pro plan accounts are 100% exempt from rate limits & credit deductions.
+  if (profile.is_admin || profile.plan === "Owner" || profile.plan === "Pro") {
+    return { ok: true, charged: 0, remaining: Infinity };
   }
 
   let credits = Number(profile.credits ?? 0);
