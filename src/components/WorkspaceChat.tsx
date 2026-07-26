@@ -11,8 +11,9 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import {
   Paperclip, Send, Sparkles, ChevronDown, Loader2, X, MessageSquare, Hammer, Wand2,
-  Download, RefreshCw, Save, Image as ImageIcon, Square, Trash2, Zap,
+  Download, RefreshCw, Save, Image as ImageIcon, Square, Trash2, Zap, Volume2, VolumeX,
 } from "lucide-react";
+import { playCompletionSound } from "@/lib/sound";
 import ReactMarkdown from "react-markdown";
 import { supabase } from "@/integrations/supabase/client";
 import { createProject } from "@/lib/projects.functions";
@@ -227,6 +228,17 @@ export function WorkspaceChat({
   const [token, setToken] = useState<string | null>(null);
   const [enhancing, setEnhancing] = useState(false);
   
+  // 🔊 Completion Sound — pleasant chime played on AI completion or build finish
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    const saved = window.localStorage.getItem("bs:sound-enabled");
+    return saved === null ? true : saved === "1";
+  });
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem("bs:sound-enabled", soundEnabled ? "1" : "0");
+  }, [soundEnabled]);
+
   // 🎙️ NVIDIA Voice — TTS enabled state persisted across sessions
   const [ttsEnabled, setTtsEnabled] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
@@ -299,6 +311,15 @@ export function WorkspaceChat({
     enabled: !!activeProjectId && mode === "build",
     refetchInterval: 750,
   });
+
+  const prevExecStateRef = useRef<string | null>(null);
+  useEffect(() => {
+    const currentState = executionStatus?.state ?? null;
+    if (currentState === "done" && prevExecStateRef.current && prevExecStateRef.current !== "done") {
+      if (soundEnabled) playCompletionSound();
+    }
+    prevExecStateRef.current = currentState;
+  }, [executionStatus?.state, soundEnabled]);
 
   // Keep the Supabase bearer token fresh — /api/chat requires it.
   useEffect(() => {
@@ -393,6 +414,9 @@ export function WorkspaceChat({
     transport,
     onError: (e) => toast.error(friendlyError(e, { fallback: "The AI request failed." })),
     onFinish: (evt) => {
+      if (soundEnabled) {
+        playCompletionSound();
+      }
       // Auto-speak the final AI reply through NVIDIA TTS when voice is enabled
       const msg = (evt as { message?: { role?: string; parts?: Array<{ type?: string; text?: string }> } })?.message;
       if (ttsEnabled && msg?.role === "assistant") {
@@ -991,6 +1015,29 @@ export function WorkspaceChat({
           >
             {enhancing ? <Loader2 className="h-4 w-4 animate-spin text-cyan-300" /> : <Wand2 className="h-4 w-4 text-cyan-300" />}
             <span className="hidden sm:inline">{enhancing ? "Polishing…" : "Polish"}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              const next = !soundEnabled;
+              setSoundEnabled(next);
+              if (next) {
+                playCompletionSound();
+                toast.success("Completion sound enabled 🔔");
+              } else {
+                toast.info("Completion sound disabled 🔇");
+              }
+            }}
+            className={`inline-flex min-h-[40px] items-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-bold transition active:scale-95 ${
+              soundEnabled
+                ? "border-cyan-400/50 bg-cyan-500/15 text-cyan-100 shadow-[0_0_15px_rgba(34,211,238,0.2)] hover:bg-cyan-500/25 hover:border-cyan-400"
+                : "border-white/15 bg-white/[0.04] text-slate-400 hover:bg-white/[0.08] hover:text-white"
+            }`}
+            title={soundEnabled ? "Completion sound is ON (click to disable or preview sound)" : "Completion sound is OFF (click to enable)"}
+            aria-label="Toggle completion sound"
+          >
+            {soundEnabled ? <Volume2 className="h-4 w-4 text-cyan-300" /> : <VolumeX className="h-4 w-4 text-slate-400" />}
+            <span className="hidden sm:inline">{soundEnabled ? "Sound On" : "Sound Off"}</span>
           </button>
         </div>
 
