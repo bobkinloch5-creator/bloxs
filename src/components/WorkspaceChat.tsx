@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import {
   Paperclip, Send, Sparkles, ChevronDown, Loader2, X, MessageSquare, Hammer, Wand2,
   Download, RefreshCw, Save, Image as ImageIcon, Square, Trash2, Zap, Volume2, VolumeX,
+  ClipboardList, Lightbulb,
 } from "lucide-react";
 import { playCompletionSound } from "@/lib/sound";
 import ReactMarkdown from "react-markdown";
@@ -166,6 +167,26 @@ function extractGeneratedImages(parts: any[]): Array<{ url: string; prompt: stri
     }
   }
   return imgs;
+}
+
+function parseConceptOptions(text: string): string[] {
+  if (!text) return [];
+  const options: string[] = [];
+  const lines = text.split("\n");
+  for (const line of lines) {
+    const match = line.match(/^\s*\d+[\.\)]\s*(?:\*\*)?([^*:\n]+?)(?:\*\*|:|\s*—|\s*-|$)/);
+    if (match && match[1]) {
+      const cleaned = match[1].trim();
+      if (
+        cleaned.length >= 3 &&
+        cleaned.length <= 65 &&
+        !/which of these|or do you have|let me know|core loop|unique twist|monetization|build complexity/i.test(cleaned)
+      ) {
+        options.push(cleaned);
+      }
+    }
+  }
+  return options.slice(0, 4);
 }
 
 type Attachment = { url: string; mediaType: string; name: string };
@@ -881,6 +902,7 @@ export function WorkspaceChat({
             const text = m.role === "assistant" ? stripInternalBlocks(rawText) : rawText;
             const imgs = m.role === "user" ? m.parts.filter((p: any) => p.type === "file" && p.mediaType?.startsWith?.("image/")) as any[] : [];
             const genImages = m.role === "assistant" ? extractGeneratedImages(m.parts as any[]) : [];
+            const parsedConcepts = m.role === "assistant" ? parseConceptOptions(text) : [];
             return (
               <div key={m.id} className={`mb-3.5 flex gap-2.5 ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                 <div
@@ -917,8 +939,75 @@ export function WorkspaceChat({
                     </div>
                   )}
 
+                  {/* Parsed Concept Option Buttons */}
+                  {m.role === "assistant" && parsedConcepts.length > 0 && (
+                    <div className="mt-3 rounded-xl border border-cyan-400/35 bg-gradient-to-r from-cyan-950/50 via-indigo-950/50 to-purple-950/50 p-2.5 space-y-2 shadow-[0_0_20px_rgba(34,211,238,0.2)]">
+                      <div className="text-[11px] font-black uppercase tracking-wider text-cyan-300 flex items-center gap-1.5">
+                        <Sparkles className="h-3.5 w-3.5 text-cyan-300 animate-pulse" />
+                        One-Tap Game Builder Options:
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {parsedConcepts.map((opt, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => {
+                              setComposerMode("build");
+                              submit(`Build Game Option #${idx + 1} (${opt}) in Studio now! Create all core scripts, RemoteEvents, ScreenGui interface, and map setup.`, "build");
+                            }}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-400/60 bg-gradient-to-r from-indigo-600 via-indigo-500 to-cyan-500 px-3 py-1.5 text-xs font-black text-white shadow-[0_0_15px_rgba(34,211,238,0.35)] hover:brightness-110 active:scale-95 transition"
+                            title={`Build "${opt}" immediately in Roblox Studio!`}
+                          >
+                            <Hammer className="h-3.5 w-3.5 text-amber-300" />
+                            Build "{opt}"
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {m.role === "assistant" && (
-                    <div className="mt-2.5 flex flex-wrap items-center justify-between border-t border-white/10 pt-1.5 text-[10px] text-slate-300">
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-white/10 pt-2 text-[10px] text-slate-300">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const snippet = text.slice(0, 300);
+                            setComposerMode("build");
+                            submit(`Build this game in Studio now! Create all core scripts, RemoteEvents, UI, and map setup for: ${snippet}`, "build");
+                          }}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-400/50 bg-gradient-to-r from-cyan-500/25 to-indigo-500/25 px-2.5 py-1 text-[11px] font-black text-cyan-200 hover:border-cyan-300 hover:from-cyan-500/40 hover:to-indigo-500/40 transition shadow-sm active:scale-95"
+                          title="Build this game concept directly in Roblox Studio with AI"
+                        >
+                          <Hammer className="h-3.5 w-3.5 text-amber-300" />
+                          🔨 Build Game in Studio
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const snippet = text.slice(0, 300);
+                            setComposerMode("chat");
+                            submit(`Plan the full technical architecture (Services, Remotes, Scripts, UI) for: ${snippet}`, "chat");
+                          }}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-400/30 bg-indigo-500/15 px-2.5 py-1 text-[11px] font-extrabold text-indigo-200 hover:border-indigo-400 hover:bg-indigo-500/25 transition shadow-sm active:scale-95"
+                          title="Plan technical architecture for this concept"
+                        >
+                          <ClipboardList className="h-3.5 w-3.5 text-indigo-300" />
+                          📐 Plan Architecture
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setShowBrainstormer(true)}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-purple-400/30 bg-purple-500/15 px-2.5 py-1 text-[11px] font-extrabold text-purple-200 hover:border-purple-400 hover:bg-purple-500/25 transition shadow-sm active:scale-95"
+                          title="Open interactive AI game builder & idea planner"
+                        >
+                          <Lightbulb className="h-3.5 w-3.5 text-purple-300" />
+                          💡 Help Build My Game
+                        </button>
+                      </div>
+
                       <span className="inline-flex items-center gap-1.5 font-bold">
                         <Zap className="h-3 w-3 text-cyan-300 animate-pulse" />
                         {isOwner ? (
