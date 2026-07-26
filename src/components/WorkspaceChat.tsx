@@ -11,12 +11,13 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import {
   Paperclip, Send, Sparkles, ChevronDown, Loader2, X, MessageSquare, Hammer, Wand2,
-  Download, RefreshCw, Save, Image as ImageIcon, Square, Trash2,
+  Download, RefreshCw, Save, Image as ImageIcon, Square, Trash2, Zap,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { supabase } from "@/integrations/supabase/client";
 import { createProject } from "@/lib/projects.functions";
 import { listMessages, getPluginSession, getBuildExecutionStatus, clearMessages, executeQueuedActionsNow } from "@/lib/chat.functions";
+import { getMyProfile } from "@/lib/profile.functions";
 import { improvePrompt } from "@/lib/improve.functions";
 import { saveProjectAsset } from "@/lib/project-assets.functions";
 import { Link } from "@tanstack/react-router";
@@ -183,6 +184,15 @@ export function WorkspaceChat({
   const sessFn = useServerFn(getPluginSession);
   const execStatusFn = useServerFn(getBuildExecutionStatus);
   const executeNowFn = useServerFn(executeQueuedActionsNow);
+
+  const profFn = useServerFn(getMyProfile);
+  const { data: profile } = useQuery({
+    queryKey: ["profile"],
+    queryFn: () => profFn(),
+    refetchInterval: 30_000,
+  });
+  const isAdmin = !!(profile as any)?.is_admin;
+  const isOwner = profile?.plan === "Owner" || profile?.plan === "Pro" || isAdmin;
 
   // Live Studio plugin status — Build actions only run if this is online.
   const { data: pluginSession } = useQuery({
@@ -381,6 +391,7 @@ export function WorkspaceChat({
           .slice(0, 1200);
         if (cleaned) speaker.speak(cleaned);
       }
+      qc.invalidateQueries({ queryKey: ["profile"] });
     },
   });
   const [stopped, setStopped] = useState(false);
@@ -620,11 +631,20 @@ export function WorkspaceChat({
         </div>
       </div>
 
-      {/* Mode tagline */}
-      <div className="mb-3 hidden text-[11px] font-medium text-indigo-200/60 sm:block">
-        {isBuild
-          ? "⚡ Build sends live actions to Roblox Studio. Auto-creates a project if none is active."
-          : "💬 Chat with BloxSmith Agent to plan, ask questions, and refine ideas. No builds run."}
+      {/* Mode tagline with live credit cost */}
+      <div className="mb-3 hidden text-[11px] font-medium text-indigo-200/80 sm:flex sm:items-center sm:justify-between">
+        <span>
+          {isBuild
+            ? "⚡ Build sends live actions to Roblox Studio. Auto-creates a project if none is active."
+            : "💬 Chat with BloxSmith Agent to plan, ask questions, and refine ideas. No builds run."}
+        </span>
+        <span className="font-extrabold text-cyan-300">
+          {isOwner
+            ? "⚡ Cost: 0 Credits (Unlimited Owner Exemption)"
+            : isBuild
+              ? "⚡ Cost: 2 Credits / Request"
+              : "⚡ Cost: 1 Credit / Request"}
+        </span>
       </div>
 
 
@@ -727,6 +747,25 @@ export function WorkspaceChat({
                           }}
                         />
                       ))}
+                    </div>
+                  )}
+
+                  {m.role === "assistant" && (
+                    <div className="mt-2.5 flex flex-wrap items-center justify-between border-t border-white/10 pt-1.5 text-[10px] text-slate-300">
+                      <span className="inline-flex items-center gap-1.5 font-bold">
+                        <Zap className="h-3 w-3 text-cyan-300 animate-pulse" />
+                        {isOwner ? (
+                          <span className="text-amber-300 font-extrabold">0 Credits (Unlimited Owner Plan)</span>
+                        ) : (
+                          <span className="text-cyan-200 font-semibold">
+                            {genImages.length > 0
+                              ? "2 Credits Taken (Image Generation)"
+                              : (m as any).actions?.length || rawText.includes("bloxsmith-actions")
+                                ? "2 Credits Taken (Build Actions)"
+                                : "1 Credit Taken (AI Chat)"}
+                          </span>
+                        )}
+                      </span>
                     </div>
                   )}
                 </div>

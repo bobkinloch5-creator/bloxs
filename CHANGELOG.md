@@ -4,6 +4,13 @@ All notable changes to BloxSmith are tracked here. Dates are UTC.
 
 ## [Unreleased]
 
+### 2026-07-26 - Per-Message AI Credit Transparency & Real-time Usage Feedback
+
+**AI Chat Credit Feedback & Response Badges (`src/components/WorkspaceChat.tsx`, `src/lib/credits.server.ts`)**
+- Added explicit credit cost feedback directly on each AI chat message response (`⚡ 0 Credits (Unlimited Owner Plan)` / `⚡ 1-2 Credits Taken`).
+- Added a dynamic mode tagline in the `WorkspaceChat` AI composer showing live per-request credit estimates before submitting prompts (`⚡ Cost: 0 Credits` for Owners/Admins; `⚡ Cost: 2 Credits / Request` for Build; `⚡ Cost: 1 Credit / Request` for Chat).
+- Automated profile query invalidation in `onFinish` so `CreditsPill` and sidebar credit indicators update in real-time immediately after an AI response completes.
+
 ### 2026-07-25 - Rate Limit & AI Credit Visibility Suite
 
 **Credit & Rate Limit Tracking (`src/components/CreditsWidget.tsx`, `src/routes/_authenticated/dashboard.tsx`, `src/components/PageShell.tsx`, `src/components/WorkspaceChat.tsx`)**
