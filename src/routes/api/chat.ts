@@ -840,9 +840,23 @@ return {
   ];
 }
 
+function isBaseplateOnlyMaterialRequest(userText: string) {
+  const text = userText.toLowerCase().trim();
+  // Catches: "snow the baseplate", "make the baseplate snow", "turn baseplate to ice",
+  // "change baseplate material to snow", "set baseplate to snow material"
+  const hasMaterial = /\b(snow|snowy|ice|icy|frozen|winter|gravel|sand|grass|lava|mud|concrete|asphalt|stone|rock|white|pebble)\b/.test(text);
+  const hasBaseplateTarget = /\b(baseplate|base\s*plate)\b/.test(text);
+  const hasModifyVerb = /\b(snow|snowy|make|change|set|turn|apply|paint|cover|update|give|add|use)\b/.test(text);
+  // Exclude broad world/map builds from this minimal path
+  const isBroadBuild = /\b(map|world|terrain|environment|biome|landscape|scene|area|full|entire|whole|everything)\b/.test(text);
+  return hasMaterial && hasBaseplateTarget && hasModifyVerb && !isBroadBuild;
+}
+
 function isSnowTerrainRequest(userText: string) {
+  // Exclude simple "snow the baseplate" — handled by the minimal material fast-path
+  if (isBaseplateOnlyMaterialRequest(userText)) return false;
   return /\b(snow|snowy|winter|arctic|tundra|ice|glacier)\b/i.test(userText) &&
-    /\b(terrain|ground|map|world|environment|area|biome|landscape|floor|baseplate|scene|make|add|build|create)\b/i.test(userText);
+    /\b(terrain|ground|map|world|environment|area|biome|landscape|floor|scene|make|add|build|create)\b/i.test(userText);
 }
 
 function isSimpleSingleThingRequest(userText: string) {
@@ -885,6 +899,10 @@ function isNarrowFeatureRequest(userText: string) {
   if (/\b(main\s*menu|loading\s*screen|load\s*screen|splash|title\s*screen|hud|shop\s*system|inventory\s*system|settings\s*menu)\b/.test(text)) return false;
   if (isHumanoidVfxRequest(text)) return true;
   if (/\b(button|script|local\s*script|server\s*script|module\s*script|remote\s*event|remoteevent|speed\s*boost|sprint|dash|double\s*jump|high\s*jump|super\s*jump|jump\s*boost|fly|flying|flight|tool|door|checkpoint|save\s*point|timer|kill\s*brick|teleport)\b/.test(text)) return true;
+  // Single property/material changes are always narrow — never expand these into scenes
+  if (isBaseplateOnlyMaterialRequest(text)) return true;
+  if (/\b(material|color|colour|texture|transparency|brightness|anchored|cancollide|size|scale|position|rotation|rename)\b/.test(text) &&
+      /\b(baseplate|part|block|platform|floor|ground|wall|sphere|cylinder|wedge)\b/.test(text)) return true;
   return isSimpleSingleThingRequest(text);
 }
 
@@ -2974,6 +2992,81 @@ return {
       parent_path: "Workspace",
       name: "BloxSmith_Scan_After_Flowers",
       payload: { reason: "verify_visible_flowers_were_created" },
+    },
+  ];
+}
+
+// ── Minimal baseplate material fast-path ──────────────────────────────────────
+// Only changes the Baseplate's Material + Color. No terrain, no trees, no decorations.
+function baseplateOnlyMaterialStudioActions(userText: string) {
+  const safePrompt = userText.trim().slice(0, 200) || "apply snow material to baseplate";
+  const text = userText.toLowerCase();
+  const material = /\b(ice|icy|frozen)\b/.test(text) ? "Ice" :
+    /\b(lava|magma)\b/.test(text) ? "CrackedLava" :
+    /\b(sand|beach|desert)\b/.test(text) ? "Sand" :
+    /\b(mud|swamp)\b/.test(text) ? "Mud" :
+    /\b(asphalt|road)\b/.test(text) ? "Asphalt" :
+    /\b(concrete|pavement)\b/.test(text) ? "Concrete" :
+    /\b(gravel|pebble|stone|rock)\b/.test(text) ? "Pebble" :
+    /\b(grass|green)\b/.test(text) ? "Grass" :
+    "Snow";
+  const colors: Record<string, [number, number, number]> = {
+    Snow: [242, 248, 255],
+    Ice: [156, 216, 242],
+    CrackedLava: [255, 88, 34],
+    Sand: [230, 207, 150],
+    Mud: [94, 72, 48],
+    Asphalt: [42, 43, 47],
+    Concrete: [126, 128, 126],
+    Pebble: [108, 111, 106],
+    Grass: [72, 150, 70],
+  };
+  const [r, g, b] = colors[material] ?? colors["Snow"];
+  const source = `
+local Workspace = game:GetService("Workspace")
+local request = ${JSON.stringify(safePrompt)}
+local materialName = ${JSON.stringify(material)}
+local color = Color3.fromRGB(${r}, ${g}, ${b})
+local mat = Enum.Material[materialName] or Enum.Material.Snow
+
+local changed = 0
+for _, inst in ipairs(Workspace:GetDescendants()) do
+  if inst:IsA("BasePart") then
+    local n = inst.Name:lower()
+    local isFloor = n:find("baseplate") or n:find("ground") or n:find("floor") or n:find("base")
+    local isLargeFlat = inst.Size.X >= 30 and inst.Size.Z >= 30 and inst.Size.Y <= 8
+    if isFloor or isLargeFlat then
+      inst.Material = mat
+      inst.Color = color
+      inst.TopSurface = Enum.SurfaceType.Smooth
+      changed += 1
+    end
+  end
+end
+if changed == 0 then
+  local bp = Workspace:FindFirstChild("Baseplate")
+  if bp and bp:IsA("BasePart") then
+    bp.Material = mat
+    bp.Color = color
+    bp.TopSurface = Enum.SurfaceType.Smooth
+    changed += 1
+  end
+end
+print(string.format("[BloxSmith] Applied %s to %d part(s) — %s", materialName, changed, request))
+return { changed = changed, material = materialName }
+`;
+  return [
+    {
+      kind: "run_lua",
+      parent_path: "Workspace",
+      name: "BloxSmith_Apply_Baseplate_Material",
+      payload: { source, request: safePrompt, visible_output_required: true },
+    },
+    {
+      kind: "scan_project",
+      parent_path: "Workspace",
+      name: "BloxSmith_Scan_After_Material",
+      payload: { reason: "verify_material_applied" },
     },
   ];
 }
@@ -6493,6 +6586,76 @@ export const Route = createFileRoute("/api/chat")({
             });
             console.info("[chat/fastpath] queued clear project keep baseplate", { projectId, userId, actionCount: actions.length });
             return streamPlainAssistantText(replyText, "clear-text-1");
+          }
+
+          // ── INSTANT BASEPLATE MATERIAL FAST-PATH ──────────────────────────
+          // "Snow the baseplate", "make it ice" etc. — only change material/color.
+          // This must come BEFORE the snow terrain path to avoid over-building.
+          if (mode === "build" && projectId && userText && isBaseplateOnlyMaterialRequest(userText) && !imageGenerationRequested) {
+            const matActions = baseplateOnlyMaterialStudioActions(userText)
+              .map(normalizePluginAction)
+              .filter((action) => finalScriptIssues(action).length === 0)
+              .map((action: any) => ({
+                ...action,
+                payload: {
+                  ...(action.payload ?? {}),
+                  _bloxsmith: {
+                    execution_mode: "fast",
+                    structured: true,
+                    exact_scope: true,
+                    visible_output_required: true,
+                    material_only: true,
+                    no_empty_folders: true,
+                    no_fake_assets: true,
+                  },
+                },
+              }));
+            if (matActions.length > 0) {
+              const textLow = userText.toLowerCase();
+              const matLabel = /\b(ice|icy|frozen)\b/.test(textLow) ? "ice" :
+                /\b(lava|magma)\b/.test(textLow) ? "lava" :
+                /\b(sand)\b/.test(textLow) ? "sand" :
+                /\b(grass)\b/.test(textLow) ? "grass" :
+                "snow";
+              const replyText = `Applied ${matLabel} material to the Baseplate — check Studio now.`;
+              const { data: matMsgRow } = await supabase
+                .from("chat_messages")
+                .insert({
+                  project_id: projectId,
+                  user_id: userId,
+                  role: "assistant",
+                  content: replyText,
+                  status: "sending",
+                  model: "deterministic-baseplate-material-fastpath",
+                  actions: matActions,
+                })
+                .select("id")
+                .single();
+              await supabase.from("plugin_actions").insert(
+                matActions.map((action, i) => ({
+                  project_id: projectId,
+                  user_id: userId,
+                  message_id: matMsgRow?.id ?? null,
+                  kind: action.kind,
+                  parent_path: action.parent_path,
+                  name: action.name,
+                  payload: action.payload,
+                  position: i,
+                }))
+              );
+              await supabase.from("build_history").insert({
+                project_id: projectId,
+                user_id: userId,
+                prompt: userText,
+                model: "deterministic-baseplate-material-fastpath",
+                files_count: matActions.length,
+                plugin_status: "Connected",
+                applied: false,
+              });
+              await supabase.from("projects").update({ updated_at: new Date().toISOString() }).eq("id", projectId);
+              console.info("[chat/fastpath] queued baseplate material change", { projectId, userId, actionCount: matActions.length });
+              return streamPlainAssistantText(replyText, "baseplate-material-fastpath-text");
+            }
           }
 
           // ── INSTANT VISIBLE SNOW TERRAIN FAST-PATH ──────────────────────

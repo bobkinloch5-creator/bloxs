@@ -4,7 +4,12 @@ All notable changes to BloxSmith are tracked here. Dates are UTC.
 
 ## [Unreleased]
 
-### 2026-07-26 - Authentication Fix, Multi-Language Sync, AI Asset ID Safety & UI Polish
+### 2026-07-26 - Prompt Scope Discipline & Precision Building
+
+**AI Build Scoping & Prompt Discipline (`src/routes/api/chat.ts`, `src/lib/bloxsmith-prompt.ts`)**
+- Added **Strict Scope Discipline** directive to the core system prompt, ensuring the AI strictly limits actions to requested features without expanding into unrequested scenes, UI, lighting, or terrain.
+- Added deterministic **Baseplate Material Fast-Path** for simple appearance prompts (e.g. "snow the baseplate", "make baseplate ice"), applying exact materials directly in Studio without generating unnecessary terrain, trees, hills, or decorations.
+- Updated `isNarrowFeatureRequest` and `isSnowTerrainRequest` heuristics to classify single-property and material requests as narrow, preventing over-building across all model providers.
 
 **Authentication & User Registration (`supabase/migrations`, `src/routes/auth.tsx`)**
 - Fixed account registration failure caused by RLS trigger conflict during initial profile creation (`handle_new_user` trigger updated to `ON CONFLICT DO NOTHING`).
