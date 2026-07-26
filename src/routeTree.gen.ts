@@ -19,6 +19,7 @@ import { Route as RobloxStudioAiHelperRouteImport } from './routes/roblox-studio
 import { Route as RobloxScriptGeneratorRouteImport } from './routes/roblox-script-generator'
 import { Route as RobloxGuiMakerRouteImport } from './routes/roblox-gui-maker'
 import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as LeaderboardRouteImport } from './routes/leaderboard'
 import { Route as FreeRobloxStudioAiRouteImport } from './routes/free-roblox-studio-ai'
 import { Route as FreeRobloxScriptAiRouteImport } from './routes/free-roblox-script-ai'
@@ -126,6 +127,11 @@ const RobloxGuiMakerRoute = RobloxGuiMakerRouteImport.update({
 const PrivacyRoute = PrivacyRouteImport.update({
   id: '/privacy',
   path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PricingRoute = PricingRouteImport.update({
+  id: '/pricing',
+  path: '/pricing',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LeaderboardRoute = LeaderboardRouteImport.update({
@@ -445,6 +451,7 @@ export interface FileRoutesByFullPath {
   '/free-roblox-script-ai': typeof FreeRobloxScriptAiRoute
   '/free-roblox-studio-ai': typeof FreeRobloxStudioAiRoute
   '/leaderboard': typeof LeaderboardRoute
+  '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/roblox-gui-maker': typeof RobloxGuiMakerRoute
   '/roblox-script-generator': typeof RobloxScriptGeneratorRoute
@@ -514,6 +521,7 @@ export interface FileRoutesByTo {
   '/free-roblox-script-ai': typeof FreeRobloxScriptAiRoute
   '/free-roblox-studio-ai': typeof FreeRobloxStudioAiRoute
   '/leaderboard': typeof LeaderboardRoute
+  '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/roblox-gui-maker': typeof RobloxGuiMakerRoute
   '/roblox-script-generator': typeof RobloxScriptGeneratorRoute
@@ -585,6 +593,7 @@ export interface FileRoutesById {
   '/free-roblox-script-ai': typeof FreeRobloxScriptAiRoute
   '/free-roblox-studio-ai': typeof FreeRobloxStudioAiRoute
   '/leaderboard': typeof LeaderboardRoute
+  '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/roblox-gui-maker': typeof RobloxGuiMakerRoute
   '/roblox-script-generator': typeof RobloxScriptGeneratorRoute
@@ -656,6 +665,7 @@ export interface FileRouteTypes {
     | '/free-roblox-script-ai'
     | '/free-roblox-studio-ai'
     | '/leaderboard'
+    | '/pricing'
     | '/privacy'
     | '/roblox-gui-maker'
     | '/roblox-script-generator'
@@ -725,6 +735,7 @@ export interface FileRouteTypes {
     | '/free-roblox-script-ai'
     | '/free-roblox-studio-ai'
     | '/leaderboard'
+    | '/pricing'
     | '/privacy'
     | '/roblox-gui-maker'
     | '/roblox-script-generator'
@@ -795,6 +806,7 @@ export interface FileRouteTypes {
     | '/free-roblox-script-ai'
     | '/free-roblox-studio-ai'
     | '/leaderboard'
+    | '/pricing'
     | '/privacy'
     | '/roblox-gui-maker'
     | '/roblox-script-generator'
@@ -866,6 +878,7 @@ export interface RootRouteChildren {
   FreeRobloxScriptAiRoute: typeof FreeRobloxScriptAiRoute
   FreeRobloxStudioAiRoute: typeof FreeRobloxStudioAiRoute
   LeaderboardRoute: typeof LeaderboardRoute
+  PricingRoute: typeof PricingRoute
   PrivacyRoute: typeof PrivacyRoute
   RobloxGuiMakerRoute: typeof RobloxGuiMakerRoute
   RobloxScriptGeneratorRoute: typeof RobloxScriptGeneratorRoute
@@ -975,6 +988,13 @@ declare module '@tanstack/react-router' {
       path: '/privacy'
       fullPath: '/privacy'
       preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pricing': {
+      id: '/pricing'
+      path: '/pricing'
+      fullPath: '/pricing'
+      preLoaderRoute: typeof PricingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/leaderboard': {
@@ -1466,6 +1486,7 @@ const rootRouteChildren: RootRouteChildren = {
   FreeRobloxScriptAiRoute: FreeRobloxScriptAiRoute,
   FreeRobloxStudioAiRoute: FreeRobloxStudioAiRoute,
   LeaderboardRoute: LeaderboardRoute,
+  PricingRoute: PricingRoute,
   PrivacyRoute: PrivacyRoute,
   RobloxGuiMakerRoute: RobloxGuiMakerRoute,
   RobloxScriptGeneratorRoute: RobloxScriptGeneratorRoute,

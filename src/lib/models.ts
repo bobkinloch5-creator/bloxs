@@ -5,7 +5,7 @@
 export type Provider = "OpenAI" | "Google" | "Anthropic" | "DeepSeek" | "Z.AI" | "MiniMax" | "NVIDIA" | "Qwen" | "Groq" | "Meta" | "Mistral" | "Microsoft" | "Writer";
 export type Speed = "Fast" | "Medium" | "Slow";
 export type Quality = "Good" | "Great" | "Best";
-export type Credits = "Low" | "Medium" | "High" | "Very High";
+export type Credits = "Free" | "Low" | "Medium" | "High" | "Very High";
 export type Status = "Working" | "Coming Soon";
 export type Gateway = "lovable" | "nvidia" | "groq" | "oneprovider";
 
@@ -170,15 +170,15 @@ export const MODELS: ModelOption[] = [
     id: "nvidia/llama-3.1-8b",
     upstreamId: "meta/llama-3.1-8b-instruct",
     gateway: "nvidia",
-    label: "Llama 3.1 8B (NVIDIA)",
+    label: "Llama 3.1 8B (100% Free Model)",
     provider: "Meta",
     via: "NVIDIA NIM",
     tier: "fast",
     speed: "Fast",
     quality: "Good",
-    credits: "Low",
+    credits: "Free",
     status: "Working",
-    bestFor: "Very fast lightweight model for short edits, quick answers, and tiny build fixes.",
+    bestFor: "100% Free lightweight model — costs 0 credits! Ideal for unlimited short edits and quick Luau answers.",
     description: "Meta Llama 3.1 8B via NVIDIA build.nvidia.com.",
     modelSettings: { temperature: 0.45, topP: 0.85, maxOutputTokens: 2048 },
   },

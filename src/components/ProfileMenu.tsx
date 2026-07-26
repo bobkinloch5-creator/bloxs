@@ -63,7 +63,7 @@ export function ProfileMenu({ compact = false }: { compact?: boolean }) {
   const plan = (profile as any)?.plan || "Builder";
   const isAdmin = !!(profile as any)?.is_admin;
   const credits = (profile as any)?.credits ?? 0;
-  const maxCredits = (profile as any)?.max_credits ?? 30;
+  const maxCredits = (profile as any)?.max_credits ?? 50;
   const reset = useResetTimer((profile as any)?.credits_reset_at);
   const pct = Math.min(100, Math.max(0, (credits / Math.max(1, maxCredits)) * 100));
   const initial = name.slice(0, 1).toUpperCase();
@@ -147,6 +147,7 @@ export function ProfileMenu({ compact = false }: { compact?: boolean }) {
         </DropdownMenuLabel>
         <MenuLink to="/" icon={Home} label="Landing page" />
         <MenuLink to="/settings" icon={User} label={t("profile.viewProfile")} />
+        <MenuLink to="/pricing" icon={Zap} label="Pricing & Top-Ups" />
         <MenuLink to="/settings" icon={Settings} label={t("profile.accountSettings")} />
         <MenuLink to="/dashboard" icon={Folder} label={t("profile.myProjects")} />
         <MenuLink to="/settings" icon={Zap} label={t("profile.creditsPlan")} />

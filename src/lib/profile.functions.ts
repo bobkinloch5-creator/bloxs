@@ -28,11 +28,26 @@ export const getMyProfile = createServerFn({ method: "GET" })
     const isPrivileged = (roles ?? []).some((r: any) => r.role === "admin" || r.role === "owner");
     const profile = { ...data, is_admin: isPrivileged, plan: isPrivileged && data.plan === "Free" ? "Owner" : data.plan };
 
+    // Default free plan gets 50 credits per month
+    const currentMax = Number(profile.max_credits ?? 0);
+    if (!profile.is_admin && profile.plan !== "Owner" && profile.plan !== "Pro" && currentMax < 50) {
+      const newMax = 50;
+      const nextReset = profile.credits_reset_at || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+      const { data: upgraded } = await supabaseAdmin
+        .from("profiles")
+        .update({ max_credits: newMax, credits: Math.max(50, Number(profile.credits ?? 0)), credits_reset_at: nextReset })
+        .eq("id", ctx.userId)
+        .select(PROFILE_COLS)
+        .single();
+      if (upgraded) return { ...upgraded, is_admin: isPrivileged, plan: profile.plan };
+    }
+
     if (!profile.is_admin && profile.credits_reset_at && new Date(profile.credits_reset_at) <= new Date()) {
-      const nextReset = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+      const nextReset = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+      const newMax = Number(profile.max_credits) > 0 ? profile.max_credits : 50;
       const { data: refreshed } = await supabaseAdmin
         .from("profiles")
-        .update({ credits: profile.max_credits, credits_reset_at: nextReset })
+        .update({ credits: newMax, max_credits: newMax, credits_reset_at: nextReset })
         .eq("id", ctx.userId)
         .select(PROFILE_COLS)
         .single();

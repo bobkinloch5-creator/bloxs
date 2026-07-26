@@ -20,6 +20,7 @@ export interface ChargeResult {
 
 // Map model credit tier → credits per request.
 const TIER_COST: Record<CreditTier, number> = {
+  Free: 0,
   Low: 1,
   Medium: 2,
   High: 4,

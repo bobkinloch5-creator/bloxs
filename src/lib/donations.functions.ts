@@ -79,9 +79,14 @@ export const listPendingDonationClaims = createServerFn({ method: "GET" })
 
 export const decideDonationClaim = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((data: { id: string; approve: boolean; note?: string }) => {
+  .validator((data: { id: string; approve: boolean; note?: string; customCreditAmount?: number }) => {
     if (!data?.id) throw new Error("Missing id");
-    return { id: data.id, approve: !!data.approve, note: (data.note ?? "").trim().slice(0, 300) };
+    return {
+      id: data.id,
+      approve: !!data.approve,
+      note: (data.note ?? "").trim().slice(0, 300),
+      customCreditAmount: typeof data.customCreditAmount === "number" ? data.customCreditAmount : undefined,
+    };
   })
   .handler(async ({ data, context }) => {
     const ctx = context as any;
@@ -90,7 +95,7 @@ export const decideDonationClaim = createServerFn({ method: "POST" })
 
     const { data: claim, error: cErr } = await supabaseAdmin
       .from("donation_claims")
-      .select("id, user_id, status")
+      .select("id, user_id, status, amount_note")
       .eq("id", data.id)
       .maybeSingle();
     if (cErr) throw new Error(cErr.message);
@@ -109,9 +114,41 @@ export const decideDonationClaim = createServerFn({ method: "POST" })
     if (uErr) throw new Error(uErr.message);
 
     if (data.approve) {
+      // 1. Assign donator role
       await supabaseAdmin
         .from("user_roles")
         .upsert({ user_id: claim.user_id, role: "donator" }, { onConflict: "user_id,role" });
+
+      // 2. Parse credits to grant from amount_note (e.g. "+350 Credits" -> 350)
+      let grantAmount = data.customCreditAmount ?? 100;
+      if (data.customCreditAmount === undefined && claim.amount_note) {
+        const match = claim.amount_note.match(/\+\s*([\d,]+)\s*Credits/i);
+        if (match && match[1]) {
+          const parsed = parseInt(match[1].replace(/,/g, ""), 10);
+          if (Number.isFinite(parsed) && parsed > 0) {
+            grantAmount = parsed;
+          }
+        }
+      }
+
+      // 3. Grant credits to profile balance
+      const { data: prof } = await supabaseAdmin
+        .from("profiles")
+        .select("credits, max_credits")
+        .eq("id", claim.user_id)
+        .maybeSingle();
+
+      if (prof) {
+        const currentCredits = Number(prof.credits ?? 0);
+        const currentMax = Number(prof.max_credits ?? 50);
+        const newCredits = currentCredits + grantAmount;
+        const newMax = Math.max(currentMax, newCredits);
+
+        await supabaseAdmin
+          .from("profiles")
+          .update({ credits: newCredits, max_credits: newMax })
+          .eq("id", claim.user_id);
+      }
     }
 
     return { ok: true, status: newStatus };
