@@ -125,13 +125,21 @@ export function ProfileMenu({ compact = false }: { compact?: boolean }) {
             <span className="flex items-center gap-1.5"><Zap className="h-3 w-3 text-indigo-300" /> Credits</span>
             {!isAdmin && reset && <span className="flex items-center gap-1 text-cyan-300/80"><Timer className="h-3 w-3" /> {reset}</span>}
           </div>
-          <div className="mt-1.5 flex items-baseline gap-1.5">
+          <div className="mt-1.5 flex items-baseline justify-between gap-1.5">
             {isAdmin ? (
               <span className="text-xl font-extrabold text-indigo-300"><InfinityIcon className="inline h-5 w-5" /></span>
             ) : (
               <>
-                <span className="text-xl font-extrabold text-white" style={{ fontFamily: "Space Mono, monospace" }}>{credits}</span>
-                <span className="text-[11px] text-white/50">/ {maxCredits}</span>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-xl font-extrabold text-white" style={{ fontFamily: "Space Mono, monospace" }}>{credits}</span>
+                  <span className="text-[11px] text-white/50">/ {maxCredits}</span>
+                </div>
+                <Link
+                  to="/pricing"
+                  className="inline-flex items-center gap-1 rounded-md border border-cyan-400/40 bg-cyan-400/15 px-2 py-0.5 text-[10px] font-extrabold text-cyan-200 hover:bg-cyan-400/30 transition"
+                >
+                  <Zap className="h-3 w-3 text-cyan-300" /> Top Up
+                </Link>
               </>
             )}
           </div>

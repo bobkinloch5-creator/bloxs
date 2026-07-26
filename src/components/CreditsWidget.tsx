@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { Link } from "@tanstack/react-router";
 import { getMyProfile } from "@/lib/profile.functions";
 import { useEffect, useState } from "react";
 import { Zap, Timer, Infinity as InfinityIcon, ShieldAlert, PlusCircle } from "lucide-react";
@@ -172,14 +173,23 @@ export function CreditsSidebarCard({
               </div>
             )}
 
-            <button
-              type="button"
-              onClick={() => setShowTopUp(true)}
-              className="w-full flex items-center justify-center gap-1.5 rounded-lg border border-cyan-400/40 bg-gradient-to-r from-cyan-500/20 to-indigo-500/20 py-1.5 text-[11px] font-extrabold text-cyan-200 hover:border-cyan-400 hover:from-cyan-500/30 hover:to-indigo-500/30 transition shadow-sm"
-            >
-              <PlusCircle className="h-3.5 w-3.5 text-cyan-300" />
-              ⚡ Top Up Credits (PayPal)
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setShowTopUp(true)}
+                className="flex-1 flex items-center justify-center gap-1 rounded-lg border border-cyan-400/40 bg-gradient-to-r from-cyan-500/20 to-indigo-500/20 py-1.5 text-[11px] font-extrabold text-cyan-200 hover:border-cyan-400 hover:from-cyan-500/30 hover:to-indigo-500/30 transition shadow-sm"
+              >
+                <PlusCircle className="h-3.5 w-3.5 text-cyan-300" />
+                Top Up
+              </button>
+              <Link
+                to="/pricing"
+                className="flex items-center justify-center rounded-lg border border-indigo-400/30 bg-indigo-500/10 px-2.5 py-1.5 text-[11px] font-bold text-indigo-300 hover:border-indigo-400 hover:bg-indigo-500/20 transition"
+                title="View model tiers & credit pricing"
+              >
+                Pricing
+              </Link>
+            </div>
           </div>
         )}
       </div>

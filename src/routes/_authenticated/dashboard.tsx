@@ -10,8 +10,8 @@ import {
   Box, Plug, Users, Settings as SettingsIcon,
   Infinity as InfinityIcon, ChevronDown, Paperclip, Image as ImageIcon,
   Send, Hammer, TrendingUp, Wrench, Gamepad2, Upload, CheckCircle2,
-  Code2, Package, Crown, ExternalLink, MoreHorizontal, ArrowRight,
-  Radio, HelpCircle, LayoutDashboard, Server, Gift, Download, FolderTree, Globe,
+  Code2, Package, Crown, ExternalLink, MoreHorizontal, ArrowRight, MessageSquare,
+  Radio, HelpCircle, LayoutDashboard, Server, Gift, Download, FolderTree, Globe, Zap,
 } from "lucide-react";
 import thumbTycoon from "@/assets/thumbs/tycoon.jpg";
 import thumbObby from "@/assets/thumbs/obby.jpg";
@@ -59,6 +59,7 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
 type NavItem = { key: string; label: string; icon: typeof Box; to: string; exact?: boolean };
 const NAV: NavItem[] = [
   { key: "home",     label: "Home",          icon: HomeIcon,        to: "/dashboard", exact: true },
+  { key: "pricing",  label: "Pricing & Top-Ups", icon: Zap,          to: "/pricing" },
   { key: "frontpage",label: "Front Page",    icon: Globe,           to: "/" },
   { key: "projects", label: "Projects",      icon: Folder,          to: "/projects" },
   { key: "models",   label: "3D Models",     icon: Box,             to: "/models" },
@@ -245,6 +246,20 @@ function Dashboard() {
                   Studio: {pluginOnline ? "Connected" : "Offline"}
                 </div>
                 <CreditsPill />
+                <Link
+                  to="/pricing"
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-cyan-400/40 bg-gradient-to-r from-cyan-500/20 to-indigo-500/20 px-3 py-2 text-xs font-bold text-cyan-200 hover:border-cyan-400 hover:from-cyan-500/30 hover:to-indigo-500/30 transition shadow-sm"
+                >
+                  <Zap className="h-3.5 w-3.5 text-cyan-300" /> Top Up Credits
+                </Link>
+                <a
+                  href="https://discord.gg/6QDYT3RUkv"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="vapor-ghost-btn inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-indigo-200 hover:text-white"
+                >
+                  <MessageSquare className="h-3.5 w-3.5 text-indigo-300" /> Discord
+                </a>
                 <Link
                   to="/"
                   className="vapor-ghost-btn inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-indigo-200 hover:text-white"
@@ -631,6 +646,17 @@ function Sidebar({ isOwner, isAdmin, profile, credits, maxCredits }: {
           </div>
           <span>Settings</span>
         </Link>
+        <a
+          href="https://discord.gg/6QDYT3RUkv"
+          target="_blank"
+          rel="noreferrer"
+          className="vapor-nav-item text-indigo-300 hover:text-white"
+        >
+          <div className="vapor-nav-icon">
+            <MessageSquare className="h-4 w-4 text-indigo-400" />
+          </div>
+          <span>Join Discord</span>
+        </a>
 
         <Link
           to="/settings"

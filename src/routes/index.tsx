@@ -82,6 +82,7 @@ function Header() {
         <a href="#features" className="hover:text-white transition">Features</a>
         <a href="#how" className="hover:text-white transition">How It Works</a>
         <a href="#plugin" className="hover:text-white transition">Plugin</a>
+        <Link to="/pricing" className="text-cyan-300 font-semibold hover:text-white transition">Pricing & Models</Link>
         <Link to="/docs" className="hover:text-white transition">Docs</Link>
         <Link to="/support" className="hover:text-white transition">Support</Link>
       </nav>
@@ -538,7 +539,7 @@ function Footer() {
             </Link>
             <ShareBar />
           </div>
-          <FootCol title="Product" links={[["Features", "/#features"], ["How It Works", "/#how"], ["Plugin", "/#plugin"], ["3D Models", "/#templates"]]} />
+          <FootCol title="Product" links={[["Features", "/#features"], ["Pricing & Top-Ups", "/pricing"], ["How It Works", "/#how"], ["Plugin", "/#plugin"], ["3D Models", "/#templates"]]} />
           <FootCol title="AI Tools" links={[["AI Roblox Game Maker", "/ai-roblox-game-maker"], ["Roblox Script Generator", "/roblox-script-generator"], ["Roblox GUI Maker", "/roblox-gui-maker"], ["Free Roblox Studio AI", "/free-roblox-studio-ai"], ["UI Templates", "/templates/ui"]]} />
           <FootCol title="Learn" links={[["Guides", "/guides"], ["Make a Tycoon", "/guides/how-to-make-a-roblox-tycoon"], ["Make an Obby", "/guides/how-to-make-a-roblox-obby"], ["Script with AI", "/guides/how-to-script-in-roblox-with-ai"], ["Docs", "/docs"]]} />
           <FootCol title="Support" links={[["Support", "/support"], ["Contact", "/contact"], ["Terms", "/terms"], ["Privacy", "/privacy"], ["Discord", "https://discord.gg/6QDYT3RUkv"]]} />
