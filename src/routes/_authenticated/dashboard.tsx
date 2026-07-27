@@ -100,8 +100,28 @@ function Dashboard() {
   const sessFn = useServerFn(getPluginSession);
 
   const { data: projects = [], isLoading } = useQuery({ queryKey: ["projects"], queryFn: () => listFn() });
-  const { data: profile } = useQuery({ queryKey: ["profile"], queryFn: () => profFn(), refetchInterval: 30_000 });
+  const { data: serverProfile } = useQuery({ queryKey: ["profile"], queryFn: () => profFn(), refetchInterval: 30_000 });
   const { data: pluginSession } = useQuery({ queryKey: ["pluginSession"], queryFn: () => sessFn(), refetchInterval: 6000 });
+
+  // Client-side fallback: if server profile is null, read directly from Supabase
+  const { data: clientProfile } = useQuery({
+    queryKey: ["clientProfile"],
+    enabled: !serverProfile,
+    queryFn: async () => {
+      const { supabase } = await import("@/integrations/supabase/client");
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user?.id) return null;
+      const { data } = await supabase
+        .from("profiles")
+        .select("id, username, display_name, avatar_url, plan, credits, max_credits, is_admin, credits_reset_at")
+        .eq("id", session.user.id)
+        .maybeSingle();
+      return data;
+    },
+    refetchInterval: 15_000,
+  });
+
+  const profile = serverProfile ?? clientProfile;
 
   const isAdmin = !!profile?.is_admin;
   const isOwner = profile?.plan === "Owner" || isAdmin;

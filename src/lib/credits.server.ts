@@ -51,7 +51,7 @@ export async function chargeCredits(
   userSupabase: SupabaseClient,
   userId: string,
   amount: number,
-  opts: { allowZero?: boolean; modelId?: string } = {},
+  opts: { allowZero?: boolean; modelId?: string; isAuto?: boolean } = {},
 ): Promise<ChargeResult> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
@@ -68,6 +68,11 @@ export async function chargeCredits(
     }
   } catch {
     // fall through
+  }
+
+  // Auto-routing mode is free for everyone.
+  if (opts.isAuto) {
+    return { ok: true, charged: 0, remaining: Infinity };
   }
 
   if (isOwnerOrAdmin) {
@@ -95,21 +100,7 @@ export async function chargeCredits(
     return { ok: true, charged: 0, remaining: Infinity };
   }
 
-  // 1.5 Validate paidOnly model access (Claude Fable 5, Claude Opus series, Claude Sonnet 5, GPT OSS 120B)
-  if (opts.modelId) {
-    const { MODELS } = await import("./models");
-    const m = MODELS.find((x) => x.id === opts.modelId);
-    if (m?.paidOnly) {
-      const isTopUpOrPaid = profile.plan === "Donator" || (profile.max_credits ?? 50) > 50;
-      if (!isTopUpOrPaid) {
-        return {
-          ok: false,
-          code: "no_credits",
-          message: `${m.label} is exclusive to Top-Up Supporters & Owners. Please top up your credits to unlock this premium model!`,
-        };
-      }
-    }
-  }
+  // All models are available to all users for scripting.
 
   if (amount <= 0 && !opts.allowZero) return { ok: true, charged: 0 };
 

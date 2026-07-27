@@ -180,8 +180,8 @@ export function ModelSelector({ selectedModel, onSelectModel, availableModels }:
                         <span className="rounded bg-amber-400/20 px-1.5 py-0.5 text-[9.5px] font-bold text-amber-300">
                           RECOMMENDED
                         </span>
-                        <span className="rounded bg-indigo-500/20 border border-indigo-400/30 px-1.5 py-0.5 text-[9.5px] font-bold text-indigo-300">
-                          ⚡ 1–4 CREDITS
+                        <span className="rounded bg-emerald-500/20 border border-emerald-400/30 px-1.5 py-0.5 text-[9.5px] font-bold text-emerald-300">
+                          ✨ FREE
                         </span>
                       </div>
                       <p className="mt-0.5 text-[11px] leading-tight text-slate-300">
