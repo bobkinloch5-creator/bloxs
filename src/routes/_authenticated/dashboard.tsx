@@ -358,6 +358,39 @@ function Dashboard() {
                     <LivePlaytestCard />
                   </section>
 
+                  {/* Upgrade / Top-up prompt — encourages non-Owner users to top up credits */}
+                  {!isOwner && (
+                    <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-cyan-400/30 bg-gradient-to-r from-cyan-500/10 via-indigo-500/10 to-fuchsia-500/10 p-4 sm:p-5 shadow-[0_0_25px_rgba(34,211,238,0.12)]">
+                      <div className="flex items-center gap-3">
+                        <span className="grid h-10 w-10 place-items-center rounded-xl bg-cyan-500/20 text-cyan-200">
+                          <Zap className="h-5 w-5" />
+                        </span>
+                        <div>
+                          <div className="text-sm font-bold text-white">
+                            {credits < 50 ? "Running low on credits" : "Want more AI power?"}
+                          </div>
+                          <div className="text-xs text-slate-300">
+                            You have <span className="font-bold text-cyan-200">{credits.toLocaleString()}</span> credits left{maxCredits ? ` of ${maxCredits.toLocaleString()}` : ""}. Top up any time — no subscription, pay only when you need more.
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Link
+                          to="/pricing"
+                          className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-500 px-3.5 py-2 text-xs font-bold text-white hover:from-cyan-400 hover:to-indigo-400 shadow-[0_0_15px_rgba(34,211,238,0.35)]"
+                        >
+                          <Zap className="h-3.5 w-3.5" /> Top up credits
+                        </Link>
+                        <Link
+                          to="/donate"
+                          className="inline-flex items-center gap-1.5 rounded-xl border border-pink-400/40 bg-pink-500/10 px-3.5 py-2 text-xs font-semibold text-pink-200 hover:bg-pink-500/20"
+                        >
+                          <Heart className="h-3.5 w-3.5" /> Support
+                        </Link>
+                      </div>
+                    </section>
+                  )}
+
                   {/* Invite friends prompt — visible on every dashboard load */}
                   <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-indigo-400/30 bg-gradient-to-r from-indigo-500/10 via-fuchsia-500/5 to-indigo-500/10 p-4 sm:p-5">
                     <div className="flex items-center gap-3">
