@@ -35,26 +35,47 @@ function AuthPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
+    let mounted = true;
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/dashboard" });
+      if (mounted && data?.session) {
+        router.invalidate();
+        navigate({ to: "/dashboard" });
+      }
     });
-  }, [navigate]);
+
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (mounted && session && (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "INITIAL_SESSION")) {
+        router.invalidate();
+        navigate({ to: "/dashboard" });
+      }
+    });
+
+    return () => {
+      mounted = false;
+      sub?.subscription?.unsubscribe();
+    };
+  }, [navigate, router]);
 
   async function handleOAuth(provider: "google" | "apple") {
     setError(null);
     setSuccessMessage(null);
     setBusy(true);
-    const result = await lovable.auth.signInWithOAuth(provider, {
-      redirect_uri: window.location.origin,
-    });
-    if (result.error) {
-      setError(result.error.message ?? `${provider} sign-in failed.`);
+    try {
+      const result = await lovable.auth.signInWithOAuth(provider, {
+        redirect_uri: window.location.origin,
+      });
+      if (result?.error) {
+        setError(result.error.message ?? `${provider} sign-in failed.`);
+        setBusy(false);
+        return;
+      }
+      if (result?.redirected) return;
+      router.invalidate();
+      navigate({ to: "/dashboard" });
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : `${provider} sign-in failed.`);
       setBusy(false);
-      return;
     }
-    if (result.redirected) return;
-    router.invalidate();
-    navigate({ to: "/dashboard" });
   }
 
   async function handleEmail(e: React.FormEvent) {
@@ -63,13 +84,14 @@ function AuthPage() {
     setSuccessMessage(null);
     setBusy(true);
     try {
+      const cleanEmail = email.trim();
       if (mode === "signup") {
         const { error: err, data } = await supabase.auth.signUp({
-          email,
+          email: cleanEmail,
           password,
           options: {
             emailRedirectTo: window.location.origin,
-            data: { username: username || email.split("@")[0] },
+            data: { username: username.trim() || cleanEmail.split("@")[0] },
           },
         });
         if (err) throw err;
@@ -81,7 +103,7 @@ function AuthPage() {
           return;
         }
 
-        const { error: signInErr, data: signInData } = await supabase.auth.signInWithPassword({ email, password });
+        const { error: signInErr, data: signInData } = await supabase.auth.signInWithPassword({ email: cleanEmail, password });
         if (!signInErr && signInData?.session) {
           toast.success("Account created! Welcome to BloxSmith.");
           router.invalidate();
@@ -89,17 +111,21 @@ function AuthPage() {
           return;
         }
 
-        setSuccessMessage("Account created! If you don't log in automatically, please check your email inbox to confirm your sign up.");
+        setSuccessMessage("Account created! Check your email inbox to confirm your sign up, or sign in below.");
         toast.info("Account created! Check your email to confirm.");
         setMode("signin");
       } else {
-        const { error: err } = await supabase.auth.signInWithPassword({ email, password });
+        const { error: err, data } = await supabase.auth.signInWithPassword({ email: cleanEmail, password });
         if (err) throw err;
+        if (!data?.session) {
+          throw new Error("Could not start session. Please check your credentials or confirm your email.");
+        }
         toast.success("Signed in successfully!");
         router.invalidate();
         navigate({ to: "/dashboard" });
       }
     } catch (e: unknown) {
+      console.error("Auth error:", e);
       setError(e instanceof Error ? e.message : "Authentication failed.");
     } finally {
       setBusy(false);
