@@ -667,32 +667,24 @@ export function WorkspaceChat({
 
     // Use the live mode ref (or an explicit override from the caller) so a
     // synchronous mode flip in the same click cycle is honored on this send.
-    const effectiveMode: Mode = overrideMode ?? liveModeRef.current;
-    liveModeRef.current = effectiveMode;
+    let effectiveMode: Mode = overrideMode ?? liveModeRef.current;
 
-    // Build mode is a no-op if the Studio plugin isn't connected — actions
-    // would just pile up in the queue with nothing polling for them. Block
-    // the send, tell the user exactly why, and point them at /plugin.
+    // If Build mode is selected but Studio plugin isn't online, auto-fallback
+    // to Chat mode so the AI generates the complete scripts directly in chat.
     if (effectiveMode === "build" && !pluginOnline) {
-      toast.error("Roblox Studio plugin isn't connected — install and open the BloxSmith plugin in Studio, then try Build again.");
-      return;
+      effectiveMode = "chat";
+      liveModeRef.current = "chat";
+      setMode("chat");
+      toast.info("Studio plugin is offline — generating complete scripts directly in chat.");
     }
 
-    // Only Build needs a project. If none is active, prompt for the new-project
-    // modal instead of silently spinning one up from the prompt text.
     let pid = activeProjectId;
-    if (!pid && effectiveMode === "build") {
-      if (onRequestNewProject) {
-        onRequestNewProject();
-        toast.info("Create a project first — the details help the AI build the right game.");
-        return;
-      }
+    if (!pid) {
       try {
         const created = await createMut.mutateAsync({ name: text.slice(0, 60), description: text });
         pid = created.id;
       } catch (e) {
-        toast.error(friendlyError(e, { fallback: "Could not create a project." }));
-        return;
+        console.warn("Auto-project creation failed, proceeding:", e);
       }
     }
 
