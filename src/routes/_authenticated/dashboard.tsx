@@ -11,7 +11,7 @@ import {
   Infinity as InfinityIcon, ChevronDown, Paperclip, Image as ImageIcon,
   Send, Hammer, TrendingUp, Wrench, Gamepad2, Upload, CheckCircle2,
   Code2, Package, Crown, ExternalLink, MoreHorizontal, ArrowRight, MessageSquare,
-  Radio, HelpCircle, LayoutDashboard, Server, Gift, Download, FolderTree, Globe, Zap,
+  Radio, HelpCircle, LayoutDashboard, Server, Gift, Download, FolderTree, Globe, Zap, Heart,
 } from "lucide-react";
 import thumbTycoon from "@/assets/thumbs/tycoon.jpg";
 import thumbObby from "@/assets/thumbs/obby.jpg";
