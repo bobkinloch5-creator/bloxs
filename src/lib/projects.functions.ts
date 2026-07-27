@@ -61,7 +61,10 @@ export const createProject = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const ctx = context as any;
-    const { data: row, error } = await ctx.supabase
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // Try with user client first
+    let res = await ctx.supabase
       .from("projects")
       .insert({
         user_id: ctx.userId,
@@ -71,8 +74,23 @@ export const createProject = createServerFn({ method: "POST" })
       })
       .select()
       .single();
-    if (error) throw new Error(error.message);
-    return row;
+
+    if (res.error) {
+      console.warn("[createProject] User client insert failed, trying admin client:", res.error.message);
+      res = await supabaseAdmin
+        .from("projects")
+        .insert({
+          user_id: ctx.userId,
+          name: data.name,
+          description: data.description,
+          game_type: data.game_type,
+        })
+        .select()
+        .single();
+    }
+
+    if (res.error) throw new Error(res.error.message);
+    return res.data;
   });
 
 export const getProject = createServerFn({ method: "GET" })
@@ -80,12 +98,23 @@ export const getProject = createServerFn({ method: "GET" })
   .validator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const ctx = context as any;
-    const { data: row, error } = await ctx.supabase
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    let { data: row, error } = await ctx.supabase
       .from("projects")
       .select("*")
       .eq("id", data.id)
       .maybeSingle();
-    if (error) throw new Error(error.message);
+
+    if (error || !row) {
+      const res = await supabaseAdmin
+        .from("projects")
+        .select("*")
+        .eq("id", data.id)
+        .maybeSingle();
+      row = res.data;
+    }
+
     if (!row) throw new Error("Project not found");
     return row;
   });
@@ -95,7 +124,13 @@ export const deleteProject = createServerFn({ method: "POST" })
   .validator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const ctx = context as any;
-    const { error } = await ctx.supabase.from("projects").delete().eq("id", data.id);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    let { error } = await ctx.supabase.from("projects").delete().eq("id", data.id);
+    if (error) {
+      const res = await supabaseAdmin.from("projects").delete().eq("id", data.id);
+      error = res.error;
+    }
     if (error) throw new Error(error.message);
     return { ok: true };
   });

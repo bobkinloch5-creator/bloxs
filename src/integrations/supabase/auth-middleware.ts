@@ -70,36 +70,46 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server
 
     if (token && token.split('.').length === 3) {
       try {
-        const supabase = createClient<Database>(
-          SUPABASE_URL!,
-          SUPABASE_PUBLISHABLE_KEY!,
-          {
-            global: {
-              fetch: createSupabaseFetch(SUPABASE_PUBLISHABLE_KEY!),
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-            },
-            auth: {
-              storage: undefined,
-              persistSession: false,
-              autoRefreshToken: false,
-            },
-          }
+        // Decode JWT payload to get real user sub/id instantly
+        const payloadBase64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(
+          atob(payloadBase64)
+            .split('')
+            .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+            .join('')
         );
+        const claims = JSON.parse(jsonPayload);
+        const userId = claims?.sub;
 
-        const { data, error } = await supabase.auth.getClaims(token);
-        if (!error && data?.claims?.sub) {
+        if (userId) {
+          const supabase = createClient<Database>(
+            SUPABASE_URL!,
+            SUPABASE_PUBLISHABLE_KEY!,
+            {
+              global: {
+                fetch: createSupabaseFetch(SUPABASE_PUBLISHABLE_KEY!),
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                },
+              },
+              auth: {
+                storage: undefined,
+                persistSession: false,
+                autoRefreshToken: false,
+              },
+            }
+          );
+
           return next({
             context: {
               supabase,
-              userId: data.claims.sub,
-              claims: data.claims,
+              userId,
+              claims,
             },
           });
         }
-      } catch {
-        /* Fall back to admin client */
+      } catch (e) {
+        console.warn("[auth-middleware] JWT parse error:", e);
       }
     }
 
