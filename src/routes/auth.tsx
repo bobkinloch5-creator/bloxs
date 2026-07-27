@@ -65,15 +65,35 @@ function AuthPage() {
         redirect_uri: window.location.origin,
       });
       if (result?.error) {
-        setError(result.error.message ?? `${provider} sign-in failed.`);
-        setBusy(false);
+        // Fallback to direct Supabase OAuth
+        const { error: supaErr } = await supabase.auth.signInWithOAuth({
+          provider,
+          options: { redirectTo: `${window.location.origin}/auth` },
+        });
+        if (supaErr) {
+          setError(supaErr.message ?? `${provider} sign-in failed.`);
+          setBusy(false);
+          return;
+        }
         return;
       }
       if (result?.redirected) return;
       router.invalidate();
       navigate({ to: "/dashboard" });
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : `${provider} sign-in failed.`);
+      console.warn(`Lovable OAuth attempt failed for ${provider}, falling back to Supabase OAuth:`, e);
+      try {
+        const { error: supaErr } = await supabase.auth.signInWithOAuth({
+          provider,
+          options: { redirectTo: `${window.location.origin}/auth` },
+        });
+        if (supaErr) {
+          setError(supaErr.message);
+        }
+      } catch (fallbackErr: unknown) {
+        setError(fallbackErr instanceof Error ? fallbackErr.message : `${provider} sign-in failed.`);
+      }
+    } finally {
       setBusy(false);
     }
   }
