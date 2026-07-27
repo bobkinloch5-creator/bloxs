@@ -11,9 +11,11 @@ export const Route = createFileRoute("/showcase")({
       { name: "description", content: "Browse Roblox games built with BloxSmith. Like, share, and get inspired — all free." },
       { property: "og:title", content: "BloxSmith Showcase" },
       { property: "og:description", content: "A gallery of Roblox games built with BloxSmith." },
+      { property: "og:url", content: "https://bloxsmith.pro/showcase" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
+    links: [{ rel: "canonical", href: "https://bloxsmith.pro/showcase" }],
   }),
   component: ShowcasePage,
 });

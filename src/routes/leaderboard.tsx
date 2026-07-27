@@ -24,7 +24,11 @@ export const Route = createFileRoute("/leaderboard")({
       { name: "description", content: "Top BloxSmith builders by referrals. Invite friends, climb the board, help the community grow." },
       { property: "og:title", content: "Referral Leaderboard — BloxSmith" },
       { property: "og:description", content: "Top BloxSmith builders by referrals. Invite friends, climb the board." },
+      { property: "og:url", content: "https://bloxsmith.pro/leaderboard" },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
+    links: [{ rel: "canonical", href: "https://bloxsmith.pro/leaderboard" }],
   }),
   component: LeaderboardPage,
 });
