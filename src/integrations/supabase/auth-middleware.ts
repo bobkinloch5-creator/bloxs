@@ -70,14 +70,9 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server
 
     if (token && token.split('.').length === 3) {
       try {
-        // Decode JWT payload to get real user sub/id instantly
+        // Decode JWT payload — Buffer.from works in Node.js (server-side)
         const payloadBase64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-        const jsonPayload = decodeURIComponent(
-          atob(payloadBase64)
-            .split('')
-            .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-            .join('')
-        );
+        const jsonPayload = Buffer.from(payloadBase64, 'base64').toString('utf-8');
         const claims = JSON.parse(jsonPayload);
         const userId = claims?.sub;
 

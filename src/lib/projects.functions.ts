@@ -8,39 +8,32 @@ export const listProjects = createServerFn({ method: "GET" })
     const ctx = context as any;
     try {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      
-      let { data, error } = await supabaseAdmin
+
+      // Fetch only this user's projects using the admin client (bypasses RLS edge cases)
+      const { data, error } = await supabaseAdmin
         .from("projects")
         .select("id, name, description, game_type, plugin_connected, build_count, updated_at, created_at, thumbnail_url, is_favorite, pinned_at, archived_at, is_public, default_build_mode, user_id")
-        .or(`user_id.eq.${ctx.userId},user_id.eq.dev-owner,user_id.is.null`)
+        .eq("user_id", ctx.userId)
         .order("updated_at", { ascending: false });
 
-      if (error || !data || data.length === 0) {
-        // Fallback: fetch all projects
-        const res = await supabaseAdmin
-          .from("projects")
-          .select("id, name, description, game_type, plugin_connected, build_count, updated_at, created_at, thumbnail_url, is_favorite, pinned_at, archived_at, is_public, default_build_mode, user_id")
-          .order("updated_at", { ascending: false });
-        if (res.data && res.data.length > 0) {
-          data = res.data;
-        }
+      if (error) {
+        console.error("[listProjects] Query error:", error.message);
+        return [];
       }
 
-      // If still 0 projects, auto-create a default project so workspace is never empty
+      // Auto-create a starter project if the user has none
       if (!data || data.length === 0) {
         const { data: newProj } = await supabaseAdmin
           .from("projects")
           .insert({
-            user_id: ctx.userId || "dev-owner",
+            user_id: ctx.userId,
             name: "My Roblox Experience",
-            description: "Default Roblox project created by BloxSmith AI.",
+            description: "Your first BloxSmith AI project. Start building!",
             game_type: "custom",
           })
           .select()
           .single();
-        if (newProj) {
-          data = [newProj];
-        }
+        if (newProj) return [newProj];
       }
 
       return data ?? [];
