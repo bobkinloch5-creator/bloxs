@@ -14,9 +14,11 @@ export const Route = createFileRoute("/templates-market")({
       { name: "description", content: "Free Roblox game templates you can install into any BloxSmith project with one click." },
       { property: "og:title", content: "BloxSmith Template Marketplace" },
       { property: "og:description", content: "Free build presets shared by the community." },
+      { property: "og:url", content: "https://bloxsmith.pro/templates-market" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
+    links: [{ rel: "canonical", href: "https://bloxsmith.pro/templates-market" }],
   }),
   component: TemplatesMarketPage,
 });
