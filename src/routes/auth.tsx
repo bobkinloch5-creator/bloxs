@@ -38,13 +38,16 @@ function AuthPage() {
     let subscription: { unsubscribe: () => void } | null = null;
     try {
       supabase.auth.getSession().then(({ data }) => {
-        if (data?.session) navigate({ to: "/dashboard" });
+        if (data?.session) {
+          router.invalidate();
+          navigate({ to: "/dashboard" });
+        }
       }).catch((err) => {
         console.error("Session check error:", err);
       });
 
       const { data } = supabase.auth.onAuthStateChange((event, session) => {
-        if ((event === "SIGNED_IN" || event === "TOKEN_REFRESHED") && session) {
+        if (session) {
           toast.success("Signed in successfully!");
           router.invalidate();
           navigate({ to: "/dashboard" });
@@ -67,7 +70,7 @@ function AuthPage() {
     setBusy(true);
     try {
       const result = await lovable.auth.signInWithOAuth(provider, {
-        redirect_uri: window.location.origin,
+        redirect_uri: `${window.location.origin}/auth`,
       });
       if (result?.error) {
         setError(result.error.message ?? `${provider} sign-in failed.`);
@@ -75,10 +78,16 @@ function AuthPage() {
         return;
       }
       if (result?.redirected) return;
-      router.invalidate();
-      navigate({ to: "/dashboard" });
+      
+      const { data } = await supabase.auth.getSession();
+      if (data?.session) {
+        toast.success("Signed in successfully!");
+        router.invalidate();
+        navigate({ to: "/dashboard" });
+      }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : `${provider} sign-in failed.`);
+    } finally {
       setBusy(false);
     }
   }
@@ -91,10 +100,10 @@ function AuthPage() {
     try {
       if (mode === "signup") {
         const { error: err, data } = await supabase.auth.signUp({
-          email,
+          email: email.trim(),
           password,
           options: {
-            emailRedirectTo: window.location.origin,
+            emailRedirectTo: `${window.location.origin}/auth`,
             data: { username: username || email.split("@")[0] },
           },
         });
@@ -107,7 +116,7 @@ function AuthPage() {
           return;
         }
 
-        const { error: signInErr, data: signInData } = await supabase.auth.signInWithPassword({ email, password });
+        const { error: signInErr, data: signInData } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
         if (!signInErr && signInData?.session) {
           toast.success("Account created! Welcome to BloxSmith.");
           router.invalidate();
@@ -115,15 +124,17 @@ function AuthPage() {
           return;
         }
 
-        setSuccessMessage("Account created! If you don't log in automatically, please check your email inbox to confirm your sign up.");
+        setSuccessMessage("Account created! Check your email inbox to confirm your sign up if needed, or sign in now.");
         toast.info("Account created! Check your email to confirm.");
         setMode("signin");
       } else {
-        const { error: err } = await supabase.auth.signInWithPassword({ email, password });
+        const { error: err, data } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
         if (err) throw err;
-        toast.success("Signed in successfully!");
-        router.invalidate();
-        navigate({ to: "/dashboard" });
+        if (data?.session) {
+          toast.success("Signed in successfully!");
+          router.invalidate();
+          navigate({ to: "/dashboard" });
+        }
       }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Authentication failed.");
