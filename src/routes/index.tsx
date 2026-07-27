@@ -398,7 +398,7 @@ function ChatPreview() {
       </div>
       <div className="mt-4 flex items-center gap-2 rounded-xl border border-white/10 bg-slate-950/40 px-3 py-2">
         <input className="flex-1 bg-transparent text-xs text-slate-300 outline-none" placeholder="Ask BloxSmith anything..." readOnly />
-        <button className="bs-btn-grad grid h-7 w-7 place-items-center rounded-lg"><ArrowRight className="h-3.5 w-3.5 text-white" /></button>
+        <button type="button" aria-label="Send message" className="bs-btn-grad grid h-7 w-7 place-items-center rounded-lg"><ArrowRight className="h-3.5 w-3.5 text-white" aria-hidden="true" /></button>
       </div>
     </div>
   );
