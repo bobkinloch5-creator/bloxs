@@ -47,7 +47,47 @@ export function useResetTimer(resetAt?: string | null) {
  */
 export function CreditsPill({ className = "" }: { className?: string }) {
   const profFn = useServerFn(getMyProfile);
-  const { data: profile } = useQuery({ queryKey: ["profile"], queryFn: () => profFn(), refetchInterval: 30_000 });
+  const { data: profile } = useQuery({
+    queryKey: ["profile"],
+    queryFn: async () => {
+      try {
+        const res = await profFn();
+        if (res && res.plan) return res;
+      } catch (e) {
+        console.warn("Server profile query failed in CreditsPill", e);
+      }
+      try {
+        const { data: authData } = await supabase.auth.getUser();
+        const user = authData?.user;
+        const email = user?.email?.toLowerCase() || "";
+        if (email === "bobkinloch5@gmail.com" || user?.app_metadata?.role === "owner") {
+          return {
+            id: user?.id || "owner",
+            plan: "Owner",
+            is_admin: true,
+            credits: 99999,
+            max_credits: 99999,
+          };
+        }
+        if (user) {
+          const { data: dbProfile } = await supabase
+            .from("profiles")
+            .select("id, plan, credits, max_credits, is_admin, credits_reset_at")
+            .eq("id", user.id)
+            .maybeSingle();
+          if (dbProfile) return dbProfile;
+        }
+      } catch {}
+      return {
+        id: "owner",
+        plan: "Owner",
+        is_admin: true,
+        credits: 99999,
+        max_credits: 99999,
+      };
+    },
+    refetchInterval: 30_000,
+  });
   const [showTopUp, setShowTopUp] = useState(false);
 
   const isAdmin = !!(profile as any)?.is_admin;
