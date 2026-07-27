@@ -60,15 +60,16 @@ function AuthPage() {
     setError(null);
     setSuccessMessage(null);
     setBusy(true);
+    const targetRedirect = `${window.location.origin}/dashboard`;
     try {
       const result = await lovable.auth.signInWithOAuth(provider, {
-        redirect_uri: window.location.origin,
+        redirect_uri: targetRedirect,
       });
       if (result?.error) {
         // Fallback to direct Supabase OAuth
         const { error: supaErr } = await supabase.auth.signInWithOAuth({
           provider,
-          options: { redirectTo: `${window.location.origin}/auth` },
+          options: { redirectTo: targetRedirect },
         });
         if (supaErr) {
           setError(supaErr.message ?? `${provider} sign-in failed.`);
@@ -85,7 +86,7 @@ function AuthPage() {
       try {
         const { error: supaErr } = await supabase.auth.signInWithOAuth({
           provider,
-          options: { redirectTo: `${window.location.origin}/auth` },
+          options: { redirectTo: targetRedirect },
         });
         if (supaErr) {
           setError(supaErr.message);
