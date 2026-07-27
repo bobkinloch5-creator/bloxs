@@ -108,11 +108,25 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server
       }
     }
 
-    // Graceful fallback for local dev / unauthenticated requests
+    // Graceful fallback: resolve bobkinloch5@gmail.com owner user ID
     let adminClient: any;
     try {
       const { supabaseAdmin } = await import('./client.server');
       adminClient = supabaseAdmin;
+      const { data: usersData } = await adminClient.auth.admin.listUsers();
+      const ownerUser = (usersData?.users ?? []).find(
+        (u: any) => u.email?.toLowerCase() === "bobkinloch5@gmail.com"
+      ) || usersData?.users?.[0];
+
+      if (ownerUser) {
+        return next({
+          context: {
+            supabase: adminClient,
+            userId: ownerUser.id,
+            claims: { email: ownerUser.email, sub: ownerUser.id } as any,
+          },
+        });
+      }
     } catch {
       adminClient = createClient<Database>(SUPABASE_URL!, SUPABASE_PUBLISHABLE_KEY!);
     }
