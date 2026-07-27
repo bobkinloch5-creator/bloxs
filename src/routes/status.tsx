@@ -33,7 +33,11 @@ export const Route = createFileRoute("/status")({
       { name: "description", content: "Live status of BloxSmith services — AI gateway, Studio plugin, build pipeline, and database." },
       { property: "og:title", content: "System Status — BloxSmith" },
       { property: "og:description", content: "Live status of BloxSmith services — AI gateway, Studio plugin, build pipeline, and database." },
+      { property: "og:url", content: "https://bloxsmith.pro/status" },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
+    links: [{ rel: "canonical", href: "https://bloxsmith.pro/status" }],
   }),
   component: StatusPage,
 });
