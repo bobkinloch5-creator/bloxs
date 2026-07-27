@@ -25,6 +25,7 @@ function AuthedLayout() {
       window.location.search.includes("error=")
     );
 
+    // getSession reads from localStorage — resolves in <100ms
     supabase.auth.getSession().then(({ data }) => {
       if (!mounted) return;
       if (data?.session) {
@@ -37,38 +38,22 @@ function AuthedLayout() {
       }
     });
 
+    // Handles OAuth callback token exchange (PKCE code -> session)
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (!mounted) return;
       if (session) {
         setIsAuthenticated(true);
         setCheckingAuth(false);
-      } else if (event === "SIGNED_OUT" || (!hasAuthParams && !session)) {
+      } else if (event === "SIGNED_OUT") {
         setIsAuthenticated(false);
         setCheckingAuth(false);
         navigate({ to: "/auth" });
       }
     });
 
-    // Fallback timeout in case auth params fail to exchange or error occurs
-    const timeout = setTimeout(() => {
-      if (mounted && checkingAuth) {
-        supabase.auth.getSession().then(({ data }) => {
-          if (!mounted) return;
-          if (!data?.session) {
-            setIsAuthenticated(false);
-            navigate({ to: "/auth" });
-          } else {
-            setIsAuthenticated(true);
-          }
-          setCheckingAuth(false);
-        });
-      }
-    }, 4000);
-
     return () => {
       mounted = false;
       sub?.subscription?.unsubscribe();
-      clearTimeout(timeout);
     };
   }, [navigate]);
 
