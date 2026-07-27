@@ -249,7 +249,7 @@ function FeatureStrip() {
               <div className="mx-auto grid h-14 w-14 place-items-center rounded-xl bs-icon-grad">
                 <Ic className="h-7 w-7 text-blue-300" />
               </div>
-              <h3 className="mt-4 font-bold text-white">{title}</h3>
+              <h2 className="mt-4 font-bold text-white text-base">{title}</h2>
               <p className="mt-1.5 text-xs leading-relaxed text-slate-400">{body}</p>
             </div>
           ))}
