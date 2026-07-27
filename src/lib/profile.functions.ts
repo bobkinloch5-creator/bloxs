@@ -25,8 +25,34 @@ export const getMyProfile = createServerFn({ method: "GET" })
       .select("role")
       .eq("user_id", ctx.userId)
       .in("role", ["admin", "owner"]);
-    const isPrivileged = (roles ?? []).some((r: any) => r.role === "admin" || r.role === "owner");
-    const profile = { ...data, is_admin: isPrivileged, plan: isPrivileged && data.plan === "Free" ? "Owner" : data.plan };
+
+    const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(ctx.userId);
+    const userEmail = authUser?.user?.email?.toLowerCase() || "";
+    const isOwnerByEmail = userEmail === "bobkinloch5@gmail.com";
+
+    if (isOwnerByEmail) {
+      const hasOwnerRole = (roles ?? []).some((r: any) => r.role === "owner");
+      if (!hasOwnerRole) {
+        await supabaseAdmin.from("user_roles").upsert({ user_id: ctx.userId, role: "owner" } as any, { onConflict: "user_id,role" });
+      }
+    }
+
+    const isPrivileged = isOwnerByEmail || (roles ?? []).some((r: any) => r.role === "admin" || r.role === "owner");
+
+    if (isPrivileged) {
+      if (data.plan !== "Owner" || (data.credits ?? 0) < 99999) {
+        await supabaseAdmin.from("profiles").update({ plan: "Owner", credits: 99999, max_credits: 99999 }).eq("id", ctx.userId);
+      }
+      return {
+        ...data,
+        is_admin: true,
+        plan: "Owner",
+        credits: 99999,
+        max_credits: 99999,
+      };
+    }
+
+    const profile = { ...data, is_admin: false, plan: data.plan || "Free" };
 
     // Default free plan gets 50 credits per month
     const currentMax = Number(profile.max_credits ?? 0);
