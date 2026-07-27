@@ -118,6 +118,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:site", content: "@bloxsmith" },
       { name: "theme-color", content: "#0b1220" },
       { name: "robots", content: "index, follow, max-image-preview:large" },
+      { name: "referrer", content: "strict-origin-when-cross-origin" },
+      { name: "x-content-type-options", content: "nosniff" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
