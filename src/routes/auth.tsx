@@ -32,26 +32,52 @@ function AuthPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/dashboard" });
-    });
-  }, [navigate]);
+    let subscription: { unsubscribe: () => void } | null = null;
+    try {
+      supabase.auth.getSession().then(({ data }) => {
+        if (data?.session) navigate({ to: "/dashboard" });
+      }).catch((err) => {
+        console.error("Session check error:", err);
+      });
+
+      const { data } = supabase.auth.onAuthStateChange((event, session) => {
+        if ((event === "SIGNED_IN" || event === "TOKEN_REFRESHED") && session) {
+          toast.success("Signed in successfully!");
+          router.invalidate();
+          navigate({ to: "/dashboard" });
+        }
+      });
+      subscription = data.subscription;
+    } catch (e: unknown) {
+      console.error("Supabase auth error:", e);
+      setError(e instanceof Error ? e.message : "Authentication service unavailable. Please check your configuration.");
+    }
+
+    return () => {
+      subscription?.unsubscribe();
+    };
+  }, [navigate, router]);
 
   async function handleOAuth(provider: "google" | "apple") {
     setError(null);
     setSuccessMessage(null);
     setBusy(true);
-    const result = await lovable.auth.signInWithOAuth(provider, {
-      redirect_uri: window.location.origin,
-    });
-    if (result.error) {
-      setError(result.error.message ?? `${provider} sign-in failed.`);
+    try {
+      const result = await lovable.auth.signInWithOAuth(provider, {
+        redirect_uri: window.location.origin,
+      });
+      if (result?.error) {
+        setError(result.error.message ?? `${provider} sign-in failed.`);
+        setBusy(false);
+        return;
+      }
+      if (result?.redirected) return;
+      router.invalidate();
+      navigate({ to: "/dashboard" });
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : `${provider} sign-in failed.`);
       setBusy(false);
-      return;
     }
-    if (result.redirected) return;
-    router.invalidate();
-    navigate({ to: "/dashboard" });
   }
 
   async function handleEmail(e: React.FormEvent) {
