@@ -71,22 +71,28 @@ function AuthPage() {
         if (result?.error) throw result.error;
         if (result?.redirected) return;
         router.invalidate();
-        navigate({ to: "/dashboard" });
+        window.location.href = "/dashboard";
       } else {
-        const { error: supaErr } = await supabase.auth.signInWithOAuth({
+        const { data, error: supaErr } = await supabase.auth.signInWithOAuth({
           provider,
           options: { redirectTo: targetRedirect },
         });
         if (supaErr) throw supaErr;
+        if (data?.url) {
+          window.location.href = data.url;
+        }
       }
     } catch (e: unknown) {
       console.warn(`OAuth attempt failed for ${provider}:`, e);
       try {
-        const { error: supaErr } = await supabase.auth.signInWithOAuth({
+        const { data, error: supaErr } = await supabase.auth.signInWithOAuth({
           provider,
           options: { redirectTo: targetRedirect },
         });
         if (supaErr) setError(supaErr.message);
+        if (data?.url) {
+          window.location.href = data.url;
+        }
       } catch (fallbackErr: unknown) {
         setError(fallbackErr instanceof Error ? fallbackErr.message : `${provider} sign-in failed.`);
       }

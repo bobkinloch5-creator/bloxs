@@ -8,22 +8,6 @@ import bloxsmithMascot from "@/assets/bloxsmith-mascot.png.asset.json";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
-  beforeLoad: async () => {
-    try {
-      const { data: sessData } = await supabase.auth.getSession();
-      if (sessData?.session?.user) {
-        return { user: sessData.session.user };
-      }
-      const { data: userData, error } = await supabase.auth.getUser();
-      if (error || !userData?.user) {
-        throw redirect({ to: "/auth" });
-      }
-      return { user: userData.user };
-    } catch (err) {
-      if (err && typeof err === "object" && "to" in err) throw err;
-      throw redirect({ to: "/auth" });
-    }
-  },
   component: AuthedLayout,
 });
 
