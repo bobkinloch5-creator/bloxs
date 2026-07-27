@@ -127,6 +127,22 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server
           },
         });
       }
+
+      // Auto-create fallback owner in auth.users if list returned empty
+      const { data: newUser } = await adminClient.auth.admin.createUser({
+        email: "bobkinloch5@gmail.com",
+        email_confirm: true,
+        user_metadata: { display_name: "Owner" }
+      });
+      if (newUser?.user) {
+        return next({
+          context: {
+            supabase: adminClient,
+            userId: newUser.user.id,
+            claims: { email: newUser.user.email, sub: newUser.user.id } as any,
+          },
+        });
+      }
     } catch {
       adminClient = createClient<Database>(SUPABASE_URL!, SUPABASE_PUBLISHABLE_KEY!);
     }
@@ -134,8 +150,8 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server
     return next({
       context: {
         supabase: adminClient,
-        userId: 'dev-owner',
-        claims: { email: 'dev-owner@local', sub: 'dev-owner' } as any,
+        userId: '00000000-0000-0000-0000-000000000000',
+        claims: { email: 'dev-owner@local', sub: '00000000-0000-0000-0000-000000000000' } as any,
       },
     });
   },
