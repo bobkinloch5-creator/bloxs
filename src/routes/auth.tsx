@@ -61,36 +61,32 @@ function AuthPage() {
     setSuccessMessage(null);
     setBusy(true);
     const targetRedirect = `${window.location.origin}/dashboard`;
+    const isInIframe = typeof window !== "undefined" && window.self !== window.top;
+
     try {
-      const result = await lovable.auth.signInWithOAuth(provider, {
-        redirect_uri: targetRedirect,
-      });
-      if (result?.error) {
-        // Fallback to direct Supabase OAuth
+      if (isInIframe) {
+        const result = await lovable.auth.signInWithOAuth(provider, {
+          redirect_uri: targetRedirect,
+        });
+        if (result?.error) throw result.error;
+        if (result?.redirected) return;
+        router.invalidate();
+        navigate({ to: "/dashboard" });
+      } else {
         const { error: supaErr } = await supabase.auth.signInWithOAuth({
           provider,
           options: { redirectTo: targetRedirect },
         });
-        if (supaErr) {
-          setError(supaErr.message ?? `${provider} sign-in failed.`);
-          setBusy(false);
-          return;
-        }
-        return;
+        if (supaErr) throw supaErr;
       }
-      if (result?.redirected) return;
-      router.invalidate();
-      navigate({ to: "/dashboard" });
     } catch (e: unknown) {
-      console.warn(`Lovable OAuth attempt failed for ${provider}, falling back to Supabase OAuth:`, e);
+      console.warn(`OAuth attempt failed for ${provider}:`, e);
       try {
         const { error: supaErr } = await supabase.auth.signInWithOAuth({
           provider,
           options: { redirectTo: targetRedirect },
         });
-        if (supaErr) {
-          setError(supaErr.message);
-        }
+        if (supaErr) setError(supaErr.message);
       } catch (fallbackErr: unknown) {
         setError(fallbackErr instanceof Error ? fallbackErr.message : `${provider} sign-in failed.`);
       }
