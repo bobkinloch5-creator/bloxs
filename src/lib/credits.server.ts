@@ -107,14 +107,27 @@ export async function chargeCredits(
   if (amount <= 0 && !opts.allowZero) return { ok: true, charged: 0 };
 
   let credits = Number(profile.credits ?? 0);
-  const maxCredits = Number(profile.max_credits ?? 0);
+  let maxCredits = Number(profile.max_credits ?? 0);
   let resetAt = profile.credits_reset_at as string | null;
   const nowMs = Date.now();
   const resetMs = resetAt ? new Date(resetAt).getTime() : 0;
   let didRefill = false;
 
-  // 3. Auto-refill if the 24h timer has passed.
-  if (resetAt && resetMs <= nowMs && maxCredits > 0) {
+  // Standard users default to 50 starting credits
+  if (maxCredits < 50) {
+    maxCredits = 50;
+    if (credits < 50 && !resetAt) {
+      credits = 50;
+    }
+  }
+
+  if (!resetAt) {
+    resetAt = new Date(nowMs + 30 * 24 * 60 * 60 * 1000).toISOString();
+    didRefill = true;
+  }
+
+  // 3. Auto-refill if the 30-day monthly timer has passed.
+  if (resetMs > 0 && resetMs <= nowMs && maxCredits > 0) {
     credits = maxCredits;
     resetAt = new Date(nowMs + 30 * 24 * 60 * 60 * 1000).toISOString(); // 30-day monthly refill
     didRefill = true;
