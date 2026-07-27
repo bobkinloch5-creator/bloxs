@@ -39,14 +39,14 @@ function AuthPage() {
     supabase.auth.getSession().then(({ data }) => {
       if (mounted && data?.session) {
         router.invalidate();
-        navigate({ to: "/dashboard" });
+        navigate({ to: "/projects" });
       }
     });
 
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (mounted && session && (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "INITIAL_SESSION")) {
         router.invalidate();
-        navigate({ to: "/dashboard" });
+        navigate({ to: "/projects" });
       }
     });
 
@@ -60,7 +60,7 @@ function AuthPage() {
     setError(null);
     setSuccessMessage(null);
     setBusy(true);
-    const targetRedirect = `${window.location.origin}/dashboard`;
+    const targetRedirect = `${window.location.origin}/projects`;
     const isInIframe = typeof window !== "undefined" && window.self !== window.top;
 
     try {
@@ -71,7 +71,7 @@ function AuthPage() {
         if (result?.error) throw result.error;
         if (result?.redirected) return;
         router.invalidate();
-        window.location.href = "/dashboard";
+        window.location.href = "/projects";
       } else {
         const { data, error: supaErr } = await supabase.auth.signInWithOAuth({
           provider,

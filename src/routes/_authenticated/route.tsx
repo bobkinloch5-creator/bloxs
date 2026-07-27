@@ -19,31 +19,56 @@ function AuthedLayout() {
 
   useEffect(() => {
     let mounted = true;
+    const hasAuthParams = typeof window !== "undefined" && (
+      window.location.search.includes("code=") ||
+      window.location.hash.includes("access_token=") ||
+      window.location.search.includes("error=")
+    );
+
     supabase.auth.getSession().then(({ data }) => {
       if (!mounted) return;
-      if (!data?.session) {
-        setIsAuthenticated(false);
-        navigate({ to: "/auth" });
-      } else {
-        setIsAuthenticated(true);
-      }
-      setCheckingAuth(false);
-    });
-
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!mounted) return;
-      if (!session) {
-        setIsAuthenticated(false);
-        navigate({ to: "/auth" });
-      } else {
+      if (data?.session) {
         setIsAuthenticated(true);
         setCheckingAuth(false);
+      } else if (!hasAuthParams) {
+        setIsAuthenticated(false);
+        setCheckingAuth(false);
+        navigate({ to: "/auth" });
       }
     });
+
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!mounted) return;
+      if (session) {
+        setIsAuthenticated(true);
+        setCheckingAuth(false);
+      } else if (event === "SIGNED_OUT" || (!hasAuthParams && !session)) {
+        setIsAuthenticated(false);
+        setCheckingAuth(false);
+        navigate({ to: "/auth" });
+      }
+    });
+
+    // Fallback timeout in case auth params fail to exchange or error occurs
+    const timeout = setTimeout(() => {
+      if (mounted && checkingAuth) {
+        supabase.auth.getSession().then(({ data }) => {
+          if (!mounted) return;
+          if (!data?.session) {
+            setIsAuthenticated(false);
+            navigate({ to: "/auth" });
+          } else {
+            setIsAuthenticated(true);
+          }
+          setCheckingAuth(false);
+        });
+      }
+    }, 4000);
 
     return () => {
       mounted = false;
       sub?.subscription?.unsubscribe();
+      clearTimeout(timeout);
     };
   }, [navigate]);
 
