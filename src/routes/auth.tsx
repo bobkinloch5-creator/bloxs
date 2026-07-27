@@ -35,61 +35,26 @@ function AuthPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    let subscription: { unsubscribe: () => void } | null = null;
-    try {
-      supabase.auth.getSession().then(({ data }) => {
-        if (data?.session) {
-          router.invalidate();
-          navigate({ to: "/dashboard" });
-        }
-      }).catch((err) => {
-        console.error("Session check error:", err);
-      });
-
-      const { data } = supabase.auth.onAuthStateChange((event, session) => {
-        if (session) {
-          toast.success("Signed in successfully!");
-          router.invalidate();
-          navigate({ to: "/dashboard" });
-        }
-      });
-      subscription = data.subscription;
-    } catch (e: unknown) {
-      console.error("Supabase auth error:", e);
-      setError(e instanceof Error ? e.message : "Authentication service unavailable. Please check your configuration.");
-    }
-
-    return () => {
-      subscription?.unsubscribe();
-    };
-  }, [navigate, router]);
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) navigate({ to: "/dashboard" });
+    });
+  }, [navigate]);
 
   async function handleOAuth(provider: "google" | "apple") {
     setError(null);
     setSuccessMessage(null);
     setBusy(true);
-    try {
-      const result = await lovable.auth.signInWithOAuth(provider, {
-        redirect_uri: `${window.location.origin}/auth`,
-      });
-      if (result?.error) {
-        setError(result.error.message ?? `${provider} sign-in failed.`);
-        setBusy(false);
-        return;
-      }
-      if (result?.redirected) return;
-      
-      const { data } = await supabase.auth.getSession();
-      if (data?.session) {
-        toast.success("Signed in successfully!");
-        router.invalidate();
-        navigate({ to: "/dashboard" });
-      }
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : `${provider} sign-in failed.`);
-    } finally {
+    const result = await lovable.auth.signInWithOAuth(provider, {
+      redirect_uri: window.location.origin,
+    });
+    if (result.error) {
+      setError(result.error.message ?? `${provider} sign-in failed.`);
       setBusy(false);
+      return;
     }
+    if (result.redirected) return;
+    router.invalidate();
+    navigate({ to: "/dashboard" });
   }
 
   async function handleEmail(e: React.FormEvent) {
@@ -100,10 +65,10 @@ function AuthPage() {
     try {
       if (mode === "signup") {
         const { error: err, data } = await supabase.auth.signUp({
-          email: email.trim(),
+          email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/auth`,
+            emailRedirectTo: window.location.origin,
             data: { username: username || email.split("@")[0] },
           },
         });
@@ -116,7 +81,7 @@ function AuthPage() {
           return;
         }
 
-        const { error: signInErr, data: signInData } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+        const { error: signInErr, data: signInData } = await supabase.auth.signInWithPassword({ email, password });
         if (!signInErr && signInData?.session) {
           toast.success("Account created! Welcome to BloxSmith.");
           router.invalidate();
@@ -124,17 +89,15 @@ function AuthPage() {
           return;
         }
 
-        setSuccessMessage("Account created! Check your email inbox to confirm your sign up if needed, or sign in now.");
+        setSuccessMessage("Account created! If you don't log in automatically, please check your email inbox to confirm your sign up.");
         toast.info("Account created! Check your email to confirm.");
         setMode("signin");
       } else {
-        const { error: err, data } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+        const { error: err } = await supabase.auth.signInWithPassword({ email, password });
         if (err) throw err;
-        if (data?.session) {
-          toast.success("Signed in successfully!");
-          router.invalidate();
-          navigate({ to: "/dashboard" });
-        }
+        toast.success("Signed in successfully!");
+        router.invalidate();
+        navigate({ to: "/dashboard" });
       }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Authentication failed.");
