@@ -56,7 +56,8 @@ function PluginPage() {
 
   const online = !!session?.online && !!session?.last_seen
     && (Date.now() - new Date(session.last_seen).getTime()) < 90_000;
-  const outdated = online && compareVersions(session?.plugin_version, PLUGIN_VERSION) < 0;
+  const MIN_REQUIRED_VERSION = "2.1.28";
+  const outdated = online && compareVersions(session?.plugin_version, MIN_REQUIRED_VERSION) < 0;
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-10">
