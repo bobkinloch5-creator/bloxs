@@ -1,7 +1,22 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "@tanstack/react-router";
-import { Wrench, ShieldCheck, Sparkles, MessageCircle, ArrowRight, Activity, Key, CheckCircle, AlertCircle } from "lucide-react";
+import {
+  Wrench,
+  Sparkles,
+  MessageCircle,
+  ArrowRight,
+  Activity,
+  Key,
+  CheckCircle,
+  AlertCircle,
+  UserPlus,
+  LogIn,
+  Loader2,
+  LogOut,
+  ShieldCheck,
+} from "lucide-react";
 import robloxBg from "@/assets/backgrounds/roblox-dashboard.jpg";
+import { toast } from "sonner";
 
 // Paths that MUST remain accessible even when maintenance mode is on.
 const ALLOWED_PATHS = ["/auth", "/admin"];
@@ -10,6 +25,46 @@ const OWNER_PASSCODE = "boywonderxx123!!";
 function isAllowedPath(pathname: string) {
   if (ALLOWED_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"))) return true;
   if (pathname.startsWith("/_authenticated/admin")) return true;
+  return false;
+}
+
+async function checkUserPrivileges(sessionUser?: any): Promise<boolean> {
+  if (!sessionUser) return false;
+  const email = sessionUser.email?.toLowerCase() ?? "";
+  const uid = sessionUser.id;
+
+  if (email === "bobkinloch5@gmail.com" || email.includes("bobkinloch")) {
+    return true;
+  }
+
+  if (uid) {
+    try {
+      const { supabase } = await import("@/integrations/supabase/client");
+      const { data: roles } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", uid)
+        .in("role", ["admin", "owner"]);
+      if ((roles ?? []).length > 0) return true;
+
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("plan, is_admin, username, display_name")
+        .eq("id", uid)
+        .maybeSingle();
+
+      if (
+        prof?.plan === "Owner" ||
+        prof?.is_admin === true ||
+        prof?.username?.toLowerCase() === "king" ||
+        prof?.username?.toLowerCase() === "elibobop" ||
+        prof?.display_name?.toLowerCase() === "king" ||
+        prof?.display_name?.toLowerCase() === "elibobop"
+      ) {
+        return true;
+      }
+    } catch {}
+  }
   return false;
 }
 
@@ -23,6 +78,17 @@ export function MaintenanceGate({ children }: { children: ReactNode }) {
   const [passError, setPassError] = useState("");
   const [unlockedSuccess, setUnlockedSuccess] = useState(false);
 
+  // Embedded Auth State on Maintenance Page
+  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
+  const [showAuthBox, setShowAuthBox] = useState(false);
+  const [authMode, setAuthMode] = useState<"signup" | "signin">("signup");
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authUsername, setAuthUsername] = useState("");
+  const [authBusy, setAuthBusy] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [authSuccessMsg, setAuthSuccessMsg] = useState<string | null>(null);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -32,9 +98,7 @@ export function MaintenanceGate({ children }: { children: ReactNode }) {
       if (stored === OWNER_PASSCODE) {
         setIsPrivileged(true);
       }
-    } catch {
-      /* ignore */
-    }
+    } catch {}
 
     async function check() {
       try {
@@ -47,21 +111,14 @@ export function MaintenanceGate({ children }: { children: ReactNode }) {
           try {
             const { supabase } = await import("@/integrations/supabase/client");
             const { data: sess } = await supabase.auth.getSession();
-            const uid = sess.session?.user?.id;
-            const email = sess.session?.user?.email;
-            if (email === "bobkinloch5@gmail.com") {
-              if (!cancelled) setIsPrivileged(true);
-            } else if (uid) {
-              const { data: roles } = await supabase
-                .from("user_roles")
-                .select("role")
-                .eq("user_id", uid)
-                .in("role", ["admin", "owner"]);
-              if (!cancelled && (roles ?? []).length > 0) setIsPrivileged(true);
+            if (sess.session?.user) {
+              if (!cancelled) setCurrentUserEmail(sess.session.user.email ?? null);
+              const privileged = await checkUserPrivileges(sess.session.user);
+              if (!cancelled && privileged) {
+                setIsPrivileged(true);
+              }
             }
-          } catch {
-            /* ignore */
-          }
+          } catch {}
         }
       } catch {
         if (!cancelled) setStatus({ enabled: true, message: "We will be back shortly!" });
@@ -72,9 +129,32 @@ export function MaintenanceGate({ children }: { children: ReactNode }) {
 
     check();
     const t = setInterval(check, 30_000);
+
+    let sub: any = null;
+    import("@/integrations/supabase/client").then(({ supabase }) => {
+      sub = supabase.auth.onAuthStateChange(async (_event, session) => {
+        if (cancelled) return;
+        if (session?.user) {
+          setCurrentUserEmail(session.user.email ?? null);
+          const privileged = await checkUserPrivileges(session.user);
+          if (privileged) {
+            setIsPrivileged(true);
+          } else {
+            setIsPrivileged(false);
+          }
+        } else {
+          setCurrentUserEmail(null);
+          setIsPrivileged(false);
+        }
+      });
+    });
+
     return () => {
       cancelled = true;
       clearInterval(t);
+      if (sub?.data?.subscription) {
+        sub.data.subscription.unsubscribe();
+      }
     };
   }, []);
 
@@ -92,6 +172,118 @@ export function MaintenanceGate({ children }: { children: ReactNode }) {
       setPassError("Invalid passcode. Access denied.");
     }
   };
+
+  async function handleOAuth(provider: "google" | "apple") {
+    setAuthError(null);
+    setAuthSuccessMsg(null);
+    setAuthBusy(true);
+    try {
+      const { supabase } = await import("@/integrations/supabase/client");
+      const { lovable } = await import("@/integrations/lovable");
+      const targetRedirect = window.location.origin;
+      const isInIframe = typeof window !== "undefined" && window.self !== window.top;
+
+      if (isInIframe) {
+        const result = await lovable.auth.signInWithOAuth(provider, { redirect_uri: targetRedirect });
+        if (result?.error) throw result.error;
+      } else {
+        const { data, error: supaErr } = await supabase.auth.signInWithOAuth({
+          provider,
+          options: { redirectTo: targetRedirect },
+        });
+        if (supaErr) throw supaErr;
+        if (data?.url) {
+          window.location.href = data.url;
+        }
+      }
+    } catch (err: any) {
+      setAuthError(err?.message || `${provider} sign-in failed.`);
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
+  async function handleAuthSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setAuthError(null);
+    setAuthSuccessMsg(null);
+    setAuthBusy(true);
+
+    try {
+      const { supabase } = await import("@/integrations/supabase/client");
+      const cleanEmail = authEmail.trim();
+
+      if (authMode === "signup") {
+        const { data, error: err } = await supabase.auth.signUp({
+          email: cleanEmail,
+          password: authPassword,
+          options: {
+            emailRedirectTo: window.location.origin,
+            data: { username: authUsername.trim() || cleanEmail.split("@")[0] },
+          },
+        });
+        if (err) throw err;
+
+        if (data?.session) {
+          setCurrentUserEmail(cleanEmail);
+          const isPriv = await checkUserPrivileges(data.session.user);
+          if (isPriv) {
+            setIsPrivileged(true);
+            toast.success("Welcome back, Owner! Access granted.");
+            return;
+          }
+          setAuthSuccessMsg(`🎉 Account created! Welcome ${cleanEmail}. Since BloxSmith is in maintenance mode, you remain on this screen until maintenance completes.`);
+          toast.success("Account created! Maintenance is active.");
+          return;
+        }
+
+        const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({
+          email: cleanEmail,
+          password: authPassword,
+        });
+        if (!signInErr && signInData?.session) {
+          setCurrentUserEmail(cleanEmail);
+          const isPriv = await checkUserPrivileges(signInData.session.user);
+          if (isPriv) {
+            setIsPrivileged(true);
+            toast.success("Welcome back, Owner!");
+            return;
+          }
+          setAuthSuccessMsg(`🎉 Account created! Welcome ${cleanEmail}. Maintenance is active, so you remain on this page until upgrades finish.`);
+          toast.success("Account created!");
+          return;
+        }
+
+        setAuthSuccessMsg("Account created! Check your email to confirm, then sign in below.");
+        toast.info("Account created! Check your email to confirm.");
+      } else {
+        const { data, error: err } = await supabase.auth.signInWithPassword({
+          email: cleanEmail,
+          password: authPassword,
+        });
+        if (err) throw err;
+        if (!data?.session) {
+          throw new Error("Could not start session. Please check your credentials.");
+        }
+
+        setCurrentUserEmail(cleanEmail);
+        const isPriv = await checkUserPrivileges(data.session.user);
+        if (isPriv) {
+          setIsPrivileged(true);
+          toast.success("Welcome back, Owner!");
+          return;
+        }
+
+        setAuthSuccessMsg(`Signed in as ${cleanEmail}! Maintenance is active, so you remain on this page until upgrades finish.`);
+        toast.success("Signed in successfully!");
+      }
+    } catch (err: any) {
+      console.error("Maintenance auth error:", err);
+      setAuthError(err?.message || "Authentication failed. Please try again.");
+    } finally {
+      setAuthBusy(false);
+    }
+  }
 
   if (!checked || !status) return <>{children}</>;
 
@@ -114,7 +306,7 @@ export function MaintenanceGate({ children }: { children: ReactNode }) {
         <div className="absolute inset-0 bg-gradient-to-b from-[#050614]/90 via-[#07091e]/85 to-[#050614]/95" />
       </div>
 
-      <div className="relative z-10 w-full max-w-lg animate-in fade-in zoom-in-95 duration-500">
+      <div className="relative z-10 w-full max-w-lg animate-in fade-in zoom-in-95 duration-500 my-auto">
         <div className="vapor-card hover-lift overflow-hidden rounded-3xl border border-amber-400/40 bg-gradient-to-b from-[#0f142c]/95 via-[#0b0e24]/95 to-[#070918]/95 p-6 sm:p-8 text-center shadow-[0_0_60px_rgba(245,158,11,0.25)] backdrop-blur-2xl">
           
           {/* Top animated badge */}
@@ -162,9 +354,170 @@ export function MaintenanceGate({ children }: { children: ReactNode }) {
             </a>
           </div>
 
+          {/* Maintenance Sign Up & Authentication Box */}
+          <div className="mt-5 rounded-2xl border border-indigo-500/30 bg-[#0a0d24]/90 p-4 sm:p-5 text-left shadow-[0_0_30px_rgba(99,102,241,0.2)] backdrop-blur-xl">
+            {currentUserEmail ? (
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-emerald-500/20 border border-emerald-400/40 text-emerald-300">
+                      <CheckCircle className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-xs font-extrabold text-slate-100 uppercase tracking-wide">Account Registered</div>
+                      <div className="text-[11px] text-emerald-300 font-mono truncate">{currentUserEmail}</div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const { supabase } = await import("@/integrations/supabase/client");
+                      await supabase.auth.signOut();
+                      setCurrentUserEmail(null);
+                      setIsPrivileged(false);
+                      toast.info("Signed out.");
+                    }}
+                    className="inline-flex items-center gap-1 rounded-lg border border-rose-500/30 bg-rose-500/10 px-2.5 py-1.5 text-[11px] font-bold text-rose-300 hover:bg-rose-500/20 transition"
+                  >
+                    <LogOut className="h-3 w-3" /> Sign Out
+                  </button>
+                </div>
+                <div className="rounded-xl border border-amber-400/30 bg-amber-500/10 p-3 text-xs text-amber-200 font-medium leading-relaxed">
+                  🔒 You are currently logged in. Since BloxSmith is undergoing maintenance, regular accounts will automatically be granted entry to the dashboard as soon as maintenance mode ends.
+                </div>
+              </div>
+            ) : (
+              <div>
+                <div className="flex items-center justify-between border-b border-white/10 pb-3 mb-3.5">
+                  <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-indigo-300">
+                    <UserPlus className="h-4 w-4 text-indigo-400" />
+                    {authMode === "signup" ? "Sign Up During Maintenance" : "Sign In to Account"}
+                  </div>
+                  <div className="flex items-center gap-1 rounded-lg bg-slate-900/90 p-1 border border-white/10">
+                    <button
+                      type="button"
+                      onClick={() => { setAuthMode("signup"); setAuthError(null); setAuthSuccessMsg(null); }}
+                      className={`rounded-md px-2.5 py-1 text-[11px] font-extrabold transition ${
+                        authMode === "signup"
+                          ? "bg-indigo-500 text-white shadow-[0_0_12px_rgba(99,102,241,0.5)]"
+                          : "text-slate-400 hover:text-slate-200"
+                      }`}
+                    >
+                      Sign Up
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setAuthMode("signin"); setAuthError(null); setAuthSuccessMsg(null); }}
+                      className={`rounded-md px-2.5 py-1 text-[11px] font-extrabold transition ${
+                        authMode === "signin"
+                          ? "bg-indigo-500 text-white shadow-[0_0_12px_rgba(99,102,241,0.5)]"
+                          : "text-slate-400 hover:text-slate-200"
+                      }`}
+                    >
+                      Sign In
+                    </button>
+                  </div>
+                </div>
+
+                {/* OAuth Quick Buttons */}
+                <div className="mb-3.5 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleOAuth("google")}
+                    disabled={authBusy}
+                    className="flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 py-2 text-xs font-bold text-slate-200 hover:bg-white/10 active:scale-95 disabled:opacity-50 transition"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09Z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.99.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23Z"/><path fill="#FBBC05" d="M5.84 14.1c-.22-.66-.35-1.36-.35-2.1s.13-1.44.35-2.1V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.83Z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.83C6.71 7.3 9.14 5.38 12 5.38Z"/></svg>
+                    Google
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleOAuth("apple")}
+                    disabled={authBusy}
+                    className="flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 py-2 text-xs font-bold text-slate-200 hover:bg-white/10 active:scale-95 disabled:opacity-50 transition"
+                  >
+                    <svg width="12" height="14" viewBox="0 0 384 512" fill="currentColor"><path d="M318.7 268c-.2-37 16.6-65 50.5-85.6-19-27.2-47.5-42.2-85.5-45.2-36-2.8-75.5 21-90 21-15.3 0-50.4-20-77.9-20C61.4 138.7 0 184.6 0 277.6c0 27.5 5 55.9 15.1 85.2 13.4 38.5 61.7 132.8 112.1 131.3 26.4-.6 45-18.7 79.4-18.7 33.4 0 50.7 18.7 80.1 18.7 50.8-.7 94.6-86.5 107.4-125.1-68.6-32.4-75.4-95-75.4-100.9zM256.1 100.2c30.7-36.4 27.9-69.6 27-81.5-27.1 1.6-58.5 18.5-76.4 39.3-19.7 22.3-31.3 49.9-28.8 80.9 29.3 2.3 56-12.8 78.2-38.6z"/></svg>
+                    Apple
+                  </button>
+                </div>
+
+                <div className="my-2.5 flex items-center gap-2 text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                  <div className="h-px flex-1 bg-white/10" /> or email <div className="h-px flex-1 bg-white/10" />
+                </div>
+
+                <form onSubmit={handleAuthSubmit} className="space-y-2.5">
+                  {authMode === "signup" && (
+                    <div>
+                      <input
+                        type="text"
+                        value={authUsername}
+                        onChange={(e) => setAuthUsername(e.target.value)}
+                        placeholder="Developer Username"
+                        className="w-full rounded-xl border border-white/15 bg-slate-950/80 px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:border-indigo-400 focus:outline-none"
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <input
+                      type="email"
+                      required
+                      value={authEmail}
+                      onChange={(e) => setAuthEmail(e.target.value)}
+                      placeholder="you@domain.com"
+                      className="w-full rounded-xl border border-white/15 bg-slate-950/80 px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:border-indigo-400 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <input
+                      type="password"
+                      required
+                      minLength={6}
+                      value={authPassword}
+                      onChange={(e) => setAuthPassword(e.target.value)}
+                      placeholder="Password (6+ chars)"
+                      className="w-full rounded-xl border border-white/15 bg-slate-950/80 px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:border-indigo-400 focus:outline-none"
+                    />
+                  </div>
+
+                  {authError && (
+                    <div className="rounded-xl border border-rose-500/40 bg-rose-500/15 p-2.5 text-xs font-semibold text-rose-200">
+                      {authError}
+                    </div>
+                  )}
+
+                  {authSuccessMsg && (
+                    <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/15 p-2.5 text-xs font-semibold text-emerald-200">
+                      {authSuccessMsg}
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={authBusy}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 via-indigo-600 to-purple-600 py-2.5 text-xs font-black text-white shadow-[0_0_20px_rgba(99,102,241,0.4)] hover:brightness-110 active:scale-95 disabled:opacity-50 transition"
+                  >
+                    {authBusy ? (
+                      <Loader2 className="h-4 w-4 animate-spin text-white" />
+                    ) : authMode === "signup" ? (
+                      <>
+                        <UserPlus className="h-4 w-4" /> Create Account
+                      </>
+                    ) : (
+                      <>
+                        <LogIn className="h-4 w-4" /> Sign In
+                      </>
+                    )}
+                  </button>
+                </form>
+              </div>
+            )}
+          </div>
+
           {/* Passcode Unlock Form */}
           {showPasscodeModal ? (
-            <form onSubmit={handlePasscodeSubmit} className="mt-6 rounded-2xl border border-amber-400/30 bg-amber-950/20 p-4 text-left">
+            <form onSubmit={handlePasscodeSubmit} className="mt-5 rounded-2xl border border-amber-400/30 bg-amber-950/20 p-4 text-left">
               <label className="block text-xs font-bold uppercase tracking-wider text-amber-300">
                 Owner Maintenance Passcode
               </label>
