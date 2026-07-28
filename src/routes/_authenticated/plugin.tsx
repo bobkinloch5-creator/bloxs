@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getMyProfile } from "@/lib/profile.functions";
 import { getPluginSession } from "@/lib/chat.functions";
-import { Download, Plug, CheckCircle2, CircleSlash, Clock, Server } from "lucide-react";
+import { Download, Plug, CheckCircle2, CircleSlash, Clock, Server, Shield, Globe } from "lucide-react";
 import { PLUGIN_VERSION } from "@/lib/plugin-version";
 
 export const Route = createFileRoute("/_authenticated/plugin")({
@@ -149,6 +149,45 @@ function PluginPage() {
           </li>
           <li><span className="font-mono text-foreground">Plugins → Reload Plugins</span> (or restart Studio).</li>
         </ol>
+      </div>
+
+      {/* Required Experience Settings */}
+      <div className="glass mt-4 rounded-2xl border border-cyan-500/30 bg-cyan-950/20 p-6 space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="font-display text-lg font-semibold text-white flex items-center gap-2">
+            <Shield className="h-5 w-5 text-cyan-400" /> Required Roblox Experience & Security Settings
+          </h2>
+          <span className="rounded-md bg-cyan-500/20 border border-cyan-400/40 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-cyan-300">
+            Mandatory Setup
+          </span>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Roblox Studio restricts plugin network access by default. Ensure these two settings are turned on in your place:
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+          <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 space-y-1.5">
+            <div className="text-sm font-bold text-cyan-300 flex items-center gap-2">
+              <Globe className="h-4 w-4 text-cyan-400" /> 1. Allow HTTP Requests
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Open <b>Home</b> or <b>Plugins</b> tab &rarr; <b>Game Settings</b> &rarr; <b>Security</b> &rarr; toggle on <code className="text-emerald-300 font-mono">Allow HTTP Requests</code>.
+            </p>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 space-y-1.5">
+            <div className="text-sm font-bold text-amber-300 flex items-center gap-2">
+              <Shield className="h-4 w-4 text-amber-400" /> 2. Enable API Services
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              In <b>Game Settings &rarr; Security</b> &rarr; toggle on <code className="text-amber-200 font-mono">Enable Studio Access to API Services</code> for DataStore and Cloud APIs.
+            </p>
+          </div>
+        </div>
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200 flex items-center gap-2.5">
+          <Shield className="h-4 w-4 shrink-0 text-amber-400" />
+          <span>
+            <b>Security Prompt:</b> When Studio asks <i>"Allow BloxSmithPlugin to perform HTTP Requests?"</i>, click <b>Allow</b>.
+          </span>
+        </div>
       </div>
 
       {/* Connect */}

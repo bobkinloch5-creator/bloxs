@@ -200,6 +200,45 @@ export function WebsiteGuideModal({ open, onClose }: WebsiteGuideModalProps) {
                   </div>
                 </div>
               </div>
+
+              {/* Required Experience Settings Card */}
+              <div className="rounded-2xl border border-cyan-500/30 bg-cyan-950/20 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-white flex items-center gap-2">
+                    <Shield className="h-4 w-4 text-cyan-400" /> Required Roblox Experience & Security Settings
+                  </h4>
+                  <span className="rounded-md bg-cyan-500/20 border border-cyan-400/30 px-2 py-0.5 text-[10px] font-bold text-cyan-300">
+                    Mandatory
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-300 leading-relaxed">
+                  Roblox Studio limits external network connections by default. Before connecting, ensure your place settings permit HTTP communication:
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                  <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3 space-y-1">
+                    <div className="font-bold text-cyan-300 flex items-center gap-1.5">
+                      <Plug className="h-3.5 w-3.5 text-cyan-400" /> 1. Allow HTTP Requests
+                    </div>
+                    <p className="text-[11px] text-slate-400 leading-relaxed">
+                      In Studio, open <strong>Home</strong> or <strong>Plugins</strong> tab &rarr; <strong>Game Settings</strong> &rarr; <strong>Security</strong> &rarr; enable <code className="text-emerald-300">Allow HTTP Requests</code>.
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3 space-y-1">
+                    <div className="font-bold text-amber-300 flex items-center gap-1.5">
+                      <Shield className="h-3.5 w-3.5 text-amber-400" /> 2. Enable API Services
+                    </div>
+                    <p className="text-[11px] text-slate-400 leading-relaxed">
+                      In <strong>Game Settings &rarr; Security</strong>, enable <code className="text-amber-200">Enable Studio Access to API Services</code> for DataStore & Cloud API support.
+                    </p>
+                  </div>
+                </div>
+                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-[11px] text-amber-200 flex items-center gap-2">
+                  <Flame className="h-4 w-4 shrink-0 text-amber-400" />
+                  <span>
+                    When Studio prompts <em>"Allow BloxSmithPlugin to make HTTP Requests?"</em>, click <strong>Allow</strong> to grant permission.
+                  </span>
+                </div>
+              </div>
             </div>
           )}
 
