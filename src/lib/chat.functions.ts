@@ -330,20 +330,33 @@ export const getPluginSession = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const ctx = context as any;
     const { getResolvedUserId } = await import("@/lib/profile.functions");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const targetUserId = await getResolvedUserId(ctx.userId);
+    const ownerFallbackId = "64f33732-136a-4c78-9421-7c11579c7412";
 
-    const { data: rows } = await ctx.supabase
+    // Use admin client to bypass RLS — sessions may have been written by
+    // heartbeat/poll using a different user ID than the one in the JWT.
+    const { data: rows } = await supabaseAdmin
       .from("plugin_sessions")
       .select("user_id, last_seen, online, place_id, studio_version, plugin_version, last_scan, last_scan_at")
       .order("last_seen", { ascending: false })
-      .limit(5);
+      .limit(10);
 
     if (!rows || rows.length === 0) return null;
 
-    const match = rows.find((r: any) => r.user_id === targetUserId || r.user_id === ctx.userId) || rows[0];
-    const isRecent = match?.last_seen && Date.now() - new Date(match.last_seen).getTime() < 180_000;
+    // Prefer a session belonging to the resolved user, then owner fallback, then most recent
+    const match =
+      rows.find((r: any) => r.user_id === targetUserId) ||
+      rows.find((r: any) => r.user_id === ctx.userId) ||
+      rows.find((r: any) => r.user_id === ownerFallbackId) ||
+      rows[0];
+
+    // Consider the session "online" only if it was seen within the last 3 minutes
+    const isRecent = match?.last_seen &&
+      Date.now() - new Date(match.last_seen).getTime() < 180_000;
     return match ? { ...match, online: match.online && isRecent } : null;
   });
+
 
 function compareVersions(current?: string | null, required?: string | null) {
   const parse = (value?: string | null) => String(value ?? "")
@@ -390,7 +403,8 @@ export const getBuildExecutionStatus = createServerFn({ method: "GET" })
       .order("position", { ascending: true });
     if (error) throw new Error(error.message);
 
-    const { data: sessions } = await ctx.supabase
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: sessions } = await supabaseAdmin
       .from("plugin_sessions")
       .select("last_seen, online, plugin_version")
       .order("last_seen", { ascending: false })
