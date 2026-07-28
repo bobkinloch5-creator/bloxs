@@ -8,12 +8,6 @@ const CHANGELOG_VERSION = "2026-07-28-owner-privilege-auth-fix";
 
 const CHANGELOG_ITEMS = [
   {
-    title: "👑 Owner Privilege & Unlimited Model Access Authorization",
-    date: "Jul 28",
-    icon: ShieldCheck,
-    body: "Patched owner/admin privilege authorization across the platform. Owner accounts, accounts with the Owner plan, or accounts with high credit balances now seamlessly bypass all top-up and paid model barriers in AI Chat and Build mode with zero restriction.",
-  },
-  {
     title: "🎮 Community Games Hub & Game Publishing",
     date: "Jul 28",
     icon: Rocket,
@@ -996,26 +990,7 @@ export function ChangelogNotifications({
                 </button>
               </div>
 
-              {/* Search */}
-              {coverage.missingDates.length > 0 && (
-                <div className="mt-3 flex items-start gap-2 rounded-lg border border-amber-400/30 bg-amber-500/10 px-2.5 py-2 text-[11.5px] leading-5 text-amber-100">
-                  <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-300" />
-                  <div className="min-w-0">
-                    <div className="font-black">Changelog is missing {coverage.missingDates.length} date{coverage.missingDates.length === 1 ? "" : "s"}</div>
-                    <div className="mt-0.5 text-amber-100/80">
-                      Migrations exist for {coverage.missingDates.join(", ")} but no changelog entry was added.
-                    </div>
-                    <details className="mt-1">
-                      <summary className="cursor-pointer text-amber-200/80 hover:text-amber-100">Show files ({coverage.orphanMigrations.length})</summary>
-                      <ul className="mt-1 space-y-0.5 text-amber-100/70">
-                        {coverage.orphanMigrations.map((m) => (
-                          <li key={m.file} className="truncate font-mono text-[10.5px]">{m.file}</li>
-                        ))}
-                      </ul>
-                    </details>
-                  </div>
-                </div>
-              )}
+
 
               <div className="mt-3 flex items-center gap-2 rounded-lg border border-white/10 bg-black/30 px-2.5 py-1.5 focus-within:border-indigo-400/40 focus-within:ring-2 focus-within:ring-indigo-400/20 transition">
 

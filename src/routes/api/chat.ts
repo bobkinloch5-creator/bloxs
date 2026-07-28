@@ -342,7 +342,7 @@ function sanitizeToolPairing(messages: UIMessage[]): UIMessage[] {
   }).filter((m) => (m.parts ?? []).length > 0);
 }
 
-function trimMessagesForModel(messages: UIMessage[], mode: "chat" | "build"): UIMessage[] {
+function trimMessagesForModel(messages: UIMessage[], mode: "chat" | "build" | "plan"): UIMessage[] {
   // Token-aware rather than character-aware. See context-window.ts for why the
   // old "last N messages, last N characters" approach both overshot the context
   // limit on code-heavy turns and silently dropped the original request on long
@@ -350,7 +350,7 @@ function trimMessagesForModel(messages: UIMessage[], mode: "chat" | "build"): UI
   const cleaned = sanitizeToolPairing(messages);
   return fitMessagesToWindow(cleaned as unknown as SimpleMessage[], {
     budgetTokens: HISTORY_BUDGETS[mode],
-    maxMessages: mode === "chat" ? 14 : 12,
+    maxMessages: mode === "chat" ? 14 : mode === "plan" ? 16 : 12,
   }).messages as unknown as UIMessage[];
 }
 
@@ -359,33 +359,27 @@ function trimMessagesForModel(messages: UIMessage[], mode: "chat" | "build"): UI
  * system prompt is what keeps "add a second floor" meaningful 20 messages after
  * the user said "build me a tycoon". Returns "" when nothing was dropped.
  */
-function historyDigestFor(messages: UIMessage[], mode: "chat" | "build"): string {
+function historyDigestFor(messages: UIMessage[], mode: "chat" | "build" | "plan"): string {
   const cleaned = sanitizeToolPairing(messages);
   return fitMessagesToWindow(cleaned as unknown as SimpleMessage[], {
     budgetTokens: HISTORY_BUDGETS[mode],
-    maxMessages: mode === "chat" ? 14 : 12,
+    maxMessages: mode === "chat" ? 14 : mode === "plan" ? 16 : 12,
   }).digest;
 }
 
-function capOutputTokens(modelSettings: { maxOutputTokens?: number } | undefined, mode: "chat" | "build", buildQuality?: "basic" | "better" | "premium" | "full_game") {
-  // Chat stays tight: answers should be conversational, not essays.
-  //
-  // Builds are different. The old caps (1800 normal / 3000 full_game) were far
-  // below what a full system actually costs - a shop with a server script,
-  // ModuleScript, remotes and a ScreenGui runs well past 3000 output tokens.
-  // Every model was being cut off mid-action-block, which reads to the user as
-  // "the model is bad" when it was really a truncated response. Build caps now
-  // scale with the requested quality and respect each model's own ceiling.
-  const requested = modelSettings?.maxOutputTokens ?? (mode === "chat" ? 900 : 8192);
+function capOutputTokens(modelSettings: { maxOutputTokens?: number } | undefined, mode: "chat" | "build" | "plan", buildQuality?: "basic" | "better" | "premium" | "full_game") {
+  const requested = modelSettings?.maxOutputTokens ?? (mode === "chat" ? 900 : mode === "plan" ? 4096 : 8192);
   const cap = mode === "chat"
     ? 1200
-    : buildQuality === "full_game"
-      ? 16000
-      : buildQuality === "premium"
-        ? 12000
-        : buildQuality === "basic"
-          ? 3000
-          : 8000;
+    : mode === "plan"
+      ? 6000
+      : buildQuality === "full_game"
+        ? 16000
+        : buildQuality === "premium"
+          ? 12000
+          : buildQuality === "basic"
+            ? 3000
+            : 8000;
   return Math.min(requested, cap);
 }
 
@@ -6123,13 +6117,13 @@ export const Route = createFileRoute("/api/chat")({
           const token = auth.replace(/^Bearer\s+/i, "");
           if (!token) return jsonError("Please sign in again before sending a message.", 401, "no_auth");
 
-          let body: { messages?: UIMessage[]; projectId?: string; modelId?: string; isAuto?: boolean; autoExecute?: boolean; executionMode?: "safe" | "fast" | "owner"; buildQuality?: "basic" | "better" | "premium" | "full_game"; mode?: "chat" | "build"; language?: string; languageName?: string; proceduralGeneration?: boolean };
+          let body: { messages?: UIMessage[]; projectId?: string; modelId?: string; isAuto?: boolean; autoExecute?: boolean; executionMode?: "safe" | "fast" | "owner"; buildQuality?: "basic" | "better" | "premium" | "full_game"; mode?: "chat" | "build" | "plan"; language?: string; languageName?: string; proceduralGeneration?: boolean };
           try {
             body = (await request.json()) as typeof body;
           } catch {
             return jsonError("Invalid JSON in request body.", 400, "bad_json");
           }
-          const mode: "chat" | "build" = body.mode === "chat" ? "chat" : "build";
+          const mode: "chat" | "build" | "plan" = body.mode === "chat" ? "chat" : body.mode === "plan" ? "plan" : "build";
           let executionMode: "safe" | "fast" | "owner" =
             body.executionMode === "safe" || body.executionMode === "owner" ? body.executionMode : "fast";
           const buildQuality: "basic" | "better" | "premium" | "full_game" =
@@ -6460,6 +6454,89 @@ export const Route = createFileRoute("/api/chat")({
                 maxOutputTokens: capOutputTokens(modelChoiceLite.modelSettings, "chat"),
               });
               return streamPlainAssistantText(fallback.text || "Done.", "lite-fallback-text");
+            }
+          }
+
+          // 🧠 PLAN MODE — AI Game Architect & Technical Planner
+          // Evaluates game concepts, generates architecture blueprints, folder specs,
+          // script/remote event schemas, DataStore designs, and UI wireframes.
+          if (mode === "plan") {
+            let modelChoicePlan;
+            try {
+              modelChoicePlan = getProviderModel(activeModelId);
+            } catch (e) {
+              return jsonError(e instanceof Error ? e.message : "Model unavailable", 500, "provider_init_failed");
+            }
+            const strippedPlan = stripImageFilePartsFromMessages(messages);
+            const convertedPlan = await convertToModelMessages(trimMessagesForModel(strippedPlan, "plan"));
+            const planDigest = historyDigestFor(strippedPlan, "plan");
+            const systemPlan =
+              FAST_CHAT_SYSTEM_PROMPT +
+              (planDigest ? `\n\n${planDigest}` : "") +
+              `\n\nMODE: PLAN MODE (AI Game Architect & Technical Lead)
+You are BloxSmith's Master Roblox Game Architect and Technical Lead.
+Your goal is to transform the user's prompt or game concept into an exceptionally detailed, production-grade Roblox Game Architecture Plan.
+
+Structure your response using bold GitHub Markdown headers:
+# 🎮 1. Executive Summary & Core Game Loop
+• Primary Game Concept & Core Mechanics
+• Player Progression Loop (Actions -> Progression -> Rewards & Unlockables)
+• Monetization & Retention Highlights (Gamepasses, Developer Products, Daily Rewards)
+
+# 🏗️ 2. 3D World & Scene Hierarchy
+• Folder Hierarchy (game.Workspace.Map, game.Workspace.Systems, game.Workspace.Spawns, etc.)
+• Environment Specs (Baseplate dimensions, Lighting & Atmosphere, Fog & Skybox)
+• Part & Mesh Requirements (Part counts, material variants, Anchored & CanCollide rules)
+
+# 📜 3. Scripting & Networking Architecture
+• ServerScriptService Modules (DataStoreManager, GameLoopController, AntiCheatService)
+• ReplicatedStorage Shared Modules (SharedConfigs, RemoteEventDefinitions, SoundEffects)
+• StarterPlayerScripts (ClientUIController, CameraController, InputHandlers)
+• RemoteEvents & RemoteFunctions list with exact parameter schemas
+
+# 💾 4. DataStore & Persistence Specification
+• Session-locking structure, auto-save interval (e.g. 60s), and retry policies
+• Leaderstats data dictionary (Coins, Gems, Rebirths, Inventory Array)
+
+# 🎨 5. UI/UX & ScreenGui Layout Spec
+• StarterGui Layout (HUD, Shop Frame, Inventory Grid, Settings Menu, Prompts)
+• Responsive Scale Sizing & AnchorPoints for Mobile (390x844), PC (1920x1080), & Console
+
+# 🚀 6. Actionable Build Steps (Ready for Build Mode)
+1. Step-by-step list of exact commands for Build Mode to execute next!
+
+Reply in ${languageName} (${languageCode}). Keep your tone professional, structured, and deeply technical. End with:
+\n---\n💡 **Ready to bring this plan to life?** Switch to Build Mode and click **Send** to start building!`;
+
+            const planResult = streamText({
+              model: modelChoicePlan.model,
+              system: systemPlan,
+              messages: convertedPlan,
+              ...(modelChoicePlan.extraBody ? { providerOptions: { nvidia: modelChoicePlan.extraBody as Record<string, never> } as never } : {}),
+              ...(modelChoicePlan.modelSettings?.temperature !== undefined ? { temperature: modelChoicePlan.modelSettings.temperature } : {}),
+              ...(modelChoicePlan.modelSettings?.topP !== undefined ? { topP: modelChoicePlan.modelSettings.topP } : {}),
+              maxOutputTokens: capOutputTokens(modelChoicePlan.modelSettings, "plan"),
+              stopWhen: stepCountIs(6),
+              onError: ({ error }) => console.error("[chat/plan] upstream error", error),
+            });
+            try {
+              return planResult.toUIMessageStreamResponse({
+                onError: (err) => {
+                  console.error("[chat/plan] stream error", err);
+                  return `Plan generation error: ${err instanceof Error ? err.message : "Error"}`;
+                },
+              });
+            } catch (streamErr) {
+              const fallback = await generateText({
+                model: modelChoicePlan.model,
+                system: systemPlan,
+                messages: convertedPlan,
+                ...(modelChoicePlan.extraBody ? { providerOptions: { nvidia: modelChoicePlan.extraBody as Record<string, never> } as never } : {}),
+                ...(modelChoicePlan.modelSettings?.temperature !== undefined ? { temperature: modelChoicePlan.modelSettings.temperature } : {}),
+                ...(modelChoicePlan.modelSettings?.topP !== undefined ? { topP: modelChoicePlan.modelSettings.topP } : {}),
+                maxOutputTokens: capOutputTokens(modelChoicePlan.modelSettings, "plan"),
+              });
+              return streamPlainAssistantText(fallback.text || "Plan generated.", "plan-fallback-text");
             }
           }
 

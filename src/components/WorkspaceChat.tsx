@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import {
   Paperclip, Send, Sparkles, ChevronDown, Loader2, X, MessageSquare, Hammer, Wand2,
   Download, RefreshCw, Save, Image as ImageIcon, Square, Trash2, Zap, Volume2, VolumeX,
-  ClipboardList, Lightbulb, Languages, HelpCircle, CreditCard, Lock, Users,
+  ClipboardList, Lightbulb, Languages, HelpCircle, CreditCard, Lock, Users, Compass,
 } from "lucide-react";
 import { useLang, LANGUAGES } from "@/lib/i18n";
 import { playCompletionSound } from "@/lib/sound";
@@ -249,7 +249,7 @@ function parseConceptOptions(text: string): string[] {
 }
 
 type Attachment = { url: string; mediaType: string; name: string };
-type Mode = "chat" | "build";
+type Mode = "chat" | "build" | "plan";
 
 
 
@@ -856,6 +856,18 @@ export function WorkspaceChat({
             </button>
             <button
               type="button"
+              onClick={() => setComposerMode("plan")}
+              className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-extrabold transition-all ${
+                mode === "plan"
+                  ? "bg-gradient-to-r from-purple-600 via-pink-500 to-indigo-500 text-white shadow-[0_0_25px_rgba(217,70,239,0.7)]"
+                  : "text-slate-400 hover:text-white hover:bg-white/5"
+              }`}
+              aria-pressed={mode === "plan"}
+            >
+              <Compass className="h-3.5 w-3.5 text-pink-300 animate-pulse" /> Plan Mode
+            </button>
+            <button
+              type="button"
               onClick={() => setComposerMode("build")}
               className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-extrabold transition-all ${
                 mode === "build"
@@ -1265,7 +1277,15 @@ export function WorkspaceChat({
 
       {/* Quick Actions — one-tap chips that fill or send common requests */}
       {(() => {
-        const chips: Array<{ label: string; icon: string; text: string; sendNow?: boolean; mode?: Mode; title: string }> = isBuild
+        const chips: Array<{ label: string; icon: string; text: string; sendNow?: boolean; mode?: Mode; title: string }> = mode === "plan"
+          ? [
+              { label: "Full Blueprint", icon: "🗺️", text: "Generate a complete end-to-end Roblox Game Blueprint with core loop, folder tree, script modules, DataStore schema, and UI layout.", sendNow: true, mode: "plan", title: "Generate complete architecture blueprint" },
+              { label: "Scene & 3D Spec", icon: "🧱", text: "Design a 3D Scene Specification with folder organization, Part counts, lighting settings, and material choices.", sendNow: true, mode: "plan", title: "Generate 3D map & lighting spec" },
+              { label: "Script Hierarchy", icon: "📜", text: "Outline all ServerScriptService, StarterPlayerScripts, and ReplicatedStorage ModuleScripts and RemoteEvents.", sendNow: true, mode: "plan", title: "Generate script & remote event architecture" },
+              { label: "DataStore Spec", icon: "💾", text: "Plan a session-locked DataStore system with auto-saving, leaderstats caching, and retry policies.", sendNow: true, mode: "plan", title: "Generate DataStore architecture" },
+              { label: "UI Wireframe", icon: "🎨", text: "Plan a full ScreenGui hierarchy with responsive scaling for mobile, PC, and console.", sendNow: true, mode: "plan", title: "Generate UI layout wireframe" },
+            ]
+          : isBuild
           ? [
               { label: "Fix errors", icon: "🩹", text: "Scan the project and fix every script error, missing reference, and broken connection. Report what was fixed.", sendNow: true, title: "Scan project + auto-fix common issues" },
               { label: "Optimize", icon: "⚡", text: "Optimize this project for performance: reduce parts, batch scripts, fix Anchored flags, enable StreamingEnabled, and shrink large meshes where safe.", sendNow: true, title: "Performance pass" },
@@ -1341,7 +1361,9 @@ export function WorkspaceChat({
             }
           }}
           placeholder={
-            isBuild
+            mode === "plan"
+              ? "Describe your Roblox game concept — Plan Mode will create a full technical architecture & blueprint. (⌘K · ⌘/)"
+              : isBuild
               ? (activeProjectId ? "Describe what to build next… (Paste long multi-system specs or detailed prompts!)" : "Describe your game specification — Build will create a project and start. (⌘K · ⌘/)")
               : "Ask BloxSmith Agent anything — plan, brainstorm, or refine an idea. (⌘K · ⌘/)"
           }

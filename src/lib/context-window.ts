@@ -269,5 +269,6 @@ export function fitMessagesToWindow<T extends SimpleMessage>(
  */
 export const HISTORY_BUDGETS = {
   chat: 16000,
+  plan: 20000,
   build: 24000,
 } as const;
