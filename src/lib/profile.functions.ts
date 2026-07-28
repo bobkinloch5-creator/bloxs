@@ -44,20 +44,35 @@ export const getMyProfile = createServerFn({ method: "GET" })
         .eq("id", targetUserId)
         .maybeSingle();
 
+      const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(targetUserId).catch(() => ({ data: null }));
+      const userEmail = (authUser?.user?.email || (ctx as any)?.claims?.email || "").toLowerCase().trim();
+      const username = (data as any)?.username || "";
+      const displayName = (data as any)?.display_name || "";
+      
+      const isOwner = userEmail === "bobkinloch5@gmail.com" ||
+        userEmail.includes("bobkinloch") ||
+        username.toLowerCase() === "king" ||
+        displayName.toLowerCase() === "king" ||
+        username.toLowerCase() === "elibobop" ||
+        displayName.toLowerCase() === "elibobop";
+
       if (!data) {
-        // Auto-create profile row if missing
+        // Auto-create profile row if missing with appropriate default handle
         try {
+          const defaultHandle = userEmail ? userEmail.split("@")[0] : "Creator";
+          const initName = isOwner ? "King" : (authUser?.user?.user_metadata?.username || defaultHandle);
+
           const { data: newRow } = await supabaseAdmin
             .from("profiles")
             .upsert(
               {
                 id: targetUserId,
-                username: "King",
-                display_name: "King",
-                plan: "Owner",
-                is_admin: true,
-                credits: 99999,
-                max_credits: 99999,
+                username: initName,
+                display_name: initName,
+                plan: isOwner ? "Owner" : "Free",
+                is_admin: isOwner,
+                credits: isOwner ? 99999 : 50,
+                max_credits: isOwner ? 99999 : 50,
               },
               { onConflict: "id" }
             )
@@ -69,37 +84,20 @@ export const getMyProfile = createServerFn({ method: "GET" })
         }
       }
 
-      const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(targetUserId).catch(() => ({ data: null }));
-      const userEmail = (authUser?.user?.email || (ctx as any)?.claims?.email || "").toLowerCase().trim();
-      const username = (data as any)?.username || "";
-      const displayName = (data as any)?.display_name || "";
-      
-      const isOwner = userEmail === "bobkinloch5@gmail.com" ||
-        userEmail.includes("bobkinloch") ||
-        username.toLowerCase() === "king" ||
-        displayName.toLowerCase() === "king" ||
-        username.toLowerCase() === "elibobop" ||
-        displayName.toLowerCase() === "elibobop" ||
-        (data as any)?.plan === "Owner" ||
-        (data as any)?.is_admin === true;
-
       if (isOwner && targetUserId) {
-        // Ensure owner roles and profile plan are permanently stored in DB
+        // Ensure owner roles and profile plan are permanently stored in DB WITHOUT wiping user bio/settings
         try {
           await supabaseAdmin.from("user_roles").upsert([
             { user_id: targetUserId, role: "owner" },
             { user_id: targetUserId, role: "admin" },
           ] as any, { onConflict: "user_id,role" });
 
-          await supabaseAdmin.from("profiles").upsert({
-            id: targetUserId,
-            username: "King",
-            display_name: "King",
+          await supabaseAdmin.from("profiles").update({
             plan: "Owner",
             is_admin: true,
             credits: 99999,
             max_credits: 99999,
-          } as any, { onConflict: "id" });
+          } as any).eq("id", targetUserId);
         } catch (e) {
           console.warn("[getMyProfile] DB owner sync skipped:", e);
         }
@@ -113,17 +111,26 @@ export const getMyProfile = createServerFn({ method: "GET" })
       const userRoles = (rolesData ?? []).map((r: any) => r.role);
       const isDonator = userRoles.includes("donator") || userRoles.includes("supporter") || userRoles.includes("top_supporter") || ((data as any)?.settings as any)?.has_topup === true || (data as any)?.plan === "Top Supporter";
 
+      const dbBio = (data as any)?.bio ?? "";
+      const dbRoblox = (data as any)?.roblox_username ?? "";
+      const dbPrivate = !!(data as any)?.is_private;
+      const dbAvatar = (data as any)?.avatar_url ?? null;
+      const dbSettings = (data as any)?.settings ?? {};
+      const dbLang = (data as any)?.language ?? "en";
+      const dbDisplayName = (data as any)?.display_name;
+      const dbUsername = (data as any)?.username;
+
       const result: any = {
-        bio: "",
-        roblox_username: "",
-        is_private: false,
-        avatar_url: null,
-        credits_reset_at: new Date().toISOString(),
-        settings: {},
-        language: "en",
-        display_name: isOwner ? "King" : ((data as any)?.display_name || "King"),
-        username: isOwner ? "King" : ((data as any)?.username || "King"),
         ...(data || {}),
+        bio: dbBio,
+        roblox_username: dbRoblox,
+        is_private: dbPrivate,
+        avatar_url: dbAvatar,
+        credits_reset_at: (data as any)?.credits_reset_at ?? new Date().toISOString(),
+        settings: dbSettings,
+        language: dbLang,
+        display_name: dbDisplayName || (isOwner ? "King" : "Creator"),
+        username: dbUsername || (isOwner ? "King" : "Creator"),
         id: targetUserId,
         is_donator: isOwner ? true : isDonator,
         is_supporter: isOwner ? true : isDonator,
@@ -133,11 +140,6 @@ export const getMyProfile = createServerFn({ method: "GET" })
         credits: isOwner ? 99999 : ((data as any)?.credits ?? 50),
         max_credits: isOwner ? 99999 : ((data as any)?.max_credits ?? 50),
       };
-
-      if (isOwner) {
-        result.username = "King";
-        result.display_name = "King";
-      }
 
       return result as any;
     } catch (e) {
@@ -172,7 +174,7 @@ export const updateMyProfile = createServerFn({ method: "POST" })
       display_name: z.string().max(60).optional(),
       bio: z.string().max(500).optional(),
       roblox_username: z.string().max(40).optional(),
-      language: z.enum(["en","es","pt","fr","de","it","ru","ar","zh","ja","ko","hi","tr","pl","nl"]).optional(),
+      language: z.string().max(10).optional(),
       is_private: z.boolean().optional(),
       asset_mode: z.enum(ASSET_MODES).optional(),
     }).parse(input),
@@ -213,10 +215,13 @@ export const updateMyProfile = createServerFn({ method: "POST" })
       if (!updateErr && updated) {
         return updated;
       }
+      if (updateErr) {
+        console.error("[updateMyProfile] Update error:", updateErr);
+      }
     }
 
     // 2. Otherwise attempt upsert
-    const usernameToUse = existing?.username || "Owner";
+    const usernameToUse = existing?.username || "Creator";
     const displayNameToUse = (patch.display_name as string) ?? existing?.display_name ?? usernameToUse;
 
     try {
@@ -235,6 +240,7 @@ export const updateMyProfile = createServerFn({ method: "POST" })
         .maybeSingle();
 
       if (!error && row) return row;
+      if (error) console.error("[updateMyProfile] Upsert error:", error);
     } catch (e) {
       console.warn("[updateMyProfile] Database upsert exception caught:", e);
     }
@@ -242,7 +248,7 @@ export const updateMyProfile = createServerFn({ method: "POST" })
     // 3. Fallback: if foreign key constraint prevents DB insert, return updated memory object
     return {
       id: targetUserId,
-      display_name: (patch.display_name as string) || "Owner",
+      display_name: (patch.display_name as string) || "Creator",
       username: usernameToUse,
       ...patch,
     } as any;
