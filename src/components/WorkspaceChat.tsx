@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import {
   Paperclip, Send, Sparkles, ChevronDown, Loader2, X, MessageSquare, Hammer, Wand2,
   Download, RefreshCw, Save, Image as ImageIcon, Square, Trash2, Zap, Volume2, VolumeX,
-  ClipboardList, Lightbulb, Languages, HelpCircle, CreditCard, Lock,
+  ClipboardList, Lightbulb, Languages, HelpCircle, CreditCard, Lock, Users,
 } from "lucide-react";
 import { useLang, LANGUAGES } from "@/lib/i18n";
 import { playCompletionSound } from "@/lib/sound";
@@ -35,6 +35,7 @@ import { useBloxSmithSpeaker } from "@/components/VoiceControls";
 import { GameBrainstormer } from "@/components/GameBrainstormer";
 import { WebsiteGuideModal } from "@/components/WebsiteGuideModal";
 import { PayPalTopUpModal } from "@/components/PayPalTopUpModal";
+import { CollabModal } from "@/components/CollabModal";
 
 function TopUpRequiredCard({
   modelLabel,

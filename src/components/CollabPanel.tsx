@@ -8,39 +8,57 @@ import {
   listProjectChat, sendProjectChat,
   listProjectActivity,
 } from "@/lib/collab.functions";
-import { Users, UserPlus, Send, Loader2, X, Activity, MessageSquare, Shield, Crown } from "lucide-react";
+import { Users, UserPlus, Send, Loader2, X, Activity, MessageSquare, Shield, Crown, Radio, Sparkles, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { friendlyError } from "@/lib/friendly-error";
 
 type Tab = "team" | "chat" | "activity";
 
+function sanitizeUsername(username?: string | null): string {
+  if (!username) return "User";
+  if (username.includes("@")) {
+    return username.split("@")[0];
+  }
+  return username;
+}
+
 export function CollabPanel({ projectId, ownerId }: { projectId: string; ownerId: string | null }) {
   const [meId, setMeId] = useState<string | null>(null);
   useEffect(() => { supabase.auth.getUser().then(({ data }) => setMeId(data.user?.id ?? null)); }, []);
   const isOwner = !!meId && !!ownerId && meId === ownerId;
-  const [tab, setTab] = useState<Tab>("team");
+  const [tab, setTab] = useState<Tab>("chat");
+
   return (
-    <div className="rounded-2xl border border-white/10 bg-card/60 backdrop-blur-sm overflow-hidden">
-      <div className="flex items-center gap-1 px-2 pt-2 border-b border-white/10">
-        {([
-          ["team", Users, "Team"],
-          ["chat", MessageSquare, "Team Chat"],
-          ["activity", Activity, "Activity"],
-        ] as const).map(([k, Icon, label]) => (
-          <button
-            key={k}
-            onClick={() => setTab(k as Tab)}
-            className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-t-lg transition ${
-              tab === k ? "bg-white/10 text-foreground" : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <Icon className="h-3.5 w-3.5" /> {label}
-          </button>
-        ))}
+    <div className="rounded-2xl border border-indigo-500/20 bg-black/40 backdrop-blur-md overflow-hidden shadow-2xl">
+      {/* Header Tabs */}
+      <div className="flex items-center justify-between px-3 pt-2.5 border-b border-white/10 bg-white/5">
+        <div className="flex items-center gap-1">
+          {([
+            ["chat", MessageSquare, "Realtime Chat"],
+            ["team", Users, "Team Members"],
+            ["activity", Activity, "Activity Feed"],
+          ] as const).map(([k, Icon, label]) => (
+            <button
+              key={k}
+              onClick={() => setTab(k as Tab)}
+              className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-t-xl transition-all ${
+                tab === k 
+                  ? "bg-indigo-600/30 text-white border-t-2 border-indigo-400 shadow-[0_0_10px_rgba(99,102,241,0.2)]" 
+                  : "text-slate-400 hover:text-slate-200 hover:bg-white/5"
+              }`}
+            >
+              <Icon className="h-3.5 w-3.5" /> {label}
+            </button>
+          ))}
+        </div>
+        <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full font-medium">
+          <Radio className="h-3 w-3 animate-pulse" /> Live Sync
+        </div>
       </div>
-      <div className="p-3">
+
+      <div className="p-3 sm:p-4">
         {tab === "team" && <TeamTab projectId={projectId} isOwner={isOwner} />}
-        {tab === "chat" && <ChatTab projectId={projectId} />}
+        {tab === "chat" && <ChatTab projectId={projectId} currentUserId={meId} />}
         {tab === "activity" && <ActivityTab projectId={projectId} />}
       </div>
     </div>
@@ -76,72 +94,91 @@ function TeamTab({ projectId, isOwner }: { projectId: string; isOwner: boolean }
 
   const inviteMut = useMutation({
     mutationFn: () => inviteFn({ data: { project_id: projectId, username: username.trim(), role } }),
-    onSuccess: () => { setUsername(""); toast.success("Invite sent"); qc.invalidateQueries({ queryKey: invKey }); },
+    onSuccess: () => { setUsername(""); toast.success("Invite sent successfully"); qc.invalidateQueries({ queryKey: invKey }); },
     onError: (e) => toast.error(friendlyError(e)),
   });
 
   return (
     <div className="space-y-4">
+      {/* Credit usage reminder */}
+      <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/10 p-3 text-xs text-indigo-200 flex items-start gap-2">
+        <Zap className="h-4 w-4 shrink-0 text-indigo-400 mt-0.5" />
+        <div>
+          <strong className="text-white">Collaborator Credit Rules:</strong> Invited team members get full access to edit project scripts and models. Each member uses their own credits for AI generation commands!
+        </div>
+      </div>
+
       {isOwner && (
-        <div className="rounded-xl border border-white/10 bg-black/20 p-3">
-          <div className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
-            <UserPlus className="h-3.5 w-3.5" /> Invite a teammate
+        <div className="rounded-xl border border-white/10 bg-black/30 p-3">
+          <div className="text-xs font-semibold text-slate-300 mb-2 flex items-center gap-1.5">
+            <UserPlus className="h-3.5 w-3.5 text-indigo-400" /> Invite Teammate
           </div>
           <div className="flex flex-col sm:flex-row gap-2">
             <input
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="username"
-              className="flex-1 rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm outline-none focus:border-white/30"
+              placeholder="Username or email"
+              className="flex-1 rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm outline-none focus:border-indigo-400 text-white placeholder:text-slate-500"
             />
-            <select value={role} onChange={(e) => setRole(e.target.value as any)} className="rounded-lg bg-white/5 border border-white/10 px-2 py-2 text-sm">
+            <select value={role} onChange={(e) => setRole(e.target.value as any)} className="rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm text-white bg-slate-900">
               <option value="editor">Editor</option>
               <option value="viewer">Viewer</option>
             </select>
             <button
-              onClick={() => username.trim() && inviteMut.mutate()}
+              onClick={() => inviteMut.mutate()}
               disabled={!username.trim() || inviteMut.isPending}
-              className="rounded-lg bg-gradient-to-r from-violet-500 to-pink-500 text-white px-4 py-2 text-sm font-semibold disabled:opacity-50"
+              className="rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 text-xs font-bold transition disabled:opacity-50 flex items-center justify-center gap-1"
             >
-              {inviteMut.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Invite"}
+              {inviteMut.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Send Invite"}
             </button>
           </div>
         </div>
       )}
 
+      {/* Active Collaborators */}
       <div>
-        <div className="text-xs font-semibold text-muted-foreground mb-2 px-1">Members ({collabs.length + 1})</div>
-        <div className="space-y-1.5">
-          <MemberRow name="Owner" sub="project owner" role="owner" />
+        <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center justify-between">
+          <span>Active Team ({collabs.length})</span>
+        </div>
+        <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
+          {collabs.length === 0 && (
+            <div className="text-center text-xs text-slate-500 py-4">No other collaborators yet. Invite someone above!</div>
+          )}
           {collabs.map((c: any) => (
             <MemberRow
               key={c.id}
-              name={c.profile?.display_name || c.profile?.username || "User"}
-              sub={c.profile?.username ? `@${c.profile.username}` : ""}
-              avatar={c.profile?.avatar_url}
+              profile={c.profile}
               role={c.role}
-              onRemove={isOwner ? () => removeFn({ data: { project_id: projectId, user_id: c.user_id } }).then(() => qc.invalidateQueries({ queryKey: collabKey })) : undefined}
-              onChangeRole={isOwner ? (r) => roleFn({ data: { project_id: projectId, user_id: c.user_id, role: r as any } }).then(() => qc.invalidateQueries({ queryKey: collabKey })) : undefined}
+              isOwner={c.role === "owner"}
+              canManage={isOwner && c.role !== "owner"}
+              onRemove={() => removeCollaborator({ data: { project_id: projectId, user_id: c.user_id } }).then(() => qc.invalidateQueries({ queryKey: collabKey }))}
+              onRoleChange={(r) => updateCollaboratorRole({ data: { project_id: projectId, user_id: c.user_id, role: r } }).then(() => qc.invalidateQueries({ queryKey: collabKey }))}
             />
           ))}
         </div>
       </div>
 
-      {invites.filter((i: any) => i.status === "pending").length > 0 && (
+      {/* Pending Invites */}
+      {invites.length > 0 && (
         <div>
-          <div className="text-xs font-semibold text-muted-foreground mb-2 px-1">Pending invites</div>
+          <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+            Pending Invites ({invites.length})
+          </div>
           <div className="space-y-1.5">
-            {invites.filter((i: any) => i.status === "pending").map((i: any) => (
-              <div key={i.id} className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm">
-                <div>
-                  <div className="font-medium">@{i.invitee_username}</div>
-                  <div className="text-xs text-muted-foreground">{i.role} · {new Date(i.created_at).toLocaleDateString()}</div>
+            {invites.map((inv: any) => (
+              <div key={inv.id} className="flex items-center justify-between rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-xs">
+                <span className="text-slate-300 font-medium">{sanitizeUsername(inv.invitee_profile?.display_name || inv.invitee_profile?.username || inv.invitee_id)}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-slate-400 uppercase font-semibold">{inv.role}</span>
+                  {isOwner && (
+                    <button
+                      onClick={() => cancelInvite({ data: { invite_id: inv.id } }).then(() => qc.invalidateQueries({ queryKey: invKey }))}
+                      className="text-slate-400 hover:text-red-400 transition"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
                 </div>
-                {isOwner && (
-                  <button onClick={() => cancelFn({ data: { invite_id: i.id } }).then(() => qc.invalidateQueries({ queryKey: invKey }))} className="text-xs text-muted-foreground hover:text-red-300">
-                    <X className="h-4 w-4" />
-                  </button>
-                )}
               </div>
             ))}
           </div>
@@ -151,41 +188,48 @@ function TeamTab({ projectId, isOwner }: { projectId: string; isOwner: boolean }
   );
 }
 
-function MemberRow({ name, sub, avatar, role, onRemove, onChangeRole }: {
-  name: string; sub?: string; avatar?: string | null; role: string;
-  onRemove?: () => void; onChangeRole?: (r: string) => void;
-}) {
+function MemberRow({ profile, role, isOwner, canManage, onRemove, onRoleChange }: any) {
+  const cleanName = sanitizeUsername(profile?.display_name || profile?.username);
   return (
-    <div className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 px-3 py-2">
+    <div className="flex items-center justify-between rounded-xl bg-white/5 border border-white/10 p-2.5">
       <div className="flex items-center gap-2.5 min-w-0">
-        <div className="h-8 w-8 rounded-full bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center text-white text-xs font-bold overflow-hidden flex-shrink-0">
-          {avatar ? <img src={avatar} alt="" className="h-full w-full object-cover" /> : (name[0] || "?").toUpperCase()}
+        <div className="h-8 w-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold overflow-hidden shadow-inner">
+          {profile?.avatar_url ? <img src={profile.avatar_url} className="h-full w-full object-cover" /> : cleanName[0]?.toUpperCase()}
         </div>
         <div className="min-w-0">
-          <div className="text-sm font-medium truncate">{name}</div>
-          {sub && <div className="text-xs text-muted-foreground truncate">{sub}</div>}
+          <div className="text-xs font-semibold text-white truncate flex items-center gap-1.5">
+            {cleanName}
+            {isOwner && <Crown className="h-3 w-3 text-amber-400 shrink-0" />}
+          </div>
+          <div className="text-[10px] text-slate-400 capitalize">{role}</div>
         </div>
       </div>
-      <div className="flex items-center gap-2 flex-shrink-0">
-        {role === "owner" ? (
-          <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-300 flex items-center gap-1"><Crown className="h-3 w-3" /> Owner</span>
-        ) : onChangeRole ? (
-          <select value={role} onChange={(e) => onChangeRole(e.target.value)} className="text-xs rounded bg-white/5 border border-white/10 px-1.5 py-0.5">
+      <div className="flex items-center gap-2">
+        {canManage ? (
+          <select
+            value={role}
+            onChange={(e) => onRoleChange?.(e.target.value)}
+            className="rounded bg-black/40 border border-white/10 px-2 py-1 text-[11px] text-slate-200"
+          >
             <option value="editor">Editor</option>
             <option value="viewer">Viewer</option>
           </select>
         ) : (
-          <span className="text-xs px-2 py-0.5 rounded-full bg-white/10 text-muted-foreground flex items-center gap-1"><Shield className="h-3 w-3" /> {role}</span>
+          <span className="text-[10px] uppercase font-bold text-slate-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded">
+            {role}
+          </span>
         )}
-        {onRemove && (
-          <button onClick={onRemove} className="text-muted-foreground hover:text-red-300"><X className="h-4 w-4" /></button>
+        {canManage && onRemove && (
+          <button onClick={onRemove} className="text-slate-400 hover:text-red-400 transition p-1">
+            <X className="h-3.5 w-3.5" />
+          </button>
         )}
       </div>
     </div>
   );
 }
 
-function ChatTab({ projectId }: { projectId: string }) {
+function ChatTab({ projectId, currentUserId }: { projectId: string; currentUserId?: string | null }) {
   const qc = useQueryClient();
   const listFn = useServerFn(listProjectChat);
   const sendFn = useServerFn(sendProjectChat);
@@ -202,46 +246,108 @@ function ChatTab({ projectId }: { projectId: string }) {
     return () => { supabase.removeChannel(ch); };
   }, [projectId]);
 
-  useEffect(() => { scrollRef.current?.scrollTo({ top: 999999 }); }, [msgs.length]);
+  useEffect(() => { scrollRef.current?.scrollTo({ top: 999999, behavior: "smooth" }); }, [msgs.length]);
 
   const sendMut = useMutation({
-    mutationFn: () => sendFn({ data: { project_id: projectId, body: text.trim() } }),
+    mutationFn: (bodyText?: string) => sendFn({ data: { project_id: projectId, body: (bodyText || text).trim() } }),
     onSuccess: () => { setText(""); qc.invalidateQueries({ queryKey: key }); },
     onError: (e) => toast.error(friendlyError(e)),
   });
 
+  const quickPills = [
+    "🎮 Test the build",
+    "🚀 Ship to Studio",
+    "🔥 Looks great!",
+    "🐛 Check output log",
+    "🎨 Quick UI update",
+    "👏 Nice work!",
+  ];
+
   return (
-    <div className="flex flex-col h-[420px]">
-      <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-2 pr-1">
+    <div className="flex flex-col h-[440px]">
+      {/* Realtime Chat Messages List */}
+      <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-3 pr-1.5 bs-smooth-scroll">
         {msgs.length === 0 && (
-          <div className="text-center text-xs text-muted-foreground py-8">No messages yet. Say hi 👋</div>
-        )}
-        {msgs.map((m: any) => (
-          <div key={m.id} className="flex gap-2">
-            <div className="h-7 w-7 rounded-full bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0 overflow-hidden">
-              {m.profile?.avatar_url ? <img src={m.profile.avatar_url} className="h-full w-full object-cover" /> : (m.profile?.username?.[0] || "?").toUpperCase()}
+          <div className="flex flex-col items-center justify-center text-center text-xs text-slate-400 py-12 space-y-2">
+            <div className="h-10 w-10 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+              <MessageSquare className="h-5 w-5" />
             </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-baseline gap-2">
-                <span className="text-xs font-semibold">{m.profile?.display_name || m.profile?.username || "User"}</span>
-                <span className="text-[10px] text-muted-foreground">{new Date(m.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
-              </div>
-              <div className="text-sm whitespace-pre-wrap break-words">{m.body}</div>
-            </div>
+            <p className="font-semibold text-slate-200">Start the Team Conversation</p>
+            <p className="text-[11px] text-slate-500 max-w-[240px]">
+              Chat in real-time with collaborators as you build together on this project!
+            </p>
           </div>
+        )}
+
+        {msgs.map((m: any) => {
+          const isSelf = currentUserId && m.user_id === currentUserId;
+          const cleanName = sanitizeUsername(m.profile?.display_name || m.profile?.username);
+
+          return (
+            <div key={m.id} className={`flex gap-2.5 ${isSelf ? "flex-row-reverse" : "flex-row"}`}>
+              {/* User Avatar */}
+              <div className="h-7 w-7 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-[11px] font-bold shrink-0 overflow-hidden shadow-sm mt-0.5">
+                {m.profile?.avatar_url ? (
+                  <img src={m.profile.avatar_url} className="h-full w-full object-cover" />
+                ) : (
+                  cleanName[0]?.toUpperCase() || "?"
+                )}
+              </div>
+
+              {/* Message Bubble */}
+              <div className={`max-w-[80%] space-y-1 ${isSelf ? "items-end text-right" : "items-start"}`}>
+                <div className="flex items-baseline gap-2 px-1">
+                  <span className="text-[11px] font-bold text-slate-300">{cleanName}</span>
+                  <span className="text-[9px] text-slate-500">
+                    {new Date(m.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                </div>
+                <div
+                  className={`rounded-2xl px-3.5 py-2 text-xs leading-relaxed whitespace-pre-wrap break-words shadow-md ${
+                    isSelf
+                      ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-tr-xs"
+                      : "bg-slate-800/80 border border-white/10 text-slate-100 rounded-tl-xs"
+                  }`}
+                >
+                  {m.body}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Quick Action Pills */}
+      <div className="py-2 flex items-center gap-1.5 overflow-x-auto no-scrollbar border-t border-white/5 mt-1">
+        {quickPills.map((pill) => (
+          <button
+            key={pill}
+            type="button"
+            onClick={() => sendMut.mutate(pill)}
+            disabled={sendMut.isPending}
+            className="shrink-0 rounded-full border border-white/10 bg-white/5 hover:bg-indigo-500/20 hover:border-indigo-500/40 px-2.5 py-1 text-[11px] text-slate-300 hover:text-white transition"
+          >
+            {pill}
+          </button>
         ))}
       </div>
+
+      {/* Send Message Form */}
       <form
         onSubmit={(e) => { e.preventDefault(); if (text.trim()) sendMut.mutate(); }}
-        className="mt-2 flex gap-2"
+        className="mt-1 flex gap-2"
       >
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="Message your team…"
-          className="flex-1 rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm outline-none focus:border-white/30"
+          placeholder="Discuss your project with team in real-time…"
+          className="flex-1 rounded-xl bg-white/5 border border-white/10 px-3.5 py-2.5 text-xs text-white placeholder:text-slate-500 outline-none focus:border-indigo-400 focus:bg-white/10 transition"
         />
-        <button type="submit" disabled={!text.trim() || sendMut.isPending} className="rounded-lg bg-gradient-to-r from-violet-500 to-pink-500 text-white px-3 disabled:opacity-50">
+        <button
+          type="submit"
+          disabled={!text.trim() || sendMut.isPending}
+          className="rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white px-4 py-2.5 text-xs font-bold transition shadow-lg shadow-indigo-600/30 disabled:opacity-40 flex items-center justify-center gap-1.5"
+        >
           {sendMut.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
         </button>
       </form>
@@ -263,24 +369,27 @@ function ActivityTab({ projectId }: { projectId: string }) {
     return () => { supabase.removeChannel(ch); };
   }, [projectId]);
 
-  if (rows.length === 0) return <div className="text-center text-xs text-muted-foreground py-8">No activity yet.</div>;
+  if (rows.length === 0) return <div className="text-center text-xs text-slate-500 py-12">No activity recorded yet. Actions taken on this project will appear here in real-time!</div>;
 
   return (
-    <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
-      {rows.map((r: any) => (
-        <div key={r.id} className="flex gap-2 items-start text-sm">
-          <div className="h-6 w-6 rounded-full bg-white/10 flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5 overflow-hidden">
-            {r.profile?.avatar_url ? <img src={r.profile.avatar_url} className="h-full w-full object-cover" /> : (r.profile?.username?.[0] || "•").toUpperCase()}
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="text-sm">
-              <span className="font-semibold">{r.profile?.display_name || r.profile?.username || "Someone"}</span>{" "}
-              <span className="text-muted-foreground">{r.summary}</span>
+    <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1 bs-smooth-scroll">
+      {rows.map((r: any) => {
+        const cleanName = sanitizeUsername(r.profile?.display_name || r.profile?.username);
+        return (
+          <div key={r.id} className="flex gap-2.5 items-start text-xs rounded-xl bg-white/5 border border-white/10 p-2.5">
+            <div className="h-6 w-6 rounded-full bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-[10px] font-bold text-indigo-300 shrink-0 mt-0.5 overflow-hidden">
+              {r.profile?.avatar_url ? <img src={r.profile.avatar_url} className="h-full w-full object-cover" /> : cleanName[0]?.toUpperCase()}
             </div>
-            <div className="text-[10px] text-muted-foreground">{new Date(r.created_at).toLocaleString()}</div>
+            <div className="min-w-0 flex-1">
+              <div>
+                <span className="font-bold text-white">{cleanName}</span>{" "}
+                <span className="text-slate-300">{r.summary}</span>
+              </div>
+              <div className="text-[10px] text-slate-500 mt-0.5">{new Date(r.created_at).toLocaleString()}</div>
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

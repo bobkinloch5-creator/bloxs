@@ -62,16 +62,19 @@ export const Route = createFileRoute("/api/public/plugin/heartbeat")({
               .maybeSingle();
             if (!profile) return json({ error: "invalid token" }, 401);
             userId = profile.id;
-            tokenCache.set(token, { id: userId, fetchedAt: Date.now() });
+            tokenCache.set(token, { id: profile.id, fetchedAt: Date.now() });
           }
 
+          if (!userId) return json({ error: "invalid user" }, 401);
+          const validUserId: string = userId;
+
           // Throttle database write to at most once per 45s per user
-          const lastWrite = lastSessionWrite.get(userId) ?? 0;
+          const lastWrite = lastSessionWrite.get(validUserId) ?? 0;
           if (Date.now() - lastWrite > 45_000) {
-            lastSessionWrite.set(userId, Date.now());
+            lastSessionWrite.set(validUserId, Date.now());
             await sb.from("plugin_sessions").upsert(
               {
-                user_id: userId,
+                user_id: validUserId,
                 project_id: body.project_id ?? null,
                 place_id: body.place_id ?? null,
                 studio_version: body.studio_version ?? null,

@@ -321,6 +321,3 @@ export function ModelSelector({ selectedModel, onSelectModel, availableModels, i
     </>
   );
 }
-iv>
-  );
-}

@@ -215,8 +215,8 @@ export function paletteFor(style: string): Palette {
   if (s.includes("light") || s.includes("minimal")) {
     return { bg: "#f3f7ff", bg2: "#dbeafe", panel: "#ffffff", panel2: "#eef3fb", card: "#f8fbff", accent: "#3b82f6", accent2: "#06b6d4", text: "#0f172a", muted: "#516075", good: "#16a34a", warn: "#d97706", danger: "#ef4444" };
   }
-  if (s.includes("cartoon") || s.includes("cute")) {
-    return { bg: "#fff1f7", bg2: "#fff7cc", panel: "#ffffff", panel2: "#ffe0ef", card: "#fff8fb", accent: "#ff5fa2", accent2: "#ffb347", text: "#36172b", muted: "#73475f", good: "#22c58f", warn: "#f59e0b", danger: "#ff4f4f" };
+  if (s.includes("cartoon") || s.includes("cute") || s.includes("simulator") || s.includes("obby")) {
+    return { bg: "#0f142b", bg2: "#192348", panel: "#1c2957", panel2: "#273a78", card: "#213169", accent: "#ff3b75", accent2: "#00e5ff", text: "#ffffff", muted: "#a0b5f5", good: "#00e676", warn: "#ffc107", danger: "#ff3d00" };
   }
   if (s.includes("premium") || s.includes("vip") || s.includes("luxur")) {
     return { bg: "#07070b", bg2: "#17131d", panel: "#121018", panel2: "#1d1826", card: "#241d2f", accent: "#d4af37", accent2: "#8b5cf6", text: "#fff7df", muted: "#c7b98a", good: "#22c55e", warn: "#d4af37", danger: "#ef4444" };
@@ -242,13 +242,8 @@ export function paletteFor(style: string): Palette {
   if (s.includes("retro") || s.includes("arcade")) {
     return { bg: "#160b2e", bg2: "#2a1152", panel: "#1f1043", panel2: "#28145a", card: "#351a70", accent: "#ff3ea5", accent2: "#00e0ff", text: "#ffffff", muted: "#c8a9ff", good: "#7cf7a3", warn: "#ffd23f", danger: "#ff5470" };
   }
-  if (s.includes("simulator") || s.includes("obby")) {
-    return { bg: "#0b0f24", bg2: "#101636", panel: "#141c3e", panel2: "#1b2450", card: "#243066", accent: "#00ffaa", accent2: "#ff6b00", text: "#ffffff", muted: "#a8b8e0", good: "#00ffaa", warn: "#ffb84d", danger: "#ff5c5c" };
-  }
-  if (s.includes("modern")) {
-    return { bg: "#0a0f1c", bg2: "#111a30", panel: "#131c31", panel2: "#1a2544", card: "#22305a", accent: "#5b8def", accent2: "#22d3ee", text: "#f8fafc", muted: "#94a3b8", good: "#34d399", warn: "#fbbf24", danger: "#f87171" };
-  }
-  return { bg: "#080817", bg2: "#11142b", panel: "#151735", panel2: "#1e2049", card: "#282c60", accent: "#6d5dfc", accent2: "#2dd4bf", text: "#ffffff", muted: "#b7c2e8", good: "#2dd4bf", warn: "#facc15", danger: "#fb7185" };
+  // Default: Saturated cheerful Roblox Game palette (Adopt Me / Pet Sim / Blox Fruits style)
+  return { bg: "#0f142b", bg2: "#192348", panel: "#1c2957", panel2: "#273a78", card: "#213169", accent: "#ff3b75", accent2: "#00e5ff", text: "#ffffff", muted: "#a0b5f5", good: "#00e676", warn: "#ffc107", danger: "#ff3d00" };
 }
 
 // ---------------------------------------------------------------------------
@@ -256,7 +251,7 @@ export function paletteFor(style: string): Palette {
 // ---------------------------------------------------------------------------
 
 function frame(name: string, x: number, y: number, w: number, h: number, fill: string, extra: Partial<UiNode> = {}): UiNode {
-  return { kind: "frame", name, x, y, w, h, fill, radius: 12, opacity: 1, ...extra };
+  return { kind: "frame", name, x, y, w, h, fill, radius: 16, opacity: 1, shadow: true, ...extra };
 }
 
 function label(name: string, value: string, x: number, y: number, w: number, h: number, color: string, fontSize: number, extra: Partial<UiNode> = {}): UiNode {
@@ -273,13 +268,14 @@ function button(name: string, value: string, x: number, y: number, w: number, h:
     w,
     h,
     fill,
-    radius: 10,
+    radius: 14,
     opacity: 1,
     align: "center",
     bold: true,
     fontSize: 18,
     textColor: "#ffffff",
     shadow: true,
+    gradient: true,
     ...extra,
   };
 }

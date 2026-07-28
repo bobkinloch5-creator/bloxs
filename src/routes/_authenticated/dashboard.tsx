@@ -30,6 +30,7 @@ import { NewProjectModal } from "@/components/NewProjectModal";
 import { ExportGameModal } from "@/components/ExportGameModal";
 import { ProjectFilesPanel } from "@/components/ProjectFilesPanel";
 import { WebsiteGuideModal } from "@/components/WebsiteGuideModal";
+import { CollabModal } from "@/components/CollabModal";
 
 import { Reveal, GlowCard, CountUp } from "@/components/Reveal";
 import { ProjectMemoryCard } from "@/components/ProjectMemoryCard";
@@ -143,6 +144,7 @@ function Dashboard() {
   const [newProjectOpen, setNewProjectOpen] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [guideModalOpen, setGuideModalOpen] = useState(false);
+  const [collabModalOpen, setCollabModalOpen] = useState(false);
   // If localStorage's active id no longer exists, clear it once projects load.
   // Also auto-select the most recent project when none is active so clicking
   // Build doesn't force the user through the "Create a project" modal every
@@ -342,7 +344,14 @@ function Dashboard() {
                             <span className="inline-flex items-center gap-1 text-emerald-400 font-semibold"><CheckCircle2 className="h-3 w-3" /> Chat & assets active</span>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setCollabModalOpen(true)}
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-400/40 bg-indigo-600/30 hover:bg-indigo-600/50 px-3.5 py-2 text-xs font-bold text-white transition shadow-[0_0_15px_rgba(99,102,241,0.3)] active:scale-95"
+                          >
+                            <Users className="h-3.5 w-3.5 text-indigo-300 animate-pulse" /> Team Chat & Collab
+                          </button>
                           <button
                             type="button"
                             onClick={() => setExportModalOpen(true)}
@@ -621,6 +630,15 @@ function Dashboard() {
         open={guideModalOpen}
         onClose={() => setGuideModalOpen(false)}
       />
+      {activeProject && (
+        <CollabModal
+          open={collabModalOpen}
+          onClose={() => setCollabModalOpen(false)}
+          projectId={activeProject.id}
+          projectName={activeProject.name}
+          ownerId={activeProject.user_id}
+        />
+      )}
       </div>
     </div>
   );
