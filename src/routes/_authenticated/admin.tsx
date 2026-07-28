@@ -206,9 +206,10 @@ function DashboardTab() {
     queryKey: ["adminDashboardMetrics"],
     queryFn: () => fn(),
     refetchInterval: 15_000,
+    placeholderData: (prev) => prev,
   });
 
-  if (isLoading) return <Card className="flex items-center justify-center p-12"><Loader2 className="h-6 w-6 animate-spin text-indigo-400" /></Card>;
+  if (isLoading && !data) return <Card className="flex items-center justify-center p-12"><Loader2 className="h-6 w-6 animate-spin text-indigo-400" /></Card>;
   const m = data?.metrics || {
     totalUsers: 0, onlineUsers: 0, totalProjects: 0, projectsToday: 0,
     aiRequestsToday: 0, activeBuilds: 0, pluginConnections: 0, actionsToday: 0,
@@ -298,6 +299,7 @@ function UsersPanel({ isOwner }: { isOwner: boolean }) {
   const { data, isLoading } = useQuery({
     queryKey: ["adminUsers", search, page, perPage],
     queryFn: () => listFn({ data: { search, page, perPage } }),
+    placeholderData: (prev) => prev,
   });
 
   const totalUsers = data?.totalUsers ?? data?.users?.length ?? 0;
@@ -976,14 +978,18 @@ function SettingsTab() {
   const qc = useQueryClient();
   const getFn = useServerFn(getGlobalSettings);
   const setFn = useServerFn(updateGlobalSetting);
-  const { data, isLoading } = useQuery({ queryKey: ["adminSettings"], queryFn: () => getFn() });
+  const { data, isLoading } = useQuery({
+    queryKey: ["adminSettings"],
+    queryFn: () => getFn(),
+    placeholderData: (prev) => prev,
+  });
   const upd = useMutation({
     mutationFn: (v: { key: string; value: any }) => setFn({ data: v }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["adminSettings"] }); toast.success("Saved"); },
     onError: (e: any) => toast.error(e?.message ?? "Failed"),
   });
 
-  if (isLoading) return <Card className="flex items-center justify-center p-12"><Loader2 className="h-6 w-6 animate-spin text-indigo-400" /></Card>;
+  if (isLoading && !data) return <Card className="flex items-center justify-center p-12"><Loader2 className="h-6 w-6 animate-spin text-indigo-400" /></Card>;
   const s = data?.settings || {};
 
   return (

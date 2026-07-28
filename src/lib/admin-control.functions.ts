@@ -120,13 +120,19 @@ export const getDashboardMetrics = createServerFn({ method: "GET" })
       errorBuckets.push({ t: new Date(end).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }), count });
     }
 
+    let authUserCount = 0;
+    try {
+      const { data: usersList } = await supabaseAdmin.auth.admin.listUsers();
+      authUserCount = usersList?.users?.length ?? 0;
+    } catch {}
+
     const buildTotal = buildsTotal.count ?? 0;
     const buildOk = buildsOK.count ?? 0;
     const successRate = buildTotal ? Math.round((buildOk / buildTotal) * 100) : 0;
 
     return {
       metrics: {
-        totalUsers: users.count ?? 0,
+        totalUsers: Math.max(users.count ?? 0, authUserCount),
         onlineUsers: online.count ?? 0,
         totalProjects: projects.count ?? 0,
         projectsToday: projects24h.count ?? 0,
