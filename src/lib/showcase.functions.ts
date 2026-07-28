@@ -91,12 +91,21 @@ export const listShowcase = createServerFn({ method: "GET" })
       .select("id, username, display_name, avatar_url, roblox_username")
       .in("id", userIds);
 
+    function sanitizeUsername(username?: string | null, displayName?: string | null): string {
+      let name = username || displayName || "BloxSmith Creator";
+      if (name.includes("@")) {
+        const prefix = name.split("@")[0]?.trim();
+        if (prefix) name = prefix;
+      }
+      return name;
+    }
+
     const profileMap = new Map<string, ShowcasePostAuthor>();
     if (profiles) {
       for (const pr of profiles) {
         profileMap.set(pr.id, {
-          username: pr.username,
-          display_name: pr.display_name,
+          username: sanitizeUsername(pr.username, pr.display_name),
+          display_name: pr.display_name && !pr.display_name.includes("@") ? pr.display_name : null,
           avatar_url: pr.avatar_url,
           roblox_username: pr.roblox_username,
         });
@@ -134,11 +143,24 @@ export const getShowcasePost = createServerFn({ method: "GET" })
       .eq("id", post.user_id)
       .maybeSingle();
 
+    let sanitizedAuthor = null;
+    if (authorProfile) {
+      let uname = authorProfile.username || authorProfile.display_name || "BloxSmith Creator";
+      if (uname.includes("@")) {
+        uname = uname.split("@")[0]?.trim() || "Creator";
+      }
+      sanitizedAuthor = {
+        ...authorProfile,
+        username: uname,
+        display_name: authorProfile.display_name && !authorProfile.display_name.includes("@") ? authorProfile.display_name : null,
+      };
+    }
+
     return {
       post: {
         ...post,
         views: (post.views ?? 0) + 1,
-        author: authorProfile ?? null,
+        author: sanitizedAuthor,
       } as ShowcasePostItem,
       error: null,
     };

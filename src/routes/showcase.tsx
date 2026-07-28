@@ -300,7 +300,7 @@ function CommunityShowcasePage() {
                       {/* Creator */}
                       {p.author ? (
                         <span className="inline-flex items-center gap-1.5 font-medium text-slate-300">
-                          <User className="h-3 w-3 text-indigo-400" /> @{p.author.username}
+                          <User className="h-3 w-3 text-indigo-400" /> @{p.author.username.replace(/@.*$/, '')}
                         </span>
                       ) : (
                         <span className="text-slate-500">Community Creator</span>

@@ -117,10 +117,10 @@ export function GameDetailModal({ post, onClose, onLikeToggle }: GameDetailModal
                   <span>Created by</span>
                   <Link
                     to="/u/$username"
-                    params={{ username: post.author.username }}
+                    params={{ username: post.author.username.replace(/@.*$/, '') }}
                     className="font-bold text-indigo-300 hover:text-indigo-200 underline"
                   >
-                    @{post.author.username} {post.author.display_name ? `(${post.author.display_name})` : ""}
+                    @{post.author.username.replace(/@.*$/, '')}
                   </Link>
                 </div>
               ) : null}
