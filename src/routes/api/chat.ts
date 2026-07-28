@@ -6276,9 +6276,44 @@ export const Route = createFileRoute("/api/chat")({
             console.warn("[chat] rate limit check failed", e);
           }
 
-          // Enforce model tier credit cost per request (Exempts Owners/Admins)
+          // Enforce model tier credit cost per request (Exempts Owners/Admins) & paidOnly top-up verification
           try {
             const chosenModelOption = findModel(activeModelId);
+
+            if (chosenModelOption?.paidOnly) {
+              const { data: userProf } = await supabaseAdmin
+                .from("profiles")
+                .select("plan, is_admin, settings")
+                .eq("id", userId)
+                .maybeSingle();
+
+              const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(userId);
+              const userEmail = authUser?.user?.email?.toLowerCase() || "";
+
+              const isOwner =
+                userEmail === "bobkinloch5@gmail.com" ||
+                userProf?.plan === "Owner" ||
+                userProf?.is_admin === true;
+
+              const hasTopUp =
+                isOwner ||
+                userProf?.plan === "TopUp" ||
+                (userProf?.settings && (userProf.settings as any)?.has_topup === true);
+
+              if (!hasTopUp) {
+                return new Response(
+                  JSON.stringify({
+                    error: `💎 ${chosenModelOption.label} is a Top-Up Exclusive model. Please purchase a top-up to unlock access.`,
+                    code: "topup_required",
+                  }),
+                  {
+                    status: 402,
+                    headers: { "Content-Type": "application/json" },
+                  },
+                );
+              }
+            }
+
             const { creditCostForTier, BUILD_ACTIONS_BONUS, chargeCredits } = await import("@/lib/credits.server");
             const modelBaseCost = creditCostForTier(chosenModelOption.credits);
             const totalCreditCost = modelBaseCost + (mode === "build" ? BUILD_ACTIONS_BONUS : 0);

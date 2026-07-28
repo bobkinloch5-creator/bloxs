@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
 import {
   getMyProfile,
   updateMyProfile,
@@ -88,7 +89,11 @@ function SettingsPage() {
     mutationFn: () => updateFn({ data: form }),
     onSuccess: () => {
       setLang(form.language);
+      toast.success("Profile saved successfully!");
       qc.invalidateQueries({ queryKey: ["profile"] });
+    },
+    onError: (err: any) => {
+      toast.error(err?.message ?? "Failed to save profile.");
     },
   });
 

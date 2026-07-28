@@ -59,14 +59,14 @@ export const getMyProfile = createServerFn({ method: "GET" })
         credits_reset_at: new Date().toISOString(),
         settings: {},
         language: "en",
+        display_name: "Owner",
+        username: "Owner",
         ...(data || {}),
         id: targetUserId,
-        username: (data as any)?.username || "Owner",
-        display_name: (data as any)?.display_name || "Owner",
-        plan: "Owner",
-        is_admin: true,
-        credits: 99999,
-        max_credits: 99999,
+        plan: isOwner ? "Owner" : ((data as any)?.plan || "Free"),
+        is_admin: isOwner ? true : !!(data as any)?.is_admin,
+        credits: isOwner ? 99999 : ((data as any)?.credits ?? 50),
+        max_credits: isOwner ? 99999 : ((data as any)?.max_credits ?? 50),
       };
       return result as any;
     } catch (e) {
@@ -124,11 +124,23 @@ export const updateMyProfile = createServerFn({ method: "POST" })
       patch.settings = { ...settings, asset_mode };
     }
 
+    // Check existing profile row to prevent missing mandatory column errors
+    const { data: existing } = await supabaseAdmin
+      .from("profiles")
+      .select("id, username, display_name")
+      .eq("id", targetUserId)
+      .maybeSingle();
+
+    const usernameToUse = existing?.username || "Owner";
+    const displayNameToUse = (patch.display_name as string) ?? existing?.display_name ?? usernameToUse;
+
     const { data: row, error } = await supabaseAdmin
       .from("profiles")
       .upsert(
         {
           id: targetUserId,
+          username: usernameToUse,
+          display_name: displayNameToUse,
           ...patch,
         } as never,
         { onConflict: "id" }
@@ -136,7 +148,10 @@ export const updateMyProfile = createServerFn({ method: "POST" })
       .select(PROFILE_COLS)
       .single();
 
-    if (error) throw new Error(error.message);
+    if (error) {
+      console.error("[updateMyProfile] database error:", error);
+      throw new Error(error.message);
+    }
     return row;
   });
 
