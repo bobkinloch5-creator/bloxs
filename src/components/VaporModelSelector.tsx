@@ -1,23 +1,36 @@
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { Sparkles, ChevronDown, Check, Search, Cpu, Lock } from "lucide-react";
+import { Sparkles, ChevronDown, Check, Search, Cpu, Lock, Crown } from "lucide-react";
 import { type ModelOption } from "@/lib/models";
 import { PayPalTopUpModal } from "@/components/PayPalTopUpModal";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { getMyProfile } from "@/lib/profile.functions";
 
 interface Props {
   selectedModel: string;
   onSelectModel: (id: string) => void;
   availableModels: ModelOption[];
+  isOwner?: boolean;
 }
 
-export function VaporModelSelector({ selectedModel, onSelectModel, availableModels }: Props) {
+export function VaporModelSelector({ selectedModel, onSelectModel, availableModels, isOwner: isOwnerProp }: Props) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const triggerRef = useRef<HTMLButtonElement>(null);
   const [coords, setCoords] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
   const [mounted, setMounted] = useState(false);
   const [showTopUpModal, setShowTopUpModal] = useState(false);
+
+  const profileFn = useServerFn(getMyProfile);
+  const { data: profile } = useQuery({
+    queryKey: ["profile"],
+    queryFn: () => profileFn(),
+    staleTime: 60_000,
+  });
+
+  const isOwnerUser = isOwnerProp || profile?.plan === "Owner" || profile?.is_admin === true;
 
   useEffect(() => {
     setMounted(true);
@@ -195,7 +208,7 @@ export function VaporModelSelector({ selectedModel, onSelectModel, availableMode
                       key={m.id}
                       type="button"
                       onClick={() => {
-                        if (m.paidOnly) {
+                        if (m.paidOnly && !isOwnerUser) {
                           toast.info(`💎 ${m.label} is a Top-Up Exclusive model. Opening payment options...`);
                           setShowTopUpModal(true);
                         }
@@ -209,7 +222,7 @@ export function VaporModelSelector({ selectedModel, onSelectModel, availableMode
                       className={`group flex w-full items-start justify-between rounded-xl border p-3 text-left transition-all ${
                         isSelected
                           ? "border-cyan-400 shadow-[0_0_20px_rgba(34,211,238,0.4)]"
-                          : m.paidOnly
+                          : m.paidOnly && !isOwnerUser
                           ? "border-purple-500/40 hover:border-purple-400 hover:bg-[#1a0b2e]"
                           : "border-indigo-500/30 hover:border-cyan-400/60 hover:bg-[#121236]"
                       }`}
@@ -232,12 +245,21 @@ export function VaporModelSelector({ selectedModel, onSelectModel, availableMode
                             {m.speed}
                           </span>
                           {m.paidOnly ? (
-                            <span
-                              style={{ backgroundColor: "#581c87", color: "#f3e8ff", borderColor: "#a855f7" }}
-                              className="rounded-full border px-2 py-[1px] text-[9px] font-black uppercase tracking-wider shadow-[0_0_10px_rgba(168,85,247,0.4)] flex items-center gap-1"
-                            >
-                              💎 TOP-UP REQUIRED
-                            </span>
+                            isOwnerUser ? (
+                              <span
+                                style={{ backgroundColor: "#065f46", color: "#6ee7b7", borderColor: "#10b981" }}
+                                className="rounded-full border px-2 py-[1px] text-[9px] font-black uppercase tracking-wider shadow-sm flex items-center gap-1"
+                              >
+                                <Crown className="w-3 h-3 text-emerald-400" /> OWNER UNLOCKED
+                              </span>
+                            ) : (
+                              <span
+                                style={{ backgroundColor: "#581c87", color: "#f3e8ff", borderColor: "#a855f7" }}
+                                className="rounded-full border px-2 py-[1px] text-[9px] font-black uppercase tracking-wider shadow-[0_0_10px_rgba(168,85,247,0.4)] flex items-center gap-1"
+                              >
+                                💎 TOP-UP REQUIRED
+                              </span>
+                            )
                           ) : (
                             <span
                               style={{ backgroundColor: badgeColor.bg, color: badgeColor.text, borderColor: badgeColor.border }}

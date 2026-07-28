@@ -1,13 +1,17 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
-import { Sparkles, ChevronDown, Check, Search, Zap, Lock } from "lucide-react";
+import { Sparkles, ChevronDown, Check, Search, Zap, Lock, Crown } from "lucide-react";
 import { ModelOption } from "@/lib/models";
 import { PayPalTopUpModal } from "@/components/PayPalTopUpModal";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { getMyProfile } from "@/lib/profile.functions";
 
 interface ModelSelectorProps {
   selectedModel: string;
   onSelectModel: (modelId: string) => void;
   availableModels: ModelOption[];
+  isOwner?: boolean;
 }
 
 const PROVIDER_COLORS: Record<string, { bg: string; text: string; border: string }> = {
@@ -21,12 +25,21 @@ const PROVIDER_COLORS: Record<string, { bg: string; text: string; border: string
   default: { bg: "bg-slate-500/15", text: "text-slate-300", border: "border-slate-500/30" },
 };
 
-export function ModelSelector({ selectedModel, onSelectModel, availableModels }: ModelSelectorProps) {
+export function ModelSelector({ selectedModel, onSelectModel, availableModels, isOwner: isOwnerProp }: ModelSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<string>("All");
   const [showTopUpModal, setShowTopUpModal] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const profileFn = useServerFn(getMyProfile);
+  const { data: profile } = useQuery({
+    queryKey: ["profile"],
+    queryFn: () => profileFn(),
+    staleTime: 60_000,
+  });
+
+  const isOwnerUser = isOwnerProp || profile?.plan === "Owner" || profile?.is_admin === true;
 
   // Close when clicking outside
   useEffect(() => {
@@ -221,7 +234,7 @@ export function ModelSelector({ selectedModel, onSelectModel, availableModels }:
                     key={m.id}
                     type="button"
                     onClick={() => {
-                      if (m.paidOnly) {
+                      if (m.paidOnly && !isOwnerUser) {
                         toast.info(`💎 ${m.label} is a Top-Up Exclusive model. Opening payment options...`);
                         setShowTopUpModal(true);
                       }
@@ -231,7 +244,7 @@ export function ModelSelector({ selectedModel, onSelectModel, availableModels }:
                     className={`w-full text-left rounded-xl p-2.5 transition-all duration-150 border ${
                       isSelected
                         ? "border-indigo-400/60 bg-indigo-500/15 shadow-[0_0_15px_rgba(99,102,241,0.2)]"
-                        : m.paidOnly
+                        : m.paidOnly && !isOwnerUser
                         ? "border-purple-500/40 hover:border-purple-400 hover:bg-purple-950/40"
                         : "border-white/5 bg-slate-900/40 hover:border-slate-700 hover:bg-slate-800/60"
                     }`}
@@ -249,9 +262,15 @@ export function ModelSelector({ selectedModel, onSelectModel, availableModels }:
                             {m.speed} • {m.quality}
                           </span>
                           {m.paidOnly ? (
-                            <span className="rounded border bg-purple-900/60 border-purple-400/60 text-purple-200 px-1.5 py-0.5 text-[9.5px] font-extrabold uppercase tracking-wider shadow-[0_0_8px_rgba(168,85,247,0.4)]">
-                              💎 TOP-UP REQUIRED
-                            </span>
+                            isOwnerUser ? (
+                              <span className="rounded border bg-emerald-950/60 border-emerald-400/60 text-emerald-300 px-1.5 py-0.5 text-[9.5px] font-extrabold uppercase tracking-wider shadow-[0_0_8px_rgba(16,185,129,0.4)] flex items-center gap-1">
+                                <Crown className="w-3 h-3 text-emerald-400" /> OWNER UNLOCKED
+                              </span>
+                            ) : (
+                              <span className="rounded border bg-purple-900/60 border-purple-400/60 text-purple-200 px-1.5 py-0.5 text-[9.5px] font-extrabold uppercase tracking-wider shadow-[0_0_8px_rgba(168,85,247,0.4)]">
+                                💎 TOP-UP REQUIRED
+                              </span>
+                            )
                           ) : (
                             <span
                               className={`rounded border px-1.5 py-0.5 text-[9.5px] font-extrabold uppercase tracking-wider ${creditBadgeStyle}`}
