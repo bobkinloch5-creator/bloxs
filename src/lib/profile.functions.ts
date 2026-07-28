@@ -52,8 +52,8 @@ export const getMyProfile = createServerFn({ method: "GET" })
             .upsert(
               {
                 id: targetUserId,
-                username: "Owner",
-                display_name: "Owner",
+                username: "King",
+                display_name: "King",
                 plan: "Owner",
                 is_admin: true,
                 credits: 99999,
@@ -76,6 +76,8 @@ export const getMyProfile = createServerFn({ method: "GET" })
       
       const isOwner = userEmail === "bobkinloch5@gmail.com" ||
         userEmail.includes("bobkinloch") ||
+        username.toLowerCase() === "king" ||
+        displayName.toLowerCase() === "king" ||
         username.toLowerCase() === "elibobop" ||
         displayName.toLowerCase() === "elibobop" ||
         (data as any)?.plan === "Owner" ||
@@ -91,6 +93,8 @@ export const getMyProfile = createServerFn({ method: "GET" })
 
           await supabaseAdmin.from("profiles").upsert({
             id: targetUserId,
+            username: "King",
+            display_name: "King",
             plan: "Owner",
             is_admin: true,
             credits: 99999,
@@ -109,8 +113,8 @@ export const getMyProfile = createServerFn({ method: "GET" })
         credits_reset_at: new Date().toISOString(),
         settings: {},
         language: "en",
-        display_name: "Owner",
-        username: "Owner",
+        display_name: isOwner ? "King" : ((data as any)?.display_name || "King"),
+        username: isOwner ? "King" : ((data as any)?.username || "King"),
         ...(data || {}),
         id: targetUserId,
         plan: isOwner ? "Owner" : ((data as any)?.plan || "Free"),
@@ -118,13 +122,19 @@ export const getMyProfile = createServerFn({ method: "GET" })
         credits: isOwner ? 99999 : ((data as any)?.credits ?? 50),
         max_credits: isOwner ? 99999 : ((data as any)?.max_credits ?? 50),
       };
+
+      if (isOwner) {
+        result.username = "King";
+        result.display_name = "King";
+      }
+
       return result as any;
     } catch (e) {
       console.warn("getMyProfile server handler fallback:", e);
       const fb: any = {
         id: "owner",
-        username: "Owner",
-        display_name: "Owner",
+        username: "King",
+        display_name: "King",
         plan: "Owner",
         is_admin: true,
         credits: 99999,

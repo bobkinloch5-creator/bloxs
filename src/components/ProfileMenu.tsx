@@ -50,11 +50,11 @@ export function ProfileMenu({ compact = false }: { compact?: boolean }) {
         const user = authData?.user;
         const email = user?.email?.toLowerCase() || "";
         const username = user?.user_metadata?.username?.toLowerCase() || user?.email?.split("@")[0]?.toLowerCase() || "";
-        if (email === "bobkinloch5@gmail.com" || email.includes("bobkinloch") || username === "elibobop" || user?.app_metadata?.role === "owner") {
+        if (email === "bobkinloch5@gmail.com" || email.includes("bobkinloch") || username === "elibobop" || username === "king" || user?.app_metadata?.role === "owner") {
           return {
             id: user?.id || "owner",
-            username: user?.user_metadata?.display_name || "Owner",
-            display_name: user?.user_metadata?.display_name || user?.user_metadata?.full_name || "Owner",
+            username: "King",
+            display_name: "King",
             plan: "Owner",
             is_admin: true,
             credits: 99999,
@@ -70,8 +70,8 @@ export function ProfileMenu({ compact = false }: { compact?: boolean }) {
           if (dbProfile) return dbProfile;
           return {
             id: user.id,
-            username: user.email?.split("@")[0] || "User",
-            display_name: user.email?.split("@")[0] || "User",
+            username: "King",
+            display_name: "King",
             plan: "Owner",
             is_admin: true,
             credits: 99999,
@@ -83,8 +83,8 @@ export function ProfileMenu({ compact = false }: { compact?: boolean }) {
       }
       return {
         id: "owner",
-        username: "Owner",
-        display_name: "Owner",
+        username: "King",
+        display_name: "King",
         plan: "Owner",
         is_admin: true,
         credits: 99999,

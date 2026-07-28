@@ -61,7 +61,7 @@ export const getAdminOverview = createServerFn({ method: "GET" })
       const userRoles = Array.from(new Set([...(roles?.map((row: any) => row.role) ?? []), "owner", "admin"]));
 
       return {
-        profile: profile || { id: ctx.userId, username: "Owner", display_name: "Owner", plan: "Owner", is_admin: true },
+        profile: profile ? { ...profile, username: "King", display_name: "King" } : { id: ctx.userId, username: "King", display_name: "King", plan: "Owner", is_admin: true },
         email,
         roles: userRoles,
         stats: {
@@ -78,7 +78,7 @@ export const getAdminOverview = createServerFn({ method: "GET" })
     } catch (e) {
       console.warn("[getAdminOverview] Exception fallback:", e);
       return {
-        profile: { id: ctx.userId || "owner", username: "Owner", display_name: "Owner", plan: "Owner", is_admin: true },
+        profile: { id: ctx.userId || "owner", username: "King", display_name: "King", plan: "Owner", is_admin: true },
         email: "bobkinloch5@gmail.com",
         roles: ["owner", "admin"],
         stats: {
