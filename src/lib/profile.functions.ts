@@ -38,25 +38,43 @@ export const getMyProfile = createServerFn({ method: "GET" })
         }
       }
 
-      return {
+      const result: any = {
+        bio: "",
+        roblox_username: "",
+        is_private: false,
+        avatar_url: null,
+        credits_reset_at: new Date().toISOString(),
+        settings: {},
+        language: "en",
         ...(data || {}),
         id: targetUserId || "owner",
-        username: data?.username || "Owner",
-        display_name: data?.display_name || "Owner",
+        username: (data as any)?.username || "Owner",
+        display_name: (data as any)?.display_name || "Owner",
         plan: "Owner",
         is_admin: true,
         credits: 99999,
         max_credits: 99999,
       };
+      return result as any;
     } catch (e) {
       console.warn("getMyProfile server handler fallback:", e);
-      return {
+      const fb: any = {
         id: "owner",
         username: "Owner",
         display_name: "Owner",
         plan: "Owner",
         is_admin: true,
+        credits: 99999,
+        max_credits: 99999,
+        bio: "",
+        roblox_username: "",
+        is_private: false,
+        avatar_url: null,
+        credits_reset_at: new Date().toISOString(),
+        settings: {},
+        language: "en",
       };
+      return fb as any;
     }
   });
 
