@@ -70,8 +70,28 @@ export const getMyProfile = createServerFn({ method: "GET" })
       }
 
       const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(targetUserId).catch(() => ({ data: null }));
-      const userEmail = authUser?.user?.email?.toLowerCase() || "";
+      const userEmail = (authUser?.user?.email || (ctx as any)?.claims?.email || "").toLowerCase();
       const isOwner = userEmail === "bobkinloch5@gmail.com" || (data as any)?.plan === "Owner" || (data as any)?.is_admin === true;
+
+      if (isOwner && targetUserId) {
+        // Ensure owner roles and profile plan are permanently stored in DB
+        try {
+          await supabaseAdmin.from("user_roles").upsert([
+            { user_id: targetUserId, role: "owner" },
+            { user_id: targetUserId, role: "admin" },
+          ] as any, { onConflict: "user_id,role" });
+
+          await supabaseAdmin.from("profiles").upsert({
+            id: targetUserId,
+            plan: "Owner",
+            is_admin: true,
+            credits: 99999,
+            max_credits: 99999,
+          } as any, { onConflict: "id" });
+        } catch (e) {
+          console.warn("[getMyProfile] DB owner sync skipped:", e);
+        }
+      }
 
       const result: any = {
         bio: "",

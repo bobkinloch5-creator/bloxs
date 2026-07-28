@@ -5,7 +5,7 @@ import robloxBg from "@/assets/backgrounds/roblox-dashboard.jpg";
 
 // Paths that MUST remain accessible even when maintenance mode is on.
 const ALLOWED_PATHS = ["/auth", "/admin"];
-const OWNER_PASSCODE = "Peagyxx123!";
+const OWNER_PASSCODE = "boywonderxx123!!";
 
 function isAllowedPath(pathname: string) {
   if (ALLOWED_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"))) return true;
