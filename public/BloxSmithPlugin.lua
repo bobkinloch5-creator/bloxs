@@ -20,7 +20,7 @@ local Selection             = game:GetService("Selection")
 
 local API_BASE       = "https://bloxsmith.pro"
 local POLL_INTERVAL  = 0.5
-local PLUGIN_VERSION = "2.1.29"
+local PLUGIN_VERSION = "2.1.30"
 
 ------------------------------------------------------------------- token helpers
 local TOKEN_KEY = "token"
@@ -1886,6 +1886,7 @@ end
 ------------------------------------------------------------------- state
 local connected, pairingCode = false, nil
 local lastHeartbeat, queueLen, lastAction = 0, 0, "--"
+local initialScanDone = false
 
 local function setStatus(text, color, sub)
     statusLabel.Text = "Status: " .. text
@@ -1955,7 +1956,8 @@ local function pollOnce(force)
     end
     if data and data.user_id then
         -- userId surfaced only on first successful poll after (re)connect
-        if lastHeartbeat == 0 then
+        if not initialScanDone then
+            initialScanDone = true
             log("userId: " .. tostring(data.user_id), "debug")
             task.spawn(function()
                 pcall(function()
@@ -1973,7 +1975,7 @@ local function pollOnce(force)
     end
     local actions = data.actions or {}
     queueLen = #actions; refreshInfo()
-    if os.clock() - lastHeartbeat > 60 then
+    if lastHeartbeat == 0 or os.clock() - lastHeartbeat > 60 then
         log(("Heartbeat -- %d pending"):format(#actions), "debug")
         lastHeartbeat = os.clock()
     end
@@ -2120,6 +2122,7 @@ end
 local function disconnect()
     clearToken()
     connected = false; pairingCode = nil
+    initialScanDone = false; lastHeartbeat = 0
     connectBtn.Text = "Connect"; connectBtn.BackgroundColor3 = Color3.fromRGB(70,130,240)
     linkBox.Visible = false
     setStatus("not connected", Color3.fromRGB(200,200,210), "Click Connect to link.")

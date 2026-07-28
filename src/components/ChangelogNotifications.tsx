@@ -8,6 +8,12 @@ const CHANGELOG_VERSION = "2026-07-28-owner-privilege-auth-fix";
 
 const CHANGELOG_ITEMS = [
   {
+    title: "⚡ Studio plugin v2.1.30 — fixed log spamming & background scan loop",
+    date: "Jul 28",
+    icon: Sparkles,
+    body: "Plugin v2.1.30 — fixed initial scan condition flag so userId debug logging and place hierarchy background scans only trigger once per session instead of re-spawning continuously every second. Download BloxSmithPlugin.lua (v2.1.30) to clean up your Activity Log.",
+  },
+  {
     title: "⚡ Studio plugin v2.1.29 — streamlined polling & action execution",
     date: "Jul 28",
     icon: Sparkles,
