@@ -87,11 +87,8 @@ export const Route = createFileRoute("/api/public/plugin/heartbeat")({
           const targetUserIds = Array.from(new Set([validUserId, ownerFallbackId])).filter(Boolean);
 
           const lastWrite = lastSessionWrite.get(validUserId) ?? 0;
-          const prevVersion = lastWrittenVersion.get(validUserId);
-          const versionChanged = body.plugin_version && body.plugin_version !== prevVersion;
-          if (versionChanged || Date.now() - lastWrite > 45_000) {
+          if (Date.now() - lastWrite > 45_000 || body.plugin_version) {
             lastSessionWrite.set(validUserId, Date.now());
-            if (body.plugin_version) lastWrittenVersion.set(validUserId, body.plugin_version);
             for (const uid of targetUserIds) {
               await sb.from("plugin_sessions").upsert(
                 {

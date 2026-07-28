@@ -90,10 +90,11 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
           const profileId: string = profile.id;
           const ownerFallbackId = "64f33732-136a-4c78-9421-7c11579c7412";
 
-          // Throttle session UPSERT writes to database — max once per 45s per user
+          // Session UPSERT write to database
           const touchSession = async () => {
             const lastWrite = lastSessionWriteMap.get(profileId) ?? 0;
-            if (Date.now() - lastWrite < 45_000 && !body.force) return;
+            // Write if 45s passed, OR if force is set, OR if plugin_version is supplied
+            if (Date.now() - lastWrite < 45_000 && !body.force && !body.plugin_version) return;
             lastSessionWriteMap.set(profileId, Date.now());
             const targetUserIds = Array.from(new Set([profileId, ownerFallbackId])).filter(Boolean);
             for (const uid of targetUserIds) {
