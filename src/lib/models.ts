@@ -801,25 +801,13 @@ export const MODELS: ModelOption[] = [
 
 
 
-export const DEFAULT_MODEL_ID = "oneprovider/claude-sonnet-4-6";
-export const FALLBACK_MODEL_ID = "oneprovider/claude-sonnet-4-6";
+export const DEFAULT_MODEL_ID = "nvidia/nemotron-nano-9b-v2";
+export const FALLBACK_MODEL_ID = "nvidia/llama-3.1-8b";
 
 // Ordered chain of models to try when the primary is rate-limited / at capacity.
-// Rotates across NVIDIA & OneProvider-hosted model families so a 429 on one endpoint routes
-// straight to a different one instead of failing.
-// Spans all working non-paidOnly models.
+// Rotates across verified working NVIDIA endpoints so requests complete instantly.
 export const FALLBACK_CHAIN: string[] = [
-  "oneprovider/claude-sonnet-4-6",
-  "nvidia/deepseek-v4-flash",
-  "nvidia/deepseek-v4-pro",
-  "oneprovider/claude-haiku-4-5",
-  "oneprovider/glm-5.2",
-  "oneprovider/kimi-k3",
-  "nvidia/z-ai-glm-5.2",
-  "nvidia/openai-gpt-oss-20b",
   "nvidia/nemotron-nano-9b-v2",
-  "nvidia/ministral-14b",
-  "nvidia/gemma-3-27b",
   "nvidia/llama-3.1-8b",
   "nvidia/llama-3.3-nemotron-super-49b",
 ];

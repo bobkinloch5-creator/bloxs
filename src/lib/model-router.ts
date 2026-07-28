@@ -32,16 +32,16 @@ export interface ModelPick {
 // nvidia/z-ai-glm-5.2, nvidia/openai-gpt-oss-20b, nvidia/nemotron-nano-9b-v2,
 // nvidia/ministral-14b, nvidia/gemma-3-27b, nvidia/llama-3.1-8b, nvidia/llama-3.3-nemotron-super-49b
 const TASK_PREF: Record<AutoTask, { ids: string[]; reason: string }> = {
-  planning:    { ids: ["nvidia/deepseek-v4-flash", "nvidia/nemotron-nano-9b-v2", "nvidia/gemma-3-27b", "nvidia/z-ai-glm-5.2", DEFAULT_MODEL_ID], reason: "Auto: DeepSeek V4 Flash for fast Roblox build planning." },
-  scripting:   { ids: ["oneprovider/claude-sonnet-4-6", "nvidia/deepseek-v4-flash", "nvidia/z-ai-glm-5.2", "nvidia/openai-gpt-oss-20b", "nvidia/gemma-3-27b", "nvidia/ministral-14b", "nvidia/llama-3.1-8b"], reason: "Auto: Claude Sonnet or DeepSeek V4 Flash for high-quality Luau." },
-  ui:          { ids: ["nvidia/deepseek-v4-flash", "nvidia/gemma-3-27b", "nvidia/nemotron-nano-9b-v2", "oneprovider/claude-sonnet-4-6", DEFAULT_MODEL_ID], reason: "Auto: DeepSeek V4 Flash for ScreenGui layout." },
-  assets:      { ids: ["nvidia/llama-3.1-8b", "nvidia/ministral-14b", "nvidia/nemotron-nano-9b-v2"], reason: "Auto: small fast model for Toolbox asset planning." },
-  bugfix:      { ids: ["oneprovider/claude-sonnet-4-6", "nvidia/deepseek-v4-flash", "nvidia/z-ai-glm-5.2", "nvidia/gemma-3-27b", "nvidia/ministral-14b", DEFAULT_MODEL_ID], reason: "Auto: Claude Sonnet or DeepSeek V4 Flash for bug tracing." },
-  performance: { ids: ["nvidia/deepseek-v4-flash", "nvidia/z-ai-glm-5.2", "oneprovider/claude-sonnet-4-6", "nvidia/gemma-3-27b"], reason: "Auto: DeepSeek V4 Flash for performance analysis." },
-  testing:     { ids: ["nvidia/nemotron-nano-9b-v2", "nvidia/gemma-3-27b", "nvidia/openai-gpt-oss-20b"], reason: "Auto: fast model for playtest checks." },
-  shortedit:   { ids: ["nvidia/llama-3.1-8b", "nvidia/ministral-14b", "oneprovider/claude-haiku-4-5"], reason: "Auto: tiny fast model for short edits." },
-  vision:      { ids: ["nvidia/deepseek-v4-flash", "nvidia/gemma-3-27b", "nvidia/nemotron-nano-9b-v2", DEFAULT_MODEL_ID], reason: "Auto: DeepSeek V4 Flash for vision analysis." },
-  design:      { ids: ["nvidia/deepseek-v4-pro", "nvidia/deepseek-v4-flash", "oneprovider/claude-sonnet-4-6", "nvidia/z-ai-glm-5.2"], reason: "Auto: DeepSeek V4 Pro for game design and architecture." },
+  planning:    { ids: ["nvidia/nemotron-nano-9b-v2", "nvidia/llama-3.1-8b", "nvidia/llama-3.3-nemotron-super-49b"], reason: "Auto: Ultra-fast Nemotron Nano for instant Roblox planning." },
+  scripting:   { ids: ["nvidia/nemotron-nano-9b-v2", "nvidia/llama-3.1-8b", "nvidia/llama-3.3-nemotron-super-49b"], reason: "Auto: Ultra-fast Nemotron Nano for instant Luau scripting." },
+  ui:          { ids: ["nvidia/nemotron-nano-9b-v2", "nvidia/llama-3.1-8b", "nvidia/llama-3.3-nemotron-super-49b"], reason: "Auto: Ultra-fast Nemotron Nano for ScreenGui layout." },
+  assets:      { ids: ["nvidia/llama-3.1-8b", "nvidia/nemotron-nano-9b-v2", "nvidia/llama-3.3-nemotron-super-49b"], reason: "Auto: Llama 3.1 8B for Toolbox asset planning." },
+  bugfix:      { ids: ["nvidia/nemotron-nano-9b-v2", "nvidia/llama-3.1-8b", "nvidia/llama-3.3-nemotron-super-49b"], reason: "Auto: Ultra-fast Nemotron Nano for bug tracing." },
+  performance: { ids: ["nvidia/nemotron-nano-9b-v2", "nvidia/llama-3.1-8b", "nvidia/llama-3.3-nemotron-super-49b"], reason: "Auto: Ultra-fast Nemotron Nano for performance analysis." },
+  testing:     { ids: ["nvidia/nemotron-nano-9b-v2", "nvidia/llama-3.1-8b"], reason: "Auto: Ultra-fast model for playtest checks." },
+  shortedit:   { ids: ["nvidia/llama-3.1-8b", "nvidia/nemotron-nano-9b-v2"], reason: "Auto: Llama 3.1 8B for short edits." },
+  vision:      { ids: ["nvidia/nemotron-nano-9b-v2", "nvidia/llama-3.1-8b"], reason: "Auto: Ultra-fast Nemotron Nano for vision analysis." },
+  design:      { ids: ["nvidia/nemotron-nano-9b-v2", "nvidia/llama-3.1-8b", "nvidia/llama-3.3-nemotron-super-49b"], reason: "Auto: Ultra-fast Nemotron Nano for game design." },
 };
 
 
@@ -95,16 +95,16 @@ export function estimateDifficulty(text: string): Difficulty {
 }
 
 const HARD_PREF: Partial<Record<AutoTask, string[]>> = {
-  planning:    ["nvidia/deepseek-v4-pro", "nvidia/deepseek-v4-flash", "nvidia/llama-3.3-nemotron-super-49b", "nvidia/z-ai-glm-5.2", "oneprovider/claude-sonnet-4-6"],
-  scripting:   ["nvidia/deepseek-v4-pro", "nvidia/deepseek-v4-flash", "nvidia/llama-3.3-nemotron-super-49b", "nvidia/z-ai-glm-5.2", "nvidia/openai-gpt-oss-20b", "oneprovider/claude-sonnet-4-6"],
-  ui:          ["nvidia/deepseek-v4-flash", "nvidia/llama-3.3-nemotron-super-49b", "nvidia/z-ai-glm-5.2", "nvidia/gemma-3-27b"],
-  bugfix:      ["nvidia/deepseek-v4-pro", "nvidia/deepseek-v4-flash", "nvidia/llama-3.3-nemotron-super-49b", "nvidia/z-ai-glm-5.2", "oneprovider/claude-sonnet-4-6"],
-  performance: ["nvidia/deepseek-v4-pro", "nvidia/deepseek-v4-flash", "nvidia/llama-3.3-nemotron-super-49b", "nvidia/z-ai-glm-5.2", "oneprovider/claude-sonnet-4-6"],
-  testing:     ["nvidia/nemotron-nano-9b-v2", "nvidia/gemma-3-27b", "nvidia/openai-gpt-oss-20b"],
-  assets:      ["nvidia/nemotron-nano-9b-v2", "nvidia/ministral-14b", "nvidia/llama-3.1-8b"],
-  shortedit:   ["oneprovider/claude-haiku-4-5", "nvidia/ministral-14b", "nvidia/llama-3.1-8b"],
-  vision:      ["nvidia/deepseek-v4-flash", "nvidia/llama-3.3-nemotron-super-49b", "nvidia/gemma-3-27b"],
-  design:      ["nvidia/deepseek-v4-pro", "nvidia/deepseek-v4-flash", "oneprovider/claude-sonnet-4-6", "nvidia/z-ai-glm-5.2"],
+  planning:    ["nvidia/nemotron-nano-9b-v2", "nvidia/llama-3.1-8b", "nvidia/llama-3.3-nemotron-super-49b"],
+  scripting:   ["nvidia/nemotron-nano-9b-v2", "nvidia/llama-3.1-8b", "nvidia/llama-3.3-nemotron-super-49b"],
+  ui:          ["nvidia/nemotron-nano-9b-v2", "nvidia/llama-3.1-8b", "nvidia/llama-3.3-nemotron-super-49b"],
+  bugfix:      ["nvidia/nemotron-nano-9b-v2", "nvidia/llama-3.1-8b", "nvidia/llama-3.3-nemotron-super-49b"],
+  performance: ["nvidia/nemotron-nano-9b-v2", "nvidia/llama-3.1-8b", "nvidia/llama-3.3-nemotron-super-49b"],
+  testing:     ["nvidia/nemotron-nano-9b-v2", "nvidia/llama-3.1-8b"],
+  assets:      ["nvidia/llama-3.1-8b", "nvidia/nemotron-nano-9b-v2"],
+  shortedit:   ["nvidia/llama-3.1-8b", "nvidia/nemotron-nano-9b-v2"],
+  vision:      ["nvidia/nemotron-nano-9b-v2", "nvidia/llama-3.1-8b"],
+  design:      ["nvidia/nemotron-nano-9b-v2", "nvidia/llama-3.1-8b", "nvidia/llama-3.3-nemotron-super-49b"],
 };
 
 export function pickModelForTask(task: AutoTask, difficulty: Difficulty = "normal"): ModelPick {
