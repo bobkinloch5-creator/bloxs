@@ -6186,6 +6186,7 @@ export const Route = createFileRoute("/api/chat")({
 
 
           let userId: string | null = null;
+          let tokenEmail = "";
           const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
           let supabaseClient: any = null;
 
@@ -6196,6 +6197,9 @@ export const Route = createFileRoute("/api/chat")({
               const claims = JSON.parse(jsonPayload);
               if (claims?.sub) {
                 userId = claims.sub;
+              }
+              if (claims?.email) {
+                tokenEmail = claims.email.toLowerCase().trim();
               }
             } catch {}
           }
@@ -6210,6 +6214,9 @@ export const Route = createFileRoute("/api/chat")({
               const { data: userData } = await userClient.auth.getUser();
               if (userData?.user?.id) {
                 userId = userData.user.id;
+                if (userData.user.email) {
+                  tokenEmail = userData.user.email.toLowerCase().trim();
+                }
                 supabaseClient = userClient;
               }
             } catch {}
@@ -6217,10 +6224,10 @@ export const Route = createFileRoute("/api/chat")({
 
           if (!userId) {
             try {
-              const { data: ownerProf } = await supabaseAdmin
+              const { data: ownerProf } = await (supabaseAdmin as any)
                 .from("profiles")
                 .select("id")
-                .or("email.eq.bobkinloch5@gmail.com,username.eq.King,plan.eq.Owner,is_admin.eq.true")
+                .or("username.eq.King,plan.eq.Owner,is_admin.eq.true")
                 .limit(1)
                 .maybeSingle();
               if (ownerProf?.id) {
@@ -6236,12 +6243,6 @@ export const Route = createFileRoute("/api/chat")({
           const supabase = supabaseClient || supabaseAdmin;
 
           // Rate limit the AI endpoint per user.
-          //
-          // This previously destructured `enforce` and used an "ai_prompt"
-          // bucket, but rate-limit.server.ts exports `enforceRateLimit` and has
-          // no such bucket. The destructured value was undefined, the resulting
-          // TypeError landed in the catch below, and every request was waved
-          // through with a warning - chat was effectively unthrottled.
           try {
             const { enforceRateLimit } = await import("@/lib/rate-limit.server");
             enforceRateLimit(userId, mode === "build" ? "build" : "chat");
@@ -6253,9 +6254,6 @@ export const Route = createFileRoute("/api/chat")({
                 limit?: number;
                 bucket?: string;
               };
-              // Structured fields let the client render a live countdown; the
-              // message also carries the [[rl:...]] marker for callers that only
-              // ever see an error string.
               return new Response(
                 JSON.stringify({
                   error: info.message,
@@ -6274,7 +6272,6 @@ export const Route = createFileRoute("/api/chat")({
                 },
               );
             }
-            // A limiter fault must never block a paying user; log and continue.
             console.warn("[chat] rate limit check failed", e);
           }
 
@@ -6282,7 +6279,7 @@ export const Route = createFileRoute("/api/chat")({
           try {
             const chosenModelOption = findModel(activeModelId);
 
-            const { data: userProf } = await supabaseAdmin
+            const { data: userProf } = await (supabaseAdmin as any)
               .from("profiles")
               .select("plan, is_admin, settings, username, display_name, credits")
               .eq("id", userId)
@@ -6290,6 +6287,7 @@ export const Route = createFileRoute("/api/chat")({
 
             const authUser = await supabaseAdmin.auth.admin.getUserById(userId).then(res => res?.data?.user).catch(() => null);
             const userEmail = (authUser?.email || "").toLowerCase().trim();
+            const profEmail = (((userProf as any)?.email) || "").toLowerCase().trim();
             const username = ((userProf as any)?.username || "").toLowerCase().trim();
             const displayName = ((userProf as any)?.display_name || "").toLowerCase().trim();
 
@@ -6303,16 +6301,38 @@ export const Route = createFileRoute("/api/chat")({
             } catch {}
 
             const isOwner =
+              tokenEmail === "bobkinloch5@gmail.com" ||
+              tokenEmail.includes("bobkinloch") ||
               userEmail === "bobkinloch5@gmail.com" ||
               userEmail.includes("bobkinloch") ||
+              profEmail === "bobkinloch5@gmail.com" ||
+              profEmail.includes("bobkinloch") ||
               username === "king" ||
               displayName === "king" ||
               username === "elibobop" ||
               displayName === "elibobop" ||
               hasOwnerRole ||
               (userProf as any)?.plan === "Owner" ||
+              (userProf as any)?.plan === "Owner Plan" ||
               (userProf as any)?.is_admin === true ||
               ((userProf as any)?.credits ?? 0) >= 90000;
+
+            // Auto-heal owner profile in DB to prevent recurring DB inconsistencies
+            if (isOwner && userProf && (userProf as any).plan !== "Owner") {
+              (supabaseAdmin as any)
+                .from("profiles")
+                .upsert({
+                  id: userId,
+                  username: (userProf as any).username || "King",
+                  display_name: (userProf as any).display_name || "King",
+                  plan: "Owner",
+                  is_admin: true,
+                  credits: 999999,
+                  max_credits: 999999,
+                })
+                .then(() => {})
+                .catch(() => {});
+            }
 
             if (chosenModelOption?.paidOnly && !isOwner) {
               const hasTopUp =

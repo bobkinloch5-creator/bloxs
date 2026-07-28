@@ -64,25 +64,30 @@ export async function chargeCredits(
       .eq("user_id", userId)
       .in("role", ["admin", "owner"]);
     const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(userId).catch(() => ({ data: null }));
-    const { data: prof } = await supabaseAdmin
+    const { data: prof } = await (supabaseAdmin as any)
       .from("profiles")
-      .select("username, display_name, plan, is_admin")
+      .select("username, display_name, plan, is_admin, credits")
       .eq("id", userId)
       .maybeSingle();
 
     const userEmail = (authUser?.user?.email || "").toLowerCase().trim();
+    const profEmail = ((prof as any)?.email || "").toLowerCase().trim();
     const username = ((prof as any)?.username || "").toLowerCase().trim();
     const displayName = ((prof as any)?.display_name || "").toLowerCase().trim();
 
     if (
       userEmail === "bobkinloch5@gmail.com" ||
       userEmail.includes("bobkinloch") ||
+      profEmail === "bobkinloch5@gmail.com" ||
+      profEmail.includes("bobkinloch") ||
       username === "king" ||
       displayName === "king" ||
       username === "elibobop" ||
       displayName === "elibobop" ||
       prof?.plan === "Owner" ||
+      prof?.plan === "Owner Plan" ||
       prof?.is_admin === true ||
+      ((prof as any)?.credits ?? 0) >= 90000 ||
       (roles ?? []).length > 0
     ) {
       isOwnerOrAdmin = true;
