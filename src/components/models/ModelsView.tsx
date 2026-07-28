@@ -433,7 +433,7 @@ export function ModelsView({ projectId }: { projectId?: string }) {
     const id = setInterval(async () => {
       await Promise.all(refreshable.map((m: any) => pollFn({ data: { generationId: m.id } }).catch(() => null)));
       qc.invalidateQueries({ queryKey });
-    }, 5000);
+    }, 20000);
     return () => clearInterval(id);
   }, [status?.models, pollFn, qc, projectId]);
 
@@ -715,7 +715,7 @@ function ModelCard({ m, projectId, onChange }: { m: any; projectId?: string; onC
       attempts += 1;
       try { await pollFn({ data: { generationId: m.id } }); onChange(); } catch { /* keep retrying */ }
     };
-    const id = window.setInterval(tick, 4000);
+    const id = window.setInterval(tick, 15000);
     // Kick off immediately too
     tick();
     return () => { cancelled = true; window.clearInterval(id); };
