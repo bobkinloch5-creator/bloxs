@@ -87,6 +87,24 @@ function buildProvider(gateway: Gateway): Provider {
         : { Authorization: `Bearer ${key}` },
     });
   }
+  if (gateway === "agentrouter") {
+    const key =
+      process.env.AGENTROUTER_API_KEY ||
+      process.env.AGENTROUTER_KEY ||
+      process.env.ONEPROVIDER_API_KEY ||
+      process.env.ONEPROVIDER_KEY;
+
+    if (!key) throw new Error("AgentRouter is not configured — set AGENTROUTER_API_KEY.");
+
+    const baseURL = process.env.AGENTROUTER_BASE_URL || "https://agentrouter.org/v1";
+    const finalBaseURL = baseURL.endsWith("/v1") ? baseURL : `${baseURL.replace(/\/+$/, "")}/v1`;
+
+    return createOpenAICompatible({
+      name: "agentrouter",
+      baseURL: finalBaseURL,
+      headers: { Authorization: `Bearer ${key}` },
+    });
+  }
   throw new Error(`Unsupported AI gateway: ${gateway}`);
 }
 
