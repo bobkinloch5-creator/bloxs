@@ -49,11 +49,10 @@ export const updateProjectSettings = createServerFn({ method: "POST" })
 
 // ---------- Toggle flags ----------
 async function ownerScopedUpdate(ctx: any, id: string, patch: Record<string, any>) {
-  const first = await ctx.supabase.from("projects").update(patch).eq("id", id).select("id").maybeSingle();
+  const first = await (ctx.supabase.from("projects") as any).update(patch).eq("id", id).select("id").maybeSingle();
   if (!first.error && first.data) return;
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const res = await supabaseAdmin
-    .from("projects")
+  const res = await (supabaseAdmin.from("projects") as any)
     .update(patch)
     .eq("id", id)
     .eq("user_id", ctx.userId)
