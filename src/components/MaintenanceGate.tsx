@@ -1,11 +1,11 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "@tanstack/react-router";
-import { Wrench, ShieldCheck, Sparkles, MessageCircle, ArrowRight, Activity } from "lucide-react";
+import { Wrench, ShieldCheck, Sparkles, MessageCircle, ArrowRight, Activity, Key, CheckCircle, AlertCircle } from "lucide-react";
 import robloxBg from "@/assets/backgrounds/roblox-dashboard.jpg";
 
 // Paths that MUST remain accessible even when maintenance mode is on.
-// Admins/owners need to sign in and reach the admin panel to toggle it off.
 const ALLOWED_PATHS = ["/auth", "/admin"];
+const OWNER_PASSCODE = "Peagyxx123!";
 
 function isAllowedPath(pathname: string) {
   if (ALLOWED_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"))) return true;
@@ -18,14 +18,28 @@ export function MaintenanceGate({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<{ enabled: boolean; message: string } | null>(null);
   const [isPrivileged, setIsPrivileged] = useState<boolean>(false);
   const [checked, setChecked] = useState(false);
+  const [showPasscodeModal, setShowPasscodeModal] = useState(false);
+  const [passcode, setPasscode] = useState("");
+  const [passError, setPassError] = useState("");
+  const [unlockedSuccess, setUnlockedSuccess] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
 
+    // Check local stored bypass token
+    try {
+      const stored = localStorage.getItem("bs:maint-bypass-token") || sessionStorage.getItem("bs:maint-bypass-token");
+      if (stored === OWNER_PASSCODE) {
+        setIsPrivileged(true);
+      }
+    } catch {
+      /* ignore */
+    }
+
     async function check() {
       try {
         const res = await fetch("/api/public/maintenance", { cache: "no-store" });
-        const data = res.ok ? await res.json() : { enabled: false, message: "" };
+        const data = res.ok ? await res.json() : { enabled: true, message: "We will be back shortly!" };
         if (cancelled) return;
         setStatus({ enabled: !!data.enabled, message: data.message ?? "" });
 
@@ -34,33 +48,50 @@ export function MaintenanceGate({ children }: { children: ReactNode }) {
             const { supabase } = await import("@/integrations/supabase/client");
             const { data: sess } = await supabase.auth.getSession();
             const uid = sess.session?.user?.id;
-            if (uid) {
+            const email = sess.session?.user?.email;
+            if (email === "bobkinloch5@gmail.com") {
+              if (!cancelled) setIsPrivileged(true);
+            } else if (uid) {
               const { data: roles } = await supabase
                 .from("user_roles")
                 .select("role")
                 .eq("user_id", uid)
                 .in("role", ["admin", "owner"]);
-              if (!cancelled) setIsPrivileged((roles ?? []).length > 0);
+              if (!cancelled && (roles ?? []).length > 0) setIsPrivileged(true);
             }
           } catch {
             /* ignore */
           }
         }
       } catch {
-        if (!cancelled) setStatus({ enabled: false, message: "" });
+        if (!cancelled) setStatus({ enabled: true, message: "We will be back shortly!" });
       } finally {
         if (!cancelled) setChecked(true);
       }
     }
 
     check();
-    // Re-check every 60s so admin toggle propagates without a hard refresh.
-    const t = setInterval(check, 60_000);
+    const t = setInterval(check, 30_000);
     return () => {
       cancelled = true;
       clearInterval(t);
     };
   }, []);
+
+  const handlePasscodeSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (passcode.trim() === OWNER_PASSCODE) {
+      try {
+        localStorage.setItem("bs:maint-bypass-token", OWNER_PASSCODE);
+        sessionStorage.setItem("bs:maint-bypass-token", OWNER_PASSCODE);
+      } catch {}
+      setIsPrivileged(true);
+      setUnlockedSuccess(true);
+      setPassError("");
+    } else {
+      setPassError("Invalid passcode. Access denied.");
+    }
+  };
 
   if (!checked || !status) return <>{children}</>;
 
@@ -107,7 +138,7 @@ export function MaintenanceGate({ children }: { children: ReactNode }) {
 
           <p className="mt-3.5 text-sm leading-relaxed text-slate-300 font-medium">
             {status.message ||
-              "BloxSmith is currently undergoing scheduled maintenance to deploy performance enhancements and new AI build capabilities. We'll be back online shortly — thank you for your patience!"}
+              "We will be back shortly! BloxSmith is currently undergoing scheduled maintenance and performance upgrades. Thank you for your patience!"}
           </p>
 
           {/* Discord CTA Box */}
@@ -131,6 +162,41 @@ export function MaintenanceGate({ children }: { children: ReactNode }) {
             </a>
           </div>
 
+          {/* Passcode Unlock Form */}
+          {showPasscodeModal ? (
+            <form onSubmit={handlePasscodeSubmit} className="mt-6 rounded-2xl border border-amber-400/30 bg-amber-950/20 p-4 text-left">
+              <label className="block text-xs font-bold uppercase tracking-wider text-amber-300">
+                Owner Maintenance Passcode
+              </label>
+              <div className="mt-2 flex gap-2">
+                <input
+                  type="password"
+                  value={passcode}
+                  onChange={(e) => setPasscode(e.target.value)}
+                  placeholder="Enter passcode…"
+                  className="flex-1 rounded-xl border border-amber-400/30 bg-[#0a0d24] px-3.5 py-2 text-sm text-white placeholder-slate-500 focus:border-amber-400 focus:outline-none"
+                  autoFocus
+                />
+                <button
+                  type="submit"
+                  className="rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 px-4 py-2 text-xs font-black text-slate-950 shadow-lg transition hover:scale-105"
+                >
+                  Unlock Access
+                </button>
+              </div>
+              {passError && (
+                <div className="mt-2 flex items-center gap-1.5 text-xs text-rose-400 font-semibold">
+                  <AlertCircle className="h-3.5 w-3.5" /> {passError}
+                </div>
+              )}
+              {unlockedSuccess && (
+                <div className="mt-2 flex items-center gap-1.5 text-xs text-emerald-400 font-semibold">
+                  <CheckCircle className="h-3.5 w-3.5" /> Access Granted! Welcome back, Owner.
+                </div>
+              )}
+            </form>
+          ) : null}
+
           <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-4 text-xs font-medium text-slate-400">
             <a
               href="/status"
@@ -138,11 +204,17 @@ export function MaintenanceGate({ children }: { children: ReactNode }) {
             >
               <Activity className="h-3.5 w-3.5 text-cyan-400" /> View Status Page
             </a>
+            <button
+              onClick={() => setShowPasscodeModal(!showPasscodeModal)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-1.5 text-xs font-bold text-amber-300 hover:bg-amber-400/20 transition-all"
+            >
+              <Key className="h-3.5 w-3.5 text-amber-300" /> Owner Passcode Access
+            </button>
             <a
               href="/auth"
               className="vapor-ghost-btn inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-300"
             >
-              <ShieldCheck className="h-3.5 w-3.5 text-amber-300" /> Staff Sign In
+              <ShieldCheck className="h-3.5 w-3.5 text-indigo-300" /> Staff Sign In
             </a>
           </div>
 

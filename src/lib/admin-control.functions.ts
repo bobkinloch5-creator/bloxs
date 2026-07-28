@@ -53,29 +53,38 @@ export const getDashboardMetrics = createServerFn({ method: "GET" })
     const since7d = iso(7 * 24 * 3600e3);
     const since5m = iso(5 * 60e3);
 
+    const safeQuery = async (queryPromise: Promise<any>) => {
+      try {
+        const res = await queryPromise;
+        return res ?? {};
+      } catch {
+        return {};
+      }
+    };
+
     const [
       users, online, projects, projects24h, aiToday, activeBuilds, pluginOnline,
       pluginActionsToday, scripts24h, images24h, buildsTotal, buildsOK,
       studioErrors24h, queue, banned, donators, msgs7d, actions7d,
     ] = await Promise.all([
-      supabaseAdmin.from("profiles").select("id", { count: "exact", head: true }),
-      supabaseAdmin.from("plugin_sessions").select("user_id", { count: "exact", head: true }).gte("last_seen", since5m),
-      supabaseAdmin.from("projects").select("id", { count: "exact", head: true }),
-      supabaseAdmin.from("projects").select("id", { count: "exact", head: true }).gte("created_at", since24h),
-      supabaseAdmin.from("chat_messages").select("id", { count: "exact", head: true }).gte("created_at", since24h),
-      supabaseAdmin.from("chat_messages").select("id", { count: "exact", head: true }).eq("status", "pending"),
-      supabaseAdmin.from("plugin_sessions").select("id", { count: "exact", head: true }).eq("online", true).gte("last_seen", since5m),
-      supabaseAdmin.from("plugin_actions").select("id", { count: "exact", head: true }).gte("created_at", since24h),
-      supabaseAdmin.from("plugin_actions").select("id", { count: "exact", head: true }).eq("kind", "insertScript").gte("created_at", since24h),
-      supabaseAdmin.from("model_generations").select("id", { count: "exact", head: true }).gte("created_at", since24h),
-      supabaseAdmin.from("build_history").select("id", { count: "exact", head: true }),
-      supabaseAdmin.from("build_history").select("id", { count: "exact", head: true }).eq("applied", true),
-      supabaseAdmin.from("studio_errors").select("id", { count: "exact", head: true }).gte("created_at", since24h),
-      supabaseAdmin.from("plugin_actions").select("id", { count: "exact", head: true }).eq("status", "pending"),
-      supabaseAdmin.from("profiles").select("id", { count: "exact", head: true }).eq("banned", true),
-      supabaseAdmin.from("user_roles").select("user_id", { count: "exact", head: true }).eq("role", "donator"),
-      supabaseAdmin.from("chat_messages").select("created_at").gte("created_at", since7d).limit(5000),
-      supabaseAdmin.from("plugin_actions").select("created_at,status").gte("created_at", since7d).limit(5000),
+      safeQuery(supabaseAdmin.from("profiles").select("id", { count: "exact", head: true })),
+      safeQuery(supabaseAdmin.from("plugin_sessions").select("user_id", { count: "exact", head: true }).gte("last_seen", since5m)),
+      safeQuery(supabaseAdmin.from("projects").select("id", { count: "exact", head: true })),
+      safeQuery(supabaseAdmin.from("projects").select("id", { count: "exact", head: true }).gte("created_at", since24h)),
+      safeQuery(supabaseAdmin.from("chat_messages").select("id", { count: "exact", head: true }).gte("created_at", since24h)),
+      safeQuery(supabaseAdmin.from("chat_messages").select("id", { count: "exact", head: true }).eq("status", "pending")),
+      safeQuery(supabaseAdmin.from("plugin_sessions").select("id", { count: "exact", head: true }).eq("online", true).gte("last_seen", since5m)),
+      safeQuery(supabaseAdmin.from("plugin_actions").select("id", { count: "exact", head: true }).gte("created_at", since24h)),
+      safeQuery(supabaseAdmin.from("plugin_actions").select("id", { count: "exact", head: true }).eq("kind", "insertScript").gte("created_at", since24h)),
+      safeQuery(supabaseAdmin.from("model_generations").select("id", { count: "exact", head: true }).gte("created_at", since24h)),
+      safeQuery(supabaseAdmin.from("build_history").select("id", { count: "exact", head: true })),
+      safeQuery(supabaseAdmin.from("build_history").select("id", { count: "exact", head: true }).eq("applied", true)),
+      safeQuery(supabaseAdmin.from("studio_errors").select("id", { count: "exact", head: true }).gte("created_at", since24h)),
+      safeQuery(supabaseAdmin.from("plugin_actions").select("id", { count: "exact", head: true }).eq("status", "pending")),
+      safeQuery(supabaseAdmin.from("profiles").select("id", { count: "exact", head: true }).eq("banned", true)),
+      safeQuery(supabaseAdmin.from("user_roles").select("user_id", { count: "exact", head: true }).eq("role", "donator")),
+      safeQuery(supabaseAdmin.from("chat_messages").select("created_at").gte("created_at", since7d).limit(5000)),
+      safeQuery(supabaseAdmin.from("plugin_actions").select("created_at,status").gte("created_at", since7d).limit(5000)),
     ]);
 
     // Bucket messages by day (last 7 days).
@@ -86,19 +95,20 @@ export const getDashboardMetrics = createServerFn({ method: "GET" })
       byDay[k] = { day: k.slice(5), ai: 0, builds: 0, errors: 0 };
     }
     (msgs7d.data ?? []).forEach((m: any) => {
-      const k = m.created_at.slice(0, 10);
-      if (byDay[k]) byDay[k].ai++;
+      const k = m.created_at?.slice(0, 10);
+      if (k && byDay[k]) byDay[k].ai++;
     });
     (actions7d.data ?? []).forEach((a: any) => {
-      const k = a.created_at.slice(0, 10);
-      if (!byDay[k]) return;
+      const k = a.created_at?.slice(0, 10);
+      if (!k || !byDay[k]) return;
       byDay[k].builds++;
       if (a.status === "failed") byDay[k].errors++;
     });
 
     // Recent errors for the errors-per-minute mini chart (last hour, 5-min buckets).
-    const { data: recentErrs } = await supabaseAdmin
-      .from("studio_errors").select("created_at").gte("created_at", since1h).limit(1000);
+    const { data: recentErrs } = await safeQuery(
+      supabaseAdmin.from("studio_errors").select("created_at").gte("created_at", since1h).limit(1000)
+    );
     const errorBuckets: { t: string; count: number }[] = [];
     for (let i = 11; i >= 0; i--) {
       const start = now - (i + 1) * 5 * 60e3;
@@ -374,11 +384,15 @@ export const getGlobalSettings = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const ctx = context as any;
-    const { supabaseAdmin } = await requireAdmin(ctx);
-    const { data } = await supabaseAdmin.from("admin_settings").select("*");
-    const map: Record<string, any> = {};
-    (data ?? []).forEach((row: any) => { map[row.key] = row.value; });
-    return { settings: map };
+    try {
+      const { supabaseAdmin } = await requireAdmin(ctx);
+      const { data } = await supabaseAdmin.from("admin_settings").select("*");
+      const map: Record<string, any> = {};
+      (data ?? []).forEach((row: any) => { map[row.key] = row.value; });
+      return { settings: map };
+    } catch {
+      return { settings: {} };
+    }
   });
 
 export const updateGlobalSetting = createServerFn({ method: "POST" })

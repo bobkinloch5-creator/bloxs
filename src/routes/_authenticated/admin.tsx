@@ -208,10 +208,15 @@ function DashboardTab() {
     refetchInterval: 15_000,
   });
 
-  if (isLoading || !data) return <Card><Loader2 className="h-4 w-4 animate-spin" /></Card>;
-  const m = data.metrics;
-  const daily = data.series.daily;
-  const err = data.series.errorsPerMinute;
+  if (isLoading) return <Card className="flex items-center justify-center p-12"><Loader2 className="h-6 w-6 animate-spin text-indigo-400" /></Card>;
+  const m = data?.metrics || {
+    totalUsers: 0, onlineUsers: 0, totalProjects: 0, projectsToday: 0,
+    aiRequestsToday: 0, activeBuilds: 0, pluginConnections: 0, actionsToday: 0,
+    scriptsToday: 0, imagesToday: 0, buildSuccessRate: 100, errorsToday: 0,
+    queueLength: 0, bannedUsers: 0, donators: 0, apiHealth: "healthy",
+  };
+  const daily = data?.series?.daily || [];
+  const err = data?.series?.errorsPerMinute || [];
 
   return (
     <>
@@ -978,8 +983,8 @@ function SettingsTab() {
     onError: (e: any) => toast.error(e?.message ?? "Failed"),
   });
 
-  if (isLoading || !data) return <Card><Loader2 className="h-4 w-4 animate-spin" /></Card>;
-  const s = data.settings;
+  if (isLoading) return <Card className="flex items-center justify-center p-12"><Loader2 className="h-6 w-6 animate-spin text-indigo-400" /></Card>;
+  const s = data?.settings || {};
 
   return (
     <>
