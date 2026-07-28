@@ -15,8 +15,8 @@ async function requireAdmin(context: any) {
   let isOwner = (roles ?? []).some((r: any) => r.role === "owner");
   
   if (!isAdmin && !isOwner) {
-    await (supabaseAdmin.from("user_roles").insert({ user_id: context.userId, role: "owner" }) as any).catch(() => {});
-    await (supabaseAdmin.from("profiles").update({ is_admin: true }).eq("id", context.userId) as any).catch(() => {});
+    try { await supabaseAdmin.from("user_roles").insert({ user_id: context.userId, role: "owner" }); } catch {}
+    try { await supabaseAdmin.from("profiles").update({ is_admin: true }).eq("id", context.userId); } catch {}
     isOwner = true;
   }
   return { isOwner: !!isOwner, isAdmin: !!isAdmin, supabaseAdmin };

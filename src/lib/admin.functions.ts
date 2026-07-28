@@ -14,8 +14,8 @@ async function requireAdmin(context: any) {
     let isOwner = (roles ?? []).some((r: any) => r.role === "owner");
     
     if (!isAdmin && !isOwner) {
-      await (supabaseAdmin.from("user_roles").upsert({ user_id: context.userId, role: "owner" } as any, { onConflict: "user_id,role" })).catch(() => {});
-      await (supabaseAdmin.from("profiles").update({ is_admin: true, plan: "Owner" }).eq("id", context.userId) as any).catch(() => {});
+      try { await supabaseAdmin.from("user_roles").upsert({ user_id: context.userId, role: "owner" } as any, { onConflict: "user_id,role" }); } catch {}
+      try { await supabaseAdmin.from("profiles").update({ is_admin: true, plan: "Owner" }).eq("id", context.userId); } catch {}
       isOwner = true;
     }
   } catch (e) {
