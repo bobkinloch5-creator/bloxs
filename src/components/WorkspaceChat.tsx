@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import {
   Paperclip, Send, Sparkles, ChevronDown, Loader2, X, MessageSquare, Hammer, Wand2,
   Download, RefreshCw, Save, Image as ImageIcon, Square, Trash2, Zap, Volume2, VolumeX,
-  ClipboardList, Lightbulb, Languages,
+  ClipboardList, Lightbulb, Languages, HelpCircle,
 } from "lucide-react";
 import { useLang, LANGUAGES } from "@/lib/i18n";
 import { playCompletionSound } from "@/lib/sound";
@@ -33,6 +33,7 @@ import { VaporModelSelector } from "@/components/VaporModelSelector";
 import { CreditsPill } from "@/components/CreditsWidget";
 import { useBloxSmithSpeaker } from "@/components/VoiceControls";
 import { GameBrainstormer } from "@/components/GameBrainstormer";
+import { WebsiteGuideModal } from "@/components/WebsiteGuideModal";
 
 
 
@@ -382,6 +383,8 @@ export function WorkspaceChat({
     if (typeof window === "undefined") return;
     window.localStorage.setItem("bs:procedural-generation", proceduralGeneration ? "1" : "0");
   }, [proceduralGeneration]);
+
+  const [guideModalOpen, setGuideModalOpen] = useState(false);
 
   // 🧠 Model selection — persisted across sessions. "auto" picks the best
   // Working model for the current task (chat vs build). Any other value must
@@ -782,6 +785,14 @@ export function WorkspaceChat({
               onSelect={onSelectProject}
             />
           )}
+          <button
+            type="button"
+            onClick={() => setGuideModalOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-cyan-400/30 bg-cyan-500/10 px-2.5 py-1.5 text-xs font-bold text-cyan-300 hover:border-cyan-400/60 hover:bg-cyan-500/20 hover:text-white transition shadow-sm"
+            title="Open comprehensive BloxSmith AI Platform Guide"
+          >
+            <HelpCircle className="h-3.5 w-3.5 text-cyan-400" /> Platform Guide
+          </button>
         </div>
 
         <div className="flex flex-col items-end gap-1">
@@ -1432,6 +1443,7 @@ export function WorkspaceChat({
           )}
         </div>
       </div>
+      <WebsiteGuideModal open={guideModalOpen} onClose={() => setGuideModalOpen(false)} />
     </div>
   );
 }

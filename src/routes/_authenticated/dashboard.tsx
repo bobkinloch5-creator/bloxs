@@ -29,6 +29,7 @@ import { WorkspaceChat } from "@/components/WorkspaceChat";
 import { NewProjectModal } from "@/components/NewProjectModal";
 import { ExportGameModal } from "@/components/ExportGameModal";
 import { ProjectFilesPanel } from "@/components/ProjectFilesPanel";
+import { WebsiteGuideModal } from "@/components/WebsiteGuideModal";
 
 import { Reveal, GlowCard, CountUp } from "@/components/Reveal";
 import { ProjectMemoryCard } from "@/components/ProjectMemoryCard";
@@ -141,6 +142,7 @@ function Dashboard() {
   });
   const [newProjectOpen, setNewProjectOpen] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [guideModalOpen, setGuideModalOpen] = useState(false);
   // If localStorage's active id no longer exists, clear it once projects load.
   // Also auto-select the most recent project when none is active so clicking
   // Build doesn't force the user through the "Create a project" modal every
@@ -286,6 +288,14 @@ function Dashboard() {
                 <ExternalLink className="h-3.5 w-3.5 text-indigo-300" /> Studio Plugin
               </Link>
               <ChangelogNotifications buttonClassName="vapor-ghost-btn hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold shrink-0" iconClassName="h-3.5 w-3.5 text-indigo-300" />
+              <button
+                type="button"
+                onClick={() => setGuideModalOpen(true)}
+                className="vapor-ghost-btn hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-cyan-300 hover:text-white shrink-0 border border-cyan-400/30 bg-cyan-500/10 rounded-xl"
+                title="Open Platform & AI Guide"
+              >
+                <HelpCircle className="h-3.5 w-3.5 text-cyan-400" /> Platform Guide
+              </button>
               <button
                 type="button"
                 disabled={createMut.isPending}
@@ -607,6 +617,10 @@ function Dashboard() {
           onClose={() => setExportModalOpen(false)}
         />
       )}
+      <WebsiteGuideModal
+        open={guideModalOpen}
+        onClose={() => setGuideModalOpen(false)}
+      />
       </div>
     </div>
   );
