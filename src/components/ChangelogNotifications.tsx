@@ -8,6 +8,12 @@ const CHANGELOG_VERSION = "2026-07-28-owner-privilege-auth-fix";
 
 const CHANGELOG_ITEMS = [
   {
+    title: "⚡ Studio plugin v2.1.29 — streamlined polling & action execution",
+    date: "Jul 28",
+    icon: Sparkles,
+    body: "Plugin v2.1.29 — updated backend polling architecture to directly query pending build actions by user ID, eliminating project-ID mismatch drops and guaranteeing instant, reliable execution in Studio. Re-download BloxSmithPlugin.lua from /plugin and replace the file in your Studio Plugins folder.",
+  },
+  {
     title: "🎮 Community Games Hub & Game Publishing",
     date: "Jul 28",
     icon: Rocket,
