@@ -549,6 +549,24 @@ export function WorkspaceChat({
 
   const [guideModalOpen, setGuideModalOpen] = useState(false);
 
+  // 🧠 Memories & Saved Context — persisted across browser sessions
+  const [memories, setMemories] = useState<string[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const saved = window.localStorage.getItem("bs:memories_v2");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem("bs:memories_v2", JSON.stringify(memories));
+    } catch {}
+  }, [memories]);
+
   // 🧠 Model selection — persisted across sessions. "auto" picks the best
   // Working model for the current task (chat vs build). Any other value must
   // be a Working selectable id, otherwise we fall back to auto.
@@ -680,9 +698,10 @@ export function WorkspaceChat({
         buildQuality: buildMode === "Deep Build" ? "full_game" : buildMode === "Fast Build" ? "basic" : "premium",
         executionMode: buildMode === "Fast Build" ? "fast" : "safe",
         proceduralGeneration,
+        memories,
       }),
     }),
-    [token, activeProjectId, mode, buildMode, proceduralGeneration, selectedModel],
+    [token, activeProjectId, mode, buildMode, proceduralGeneration, selectedModel, memories],
   );
 
 
@@ -739,17 +758,44 @@ export function WorkspaceChat({
     },
     onSuccess: () => {
       setMessages([]);
+      setMemories([]);
+      if (typeof window !== "undefined") {
+        try {
+          window.localStorage.removeItem("bs:chat_history_v2");
+          window.localStorage.removeItem("bs:memories_v2");
+        } catch {}
+      }
       qc.invalidateQueries({ queryKey: ["chat_messages", activeProjectId] });
       qc.invalidateQueries({ queryKey: ["plugin-actions", activeProjectId] });
-      toast.success("Chat cleared.");
+      toast.success("Chat history & AI memories cleared in real-time.");
     },
     onError: (e) => toast.error(friendlyError(e, { fallback: "Failed to clear chat." })),
   });
-  const handleClearChat = () => {
-    if (messages.length === 0) return;
-    if (typeof window !== "undefined" && !window.confirm("Clear this project's chat history and any pending Studio actions?")) return;
-    clearMut.mutate();
-  };
+
+  const handleClearChat = useCallback(() => {
+    if (messages.length === 0 && memories.length === 0 && !activeProjectId) {
+      toast.info("Chat and memories are already clean.");
+      return;
+    }
+    if (typeof window !== "undefined" && !window.confirm("Clear all chat history and AI memories in real-time?")) return;
+
+    // Clear React state & localStorage instantly
+    setMessages([]);
+    setMemories([]);
+
+    if (typeof window !== "undefined") {
+      try {
+        window.localStorage.removeItem("bs:chat_history_v2");
+        window.localStorage.removeItem("bs:memories_v2");
+      } catch {}
+    }
+
+    if (activeProjectId) {
+      clearMut.mutate();
+    } else {
+      toast.success("Chat history & AI memories cleared in real-time.");
+    }
+  }, [messages.length, memories.length, activeProjectId, clearMut, setMessages]);
 
   const executeNowMut = useMutation({
     mutationFn: async () => {
@@ -767,11 +813,36 @@ export function WorkspaceChat({
     onError: (e) => toast.error(friendlyError(e, { fallback: "Couldn't execute now." })),
   });
 
-  // Hydrate the useChat store with server history when it (re)loads.
+  // Hydrate the useChat store with server history or localStorage when it (re)loads.
   useEffect(() => {
-    if (initialMessages.length && messages.length === 0) setMessages(initialMessages);
+    if (initialMessages.length > 0 && messages.length === 0) {
+      setMessages(initialMessages);
+    } else if (initialMessages.length === 0 && messages.length === 0 && typeof window !== "undefined") {
+      try {
+        const saved = window.localStorage.getItem("bs:chat_history_v2");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) setMessages(parsed);
+        }
+      } catch {}
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialMessages]);
+
+  // Persist messages to LocalStorage in real-time
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (messages.length > 0) {
+      try {
+        const serialized = messages.slice(-50).map((m) => ({
+          id: m.id,
+          role: m.role,
+          parts: m.parts,
+        }));
+        window.localStorage.setItem("bs:chat_history_v2", JSON.stringify(serialized));
+      } catch {}
+    }
+  }, [messages]);
 
   useEffect(() => {
     const el = scrollerRef.current;
@@ -836,6 +907,15 @@ export function WorkspaceChat({
     if (!text) { toast.error("Type a message first."); return; }
     if (!token) { toast.error("Please sign in again."); return; }
     if (status === "submitted" || status === "streaming") return;
+
+    // Auto-record game context memories when user mentions key preferences or project details
+    if (/\b(?:remember|my game|building a|making a|game title|prefer|always use|never use|store memory|setting up|designing a)\b/i.test(text)) {
+      const memSnippet = text.length > 140 ? text.slice(0, 140) + "..." : text;
+      setMemories((prev) => {
+        if (prev.includes(memSnippet)) return prev;
+        return [...prev.slice(-9), memSnippet];
+      });
+    }
 
     // Use the live mode ref (or an explicit override from the caller) so a
     // synchronous mode flip in the same click cycle is honored on this send.
@@ -969,6 +1049,23 @@ export function WorkspaceChat({
           >
             <HelpCircle className="h-3.5 w-3.5 text-cyan-400" /> Platform Guide
           </button>
+          <button
+            type="button"
+            onClick={handleClearChat}
+            disabled={clearMut.isPending}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-red-500/30 bg-red-500/10 px-2.5 py-1.5 text-xs font-bold text-red-300 hover:border-red-500/60 hover:bg-red-500/20 hover:text-white transition shadow-sm disabled:opacity-50"
+            title="Clear all chat history and AI memories in real-time"
+          >
+            {clearMut.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5 text-red-400" />} Clear Chat
+          </button>
+          {memories.length > 0 && (
+            <span
+              className="inline-flex items-center gap-1 rounded-xl border border-purple-500/40 bg-purple-500/15 px-2.5 py-1 text-[11px] font-bold text-purple-200"
+              title={`AI has ${memories.length} active memory snippet(s) saved.`}
+            >
+              <Zap className="h-3.5 w-3.5 text-purple-300 animate-pulse" /> {memories.length} Memory{memories.length === 1 ? "" : "s"}
+            </span>
+          )}
         </div>
 
         <div className="flex flex-col items-end gap-1">

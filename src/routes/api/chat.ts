@@ -6145,6 +6145,13 @@ export const Route = createFileRoute("/api/chat")({
           const languageName = (body.languageName || "English").toString().slice(0, 60);
           const languageCode = (body.language || "en").toString().slice(0, 8);
           const { messages, projectId } = body;
+          const rawMemories = Array.isArray((body as any).memories) ? (body as any).memories : [];
+          const memoriesList = rawMemories
+            .filter((m: any) => typeof m === "string" && m.trim().length > 0)
+            .map((m: string) => `- ${m.trim()}`);
+          const memoriesPromptBlock = memoriesList.length > 0
+            ? `\n\n🧠 ACTIVE USER MEMORIES & PRESERVED GAME CONTEXT:\n${memoriesList.join("\n")}`
+            : "";
           const isAuto = body.isAuto === true;
           if (!Array.isArray(messages) || messages.length === 0) {
             return jsonError("No messages were sent — type something and try again.", 400, "missing_messages");
@@ -6426,6 +6433,7 @@ export const Route = createFileRoute("/api/chat")({
             const liteDigest = historyDigestFor(strippedLite, "chat");
             const systemLite =
               FAST_CHAT_SYSTEM_PROMPT +
+              memoriesPromptBlock +
               (liteDigest ? `\n\n${liteDigest}` : "") +
               "\n\n" + SCRIPTING_CORE_RULES +
               `\n\nMODE: CHAT (no project open) — help the user plan, brainstorm, and refine ideas for their Roblox game. Do NOT emit build actions, file outputs, or plugin_actions. Keep replies conversational. Reply in ${languageName} (${languageCode}). If the user asks to delete, erase, clear, or modify their Roblox project, NEVER say BloxSmith only has Toolbox/search capability. Say BloxSmith can do that in Build Mode through the Studio plugin, and ask them to switch to Build Mode / open a project if needed. For requests like "erase everything but keep the Baseplate", answer with only that Build Mode instruction; do not provide manual deletion steps unless the user asks for manual steps.`;
@@ -6481,6 +6489,7 @@ export const Route = createFileRoute("/api/chat")({
             const planDigest = historyDigestFor(strippedPlan, "plan");
             const systemPlan =
               FAST_CHAT_SYSTEM_PROMPT +
+              memoriesPromptBlock +
               (planDigest ? `\n\n${planDigest}` : "") +
               `\n\nMODE: PLAN MODE (AI Game Architect & Technical Lead)
 You are BloxSmith's Master Roblox Game Architect and Technical Lead.
