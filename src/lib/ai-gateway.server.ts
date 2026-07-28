@@ -53,17 +53,34 @@ function buildProvider(gateway: Gateway): Provider {
     });
   }
   if (gateway === "oneprovider") {
-    const key = process.env.ONEPROVIDER_KEY || process.env.ONEPROVIDER_API_KEY || process.env.LOVABLE_API_KEY || process.env.OPENAI_API_KEY;
-    if (!key) throw new Error("OneProvider is not configured — set ONEPROVIDER_KEY or ONEPROVIDER_API_KEY.");
-    const isOneProviderKey = !!(process.env.ONEPROVIDER_KEY || process.env.ONEPROVIDER_API_KEY);
+    const key =
+      process.env.ONEPROVIDER_API_KEY ||
+      process.env.ONEPROVIDER_KEY ||
+      process.env.ANTHROPIC_API_KEY ||
+      process.env.AGENTROUTER_API_KEY ||
+      process.env.AGENTROUTER_KEY ||
+      process.env.LOVABLE_API_KEY ||
+      process.env.OPENAI_API_KEY;
+
+    if (!key) throw new Error("OneProvider / AgentRouter is not configured.");
+
+    const isOneProviderKey = !!(process.env.ONEPROVIDER_API_KEY || process.env.ONEPROVIDER_KEY || process.env.ANTHROPIC_API_KEY);
+    const isAgentRouterKey = !isOneProviderKey && !!(process.env.AGENTROUTER_API_KEY || process.env.AGENTROUTER_KEY);
+
+    const baseURL = isOneProviderKey
+      ? (process.env.ONEPROVIDER_BASE_URL || process.env.ANTHROPIC_BASE_URL || "https://api.oneprovider.dev/v1")
+      : isAgentRouterKey
+      ? (process.env.AGENTROUTER_BASE_URL || "https://agentrouter.org/v1")
+      : process.env.LOVABLE_API_KEY
+      ? "https://ai.gateway.lovable.dev/v1"
+      : "https://api.openai.com/v1";
+
+    const finalBaseURL = baseURL.endsWith("/v1") ? baseURL : `${baseURL.replace(/\/+$/, "")}/v1`;
+
     return createOpenAICompatible({
       name: "oneprovider",
-      baseURL: isOneProviderKey
-        ? "https://api.oneprovider.dev/v1"
-        : process.env.LOVABLE_API_KEY
-        ? "https://ai.gateway.lovable.dev/v1"
-        : "https://api.openai.com/v1",
-      headers: isOneProviderKey
+      baseURL: finalBaseURL,
+      headers: (isOneProviderKey || isAgentRouterKey)
         ? { Authorization: `Bearer ${key}` }
         : process.env.LOVABLE_API_KEY
         ? { "Lovable-API-Key": key, "X-Lovable-AIG-SDK": "vercel-ai-sdk" }
