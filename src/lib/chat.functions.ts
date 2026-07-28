@@ -344,12 +344,16 @@ export const getPluginSession = createServerFn({ method: "GET" })
 
     if (!rows || rows.length === 0) return null;
 
-    // Prefer a session belonging to the resolved user, then owner fallback, then most recent
+    // Prioritize active sessions seen in the last 5 minutes so a stale session row doesn't mask the current active plugin
+    const recentRows = rows.filter((r: any) => r.last_seen && (Date.now() - new Date(r.last_seen).getTime() < 300_000));
+    const pool = recentRows.length > 0 ? recentRows : rows;
+
+    // Prefer a session belonging to the resolved user, then owner fallback, then most recent active session
     const match =
-      rows.find((r: any) => r.user_id === targetUserId) ||
-      rows.find((r: any) => r.user_id === ctx.userId) ||
-      rows.find((r: any) => r.user_id === ownerFallbackId) ||
-      rows[0];
+      pool.find((r: any) => r.user_id === targetUserId) ||
+      pool.find((r: any) => r.user_id === ctx.userId) ||
+      pool.find((r: any) => r.user_id === ownerFallbackId) ||
+      pool[0];
 
     // Consider the session "online" only if it was seen within the last 3 minutes
     const isRecent = match?.last_seen &&
