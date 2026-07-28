@@ -27,6 +27,7 @@ function json(o: unknown, status = 200) {
 // In-memory cache for plugin_token -> profile id & 45-second write throttling to eliminate disk IOPS
 const tokenCache = new Map<string, { id: string; fetchedAt: number }>();
 const lastSessionWrite = new Map<string, number>();
+const lastWrittenVersion = new Map<string, string>();
 
 export const Route = createFileRoute("/api/public/plugin/heartbeat")({
   server: {
@@ -82,10 +83,14 @@ export const Route = createFileRoute("/api/public/plugin/heartbeat")({
           if (!userId) return json({ error: "invalid user" }, 401);
           const validUserId: string = userId;
 
-          // Throttle database write to at most once per 45s per user
+          // Throttle database write to at most once per 45s per user,
+          // BUT always write immediately if the plugin_version changed.
           const lastWrite = lastSessionWrite.get(validUserId) ?? 0;
-          if (Date.now() - lastWrite > 45_000) {
+          const prevVersion = lastWrittenVersion.get(validUserId);
+          const versionChanged = body.plugin_version && body.plugin_version !== prevVersion;
+          if (versionChanged || Date.now() - lastWrite > 45_000) {
             lastSessionWrite.set(validUserId, Date.now());
+            if (body.plugin_version) lastWrittenVersion.set(validUserId, body.plugin_version);
             await sb.from("plugin_sessions").upsert(
               {
                 user_id: validUserId,
