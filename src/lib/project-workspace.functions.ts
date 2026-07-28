@@ -96,11 +96,12 @@ export const duplicateProject = createServerFn({ method: "POST" })
     const { data: src, error: e1 } = await supabaseAdmin
       .from("projects").select("*").eq("id", data.id).maybeSingle();
     if (e1 || !src) throw new Error(e1?.message ?? "Project not found");
+    if (src.user_id !== ctx.userId && !src.is_public) throw new Error("Unauthorized to access or duplicate this project");
 
     const { data: copy, error: e2 } = await supabaseAdmin
       .from("projects")
       .insert({
-        user_id: src.user_id,
+        user_id: ctx.userId,
         name: `${src.name} (Copy)`,
         description: src.description ?? "",
         game_type: src.game_type,

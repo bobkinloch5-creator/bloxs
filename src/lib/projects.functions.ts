@@ -10,21 +10,14 @@ async function resolveValidUserId(userId: string, supabaseAdmin: any): Promise<s
       if (userRes?.user?.id) return userRes.user.id;
     } catch {}
   }
-  try {
-    const { data: usersData } = await supabaseAdmin.auth.admin.listUsers();
-    const ownerUser = (usersData?.users ?? []).find(
-      (u: any) => u.email?.toLowerCase() === "bobkinloch5@gmail.com"
-    ) || usersData?.users?.[0];
-    if (ownerUser?.id) return ownerUser.id;
-
-    const { data: newUser } = await supabaseAdmin.auth.admin.createUser({
-      email: "bobkinloch5@gmail.com",
-      email_confirm: true,
-      user_metadata: { display_name: "Owner" }
-    });
-    if (newUser?.user?.id) return newUser.user.id;
-  } catch (e) {
-    console.warn("[resolveValidUserId] Exception:", e);
+  if (userId === "dev-owner") {
+    try {
+      const { data: usersData } = await supabaseAdmin.auth.admin.listUsers();
+      const ownerUser = (usersData?.users ?? []).find(
+        (u: any) => u.email?.toLowerCase() === "bobkinloch5@gmail.com"
+      );
+      if (ownerUser?.id) return ownerUser.id;
+    } catch {}
   }
   return userId;
 }
