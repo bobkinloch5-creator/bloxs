@@ -17,7 +17,6 @@ export const claimPairCode = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const ctx = context as any;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { getResolvedUserId } = await import("@/lib/profile.functions");
     const code = data.code.toUpperCase();
 
     const { data: row, error: lookupErr } = await supabaseAdmin
@@ -33,10 +32,10 @@ export const claimPairCode = createServerFn({ method: "POST" })
     if (new Date(row.expires_at) < new Date())
       throw new Error("This code expired. Click Connect in the plugin again to get a fresh one.");
 
-    // Pair with exactly the signed-in user's profile. Sharing one token with
-    // an owner/fallback profile violates the unique token constraint and can
-    // leave Studio holding a token that no profile owns.
-    const targetUserId = await getResolvedUserId(ctx.userId);
+    // Use the actual JWT user ID directly. Never resolve to an owner fallback
+    // here — the person clicking "Approve" IS the authenticated user, and
+    // their auth.users row must exist for the profiles FK to work.
+    const targetUserId = ctx.userId as string;
 
     let { data: profile } = await supabaseAdmin
       .from("profiles")
@@ -44,23 +43,38 @@ export const claimPairCode = createServerFn({ method: "POST" })
       .eq("id", targetUserId)
       .maybeSingle();
 
-    // A profile normally exists from the signup trigger. Create the minimal
-    // valid profile if a legacy account is missing one, and fail loudly if
-    // that cannot be done—never approve a code with an unusable random token.
+    // A profile normally exists from the signup trigger. If it's missing,
+    // only attempt the INSERT when the user actually exists in auth.users
+    // (avoids the profiles_id_fkey FK violation).
     if (!profile) {
       const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(targetUserId);
-      const emailName = authUser?.user?.email?.split("@")[0] || "Creator";
+      if (!authUser?.user) {
+        throw new Error(
+          "Your account was not found. Please sign out, sign back in, and try again.",
+        );
+      }
+      const emailName = authUser.user.email?.split("@")[0] || "Creator";
       const { data: created, error: createError } = await supabaseAdmin
         .from("profiles")
         .insert({ id: targetUserId, username: emailName, display_name: emailName } as never)
         .select("id, plugin_token")
         .single();
-      if (createError || !created?.plugin_token) {
+      if (createError || !created) {
         throw new Error(
-          `Could not prepare your plugin profile: ${createError?.message || "missing plugin token"}`,
+          `Could not prepare your plugin profile: ${createError?.message || "insert failed"}`,
         );
       }
       profile = created;
+    }
+
+    // If the profile exists but has no plugin_token yet, generate one.
+    if (!profile.plugin_token) {
+      const newToken = "BS-" + Math.random().toString(36).slice(2, 14).toUpperCase();
+      await supabaseAdmin
+        .from("profiles")
+        .update({ plugin_token: newToken })
+        .eq("id", targetUserId);
+      profile = { ...profile, plugin_token: newToken };
     }
     const token = String(profile.plugin_token);
 
