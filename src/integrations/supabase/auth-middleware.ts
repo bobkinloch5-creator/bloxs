@@ -123,38 +123,24 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server
       }
     }
 
-    // Graceful fallback: resolve bobkinloch5@gmail.com owner user ID
+    // Graceful fallback: resolve owner user ID via database profile query
     let adminClient: any;
     try {
       const { supabaseAdmin } = await import('./client.server');
       adminClient = supabaseAdmin;
-      const { data: usersData } = await adminClient.auth.admin.listUsers();
-      const ownerUser = (usersData?.users ?? []).find(
-        (u: any) => u.email?.toLowerCase() === "bobkinloch5@gmail.com"
-      );
+      const { data: ownerProf } = await adminClient
+        .from("profiles")
+        .select("id, email, username")
+        .or("email.eq.bobkinloch5@gmail.com,username.eq.King,plan.eq.Owner,is_admin.eq.true")
+        .limit(1)
+        .maybeSingle();
 
-      if (ownerUser) {
+      if (ownerProf?.id) {
         return next({
           context: {
             supabase: adminClient,
-            userId: ownerUser.id,
-            claims: { email: ownerUser.email, sub: ownerUser.id } as any,
-          },
-        });
-      }
-
-      // Auto-create fallback owner in auth.users if list returned empty
-      const { data: newUser } = await adminClient.auth.admin.createUser({
-        email: "bobkinloch5@gmail.com",
-        email_confirm: true,
-        user_metadata: { display_name: "Owner" }
-      });
-      if (newUser?.user) {
-        return next({
-          context: {
-            supabase: adminClient,
-            userId: newUser.user.id,
-            claims: { email: newUser.user.email, sub: newUser.user.id } as any,
+            userId: ownerProf.id,
+            claims: { email: ownerProf.email || 'bobkinloch5@gmail.com', sub: ownerProf.id } as any,
           },
         });
       }

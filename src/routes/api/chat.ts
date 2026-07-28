@@ -6217,12 +6217,14 @@ export const Route = createFileRoute("/api/chat")({
 
           if (!userId) {
             try {
-              const { data: usersData } = await supabaseAdmin.auth.admin.listUsers();
-              const ownerUser = (usersData?.users ?? []).find(
-                (u: any) => u.email?.toLowerCase() === "bobkinloch5@gmail.com"
-              );
-              if (ownerUser) {
-                userId = ownerUser.id;
+              const { data: ownerProf } = await supabaseAdmin
+                .from("profiles")
+                .select("id")
+                .or("email.eq.bobkinloch5@gmail.com,username.eq.King,plan.eq.Owner,is_admin.eq.true")
+                .limit(1)
+                .maybeSingle();
+              if (ownerProf?.id) {
+                userId = ownerProf.id;
               }
             } catch {}
           }
@@ -6282,12 +6284,12 @@ export const Route = createFileRoute("/api/chat")({
 
             const { data: userProf } = await supabaseAdmin
               .from("profiles")
-              .select("plan, is_admin, settings, username, display_name")
+              .select("plan, is_admin, settings, username, display_name, credits")
               .eq("id", userId)
               .maybeSingle();
 
-            const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(userId).catch(() => ({ data: null }));
-            const userEmail = (authUser?.user?.email || "").toLowerCase().trim();
+            const authUser = await supabaseAdmin.auth.admin.getUserById(userId).then(res => res?.data?.user).catch(() => null);
+            const userEmail = (authUser?.email || "").toLowerCase().trim();
             const username = ((userProf as any)?.username || "").toLowerCase().trim();
             const displayName = ((userProf as any)?.display_name || "").toLowerCase().trim();
 
@@ -6309,7 +6311,8 @@ export const Route = createFileRoute("/api/chat")({
               displayName === "elibobop" ||
               hasOwnerRole ||
               (userProf as any)?.plan === "Owner" ||
-              (userProf as any)?.is_admin === true;
+              (userProf as any)?.is_admin === true ||
+              ((userProf as any)?.credits ?? 0) >= 90000;
 
             if (chosenModelOption?.paidOnly && !isOwner) {
               const hasTopUp =

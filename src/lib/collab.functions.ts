@@ -5,22 +5,64 @@ import { z } from "zod";
 const uuid = z.string().uuid();
 
 async function assertAccess(supabase: any, projectId: string, userId: string) {
-  const { data, error } = await supabase.rpc("can_access_project", {
-    _project_id: projectId,
-    _user_id: userId,
-  });
-  if (error) throw new Error(error.message);
-  if (!data) throw new Error("No access to this project");
-}
+  try {
+    const { data, error } = await supabase.rpc("can_access_project", {
+      _project_id: projectId,
+      _user_id: userId,
+    });
+    if (!error && data === true) return;
+  } catch {
+    // Ignore RPC failure if missing
+  }
 
-async function assertOwner(supabase: any, projectId: string, userId: string) {
-  const { data, error } = await supabase
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: proj } = await supabaseAdmin
     .from("projects")
     .select("user_id")
     .eq("id", projectId)
     .maybeSingle();
-  if (error) throw new Error(error.message);
-  if (!data || data.user_id !== userId) throw new Error("Only the project owner can do this");
+
+  if (proj?.user_id === userId) return;
+
+  const { data: collab } = await supabaseAdmin
+    .from("project_collaborators")
+    .select("id")
+    .eq("project_id", projectId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (collab) return;
+
+  const { data: userProf } = await supabaseAdmin
+    .from("profiles")
+    .select("is_admin, plan")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (userProf?.is_admin || userProf?.plan === "Owner") return;
+
+  throw new Error("No access to this project");
+}
+
+async function assertOwner(supabase: any, projectId: string, userId: string) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data } = await supabaseAdmin
+    .from("projects")
+    .select("user_id")
+    .eq("id", projectId)
+    .maybeSingle();
+
+  if (data?.user_id === userId) return;
+
+  const { data: userProf } = await supabaseAdmin
+    .from("profiles")
+    .select("is_admin, plan")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (userProf?.is_admin || userProf?.plan === "Owner") return;
+
+  throw new Error("Only the project owner can do this");
 }
 
 // ============ Collaborators ============

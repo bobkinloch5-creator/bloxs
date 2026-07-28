@@ -4,9 +4,15 @@ import { checkChangelogCoverage, warnIfIncomplete } from "@/lib/changelog-covera
 import bloxsmithLogo from "@/assets/bloxsmith-logo.png.asset.json";
 
 
-const CHANGELOG_VERSION = "2026-07-28-community-games-showcase-hub";
+const CHANGELOG_VERSION = "2026-07-28-owner-privilege-auth-fix";
 
 const CHANGELOG_ITEMS = [
+  {
+    title: "👑 Owner Privilege & Unlimited Model Access Authorization",
+    date: "Jul 28",
+    icon: ShieldCheck,
+    body: "Patched owner/admin privilege authorization across the platform. Owner accounts, accounts with the Owner plan, or accounts with high credit balances now seamlessly bypass all top-up and paid model barriers in AI Chat and Build mode with zero restriction.",
+  },
   {
     title: "🎮 Community Games Hub & Game Publishing",
     date: "Jul 28",

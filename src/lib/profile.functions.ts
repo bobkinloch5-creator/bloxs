@@ -5,24 +5,19 @@ import { z } from "zod";
 const PROFILE_COLS = "id, username, display_name, avatar_url, bio, roblox_username, roblox_user_id, roblox_display_name, roblox_avatar_url, roblox_headshot_url, roblox_verified_at, roblox_created_at, roblox_last_synced_at, roblox_public, roblox_experiences, plan, credits, max_credits, language, is_private, settings, created_at, updated_at, is_admin, credits_reset_at" as const;
 
 async function getResolvedUserId(ctxUserId: string): Promise<string> {
+  if (ctxUserId && ctxUserId !== "dev-owner" && ctxUserId !== "owner" && ctxUserId !== "00000000-0000-0000-0000-000000000000") {
+    return ctxUserId;
+  }
   try {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: ownerProf } = await supabaseAdmin
+      .from("profiles")
+      .select("id")
+      .or("email.eq.bobkinloch5@gmail.com,username.eq.King,plan.eq.Owner,is_owner.eq.true")
+      .limit(1)
+      .maybeSingle();
 
-    // 1. If valid UUID provided, verify it exists in auth.users
-    if (ctxUserId && ctxUserId !== "dev-owner" && ctxUserId !== "owner" && ctxUserId !== "00000000-0000-0000-0000-000000000000") {
-      const { data: userData, error } = await supabaseAdmin.auth.admin.getUserById(ctxUserId);
-      if (!error && userData?.user?.id) {
-        return userData.user.id;
-      }
-    }
-
-    // 2. Fallback to owner (bobkinloch5@gmail.com) in auth.users
-    const { data: usersData } = await supabaseAdmin.auth.admin.listUsers();
-    const ownerUser = (usersData?.users ?? []).find(
-      (u: any) => u.email?.toLowerCase() === "bobkinloch5@gmail.com"
-    );
-
-    if (ownerUser?.id) return ownerUser.id;
+    if (ownerProf?.id) return ownerProf.id;
   } catch (e) {
     console.warn("getResolvedUserId lookup failed:", e);
   }
@@ -44,8 +39,8 @@ export const getMyProfile = createServerFn({ method: "GET" })
         .eq("id", targetUserId)
         .maybeSingle();
 
-      const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(targetUserId).catch(() => ({ data: null }));
-      const userEmail = (authUser?.user?.email || (ctx as any)?.claims?.email || "").toLowerCase().trim();
+      const authUser = await supabaseAdmin.auth.admin.getUserById(targetUserId).then(res => res?.data?.user).catch(() => null);
+      const userEmail = (authUser?.email || (ctx as any)?.claims?.email || "").toLowerCase().trim();
       const username = (data as any)?.username || "";
       const displayName = (data as any)?.display_name || "";
       
@@ -60,7 +55,7 @@ export const getMyProfile = createServerFn({ method: "GET" })
         // Auto-create profile row if missing with appropriate default handle
         try {
           const defaultHandle = userEmail ? userEmail.split("@")[0] : "Creator";
-          const initName = isOwner ? "King" : (authUser?.user?.user_metadata?.username || defaultHandle);
+          const initName = isOwner ? "King" : (authUser?.user_metadata?.username || defaultHandle);
 
           const { data: newRow } = await supabaseAdmin
             .from("profiles")

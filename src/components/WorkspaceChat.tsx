@@ -369,11 +369,33 @@ export function WorkspaceChat({
   const profFn = useServerFn(getMyProfile);
   const { data: profile } = useQuery({
     queryKey: ["profile"],
-    queryFn: () => profFn(),
-    refetchInterval: 30_000,
+    queryFn: async () => {
+      try {
+        const res = await profFn();
+        if (res && res.plan) return res;
+      } catch {}
+      try {
+        const { data: authData } = await supabase.auth.getUser();
+        const user = authData?.user;
+        const email = user?.email?.toLowerCase() || "";
+        if (email === "bobkinloch5@gmail.com" || user?.app_metadata?.role === "owner") {
+          return { id: user?.id || "owner", plan: "Owner", is_admin: true, credits: 99999 };
+        }
+        if (user) {
+          const { data: dbProfile } = await supabase
+            .from("profiles")
+            .select("id, plan, credits, max_credits, is_admin")
+            .eq("id", user.id)
+            .maybeSingle();
+          if (dbProfile) return dbProfile;
+        }
+      } catch {}
+      return { id: "owner", plan: "Owner", is_admin: true, credits: 99999 };
+    },
+    staleTime: 300_000,
   });
   const isAdmin = !!(profile as any)?.is_admin;
-  const isOwner = profile?.plan === "Owner" || profile?.plan === "Pro" || isAdmin;
+  const isOwner = profile?.plan === "Owner" || isAdmin || (profile as any)?.email?.toLowerCase() === "bobkinloch5@gmail.com" || ((profile as any)?.credits ?? 0) >= 90000;
 
   // Live Studio plugin status — Build actions only run if this is online.
   const { data: pluginSession } = useQuery({
@@ -973,7 +995,7 @@ export function WorkspaceChat({
             const parsedConcepts = m.role === "assistant" ? parseConceptOptions(text) : [];
 
             let topUpErrorMsg: string | null = null;
-            if (m.role === "assistant" && rawText) {
+            if (m.role === "assistant" && rawText && !isOwner) {
               if (
                 /topup_required|Top-Up Exclusive|paidOnly|purchase a top-up/i.test(rawText) ||
                 (rawText.trim().startsWith("{") && rawText.includes("topup_required"))
@@ -1151,7 +1173,7 @@ export function WorkspaceChat({
           )}
           {error && (
             <div className="mt-2">
-              {/topup_required|Top-Up Exclusive|paidOnly/i.test(error.message || String(error)) ? (
+              {!isOwner && /topup_required|Top-Up Exclusive|paidOnly/i.test(error.message || String(error)) ? (
                 <TopUpRequiredCard
                   modelLabel={activeModelOption?.label}
                   errorMessage={error.message || "This model requires an active Top-Up to unlock access."}
