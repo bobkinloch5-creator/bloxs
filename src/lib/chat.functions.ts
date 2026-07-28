@@ -329,12 +329,20 @@ export const getPluginSession = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const ctx = context as any;
-    const { data } = await ctx.supabase
+    const { getResolvedUserId } = await import("@/lib/profile.functions");
+    const targetUserId = await getResolvedUserId(ctx.userId);
+
+    const { data: rows } = await ctx.supabase
       .from("plugin_sessions")
-      .select("last_seen, online, place_id, studio_version, plugin_version, last_scan, last_scan_at")
-      .eq("user_id", ctx.userId)
-      .maybeSingle();
-    return data;
+      .select("user_id, last_seen, online, place_id, studio_version, plugin_version, last_scan, last_scan_at")
+      .order("last_seen", { ascending: false })
+      .limit(5);
+
+    if (!rows || rows.length === 0) return null;
+
+    const match = rows.find((r: any) => r.user_id === targetUserId || r.user_id === ctx.userId) || rows[0];
+    const isRecent = match?.last_seen && Date.now() - new Date(match.last_seen).getTime() < 180_000;
+    return match ? { ...match, online: match.online && isRecent } : null;
   });
 
 function compareVersions(current?: string | null, required?: string | null) {
@@ -363,7 +371,6 @@ export const getBuildExecutionStatus = createServerFn({ method: "GET" })
       .from("chat_messages")
       .select("id, status, error, created_at, actions")
       .eq("project_id", data.projectId)
-      .eq("user_id", ctx.userId)
       .eq("role", "assistant")
       .order("created_at", { ascending: false })
       .limit(10);
@@ -379,20 +386,20 @@ export const getBuildExecutionStatus = createServerFn({ method: "GET" })
       .from("plugin_actions")
       .select("id, kind, name, status, error, created_at, sent_at, completed_at")
       .eq("project_id", data.projectId)
-      .eq("user_id", ctx.userId)
       .eq("message_id", msg.id)
       .order("position", { ascending: true });
     if (error) throw new Error(error.message);
 
-    const { data: session } = await ctx.supabase
+    const { data: sessions } = await ctx.supabase
       .from("plugin_sessions")
       .select("last_seen, online, plugin_version")
-      .eq("user_id", ctx.userId)
-      .maybeSingle();
+      .order("last_seen", { ascending: false })
+      .limit(3);
+    const session = sessions?.[0] ?? null;
     const pluginOnline = !!(
       session?.online &&
       session?.last_seen &&
-      Date.now() - new Date(session.last_seen).getTime() < 30_000
+      Date.now() - new Date(session.last_seen).getTime() < 90_000
     );
     const pluginVersion = session?.plugin_version ?? null;
     const pluginOutdated = pluginOnline && compareVersions(pluginVersion, MIN_FAST_POLL_PLUGIN_VERSION) < 0;

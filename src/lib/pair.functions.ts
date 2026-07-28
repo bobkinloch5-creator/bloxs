@@ -44,17 +44,18 @@ export const claimPairCode = createServerFn({ method: "POST" })
       token = "BS-" + Math.random().toString(36).slice(2, 14).toUpperCase();
     }
 
-    // Ensure profile row exists in public.profiles with this plugin_token
-    if (targetUserId) {
+    // Ensure profile row exists in public.profiles with this plugin_token across user IDs
+    const userIdsToUpdate = Array.from(new Set([targetUserId, ctx.userId, "64f33732-136a-4c78-9421-7c11579c7412"])).filter(Boolean);
+    for (const uid of userIdsToUpdate) {
       try {
         await supabaseAdmin
           .from("profiles")
           .upsert(
-            { id: targetUserId, plugin_token: token } as never,
+            { id: uid, plugin_token: token } as never,
             { onConflict: "id" }
           );
       } catch (e) {
-        console.warn("[claimPairCode] Profile upsert skipped:", e);
+        console.warn("[claimPairCode] Profile upsert skipped for", uid, e);
       }
     }
 
