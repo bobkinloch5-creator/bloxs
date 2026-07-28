@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import {
   BookOpen, Sparkles, Plug, Crown, Zap, CheckCircle2, Shield, X,
-  HelpCircle, Code2, LayoutDashboard, Box, ExternalLink, MessageSquare, Flame, Rocket
+  HelpCircle, Code2, LayoutDashboard, Box, ExternalLink, MessageSquare, Flame, Rocket, Hammer
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 
