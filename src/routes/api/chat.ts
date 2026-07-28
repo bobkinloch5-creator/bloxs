@@ -6469,10 +6469,12 @@ export const Route = createFileRoute("/api/chat")({
             proceduralFallbackAllowed = assetMode !== "toolbox_only" && s.disable_procedural_fallback !== true;
           } catch { /* ignore */ }
 
-          // Per-request Procedural Generation toggle (from the composer) overrides
-          // the stored profile default. ON  → allow procedural expansion/fallback.
-          // OFF → strictly toolbox-only, one request = one result, no extras.
-          if (proceduralGenerationOverride === true) {
+          // Per-request Procedural Generation toggle (from composer or natural prompt keywords like "from scratch")
+          const isExplicitScratchRequest = /\b(?:from scratch|built from scratch|build from scratch|create from scratch|make from scratch|no toolbox|without toolbox|procedural build|procedural map|procedural terrain|procedurally|custom code only)\b/i.test(userText);
+          if (isExplicitScratchRequest) {
+            assetMode = "procedural";
+            proceduralFallbackAllowed = true;
+          } else if (proceduralGenerationOverride === true) {
             assetMode = "procedural";
             proceduralFallbackAllowed = true;
           } else if (proceduralGenerationOverride === false) {
