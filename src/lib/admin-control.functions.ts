@@ -53,7 +53,7 @@ export const getDashboardMetrics = createServerFn({ method: "GET" })
     const since7d = iso(7 * 24 * 3600e3);
     const since5m = iso(5 * 60e3);
 
-    const safeQuery = async (queryPromise: Promise<any>) => {
+    const safeQuery = async (queryPromise: PromiseLike<any>) => {
       try {
         const res = await queryPromise;
         return res ?? {};

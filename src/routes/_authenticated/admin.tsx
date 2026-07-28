@@ -91,7 +91,7 @@ function AdminPage() {
     );
   }
 
-  const overviewData = data || {
+  const overviewData: any = data || {
     profile: { id: "owner", username: "Owner", display_name: "Owner", plan: "Owner", is_admin: true },
     email: "bobkinloch5@gmail.com",
     roles: ["owner", "admin"],

@@ -108,10 +108,43 @@ function TeamTab({ projectId, isOwner }: { projectId: string; isOwner: boolean }
         </div>
       </div>
 
+      {/* Instant Linkup Share Card */}
+      <div className="rounded-xl border border-cyan-500/30 bg-gradient-to-r from-cyan-950/40 via-indigo-950/30 to-purple-950/40 p-3 shadow-[0_0_20px_rgba(6,182,212,0.15)]">
+        <div className="flex items-center justify-between mb-1.5">
+          <div className="text-xs font-bold text-cyan-300 flex items-center gap-1.5">
+            <Sparkles className="h-3.5 w-3.5 text-cyan-400 animate-pulse" /> Instant Linkup & Invite Link
+          </div>
+          <span className="text-[10px] font-semibold text-cyan-400/80 bg-cyan-500/10 border border-cyan-400/20 px-2 py-0.5 rounded-full">
+            Project Linkup
+          </span>
+        </div>
+        <p className="text-[11px] text-slate-300 mb-2">
+          Share this linkup URL with collaborators so they can join and chat with you in real-time.
+        </p>
+        <div className="flex items-center gap-2">
+          <input
+            readOnly
+            value={typeof window !== "undefined" ? `${window.location.origin}/dashboard?collab=${projectId}` : ""}
+            className="flex-1 rounded-lg bg-black/50 border border-cyan-500/30 px-3 py-1.5 text-xs text-cyan-200 font-mono select-all outline-none"
+          />
+          <button
+            type="button"
+            onClick={() => {
+              const url = `${window.location.origin}/dashboard?collab=${projectId}`;
+              navigator.clipboard.writeText(url);
+              toast.success("Linkup collaboration link copied to clipboard! 🚀");
+            }}
+            className="rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 px-3 py-1.5 text-xs font-black transition shrink-0 flex items-center gap-1 shadow-[0_0_15px_rgba(6,182,212,0.4)]"
+          >
+            Copy Linkup
+          </button>
+        </div>
+      </div>
+
       {isOwner && (
         <div className="rounded-xl border border-white/10 bg-black/30 p-3">
           <div className="text-xs font-semibold text-slate-300 mb-2 flex items-center gap-1.5">
-            <UserPlus className="h-3.5 w-3.5 text-indigo-400" /> Invite Teammate
+            <UserPlus className="h-3.5 w-3.5 text-indigo-400" /> Invite Teammate by Username
           </div>
           <div className="flex flex-col sm:flex-row gap-2">
             <input
@@ -152,7 +185,7 @@ function TeamTab({ projectId, isOwner }: { projectId: string; isOwner: boolean }
               isOwner={c.role === "owner"}
               canManage={isOwner && c.role !== "owner"}
               onRemove={() => removeCollaborator({ data: { project_id: projectId, user_id: c.user_id } }).then(() => qc.invalidateQueries({ queryKey: collabKey }))}
-              onRoleChange={(r) => updateCollaboratorRole({ data: { project_id: projectId, user_id: c.user_id, role: r } }).then(() => qc.invalidateQueries({ queryKey: collabKey }))}
+              onRoleChange={(r: any) => updateCollaboratorRole({ data: { project_id: projectId, user_id: c.user_id, role: r } }).then(() => qc.invalidateQueries({ queryKey: collabKey }))}
             />
           ))}
         </div>
@@ -334,7 +367,7 @@ function ChatTab({ projectId, currentUserId }: { projectId: string; currentUserI
 
       {/* Send Message Form */}
       <form
-        onSubmit={(e) => { e.preventDefault(); if (text.trim()) sendMut.mutate(); }}
+        onSubmit={(e) => { e.preventDefault(); if (text.trim()) sendMut.mutate(undefined); }}
         className="mt-1 flex gap-2"
       >
         <input

@@ -63,7 +63,7 @@ export const addCreditsFromPayPal = createServerFn({ method: "POST" })
 
     const { data: profile, error: readErr } = await supabaseAdmin
       .from("profiles")
-      .select("credits, max_credits")
+      .select("credits, max_credits, settings")
       .eq("id", ctx.userId)
       .maybeSingle();
 

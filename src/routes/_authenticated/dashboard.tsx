@@ -31,6 +31,7 @@ import { ExportGameModal } from "@/components/ExportGameModal";
 import { ProjectFilesPanel } from "@/components/ProjectFilesPanel";
 import { WebsiteGuideModal } from "@/components/WebsiteGuideModal";
 import { CollabModal } from "@/components/CollabModal";
+import { useLang } from "@/lib/i18n";
 
 import { Reveal, GlowCard, CountUp } from "@/components/Reveal";
 import { ProjectMemoryCard } from "@/components/ProjectMemoryCard";
@@ -95,6 +96,7 @@ function timeAgo(d: string | Date): string {
 }
 
 function Dashboard() {
+  const { t } = useLang();
   const qc = useQueryClient();
   const listFn = useServerFn(listProjects);
   const createFn = useServerFn(createProject);
@@ -261,9 +263,9 @@ function Dashboard() {
               <MobileNavTrigger isAdmin={isAdmin} className="lg:hidden" />
               <div className="min-w-0 shrink-0">
                 <h1 className="truncate text-base font-extrabold tracking-tight sm:text-2xl">
-                  Welcome back, <span className="vapor-title">{shortName}</span> <span aria-hidden className="inline-block animate-bounce">👋</span>
+                  {t("Welcome back")}, <span className="vapor-title">{shortName}</span> <span aria-hidden className="inline-block animate-bounce">👋</span>
                 </h1>
-                <p className="mt-0.5 hidden text-xs font-medium text-indigo-200/70 whitespace-nowrap sm:block">What do you want to build today?</p>
+                <p className="mt-0.5 hidden text-xs font-medium text-indigo-200/70 whitespace-nowrap sm:block">{t("What do you want to build today?")}</p>
               </div>
             </div>
 
@@ -277,17 +279,17 @@ function Dashboard() {
                 to="/pricing"
                 className="inline-flex items-center gap-1.5 rounded-xl border border-cyan-400/40 bg-gradient-to-r from-cyan-500/20 to-indigo-500/20 px-3 py-1.5 text-xs font-bold text-cyan-200 hover:border-cyan-400 hover:from-cyan-500/30 hover:to-indigo-500/30 transition shadow-sm shrink-0"
               >
-                <Zap className="h-3.5 w-3.5 text-cyan-300" /> Top Up
+                <Zap className="h-3.5 w-3.5 text-cyan-300" /> {t("Top Up")}
               </Link>
               <button
                 type="button"
                 onClick={() => setExportModalOpen(true)}
                 className="vapor-ghost-btn hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-cyan-300 hover:text-white shrink-0"
               >
-                <Download className="h-3.5 w-3.5 text-cyan-400" /> Export
+                <Download className="h-3.5 w-3.5 text-cyan-400" /> {t("Export Game")}
               </button>
               <Link to="/plugin" className="vapor-ghost-btn hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold shrink-0">
-                <ExternalLink className="h-3.5 w-3.5 text-indigo-300" /> Studio Plugin
+                <ExternalLink className="h-3.5 w-3.5 text-indigo-300" /> {t("Studio Plugin")}
               </Link>
               <ChangelogNotifications buttonClassName="vapor-ghost-btn hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold shrink-0" iconClassName="h-3.5 w-3.5 text-indigo-300" />
               <button
@@ -296,7 +298,7 @@ function Dashboard() {
                 className="vapor-ghost-btn hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-cyan-300 hover:text-white shrink-0 border border-cyan-400/30 bg-cyan-500/10 rounded-xl"
                 title="Open Platform & AI Guide"
               >
-                <HelpCircle className="h-3.5 w-3.5 text-cyan-400" /> Platform Guide
+                <HelpCircle className="h-3.5 w-3.5 text-cyan-400" /> {t("Platform Guide")}
               </button>
               <button
                 type="button"
@@ -304,7 +306,7 @@ function Dashboard() {
                 onClick={() => setNewProjectOpen(true)}
                 className="vapor-glow-btn inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-white transition-transform active:scale-95 disabled:cursor-not-allowed disabled:opacity-60 shrink-0"
               >
-                <Plus className="h-3.5 w-3.5 text-cyan-300" /> New Project
+                <Plus className="h-3.5 w-3.5 text-cyan-300" /> {t("New Project")}
               </button>
               <ProfileMenu />
             </div>
@@ -668,6 +670,7 @@ function ChipButton({ icon: Icon, label }: { icon: typeof Box; label: string }) 
 function Sidebar({ isOwner, isAdmin, profile, credits, maxCredits }: {
   isOwner: boolean; isAdmin: boolean; profile: any; credits: number; maxCredits: number;
 }) {
+  const { t } = useLang();
   const displayName = profile?.display_name || profile?.username || "Builder";
   const avatar = profile?.avatar_url as string | undefined;
 
@@ -696,7 +699,7 @@ function Sidebar({ isOwner, isAdmin, profile, credits, maxCredits }: {
               <div className="vapor-nav-icon">
                 <Icon className="h-4 w-4" />
               </div>
-              <span>{n.label}</span>
+              <span>{t(n.label)}</span>
             </Link>
           );
         })}
@@ -718,7 +721,7 @@ function Sidebar({ isOwner, isAdmin, profile, credits, maxCredits }: {
           <div className="vapor-nav-icon">
             <SettingsIcon className="h-4 w-4" />
           </div>
-          <span>Settings</span>
+          <span>{t("Settings")}</span>
         </Link>
         <a
           href="https://discord.gg/YJ8xPFNSSX"
@@ -729,7 +732,7 @@ function Sidebar({ isOwner, isAdmin, profile, credits, maxCredits }: {
           <div className="vapor-nav-icon">
             <MessageSquare className="h-4 w-4 text-indigo-400" />
           </div>
-          <span>Join Discord</span>
+          <span>{t("Join Discord")}</span>
         </a>
 
         <Link

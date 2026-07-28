@@ -2,6 +2,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { Home as HomeIcon, Folder, Plug, Users } from "lucide-react";
 import { MobileNavTrigger } from "./MobileNav";
+import { useLang } from "@/lib/i18n";
 
 const ITEMS = [
   { label: "Home",      to: "/dashboard",     icon: HomeIcon, match: (p: string) => p === "/dashboard" },
@@ -19,6 +20,7 @@ const ITEMS = [
  * app can re-open where the user left off after a refresh.
  */
 export function BottomNav({ isAdmin }: { isAdmin?: boolean }) {
+  const { t } = useLang();
   const pathname = useRouterState({ select: (r) => r.location.pathname });
 
   useEffect(() => {
@@ -54,7 +56,7 @@ export function BottomNav({ isAdmin }: { isAdmin?: boolean }) {
                 >
                   <Icon className="h-5 w-5" />
                 </span>
-                {it.label}
+                {t(it.label)}
               </Link>
             </li>
           );

@@ -2,8 +2,8 @@
 // rejects BloxSmith's large system prompt. NVIDIA NIM endpoints have much
 // larger token budgets and a wide selection, so they own the default + chain.
 
-export type Provider = "OpenAI" | "Google" | "Anthropic" | "DeepSeek" | "Z.AI" | "MiniMax" | "NVIDIA" | "Qwen" | "Groq" | "Meta" | "Mistral" | "Microsoft" | "Writer";
-export type Speed = "Fast" | "Medium" | "Slow";
+export type Provider = "OpenAI" | "Google" | "Anthropic" | "DeepSeek" | "Z.AI" | "MiniMax" | "NVIDIA" | "Qwen" | "Groq" | "Meta" | "Mistral" | "Microsoft" | "Writer" | "Moonshot AI";
+export type Speed = "Fast" | "Medium" | "Slow" | "Ultra-Fast";
 export type Quality = "Good" | "Great" | "Best";
 export type Credits = "Free" | "Low" | "Medium" | "High" | "Very High";
 export type Status = "Working" | "Coming Soon";

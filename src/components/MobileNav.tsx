@@ -1,6 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import bloxsmithMascot from "@/assets/bloxsmith-mascot.png.asset.json";
 import { useEffect, useState } from "react";
+import { useLang } from "@/lib/i18n";
 import {
   Users, Plug, Folder, Wand2, Gift, Hammer,
   History as HistoryIcon, BookOpen, Settings as SettingsIcon, Crown, Box, LayoutDashboard,
@@ -132,6 +133,7 @@ export function MobileNavTrigger({ isAdmin, className = "" }: { isAdmin?: boolea
 function NavGroup({
   label, items, onPick, pathname,
 }: { label: string; items: Item[]; onPick: () => void; pathname?: string }) {
+  const { t } = useLang();
   return (
     <div>
       <div className="mb-2 flex items-center gap-2 px-2">
@@ -160,7 +162,7 @@ function NavGroup({
               <span className="vapor-nav-icon h-8 w-8">
                 <Icon className="h-4 w-4" />
               </span>
-              {n.label}
+              {t(n.label)}
             </Link>
           );
         })}

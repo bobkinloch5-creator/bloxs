@@ -40,7 +40,7 @@ export const LANGUAGES: { code: LangCode; label: string; nativeLabel: string; rt
 type Dict = Partial<Record<LangCode, string>> & { en: string };
 const D = (en: string, rest: Partial<Record<LangCode, string>> = {}): Dict => ({ en, ...rest });
 
-const T: Record<string, Dict> = {
+const TRANSLATIONS: Record<string, Dict> = {
   // Generic & Common UI
   "common.save":          D("Save",          { es: "Guardar", pt: "Salvar", fr: "Enregistrer", de: "Speichern", it: "Salva", ru: "Сохранить", ar: "حفظ", zh: "保存", ja: "保存", ko: "저장", hi: "सहेजें", tr: "Kaydet", pl: "Zapisz", nl: "Opslaan" }),
   "common.saved":         D("Saved.",        { es: "Guardado.", pt: "Salvo.", fr: "Enregistré.", de: "Gespeichert.", it: "Salvato.", ru: "Сохранено.", ar: "تم الحفظ.", zh: "已保存。", ja: "保存しました。", ko: "저장됨.", hi: "सहेजा गया।", tr: "Kaydedildi.", pl: "Zapisano.", nl: "Opgeslagen." }),
@@ -198,12 +198,19 @@ const STRING_KEY_MAP: Record<string, string> = {
   "Undo last": "chat.undo",
   "Plugin online": "plugin.online",
   "Plugin offline": "plugin.offline",
+  "Dashboard": "nav.home",
+  "Team Chat & Collab": "dash.teamCollab",
+  "Switch project": "dash.switchProject",
+  "Platform Guide": "dash.platformGuide",
+  "Top up credits": "dash.topUpCredits",
+  "Explore 3D Models": "nav.models",
+  "View All": "common.viewAll",
 };
 
 export function translate(keyOrText: string, lang: LangCode): string {
   if (!keyOrText) return "";
-  const key = STRING_KEY_MAP[keyOrText] ?? keyOrText;
-  const entry = T[key];
+  const key = (STRING_KEY_MAP as Record<string, string>)[keyOrText] ?? keyOrText;
+  const entry = TRANSLATIONS[key];
   if (!entry) return keyOrText;
   return entry[lang] ?? entry.en;
 }
@@ -232,15 +239,27 @@ function readInitial(): LangCode {
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<LangCode>("en");
 
-  // Hydrate on client
+  // Hydrate on client & sync across components in realtime
   useEffect(() => {
     setLangState(readInitial());
+
+    const handleLangChange = () => {
+      setLangState(readInitial());
+    };
+
+    window.addEventListener("bs-lang-changed", handleLangChange);
+    window.addEventListener("storage", handleLangChange);
+    return () => {
+      window.removeEventListener("bs-lang-changed", handleLangChange);
+      window.removeEventListener("storage", handleLangChange);
+    };
   }, []);
 
   const setLang = (l: LangCode) => {
     setLangState(l);
     if (typeof window !== "undefined") {
       window.localStorage.setItem(STORAGE_KEY, l);
+      window.dispatchEvent(new Event("bs-lang-changed"));
     }
   };
 
@@ -281,4 +300,9 @@ export function useLang(): Ctx {
 
 export function useT() {
   return useLang().t;
+}
+
+export function T({ children }: { children: string }) {
+  const { t } = useLang();
+  return <>{t(children)}</>;
 }

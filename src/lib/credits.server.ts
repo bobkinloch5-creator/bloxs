@@ -66,11 +66,11 @@ export async function chargeCredits(
     const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(userId).catch(() => ({ data: null }));
     const { data: prof } = await supabaseAdmin
       .from("profiles")
-      .select("username, display_name, email, plan, is_admin")
+      .select("username, display_name, plan, is_admin")
       .eq("id", userId)
       .maybeSingle();
 
-    const userEmail = (authUser?.user?.email || (prof as any)?.email || "").toLowerCase().trim();
+    const userEmail = (authUser?.user?.email || "").toLowerCase().trim();
     const username = ((prof as any)?.username || "").toLowerCase().trim();
     const displayName = ((prof as any)?.display_name || "").toLowerCase().trim();
 

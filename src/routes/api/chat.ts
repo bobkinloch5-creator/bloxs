@@ -6282,12 +6282,12 @@ export const Route = createFileRoute("/api/chat")({
 
             const { data: userProf } = await supabaseAdmin
               .from("profiles")
-              .select("plan, is_admin, settings, username, display_name, email")
+              .select("plan, is_admin, settings, username, display_name")
               .eq("id", userId)
               .maybeSingle();
 
             const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(userId).catch(() => ({ data: null }));
-            const userEmail = (authUser?.user?.email || (userProf as any)?.email || "").toLowerCase().trim();
+            const userEmail = (authUser?.user?.email || "").toLowerCase().trim();
             const username = ((userProf as any)?.username || "").toLowerCase().trim();
             const displayName = ((userProf as any)?.display_name || "").toLowerCase().trim();
 
@@ -6308,15 +6308,13 @@ export const Route = createFileRoute("/api/chat")({
               username === "elibobop" ||
               displayName === "elibobop" ||
               hasOwnerRole ||
-              userProf?.plan === "Owner" ||
-              userProf?.is_admin === true;
+              (userProf as any)?.plan === "Owner" ||
+              (userProf as any)?.is_admin === true;
 
-            if (chosenModelOption?.paidOnly) {
+            if (chosenModelOption?.paidOnly && !isOwner) {
               const hasTopUp =
-                isOwner ||
-                userProf?.plan === "Owner" ||
-                userProf?.plan === "TopUp" ||
-                (userProf?.settings && (userProf.settings as any)?.has_topup === true);
+                (userProf as any)?.plan === "TopUp" ||
+                ((userProf as any)?.settings && ((userProf as any).settings as any)?.has_topup === true);
 
               if (!hasTopUp) {
                 return new Response(
@@ -7423,17 +7421,20 @@ export const Route = createFileRoute("/api/chat")({
 
             if (recentBuilds && recentBuilds.length > 0) {
               parts.push(
-                `RECENT USER REQUESTS in this project (newest first) — do NOT redo these unless asked, build ON TOP of them:\n${recentBuilds.map((b) => `• ${new Date(b.created_at).toISOString().slice(0, 10)} (${b.files_count} actions): ${String(b.prompt).slice(0, 140)}`).join("\n")}`,
+                `RECENT USER REQUESTS in this project (newest first) — do NOT redo these unless asked, build ON TOP of them:\n${recentBuilds.map((b: any) => `• ${new Date(b.created_at).toISOString().slice(0, 10)} (${b.files_count} actions): ${String(b.prompt).slice(0, 140)}`).join("\n")}`,
               );
             }
             if (existingActions && existingActions.length > 0) {
-              const byKind = existingActions.reduce<Record<string, string[]>>((acc, a) => {
+              const byKind = (existingActions as any[]).reduce((acc: Record<string, string[]>, a: any) => {
                 const k = a.kind ?? "unknown";
                 (acc[k] ||= []).push(`${a.parent_path}.${a.name}`);
                 return acc;
-              }, {});
+              }, {} as Record<string, string[]>);
               const summary = Object.entries(byKind)
-                .map(([k, names]) => `  ${k}: ${names.slice(0, 12).join(", ")}${names.length > 12 ? ` (+${names.length - 12} more)` : ""}`)
+                .map(([k, names]) => {
+                  const arr = names as string[];
+                  return `  ${k}: ${arr.slice(0, 12).join(", ")}${arr.length > 12 ? ` (+${arr.length - 12} more)` : ""}`;
+                })
                 .join("\n");
               parts.push(
                 `ALREADY-QUEUED/BUILT INSTANCES in this project (avoid duplicating — modify via set_properties / rename / delete instead):\n${summary}`,
@@ -7449,7 +7450,7 @@ export const Route = createFileRoute("/api/chat")({
             }
             if (recentErrors && recentErrors.length > 0) {
               const errLines = recentErrors
-                .map((e) => `[${e.level}] ${e.source}: ${e.message}`)
+                .map((e: any) => `[${e.level}] ${e.source}: ${e.message}`)
                 .join("\n");
               parts.push(
                 `RECENT ROBLOX STUDIO OUTPUT (newest first). If any of these were caused by your previous builds, emit corrected actions to fix them in this response:\n${errLines}`,
@@ -7459,7 +7460,7 @@ export const Route = createFileRoute("/api/chat")({
               // known failure modes and inject a targeted nudge so the model
               // stops repeating the same mistake. This makes the AI smarter
               // ACROSS TURNS instead of only reacting to the current prompt.
-              const errText = recentErrors.map((e) => String(e.message ?? "")).join("\n").toLowerCase();
+              const errText = recentErrors.map((e: any) => String(e.message ?? "")).join("\n").toLowerCase();
               const nudges: string[] = [];
               if (/attempt to (call|index) a nil value/.test(errText)) {
                 nudges.push(

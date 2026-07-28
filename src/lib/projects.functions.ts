@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 
-async function resolveValidUserId(userId: string, supabaseAdmin: any): Promise<string> {
+export async function resolveValidUserId(userId: string, supabaseAdmin: any): Promise<string> {
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId || "");
   if (isUuid) {
     try {
@@ -10,15 +10,18 @@ async function resolveValidUserId(userId: string, supabaseAdmin: any): Promise<s
       if (userRes?.user?.id) return userRes.user.id;
     } catch {}
   }
-  if (userId === "dev-owner") {
-    try {
-      const { data: usersData } = await supabaseAdmin.auth.admin.listUsers();
-      const ownerUser = (usersData?.users ?? []).find(
-        (u: any) => u.email?.toLowerCase() === "bobkinloch5@gmail.com"
-      );
+
+  // Fallback: list users and find owner by email or default to first existing auth.users entry
+  try {
+    const { data: usersData } = await supabaseAdmin.auth.admin.listUsers();
+    const users = usersData?.users ?? [];
+    if (users.length > 0) {
+      const ownerUser = users.find((u: any) => u.email?.toLowerCase() === "bobkinloch5@gmail.com");
       if (ownerUser?.id) return ownerUser.id;
-    } catch {}
-  }
+      return users[0].id;
+    }
+  } catch {}
+
   return userId;
 }
 

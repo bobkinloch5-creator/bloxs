@@ -86,22 +86,25 @@ export const toggleProjectArchive = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+import { resolveValidUserId } from "@/lib/projects.functions";
+
 export const duplicateProject = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) => z.object({ id: uuid }).parse(input))
   .handler(async ({ data, context }) => {
     const ctx = context as any;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const validUserId = await resolveValidUserId(ctx.userId, supabaseAdmin);
 
     const { data: src, error: e1 } = await supabaseAdmin
       .from("projects").select("*").eq("id", data.id).maybeSingle();
     if (e1 || !src) throw new Error(e1?.message ?? "Project not found");
-    if (src.user_id !== ctx.userId && !src.is_public) throw new Error("Unauthorized to access or duplicate this project");
+    if (src.user_id !== ctx.userId && src.user_id !== validUserId && !src.is_public) throw new Error("Unauthorized to access or duplicate this project");
 
     const { data: copy, error: e2 } = await supabaseAdmin
       .from("projects")
       .insert({
-        user_id: ctx.userId,
+        user_id: validUserId,
         name: `${src.name} (Copy)`,
         description: src.description ?? "",
         game_type: src.game_type,
@@ -170,15 +173,7 @@ export const importProject = createServerFn({ method: "POST" })
     const src: any = data.payload.project;
 
     // Ensure valid user ID from auth.users
-    let validUserId = ctx.userId;
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(validUserId || "");
-    if (!isUuid || validUserId === "dev-owner") {
-      const { data: usersData } = await supabaseAdmin.auth.admin.listUsers();
-      const ownerUser = (usersData?.users ?? []).find(
-        (u: any) => u.email?.toLowerCase() === "bobkinloch5@gmail.com"
-      );
-      if (ownerUser?.id) validUserId = ownerUser.id;
-    }
+    const validUserId = await resolveValidUserId(ctx.userId, supabaseAdmin);
 
     const { data: copy, error } = await supabaseAdmin.from("projects").insert({
       user_id: validUserId,

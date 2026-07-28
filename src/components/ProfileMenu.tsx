@@ -144,7 +144,7 @@ export function ProfileMenu({ compact = false }: { compact?: boolean }) {
               <span className="flex items-center gap-1 text-[12px] font-bold text-white">
                 <span className="max-w-[110px] truncate">{name}</span>
                 {isAdmin && <Crown className="h-3 w-3 text-amber-300" />}
-                {!isAdmin && isDonator && <Zap className="h-3 w-3 text-amber-300 fill-amber-300/40" title="Top Supporter" />}
+                {!isAdmin && isDonator && <Zap className="h-3 w-3 text-amber-300 fill-amber-300/40" aria-label="Top Supporter" />}
               </span>
               <span className="block text-[10px] uppercase tracking-[0.18em] text-cyan-300/80" style={{ fontFamily: "Space Mono, monospace" }}>
                 {isAdmin ? "Owner" : (isDonator ? "Top Supporter" : plan)}
