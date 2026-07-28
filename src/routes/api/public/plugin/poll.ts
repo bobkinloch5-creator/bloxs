@@ -127,7 +127,7 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
             // Write periodically, on an explicit reconnect, or when Studio
             // actually switches plugin versions. Sending the version with every
             // 500ms poll must not cause a competing session write each time.
-            if (Date.now() - lastWrite < 45_000 && !body.force && !versionChanged) return;
+            if (Date.now() - lastWrite < 10_000 && !body.force && !versionChanged) return;
             lastSessionWriteMap.set(profileId, Date.now());
             lastWrittenPluginVersion.set(profileId, body.plugin_version ?? "");
             await sb.from("plugin_sessions").upsert(
