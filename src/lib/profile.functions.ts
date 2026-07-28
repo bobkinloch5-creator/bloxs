@@ -22,7 +22,7 @@ export const getMyProfile = createServerFn({ method: "GET" })
         const { data: usersData } = await supabaseAdmin.auth.admin.listUsers();
         const ownerUser = (usersData?.users ?? []).find(
           (u: any) => u.email?.toLowerCase() === "bobkinloch5@gmail.com"
-        ) || usersData?.users?.[0];
+        );
 
         if (ownerUser) {
           targetUserId = ownerUser.id;
