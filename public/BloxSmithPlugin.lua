@@ -25,10 +25,11 @@ end
 
 local API_BASE       = "https://bloxsmith.pro"
 local POLL_INTERVAL  = 0.5
-local PLUGIN_VERSION = "2.1.33"
+local PLUGIN_VERSION = "2.1.34"
 
 ------------------------------------------------------------------- token helpers
 local TOKEN_KEY = "token"
+local PROJECT_KEY = "project_id"
 local function validToken()
     local t = plugin:GetSetting(TOKEN_KEY)
     if type(t) ~= "string" then return nil end
@@ -38,6 +39,11 @@ local function validToken()
 end
 local function clearToken()
     plugin:SetSetting(TOKEN_KEY, nil)
+    plugin:SetSetting(PROJECT_KEY, nil)
+end
+local function pairedProjectId()
+    local id = plugin:GetSetting(PROJECT_KEY)
+    return type(id) == "string" and id ~= "" and id or nil
 end
 
 ------------------------------------------------------------------- UI shell
@@ -2000,6 +2006,7 @@ local function pollOnce(force)
         :format(API_BASE, tostring(game.PlaceId or 0), PLUGIN_VERSION), "debug") end
     local data, err, status = post("/api/public/plugin/poll", {
         token = token, place_id = tostring(game.PlaceId or 0), studio_version = studioVersion(), plugin_version = PLUGIN_VERSION,
+        project_id = pairedProjectId(),
         force = force == true,
     }, { verbose = VERBOSE, force = force })
     if err then
@@ -2164,6 +2171,7 @@ local function startPairing()
             pairingCode = nil; linkBox.Visible = false; return
         elseif poll and poll.status == "approved" and poll.plugin_token then
             plugin:SetSetting("token", poll.plugin_token)
+            plugin:SetSetting(PROJECT_KEY, poll.project_id)
             pairingCode = nil; linkBox.Visible = false
             log("Approved -- -- token saved.", "success")
             connected = true
@@ -2752,6 +2760,7 @@ task.spawn(function()
                     place_id = tostring(game.PlaceId or 0),
                     studio_version = studioVersion(),
                     plugin_version = PLUGIN_VERSION,
+                    project_id = pairedProjectId(),
                 }, { verbose = false })
             end)
         end

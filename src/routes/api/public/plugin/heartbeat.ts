@@ -3,6 +3,7 @@
 // to flip to "Offline / disconnected". Optimized for minimal database Disk IO.
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
+import { resolvePluginToken } from "@/lib/resolve-plugin-token";
 
 function admin() {
   return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
@@ -56,53 +57,32 @@ export const Route = createFileRoute("/api/public/plugin/heartbeat")({
           if (cached && Date.now() - cached.fetchedAt < 180_000) {
             userId = cached.id;
           } else {
-            const { data: profile } = await sb
-              .from("profiles")
-              .select("id")
-              .eq("plugin_token", token)
-              .maybeSingle();
-            if (profile) {
-              userId = profile.id;
-            } else {
-              const { data: pairCode } = await sb
-                .from("plugin_pair_codes")
-                .select("user_id")
-                .eq("plugin_token", token)
-                .maybeSingle();
-              if (pairCode?.user_id) {
-                userId = pairCode.user_id;
-              }
-            }
-            if (!userId) {
-              // Fallback owner profile to prevent 401 connection dropping
-              userId = "64f33732-136a-4c78-9421-7c11579c7412";
-            }
+            const profile = await resolvePluginToken(token);
+            userId = profile?.id ?? null;
+            if (!userId) return json({ error: "invalid token; reconnect the Studio plugin" }, 401);
             tokenCache.set(token, { id: userId, fetchedAt: Date.now() });
           }
 
           if (!userId) return json({ error: "invalid user" }, 401);
           const validUserId: string = userId;
 
-          const ownerFallbackId = "64f33732-136a-4c78-9421-7c11579c7412";
-          const targetUserIds = Array.from(new Set([validUserId, ownerFallbackId])).filter(Boolean);
-
           const lastWrite = lastSessionWrite.get(validUserId) ?? 0;
-          if (Date.now() - lastWrite > 45_000 || body.plugin_version) {
+          const versionChanged = lastWrittenVersion.get(validUserId) !== (body.plugin_version ?? "");
+          if (Date.now() - lastWrite > 45_000 || versionChanged) {
             lastSessionWrite.set(validUserId, Date.now());
-            for (const uid of targetUserIds) {
-              await sb.from("plugin_sessions").upsert(
-                {
-                  user_id: uid,
-                  project_id: body.project_id ?? null,
-                  place_id: body.place_id ?? null,
-                  studio_version: body.studio_version ?? null,
-                  plugin_version: body.plugin_version ?? null,
-                  last_seen: new Date().toISOString(),
-                  online: true,
-                },
-                { onConflict: "user_id" },
-              );
-            }
+            lastWrittenVersion.set(validUserId, body.plugin_version ?? "");
+            await sb.from("plugin_sessions").upsert(
+              {
+                user_id: validUserId,
+                project_id: body.project_id ?? null,
+                place_id: body.place_id ?? null,
+                studio_version: body.studio_version ?? null,
+                plugin_version: body.plugin_version ?? null,
+                last_seen: new Date().toISOString(),
+                online: true,
+              },
+              { onConflict: "user_id" },
+            );
           }
 
           return json({ ok: true, busy: !!body.busy });
@@ -113,4 +93,3 @@ export const Route = createFileRoute("/api/public/plugin/heartbeat")({
     },
   },
 });
-

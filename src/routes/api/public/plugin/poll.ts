@@ -12,6 +12,7 @@ function admin() {
 
 type PluginActionRow = {
   id: string;
+  user_id?: string | null;
   project_id: string;
   message_id?: string | null;
   kind: string;
@@ -27,6 +28,7 @@ type PluginActionRow = {
 type CachedProfile = { id: string; credits: number; max_credits: number; plan: string; is_admin: boolean; credits_reset_at: string | null; fetchedAt: number };
 const tokenProfileCache = new Map<string, CachedProfile>();
 const lastSessionWriteMap = new Map<string, number>();
+const lastWrittenPluginVersion = new Map<string, string>();
 const connectedProjectsCache = new Set<string>();
 
 export const Route = createFileRoute("/api/public/plugin/poll")({
@@ -74,7 +76,10 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
               }
             }
 
-            const activeId = foundData?.id || "64f33732-136a-4c78-9421-7c11579c7412";
+            if (!foundData?.id) {
+              return json({ error: "invalid token; reconnect the Studio plugin" }, 401);
+            }
+            const activeId = foundData.id;
             profile = {
               id: activeId,
               credits: (foundData as any)?.credits ?? 99999,
@@ -88,41 +93,49 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
           }
 
           const profileId: string = profile.id;
-          const ownerFallbackId = "64f33732-136a-4c78-9421-7c11579c7412";
-
           // Session UPSERT write to database
           const touchSession = async () => {
             const lastWrite = lastSessionWriteMap.get(profileId) ?? 0;
-            // Write if 45s passed, OR if force is set, OR if plugin_version is supplied
-            if (Date.now() - lastWrite < 45_000 && !body.force && !body.plugin_version) return;
+            const versionChanged = lastWrittenPluginVersion.get(profileId) !== (body.plugin_version ?? "");
+            // Write periodically, on an explicit reconnect, or when Studio
+            // actually switches plugin versions. Sending the version with every
+            // 500ms poll must not cause a competing session write each time.
+            if (Date.now() - lastWrite < 45_000 && !body.force && !versionChanged) return;
             lastSessionWriteMap.set(profileId, Date.now());
-            const targetUserIds = Array.from(new Set([profileId, ownerFallbackId])).filter(Boolean);
-            for (const uid of targetUserIds) {
-              await sb.from("plugin_sessions").upsert({
-                user_id: uid,
-                project_id: body.project_id ?? null,
-                place_id: body.place_id ?? null,
-                studio_version: body.studio_version ?? null,
-                plugin_version: body.plugin_version ?? null,
-                last_seen: new Date().toISOString(),
-                online: true,
-              }, { onConflict: "user_id" });
-            }
+            lastWrittenPluginVersion.set(profileId, body.plugin_version ?? "");
+            await sb.from("plugin_sessions").upsert({
+              user_id: profileId,
+              project_id: body.project_id ?? null,
+              place_id: body.place_id ?? null,
+              studio_version: body.studio_version ?? null,
+              plugin_version: body.plugin_version ?? null,
+              last_seen: new Date().toISOString(),
+              online: true,
+            }, { onConflict: "user_id" });
           };
 
           await touchSession();
 
-          const actionSelect = "id, project_id, message_id, kind, parent_path, name, payload, position, created_at, sent_at";
+          const actionSelect = "id, user_id, project_id, message_id, kind, parent_path, name, payload, position, created_at, sent_at";
 
-          // Build the list of user IDs we care about (resolved + caller + owner fallback)
-          const relevantIds = Array.from(new Set(
-            [profileId, ownerFallbackId].filter(Boolean)
-          )) as string[];
+          // Only ever deliver actions belonging to the account that approved
+          // this token. A cross-account fallback made the UI look connected
+          // while the actual project's actions were never delivered.
+          const relevantIds = [profileId];
+
+          const { data: ownedProjects } = await sb
+            .from("projects")
+            .select("id")
+            .in("user_id", relevantIds)
+            .limit(100);
+          const ownedProjectIds = (ownedProjects ?? []).map((p: { id: string }) => p.id).filter(Boolean);
 
           async function fetchPending(): Promise<PluginActionRow[] | { error: string }> {
             // 0. Recovery: reset any "sent" actions stuck > 45s back to "pending"
-            //    so they are re-delivered to Studio. This handles the case where
-            //    a prior complete.ts bug (user_id mismatch) left actions stranded.
+            //    so they are re-delivered to Studio. This handles the cases where
+            //    the browser inserted rows under a different auth user, a previous
+            //    plugin session claimed rows then crashed before reporting complete,
+            //    or a stale project/session mapping left rows stranded as "sent".
             const stuckCutoff = new Date(Date.now() - 45_000).toISOString();
             await sb
               .from("plugin_actions")
@@ -130,7 +143,14 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
               .eq("status", "sent")
               .in("user_id", relevantIds)
               .lt("sent_at", stuckCutoff);
-
+            if (ownedProjectIds.length > 0) {
+              await sb
+                .from("plugin_actions")
+                .update({ status: "pending" })
+                .eq("status", "sent")
+                .in("project_id", ownedProjectIds)
+                .lt("sent_at", stuckCutoff);
+            }
             // 1. Primary path: filter directly by project_id if specified by caller
             if (body.project_id) {
               const res = await sb
@@ -144,7 +164,7 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
               if ((res.data ?? []).length > 0) return res.data ?? [];
             }
 
-            // 2. Direct user_id scan: fetch all pending actions for the user (or owner fallback)
+            // 2. Direct user_id scan: fetch all pending actions for this user.
             const userRes = await sb
               .from("plugin_actions")
               .select(actionSelect)
@@ -158,12 +178,6 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
             // 2b. Project-based fallback: the JWT userId (used when inserting actions)
             //     may differ from the plugin-token-resolved profileId. Fetch pending
             //     actions for any project owned by this profile so they're always found.
-            const { data: ownedProjects } = await sb
-              .from("projects")
-              .select("id")
-              .eq("user_id", profileId)
-              .limit(50);
-            const ownedProjectIds = (ownedProjects ?? []).map((p: { id: string }) => p.id).filter(Boolean);
             if (ownedProjectIds.length > 0) {
               const projRes = await sb
                 .from("plugin_actions")
@@ -174,18 +188,7 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
                 .limit(100);
               if (!projRes.error && (projRes.data ?? []).length > 0) return projRes.data ?? [];
             }
-
-            // 3. Global safety fallback: fetch any recent pending actions created in last 30 min
-            const thirtyMinAgo = new Date(Date.now() - 30 * 60_000).toISOString();
-            const fallbackRes = await sb
-              .from("plugin_actions")
-              .select(actionSelect)
-              .eq("status", "pending")
-              .gte("created_at", thirtyMinAgo)
-              .order("created_at", { ascending: true })
-              .limit(50);
-            if (fallbackRes.error) return { error: fallbackRes.error.message };
-            return fallbackRes.data ?? [];
+            return [];
           }
 
           let actions: PluginActionRow[] = [];
@@ -255,4 +258,3 @@ function json(o: unknown, status = 200) {
     status, headers: { "content-type": "application/json", ...cors() },
   });
 }
-

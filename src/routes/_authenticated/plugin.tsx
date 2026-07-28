@@ -56,7 +56,7 @@ function PluginPage() {
 
   const online = !!session?.online && !!session?.last_seen
     && (Date.now() - new Date(session.last_seen).getTime()) < 90_000;
-  const MIN_REQUIRED_VERSION = "2.1.28";
+  const MIN_REQUIRED_VERSION = PLUGIN_VERSION;
   const outdated = online && compareVersions(session?.plugin_version, MIN_REQUIRED_VERSION) < 0;
 
   return (
