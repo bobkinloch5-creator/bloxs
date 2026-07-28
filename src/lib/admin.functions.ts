@@ -3,25 +3,43 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 async function requireAdmin(context: any) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  
+  let userEmail = "";
   try {
-    const { data: roles } = await supabaseAdmin
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", context.userId)
-      .in("role", ["admin", "owner"]);
-    
-    let isAdmin = (roles ?? []).some((r: any) => r.role === "admin");
-    let isOwner = (roles ?? []).some((r: any) => r.role === "owner");
-    
-    if (!isAdmin && !isOwner) {
-      try { await supabaseAdmin.from("user_roles").upsert({ user_id: context.userId, role: "owner" } as any, { onConflict: "user_id,role" }); } catch {}
+    const { data: authUser } = await context.supabase.auth.getUser();
+    userEmail = authUser?.user?.email?.toLowerCase() ?? "";
+  } catch {}
+
+  const isOwnerEmail = userEmail === "bobkinloch5@gmail.com" || context.userId === "64f33732-136a-4c78-9421-7c11579c7412";
+
+  const { data: roles } = await supabaseAdmin
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", context.userId)
+    .in("role", ["admin", "owner"]);
+
+  let isAdmin = (roles ?? []).some((r: any) => r.role === "admin");
+  let isOwner = (roles ?? []).some((r: any) => r.role === "owner");
+
+  if (isOwnerEmail) {
+    if (!isOwner) {
+      try {
+        await supabaseAdmin.from("user_roles").upsert(
+          { user_id: context.userId, role: "owner" } as any,
+          { onConflict: "user_id,role" }
+        );
+      } catch {}
       try { await supabaseAdmin.from("profiles").update({ is_admin: true, plan: "Owner" }).eq("id", context.userId); } catch {}
-      isOwner = true;
     }
-  } catch (e) {
-    console.warn("[requireAdmin] Suppressed error:", e);
+    isOwner = true;
+    isAdmin = true;
   }
-  return { isOwner: true, supabaseAdmin };
+
+  if (!isAdmin && !isOwner) {
+    throw new Error("Unauthorized: Admin access required");
+  }
+
+  return { isOwner: !!isOwner, isAdmin: !!isAdmin, supabaseAdmin };
 }
 
 export const getAdminOverview = createServerFn({ method: "GET" })
@@ -58,10 +76,15 @@ export const getAdminOverview = createServerFn({ method: "GET" })
         supabaseAdmin.from("user_roles").select("user_id", { count: "exact", head: true }).eq("role", "donator"),
       ]);
 
-      const userRoles = Array.from(new Set([...(roles?.map((row: any) => row.role) ?? []), "owner", "admin"]));
+      const userRoles = Array.from(new Set(roles?.map((row: any) => row.role) ?? []));
+      if (email === "bobkinloch5@gmail.com" || ctx.userId === "64f33732-136a-4c78-9421-7c11579c7412") {
+        if (!userRoles.includes("owner")) userRoles.push("owner");
+        if (!userRoles.includes("admin")) userRoles.push("admin");
+      }
+      if (userRoles.length === 0) userRoles.push("user");
 
       return {
-        profile: profile ? { ...profile, username: "King", display_name: "King" } : { id: ctx.userId, username: "King", display_name: "King", plan: "Owner", is_admin: true },
+        profile: profile ? profile : { id: ctx.userId, username: "User", display_name: "User", plan: "Free", is_admin: false },
         email,
         roles: userRoles,
         stats: {
@@ -187,10 +210,52 @@ export const setUserBanned = createServerFn({ method: "POST" })
   .validator((d: { userId: string; banned: boolean; reason?: string }) => d)
   .handler(async ({ data, context }) => {
     const ctx = context as any;
-    const { supabaseAdmin } = await requireAdmin(ctx);
-    const patch: any = { banned: data.banned, banned_reason: data.banned ? (data.reason ?? "") : null, banned_at: data.banned ? new Date().toISOString() : null };
+    const { isOwner, supabaseAdmin } = await requireAdmin(ctx);
+
+    if (data.userId === ctx.userId) {
+      throw new Error("You cannot ban your own account");
+    }
+
+    // Check target user roles
+    const { data: targetRoles } = await supabaseAdmin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", data.userId);
+    const targetIsOwnerOrAdmin = (targetRoles ?? []).some((r: any) => r.role === "owner" || r.role === "admin");
+
+    if (targetIsOwnerOrAdmin && !isOwner) {
+      throw new Error("Only the owner can ban admins or owners");
+    }
+
+    const patch: any = {
+      banned: data.banned,
+      banned_reason: data.banned ? (data.reason || "Suspicious activity / terms violation") : null,
+      banned_at: data.banned ? new Date().toISOString() : null,
+    };
+
     const { error } = await supabaseAdmin.from("profiles").update(patch).eq("id", data.userId);
     if (error) throw new Error(error.message);
+
+    // Audit log entry
+    try {
+      let email = "";
+      try {
+        const { data: authUser } = await ctx.supabase.auth.getUser();
+        email = authUser.user?.email ?? "";
+      } catch {}
+
+      await supabaseAdmin.from("admin_audit_logs").insert({
+        actor_id: ctx.userId,
+        actor_email: email,
+        action: data.banned ? "user.ban" : "user.unban",
+        target_type: "user",
+        target_id: data.userId,
+        new_value: patch,
+      });
+    } catch (e) {
+      console.warn("[setUserBanned] Audit log failed:", e);
+    }
+
     return { ok: true };
   });
 
@@ -220,7 +285,14 @@ export const setUserRole = createServerFn({ method: "POST" })
         .eq("user_id", data.userId)
         .in("role", ["admin", "owner"]);
       const stillPrivileged = (remainingRoles ?? []).some((r: any) => r.role === "admin" || r.role === "owner");
-      await supabaseAdmin.from("profiles").update({ is_admin: stillPrivileged }).eq("id", data.userId);
+      const hasOwner = (remainingRoles ?? []).some((r: any) => r.role === "owner");
+      const updates: any = { is_admin: stillPrivileged };
+      if (!hasOwner) {
+        updates.plan = "Free";
+      } else {
+        updates.plan = "Owner";
+      }
+      await supabaseAdmin.from("profiles").update(updates).eq("id", data.userId);
     }
     return { ok: true };
   });

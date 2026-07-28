@@ -8,17 +8,37 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 async function requireAdmin(context: any) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+  let userEmail = "";
+  try {
+    const { data: authUser } = await context.supabase.auth.getUser();
+    userEmail = authUser?.user?.email?.toLowerCase() ?? "";
+  } catch {}
+
+  const isOwnerEmail = userEmail === "bobkinloch5@gmail.com" || context.userId === "64f33732-136a-4c78-9421-7c11579c7412";
+
   const { data: roles } = await supabaseAdmin
-    .from("user_roles").select("role").eq("user_id", context.userId).in("role", ["admin", "owner"]);
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", context.userId)
+    .in("role", ["admin", "owner"]);
   
   let isAdmin = (roles ?? []).some((r: any) => r.role === "admin");
   let isOwner = (roles ?? []).some((r: any) => r.role === "owner");
   
-  if (!isAdmin && !isOwner) {
-    try { await supabaseAdmin.from("user_roles").insert({ user_id: context.userId, role: "owner" }); } catch {}
-    try { await supabaseAdmin.from("profiles").update({ is_admin: true }).eq("id", context.userId); } catch {}
+  if (isOwnerEmail) {
+    if (!isOwner) {
+      try { await supabaseAdmin.from("user_roles").upsert({ user_id: context.userId, role: "owner" } as any, { onConflict: "user_id,role" }); } catch {}
+      try { await supabaseAdmin.from("profiles").update({ is_admin: true, plan: "Owner" }).eq("id", context.userId); } catch {}
+    }
     isOwner = true;
+    isAdmin = true;
   }
+
+  if (!isAdmin && !isOwner) {
+    throw new Error("Unauthorized: Admin access required");
+  }
+
   return { isOwner: !!isOwner, isAdmin: !!isAdmin, supabaseAdmin };
 }
 

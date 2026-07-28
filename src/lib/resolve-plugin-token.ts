@@ -41,15 +41,16 @@ export async function resolvePluginToken(
   // 1. Primary: profiles.plugin_token
   const { data: profile } = await sb
     .from("profiles")
-    .select("id")
+    .select("id, banned")
     .eq("plugin_token", token)
     .maybeSingle();
   if (profile) {
+    if (profile.banned) return null;
     cache.set(token, { id: profile.id, fetchedAt: Date.now() });
     return { id: profile.id };
   }
 
-  // 2. Fallback: plugin_pair_codes.plugin_token → user_id → check if profile exists
+  // 2. Fallback: plugin_pair_codes.plugin_token → user_id → check if profile exists & not banned
   const { data: pairCode } = await sb
     .from("plugin_pair_codes")
     .select("user_id")
@@ -58,11 +59,12 @@ export async function resolvePluginToken(
   if (pairCode?.user_id) {
     const { data: userProfile } = await sb
       .from("profiles")
-      .select("id")
+      .select("id, banned")
       .eq("id", pairCode.user_id)
       .maybeSingle();
 
     if (userProfile) {
+      if (userProfile.banned) return null;
       // Sync the token to the profile so the primary path works next time
       await sb
         .from("profiles")

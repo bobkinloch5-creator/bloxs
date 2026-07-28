@@ -529,6 +529,7 @@ function UserRow({ user, isOwner, busy, onGift, onBan, onRole }: any) {
           <RoleToggle label="Mod" icon={Star} active={hasRole("moderator")} onClick={() => onRole("moderator", !hasRole("moderator"))} busy={busy} color="#34d399" />
           <RoleToggle label="Donator" icon={Heart} active={hasRole("donator")} onClick={() => onRole("donator", !hasRole("donator"))} busy={busy} color="#f472b6" />
           {isOwner && <RoleToggle label="Admin" icon={ShieldAlert} active={hasRole("admin")} onClick={() => onRole("admin", !hasRole("admin"))} busy={busy} color="#818cf8" />}
+          {isOwner && <RoleToggle label="Owner" icon={Crown} active={hasRole("owner")} onClick={() => onRole("owner", !hasRole("owner"))} busy={busy} color="#fbbf24" />}
           {user.banned ? (
             <button disabled={busy} onClick={() => onBan(false)} className="inline-flex items-center gap-1 rounded-md bg-emerald-500/20 px-2 py-1 text-xs font-bold text-emerald-300">
               <ShieldOff className="h-3 w-3" /> Unban
