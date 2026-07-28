@@ -1,13 +1,16 @@
 import type React from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useState, useEffect } from "react";
 import {
   Sparkles, Zap, ChevronRight, Code2, Map, Cpu, Layers, Box, ArrowRight,
   Puzzle, Save, Rocket, MessageSquare, Upload, Settings2, Check,
-  Plug, FileCode, Wand2, Shield, Heart,
+  Plug, FileCode, Wand2, Shield, Heart, LayoutDashboard,
 } from "lucide-react";
 import heroBg from "@/assets/hero-roblox-background.jpg";
 import bloxsmithMascot from "@/assets/bloxsmith-mascot.png.asset.json";
 import { LanguageHeaderSelector } from "@/components/LanguageHeaderSelector";
+import { ProfileMenu } from "@/components/ProfileMenu";
+import { supabase } from "@/integrations/supabase/client";
 
 const HOME_FAQS = [
   { q: "Is BloxSmith really free?", a: "Yes — BloxSmith is 100% free to use. Generate scripts, GUIs, maps, and full Roblox games with no credit card and no trial." },
@@ -73,6 +76,22 @@ function Landing() {
 
 /* ---------------- Header ---------------- */
 function Header() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setIsLoggedIn(!!data.session);
+    });
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsLoggedIn(!!session);
+    });
+
+    return () => {
+      sub.subscription.unsubscribe();
+    };
+  }, []);
+
   return (
     <header className="relative z-20 mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
       <Link to="/" aria-label="BloxSmith — home" className="flex items-center gap-2.5">
@@ -90,15 +109,30 @@ function Header() {
           <DiscordIcon className="h-4 w-4" /> Discord
         </a>
       </nav>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2.5">
         <LanguageHeaderSelector />
         <Link to="/donate" aria-label="Donate to BloxSmith" title="Support BloxSmith" className="inline-flex items-center gap-1 rounded-lg border border-pink-400/30 bg-pink-500/10 px-2.5 py-1.5 text-xs font-semibold text-pink-200 hover:border-pink-400/60 hover:bg-pink-500/15 hover:text-white transition">
           <Heart className="h-3.5 w-3.5" /> Donate
         </Link>
-        <Link to="/auth" aria-label="Log in to BloxSmith" className="rounded-lg border border-white/15 bg-white/5 px-3.5 py-2 text-sm text-white/90 hover:bg-white/10 transition">Log in</Link>
-        <Link to="/auth" aria-label="Start building a Roblox game for free" className="bs-btn-grad inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-white">
-          <Zap className="h-4 w-4" aria-hidden="true" /> Start Building Free
-        </Link>
+        {isLoggedIn ? (
+          <>
+            <Link
+              to="/dashboard"
+              aria-label="Go to Dashboard"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-400/30 bg-indigo-500/20 px-3.5 py-2 text-sm font-bold text-indigo-200 hover:bg-indigo-500/35 hover:text-white transition shadow-lg"
+            >
+              <LayoutDashboard className="h-4 w-4 text-indigo-300" /> Dashboard
+            </Link>
+            <ProfileMenu />
+          </>
+        ) : (
+          <>
+            <Link to="/auth" aria-label="Log in to BloxSmith" className="rounded-lg border border-white/15 bg-white/5 px-3.5 py-2 text-sm text-white/90 hover:bg-white/10 transition">Log in</Link>
+            <Link to="/auth" aria-label="Start building a Roblox game for free" className="bs-btn-grad inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-white">
+              <Zap className="h-4 w-4" aria-hidden="true" /> Start Building Free
+            </Link>
+          </>
+        )}
       </div>
     </header>
   );

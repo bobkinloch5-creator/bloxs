@@ -181,7 +181,7 @@ function RootComponent() {
     let mounted = true;
     let unsubscribe: (() => void) | undefined;
     const maybeRedirect = (pathname: string) => {
-      if (pathname === "/" || pathname === "/auth") {
+      if (pathname === "/auth") {
         router.navigate({ to: "/dashboard" });
       }
     };
