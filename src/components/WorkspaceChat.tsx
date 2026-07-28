@@ -1454,26 +1454,26 @@ export function WorkspaceChat({
                 const next = !proceduralGeneration;
                 setProceduralGeneration(next);
                 toast.success(next
-                  ? "🛠 From Scratch: ON — BloxSmith builds everything from primitives (no Toolbox models)."
-                  : "⚡ Auto Build: ON — BloxSmith uses Toolbox first, then builds a visible fallback if needed."
+                  ? "🛠 Make On Its Own: ON — BloxSmith generates everything from scratch using code & primitives (bypasses Toolbox models)."
+                  : "⚡ Toolbox Mode: ON — BloxSmith searches & inserts safe public models from the Roblox Toolbox."
                 );
               }}
               aria-pressed={proceduralGeneration}
               title={proceduralGeneration
-                ? "From Scratch is ON — everything is built from parts, meshes, and terrain. Click to switch to Auto Build."
-                : "Auto Build is ON — uses safe Toolbox assets first, then creates a visible fallback if Toolbox has no match. Click to build from scratch only."}
-              className={`inline-flex min-h-[40px] items-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-bold transition ${
+                ? "Make On Its Own is ON — AI creates objects from code, terrain & primitives. Click to toggle Toolbox mode."
+                : "Toolbox Mode is ON — AI inserts safe free Toolbox models. Click to toggle Make On Its Own (build from scratch)."}
+              className={`inline-flex min-h-[40px] items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-bold transition ${
                 proceduralGeneration
                   ? "border-emerald-400/60 bg-emerald-500/20 text-emerald-100 shadow-[0_0_20px_rgba(52,211,153,0.25)] hover:bg-emerald-500/30"
                   : "border-amber-400/50 bg-amber-500/15 text-amber-100 shadow-[0_0_15px_rgba(245,158,11,0.2)] hover:bg-amber-500/25"
               }`}
             >
               <span className="text-sm leading-none">{proceduralGeneration ? "🛠" : "⚡"}</span>
-              <span className="hidden sm:inline">{proceduralGeneration ? "From Scratch" : "Auto Build"}</span>
+              <span className="inline">{proceduralGeneration ? "Make On Its Own" : "Toolbox Mode"}</span>
               <span className={`ml-1 rounded-full px-1.5 py-[1px] text-[9px] font-black uppercase tracking-wider ${
                 proceduralGeneration ? "bg-emerald-400/40 text-white" : "bg-amber-400/40 text-white"
               }`}>
-                On
+                {proceduralGeneration ? "On Its Own" : "Toolbox"}
               </span>
             </button>
           )}

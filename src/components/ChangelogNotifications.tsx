@@ -4,9 +4,33 @@ import { checkChangelogCoverage, warnIfIncomplete } from "@/lib/changelog-covera
 import bloxsmithLogo from "@/assets/bloxsmith-logo.png.asset.json";
 
 
-const CHANGELOG_VERSION = "2026-07-28-top-supporter-procedural-maintenance";
+const CHANGELOG_VERSION = "2026-07-28-community-games-showcase-hub";
 
 const CHANGELOG_ITEMS = [
+  {
+    title: "🎮 Community Games Hub & Game Publishing",
+    date: "Jul 28",
+    icon: Rocket,
+    body: "Launched the all-new Community Games Hub at /showcase! Creators can now publish their Roblox experiences directly to BloxSmith, complete with category tags, custom cover images, auto-generated place thumbnails, and 1-click project publishing.",
+  },
+  {
+    title: "💖 Game Hearting, Views & Direct Roblox Play Launch",
+    date: "Jul 28",
+    icon: Sparkles,
+    body: "Added interactive game hearts (❤️) and real-time view tracking (👁️) for all community showcase games. Visitors can browse, search by tag, heart favorite games, and launch directly into Roblox with one click.",
+  },
+  {
+    title: "🎁 +10 Bonus Credits Reward on Game Publish",
+    date: "Jul 28",
+    icon: Zap,
+    body: "Publishing a game to the Community Showcase now automatically awards creators +10 bonus AI credits to build even bigger Roblox worlds.",
+  },
+  {
+    title: "🎛️ 'Make On Its Own' Mode & Quantity Grid Spacing",
+    date: "Jul 28",
+    icon: CheckCircle2,
+    body: "Refined the AI build mode toggle with explicit 'Make On Its Own' (procedural custom code) and 'Toolbox Mode' badges. Upgraded intent detection for multi-item requests (e.g. '4 houses', '10 trees') with automated 3D grid spacing.",
+  },
   {
     title: "👑 Automated Top Supporter Role & Profile Badging",
     date: "Jul 28",

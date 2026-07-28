@@ -2457,42 +2457,42 @@ const TOOLBOX_ASSET_FINDER_CATEGORIES = [
   { label: "bow", role: "weapon", folder: "Weapons", test: /\b(bow|crossbow)\b/i, keyword: "bow weapon model" },
   { label: "sports car", role: "vehicle", folder: "Vehicles", test: /\b(sports?\s*car|super\s*car|race\s*car)\b/i, keyword: "sports car vehicle model" },
   { label: "police car", role: "vehicle", folder: "Vehicles", test: /\bpolice\s*car\b/i, keyword: "police car vehicle model" },
-  { label: "car", role: "vehicle", folder: "Vehicles", test: /\b(car|vehicle)\b/i, keyword: "car vehicle model" },
-  { label: "truck", role: "vehicle", folder: "Vehicles", test: /\btruck\b/i, keyword: "truck vehicle model" },
-  { label: "plane", role: "vehicle", folder: "Vehicles", test: /\b(plane|airplane|jet)\b/i, keyword: "plane vehicle model" },
-  { label: "boat", role: "vehicle", folder: "Vehicles", test: /\bboat\b/i, keyword: "boat vehicle model" },
-  { label: "zombie", role: "character", folder: "Characters", test: /\bzombie\b/i, keyword: "zombie npc model" },
-  { label: "monster", role: "character", folder: "Characters", test: /\b(monster|creature|enemy)\b/i, keyword: "monster npc model" },
-  { label: "shopkeeper", role: "character", folder: "Characters", test: /\b(shopkeeper|vendor|merchant)\b/i, keyword: "shopkeeper npc model" },
-  { label: "pet", role: "character", folder: "Characters", test: /\b(pet|dog|cat)\b/i, keyword: "pet model" },
-  { label: "police station", role: "building", folder: "Buildings", test: /\bpolice\s*station\b/i, keyword: "police station building model" },
-  { label: "hospital", role: "building", folder: "Buildings", test: /\bhospital\b/i, keyword: "hospital building model" },
-  { label: "restaurant", role: "building", folder: "Buildings", test: /\b(restaurants?|resturants?|restraunts?|resteraunts?|diner|eatery|bistro|caf[eé]|coffee\s*shop|pizzeria|pizza\s*shop|burger\s*joint|fast\s*food|food\s*court|steakhouse|sushi\s*bar|grill|bakery|ice\s*cream\s*shop|taqueria|noodle\s*shop|ramen\s*shop)\b/i, keyword: "restaurant diner cafe building model" },
-  { label: "modern house", role: "building", folder: "Buildings", test: /\b(modern|contemporary)\s*house\b/i, keyword: "modern house building model" },
-  { label: "house", role: "building", folder: "Buildings", test: /\bhouse\b/i, keyword: "house building model" },
-  { label: "shop", role: "building", folder: "Buildings", test: /\b(shop|store|storefront)\b/i, keyword: "shop storefront building model" },
-  { label: "castle", role: "building", folder: "Buildings", test: /\bcastle\b/i, keyword: "castle building model" },
-  { label: "pine tree", role: "nature", folder: "Nature", test: /\bpine\s*tree(s)?\b/i, keyword: "pine tree nature model" },
-  { label: "oak tree", role: "nature", folder: "Nature", test: /\boak\s*tree(s)?\b/i, keyword: "oak tree nature model" },
-  { label: "palm tree", role: "nature", folder: "Nature", test: /\bpalm\s*tree(s)?\b/i, keyword: "palm tree nature model" },
-  { label: "tree", role: "nature", folder: "Nature", test: /\b(tree|trees)\b/i, keyword: "tree nature model" },
-  { label: "rock", role: "nature", folder: "Nature", test: /\b(rock|rocks|boulder)\b/i, keyword: "rock nature model" },
-  { label: "grass", role: "nature", folder: "Nature", test: /\b(grass|flower|flowers|bush|bushes)\b/i, keyword: "grass flower bush nature model" },
-  { label: "mountain", role: "nature", folder: "Nature", test: /\b(mountain|mountains|cliff)\b/i, keyword: "mountain cliff nature model" },
-  { label: "road", role: "environment", folder: "Roads", test: /\b(road|street|highway|asphalt)\b/i, keyword: "road street asphalt model" },
-  { label: "sidewalk", role: "environment", folder: "Roads", test: /\b(sidewalk|pavement|curb)\b/i, keyword: "sidewalk pavement curb model" },
-  { label: "street light", role: "prop", folder: "Props", test: /\b(street\s*light|lamp\s*post|lamppost|streetlamp)\b/i, keyword: "street light lamp post model" },
-  { label: "traffic light", role: "prop", folder: "Props", test: /\btraffic\s*light\b/i, keyword: "traffic light model" },
-  { label: "fence", role: "prop", folder: "Props", test: /\b(fence|fencing)\b/i, keyword: "fence model" },
-  { label: "bench", role: "prop", folder: "Props", test: /\bbench\b/i, keyword: "bench park model" },
-  { label: "crate", role: "prop", folder: "Props", test: /\b(crate|barrel|box)\b/i, keyword: "crate barrel prop model" },
-  { label: "sign", role: "prop", folder: "Props", test: /\b(sign|street\s*sign)\b/i, keyword: "sign prop model" },
-  { label: "furniture", role: "prop", folder: "Props", test: /\b(furniture|chair|table|bed|sofa|lamp)\b/i, keyword: "furniture prop model" },
-  { label: "checkpoint", role: "gameplay", folder: "Gameplay", test: /\bcheckpoint\b/i, keyword: "checkpoint obby model" },
-  { label: "coin", role: "gameplay", folder: "Gameplay", test: /\b(coin|coins|gem|collectible)\b/i, keyword: "coin collectible model" },
-  { label: "door", role: "gameplay", folder: "Gameplay", test: /\bdoor\b/i, keyword: "door model" },
-  { label: "button", role: "gameplay", folder: "Gameplay", test: /\bbutton|portal\b/i, keyword: "button portal model" },
-  { label: "fire", role: "effect", folder: "Effects", test: /\b(fire|flame|smoke|explosion|magic|particle|effect)\b/i, keyword: "fire smoke particle effect model" },
+  { label: "car", role: "vehicle", folder: "Vehicles", test: /\b(cars?|vehicles?)\b/i, keyword: "car vehicle model" },
+  { label: "truck", role: "vehicle", folder: "Vehicles", test: /\btrucks?\b/i, keyword: "truck vehicle model" },
+  { label: "plane", role: "vehicle", folder: "Vehicles", test: /\b(planes?|airplanes?|jets?)\b/i, keyword: "plane vehicle model" },
+  { label: "boat", role: "vehicle", folder: "Vehicles", test: /\bboats?\b/i, keyword: "boat vehicle model" },
+  { label: "zombie", role: "character", folder: "Characters", test: /\bzombies?\b/i, keyword: "zombie npc model" },
+  { label: "monster", role: "character", folder: "Characters", test: /\b(monsters?|creatures?|enemies|enemy)\b/i, keyword: "monster npc model" },
+  { label: "shopkeeper", role: "character", folder: "Characters", test: /\b(shopkeepers?|vendors?|merchants?)\b/i, keyword: "shopkeeper npc model" },
+  { label: "pet", role: "character", folder: "Characters", test: /\b(pets?|dogs?|cats?)\b/i, keyword: "pet model" },
+  { label: "police station", role: "building", folder: "Buildings", test: /\bpolice\s*stations?\b/i, keyword: "police station building model" },
+  { label: "hospital", role: "building", folder: "Buildings", test: /\bhospitals?\b/i, keyword: "hospital building model" },
+  { label: "restaurant", role: "building", folder: "Buildings", test: /\b(restaurants?|resturants?|restraunts?|resteraunts?|diners?|eateries|eatery|bistros?|caf[eé]s?|coffee\s*shops?|pizzerias?|pizza\s*shops?|burger\s*joints?|fast\s*food|food\s*courts?|steakhouses?|sushi\s*bars?|grills?|bakeries|bakery|ice\s*cream\s*shops?|taquerias?|noodle\s*shops?|ramen\s*shops?)\b/i, keyword: "restaurant diner cafe building model" },
+  { label: "modern house", role: "building", folder: "Buildings", test: /\b(modern|contemporary)\s*houses?\b/i, keyword: "modern house building model" },
+  { label: "house", role: "building", folder: "Buildings", test: /\bhouses?\b/i, keyword: "house building model" },
+  { label: "shop", role: "building", folder: "Buildings", test: /\b(shops?|stores?|storefronts?)\b/i, keyword: "shop storefront building model" },
+  { label: "castle", role: "building", folder: "Buildings", test: /\bcastles?\b/i, keyword: "castle building model" },
+  { label: "pine tree", role: "nature", folder: "Nature", test: /\bpine\s*trees?\b/i, keyword: "pine tree nature model" },
+  { label: "oak tree", role: "nature", folder: "Nature", test: /\boak\s*trees?\b/i, keyword: "oak tree nature model" },
+  { label: "palm tree", role: "nature", folder: "Nature", test: /\bpalm\s*trees?\b/i, keyword: "palm tree nature model" },
+  { label: "tree", role: "nature", folder: "Nature", test: /\btrees?\b/i, keyword: "tree nature model" },
+  { label: "rock", role: "nature", folder: "Nature", test: /\b(rocks?|boulders?)\b/i, keyword: "rock nature model" },
+  { label: "grass", role: "nature", folder: "Nature", test: /\b(grass|flowers?|bushes|bush)\b/i, keyword: "grass flower bush nature model" },
+  { label: "mountain", role: "nature", folder: "Nature", test: /\b(mountains?|cliffs?)\b/i, keyword: "mountain cliff nature model" },
+  { label: "road", role: "environment", folder: "Roads", test: /\b(roads?|streets?|highways?|asphalt)\b/i, keyword: "road street asphalt model" },
+  { label: "sidewalk", role: "environment", folder: "Roads", test: /\b(sidewalks?|pavements?|curbs?)\b/i, keyword: "sidewalk pavement curb model" },
+  { label: "street light", role: "prop", folder: "Props", test: /\b(street\s*lights?|lamp\s*posts?|lampposts?|streetlamps?)\b/i, keyword: "street light lamp post model" },
+  { label: "traffic light", role: "prop", folder: "Props", test: /\btraffic\s*lights?\b/i, keyword: "traffic light model" },
+  { label: "fence", role: "prop", folder: "Props", test: /\b(fences?|fencing)\b/i, keyword: "fence model" },
+  { label: "bench", role: "prop", folder: "Props", test: /\bbenches?\b/i, keyword: "bench park model" },
+  { label: "crate", role: "prop", folder: "Props", test: /\b(crates?|barrels?|boxes|box)\b/i, keyword: "crate barrel prop model" },
+  { label: "sign", role: "prop", folder: "Props", test: /\b(signs?|street\s*signs?)\b/i, keyword: "sign prop model" },
+  { label: "furniture", role: "prop", folder: "Props", test: /\b(furniture|chairs?|tables?|beds?|sofas?|lamps?)\b/i, keyword: "furniture prop model" },
+  { label: "checkpoint", role: "gameplay", folder: "Gameplay", test: /\bcheckpoints?\b/i, keyword: "checkpoint obby model" },
+  { label: "coin", role: "gameplay", folder: "Gameplay", test: /\b(coins?|gems?|collectibles?)\b/i, keyword: "coin collectible model" },
+  { label: "door", role: "gameplay", folder: "Gameplay", test: /\bdoors?\b/i, keyword: "door model" },
+  { label: "button", role: "gameplay", folder: "Gameplay", test: /\b(buttons?|portals?)\b/i, keyword: "button portal model" },
+  { label: "fire", role: "effect", folder: "Effects", test: /\b(fire|flames?|smoke|explosions?|magic|particles?|effects?)\b/i, keyword: "fire smoke particle effect model" },
 ];
 
 function isSinglePhysicalAssetRequest(userText: string) {
@@ -7064,39 +7064,51 @@ export const Route = createFileRoute("/api/chat")({
               if (top) {
                 const folder = finderMatch?.folder ? `BloxSmith_${finderMatch.folder}` : "BloxSmith_Assets";
                 const baseName = cleanSingleAssetActionName(label).replace(/_\d+$/, "");
-                const buildAction = (idx: number) => ({
-                  kind: "insert_asset" as const,
-                  parent_path: `Workspace/${folder}`,
-                  name: quantity > 1 ? `${baseName}_${String(idx + 1).padStart(2, "0")}` : cleanSingleAssetActionName(label),
-                  payload: {
-                    asset_id: top.id,
-                    fallback_ids: (top.fallbackIds ?? found.results.slice(1, 8).map((r) => r.id)).slice(0, 6),
-                    asset_name: top.name,
-                    creator_name: top.creatorName,
-                    source_query: query,
-                    toolbox_only: true,
-                    free_only: true,
-                    no_scripts: true,
-                    strip_scripts: true,
-                    disable_procedural_fallback: true,
-                    single_asset_only: true,
-                    extract_single: true,
-                    exact_quantity: 1,
-                    max_children: 25,
-                    max_scripts: 0,
-                    reject_pack_names: true,
-                    stop_after_insert: true,
-                    ground_snap: true,
-                    _bloxsmith: {
-                      source: "chat_fastpath",
-                      execution_mode: "fast",
-                      single_asset_mode: true,
-                      copy_index: idx,
-                      copy_total: quantity,
-                      grid_spacing: 12,
-                    },
-                  } as Record<string, unknown>,
-                });
+                const isBigStructure = /\b(house|building|castle|mansion|cabin|cottage|store|shop|school|hospital|barn|villa|tower)\b/i.test(label);
+                const spacing = isBigStructure ? 36 : 14;
+                const cols = Math.ceil(Math.sqrt(quantity));
+
+                const buildAction = (idx: number) => {
+                  const row = Math.floor(idx / cols);
+                  const col = idx % cols;
+                  const xOff = (col - (cols - 1) / 2) * spacing;
+                  const zOff = (row - (Math.ceil(quantity / cols) - 1) / 2) * spacing;
+
+                  return {
+                    kind: "insert_asset" as const,
+                    parent_path: `Workspace/${folder}`,
+                    name: quantity > 1 ? `${baseName}_${String(idx + 1).padStart(2, "0")}` : cleanSingleAssetActionName(label),
+                    payload: {
+                      asset_id: top.id,
+                      fallback_ids: (top.fallbackIds ?? found.results.slice(1, 8).map((r) => r.id)).slice(0, 6),
+                      asset_name: top.name,
+                      creator_name: top.creatorName,
+                      source_query: query,
+                      toolbox_only: true,
+                      free_only: true,
+                      no_scripts: true,
+                      strip_scripts: true,
+                      disable_procedural_fallback: true,
+                      single_asset_only: true,
+                      extract_single: true,
+                      exact_quantity: 1,
+                      max_children: 25,
+                      max_scripts: 0,
+                      reject_pack_names: true,
+                      stop_after_insert: true,
+                      ground_snap: true,
+                      position_offset: quantity > 1 ? [Math.round(xOff), 0, Math.round(zOff)] : [0, 0, 0],
+                      _bloxsmith: {
+                        source: "chat_fastpath",
+                        execution_mode: "fast",
+                        single_asset_mode: true,
+                        copy_index: idx,
+                        copy_total: quantity,
+                        grid_spacing: spacing,
+                      },
+                    } as Record<string, unknown>,
+                  };
+                };
                 const insertAction = buildAction(0);
                 // searchRobloxToolbox already filters to insertable public
                 // assets. Do not run a second validation pass here; that extra
@@ -7765,13 +7777,36 @@ export const Route = createFileRoute("/api/chat")({
                 if (mode === "build" && !proceduralModeActive && isSinglePhysicalAssetRequest(userText)) {
                   const label = singlePhysicalAssetLabel(userText);
                   const cleanName = cleanSingleAssetActionName(label);
+                  const wordNums: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, twelve: 12, fifteen: 15, twenty: 20 };
+                  let quantity = 1;
+                  const numMatch = userText.match(/\b(\d{1,3})\s+(?=[a-z])/i);
+                  if (numMatch) {
+                    const n = parseInt(numMatch[1], 10);
+                    if (Number.isFinite(n) && n >= 1) quantity = Math.min(n, 25);
+                  } else {
+                    const wm = userText.toLowerCase().match(/\b(one|two|three|four|five|six|seven|eight|nine|ten|twelve|fifteen|twenty)\b/);
+                    if (wm && wordNums[wm[1]]) quantity = wordNums[wm[1]];
+                  }
+
                   const trustedSingleActions = (await toolboxAssetFinderStudioActions(userText)).map(normalizePluginAction);
                   const firstInsert = trustedSingleActions.find((a) => a.kind === "insert_asset");
-                  actions = firstInsert
-                    ? [{
+
+                  if (firstInsert) {
+                    const isBigStructure = /\b(house|building|castle|mansion|cabin|cottage|store|shop|school|hospital|barn|villa|tower)\b/i.test(label);
+                    const spacing = isBigStructure ? 36 : 14;
+                    const cols = Math.ceil(Math.sqrt(quantity));
+                    const baseName = cleanName.replace(/_\d+$/, "");
+
+                    actions = Array.from({ length: quantity }, (_, idx) => {
+                      const row = Math.floor(idx / cols);
+                      const col = idx % cols;
+                      const xOff = (col - (cols - 1) / 2) * spacing;
+                      const zOff = (row - (Math.ceil(quantity / cols) - 1) / 2) * spacing;
+
+                      return {
                         ...firstInsert,
                         parent_path: "Workspace",
-                        name: cleanName,
+                        name: quantity > 1 ? `${baseName}_${String(idx + 1).padStart(2, "0")}` : cleanName,
                         payload: {
                           ...(firstInsert.payload ?? {}),
                           toolbox_only: true,
@@ -7790,12 +7825,22 @@ export const Route = createFileRoute("/api/chat")({
                           ground_snap: true,
                           anchor: true,
                           requested_asset_type: label,
-                          clean_name: cleanName,
+                          clean_name: quantity > 1 ? `${baseName}_${String(idx + 1).padStart(2, "0")}` : cleanName,
+                          position_offset: quantity > 1 ? [Math.round(xOff), 0, Math.round(zOff)] : [0, 0, 0],
+                          _bloxsmith: {
+                            source: "chat_single_asset_guard",
+                            copy_index: idx,
+                            copy_total: quantity,
+                            grid_spacing: spacing,
+                          },
                         },
-                      }]
-                    : [];
+                      };
+                    });
+                  } else {
+                    actions = [];
+                  }
                   cleanContent = actions.length > 0
-                    ? `${cleanContent.trim()}\n\n_Single asset scope: sending exactly one safe free Toolbox ${label} model only — no packs, scripts, props, decorations, terrain, UI, scans, or extra actions._`
+                    ? `${cleanContent.trim()}\n\n_${quantity > 1 ? `Asset quantity scope: sending exactly ${quantity} safe free Toolbox ${label} models` : `Single asset scope: sending exactly one safe free Toolbox ${label} model only`} — no packs, scripts, props, decorations, terrain, UI, scans, or extra actions._`
                     : `${cleanContent.trim()}\n\n_No clean free authorized single ${label} model was found, so BloxSmith did not insert a pack or placeholder._`;
                 } else if (mode === "build" && isNarrowFeatureRequest(userText)) {
                   const requestedRemote = /\b(remote\s*event|remoteevent|remote\s*function|remotefunction|server\s*event|server[-\s]*authoritative|multiplayer|replicated)\b/i.test(userText) || needsGameplayRemoteWiring(userText);

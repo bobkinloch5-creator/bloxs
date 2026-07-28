@@ -371,12 +371,13 @@ export function looksLikePack(name: string): boolean {
   return PACK_PATTERNS.some((re) => re.test(name));
 }
 
-// Single-asset intent: user asked for ONE specific object, not a pack.
-const SINGLE_ASSET_NOUNS = /\b(house|cabin|hut|mansion|cottage|farmhouse|castle|fortress|keep|citadel|palace|throne|temple|church|windmill|lighthouse|hospital|school|bank|restaurant|resturant|restraunt|resteraunt|diner|eatery|bistro|cafe|pizzeria|bakery|store|car|truck|vehicle|motorcycle|bike|kart|helicopter|spaceship|hoverboard|tree|rock|boulder|chair|table|couch|sofa|bed|lamp|sword|katana|pistol|gun|rifle|shotgun|bow|weapon|npc|zombie|skeleton|dragon|robot|alien|knight|wizard|guard|dog|cat|pet|door|sign|chest|barrel|crate|building|shop|tower|boat|plane|bench|fence|wall|window|flower|bush|statue|fountain|cannon|hat|coin|gem|part|brick|block|sphere|cube|wedge|ball|spawn|checkpoint|portal|ladder|stair|stairs|bridge|road|path|torch|banner|flag|key|potion|shield|helmet|armor|mask|backpack|bag|box|rocket|missile|bomb|mine|trap|platform|switch|lever)\b/i;
-const SINGLE_SCRIPT_NOUNS = /\b(script|serverscript|localscript|modulescript|remote|remoteevent|remotefunction|handler)\b/i;
-const SINGLE_UI_NOUNS = /\b(button|label|textlabel|textbox|frame|screengui|gui|panel|hud|menu|popup|notification|dialog|icon|imagelabel|imagebutton|slider|toggle|checkbox|dropdown)\b/i;
+// Single-asset intent: user asked for specific object(s) / quantity, not a full map/pack.
+const SINGLE_ASSET_NOUNS = /\b(houses?|cabins?|huts?|mansions?|cottages?|farmhouses?|castles?|fortress(?:es)?|keeps?|citadels?|palaces?|thrones?|temples?|church(?:es)?|windmills?|lighthouses?|hospitals?|schools?|banks?|restaurants?|resturants?|restraunts?|resteraunts?|diners?|eateries|eatery|bistros?|caf[eé]s?|pizzerias?|bakeries|bakery|stores?|cars?|trucks?|vehicles?|motorcycles?|bikes?|karts?|helicopters?|spaceships?|hoverboards?|trees?|rocks?|boulders?|chairs?|tables?|couches|couch|sofas?|beds?|lamps?|swords?|katanas?|pistols?|guns?|rifles?|shotguns?|bows?|weapons?|npcs?|zombies?|skeletons?|dragons?|robots?|aliens?|knights?|wizards?|guards?|dogs?|cats?|pets?|doors?|signs?|chests?|barrels?|crates?|buildings?|shops?|towers?|boats?|planes?|benches|bench|fences?|walls?|windows?|flowers?|bushes|bush|statues?|fountains?|cannons?|hats?|coins?|gems?|parts?|bricks?|blocks?|spheres?|cubes?|wedges?|balls?|spawns?|checkpoints?|portals?|ladders?|stairs?|stair|bridges?|roads?|paths?|torches|torch|banners?|flags?|keys?|potions?|shields?|helmets?|armors?|masks?|backpacks?|bags?|boxes|box|rockets?|missiles?|bombs?|mines?|traps?|platforms?|switches|switch|levers?)\b/i;
+const SINGLE_SCRIPT_NOUNS = /\b(scripts?|serverscripts?|localscripts?|modulescripts?|remotes?|remoteevents?|remotefunctions?|handlers?)\b/i;
+const SINGLE_UI_NOUNS = /\b(buttons?|labels?|textlabels?|textboxes?|frames?|screenguis?|guis?|panels?|huds?|menus?|popups?|notifications?|dialogs?|icons?|imagelabels?|imagebuttons?|sliders?|toggles?|checkboxes|checkbox|dropdowns?)\b/i;
 const PACK_KEYWORDS = /\b(pack|kit|bundle|collection|set|props?|library|showcase|demo|mega|template|full\s*map|full\s*game|full\s*system|map|world|entire\s+game|whole\s+game|tycoon|obby|simulator|neighborhood|village|city|town|arena|dungeon)\b/i;
 const QUANTITY_ONE = /\b(1|one|single|just|only)\b/i;
+const QUANTITY_COUNT = /\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|a\s+few|several|some|multiple)\b/i;
 const ARTICLE_A = /\b(a|an)\s+/i;
 const MAX_CLASSIC_INSERTSERVICE_ASSET_ID = 100_000_000_000;
 
@@ -395,8 +396,8 @@ function hasPositivePackIntent(prompt: string): boolean {
 
 export type NarrowScope = "single_asset" | "single_script" | "single_ui" | null;
 
-// Detects narrow single-item requests so the pipeline builds ONLY that one thing.
-// "one house" → single_asset, "add a button" → single_ui, "make me one script that ..." → single_script.
+// Detects narrow single-item or specified-quantity requests (e.g., "4 houses", "add 1 house") so the pipeline builds ONLY that exact asset/quantity.
+// "4 houses" → single_asset, "add a button" → single_ui, "make me one script that ..." → single_script.
 // Broad requests ("build a tycoon", "make a full game") return null → full pipeline.
 export function detectNarrowScopeIntent(prompt: string): NarrowScope {
   if (!prompt) return null;
@@ -407,21 +408,21 @@ export function detectNarrowScopeIntent(prompt: string): NarrowScope {
   // sentences ("Add one castle from Roblox Toolbox (safe, free, public model)…").
   const explicitToolbox = /\b(toolbox|free\s+model|public\s+model|creator\s+store|from\s+roblox)\b/i.test(p);
   const short = tokens.length <= 14 || explicitToolbox;
-  const hasOne = QUANTITY_ONE.test(p) || ARTICLE_A.test(p);
+  const hasQuantity = QUANTITY_ONE.test(p) || ARTICLE_A.test(p) || QUANTITY_COUNT.test(p);
   // UI takes precedence — "one gui button" is UI, not a physical asset.
-  if (SINGLE_UI_NOUNS.test(p) && (hasOne || short)) return "single_ui";
-  if (SINGLE_SCRIPT_NOUNS.test(p) && (hasOne || short)) return "single_script";
-  if (SINGLE_ASSET_NOUNS.test(p) && (hasOne || short)) return "single_asset";
+  if (SINGLE_UI_NOUNS.test(p) && (hasQuantity || short)) return "single_ui";
+  if (SINGLE_SCRIPT_NOUNS.test(p) && (hasQuantity || short)) return "single_script";
+  if (SINGLE_ASSET_NOUNS.test(p) && (hasQuantity || short)) return "single_asset";
   if (tokens.length <= 3) {
     if (SINGLE_UI_NOUNS.test(p)) return "single_ui";
     if (SINGLE_SCRIPT_NOUNS.test(p)) return "single_script";
     if (SINGLE_ASSET_NOUNS.test(p)) return "single_asset";
   }
   // Generic single-asset fallback: any short "add/insert/give me/get/spawn/drop
-  // a <noun>" phrasing counts as a Toolbox single-asset ask even when the noun
+  // a/N <noun>" phrasing counts as a Toolbox asset ask even when the noun
   // isn't in SINGLE_ASSET_NOUNS (spaceships, dragons, hoverboards, mailboxes,
   // arcade machines — anything the user might want from Toolbox).
-  const genericSingle = /^(?:please\s+)?(?:add|insert|give\s+me|get\s+me|get|spawn|drop|place|put|bring)\s+(?:me\s+)?(?:a|an|one|1|just\s+one)\s+([a-z][a-z0-9\s'-]{1,40})$/i;
+  const genericSingle = /^(?:please\s+)?(?:add|insert|give\s+me|get\s+me|get|spawn|drop|place|put|bring|build|make|create)\s+(?:me\s+)?(?:\d+|a|an|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|1|2|3|4|5|6|7|8|9|10|just\s+one|a\s+few|several)?\s*([a-z][a-z0-9\s'-]{1,40})$/i;
   if (short && genericSingle.test(p)) return "single_asset";
   // Bare noun phrase like "spaceship" or "medieval dragon" (≤4 word tokens,
   // letters only, no script/UI cue) also counts as a single-asset ask.
