@@ -86,8 +86,11 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server
               .maybeSingle();
 
             const isOwnerAccount = userId === "64f33732-136a-4c78-9421-7c11579c7412" || claims?.email === "bobkinloch5@gmail.com";
-            if (!isOwnerAccount && prof?.banned) {
-              throw new Error(`Your account has been banned: ${prof.banned_reason || "Suspicious activity detected"}`);
+            if (!isOwnerAccount) {
+              const { isEmailBanned } = await import('@/lib/banned-emails');
+              if (isEmailBanned(claims?.email) || prof?.banned) {
+                throw new Error(`Your account has been permanently banned: ${prof?.banned_reason || "Access revoked by Owner"}`);
+              }
             }
           } catch (e: any) {
             if (e?.message?.includes("banned")) throw e;

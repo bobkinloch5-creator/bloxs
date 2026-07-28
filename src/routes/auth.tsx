@@ -6,6 +6,7 @@ import { Loader2 } from "lucide-react";
 import bloxsmithMascot from "@/assets/bloxsmith-mascot.png.asset.json";
 
 import { toast } from "sonner";
+import { isEmailBanned } from "@/lib/banned-emails";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -108,6 +109,9 @@ function AuthPage() {
     setBusy(true);
     try {
       const cleanEmail = email.trim();
+      if (isEmailBanned(cleanEmail)) {
+        throw new Error("This email address has been permanently banned from BloxSmith.");
+      }
       if (mode === "signup") {
         const { error: err, data } = await supabase.auth.signUp({
           email: cleanEmail,
