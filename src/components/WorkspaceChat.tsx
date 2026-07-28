@@ -107,11 +107,97 @@ function stripInternalBlocks(text: string): string {
   return out.replace(/\n{3,}/g, "\n\n").trim();
 }
 
-// ─── Fancy task-list renderer ─────────────────────────────────────────────────
-// Intercepts react-markdown's `li` render for task list items (- [ ] / - [x])
-// and replaces the default bullet with a glowing animated checkbox chip.
-// Execution is unaffected — this is purely visual prose enhancement.
+// ─── Markdown Prose & Formatter ────────────────────────────────────────────────
+// Formats assistant text to guarantee double line breaks before headers, sub-labels,
+// and bullet lists so responses never collapse into a dense wall of text.
+function formatAssistantMarkdown(rawText: string): string {
+  if (!rawText) return "";
+
+  // Split by code blocks so we leave code blocks completely untouched
+  const chunks = rawText.split(/(```[\s\S]*?```)/g);
+
+  return chunks
+    .map((chunk, index) => {
+      if (index % 2 === 1) return chunk; // Inside code block, keep exact
+
+      let text = chunk;
+
+      // 1. Separate title headers (e.g., "Neon Idle Factory – Idle Tycoon / Prestige") with empty lines and ###
+      text = text.replace(/([^\n])\n([A-Z0-9\s\w'"]{3,40}\s[–-]\s[A-Za-z0-9\s\/'"]+)/g, "$1\n\n### 🎮 $2");
+
+      // 2. Bold key labels and give them double line breaks above (Core loop:, Unique twist:, Monetization:, etc.)
+      text = text.replace(/([^\n])\n\s*\b(Core loop|Unique twist|Monetization|Build complexity|Executive Summary|Core Game Loop|3D World|Scripting|DataStore|UI\/UX|Actionable Build Steps):/gi, "$1\n\n**$2:**");
+
+      // 3. Ensure bullet points (•, -, *) start on a clean line with proper spacing
+      text = text.replace(/([^\n])\n([•\-\*]\s)/g, "$1\n\n$2");
+
+      // 4. Convert single newlines separating sentences into double newlines so markdown paragraphs separate clearly
+      text = text.replace(/(?<!\n)\n(?!\n)/g, "\n\n");
+
+      return text;
+    })
+    .join("");
+}
+
 const markdownComponents: Record<string, React.ComponentType<any>> = {
+  p: ({ children }: any) => (
+    <p className="my-2.5 leading-relaxed text-slate-200 text-[13.5px] font-normal tracking-wide">
+      {children}
+    </p>
+  ),
+  h1: ({ children }: any) => (
+    <h1 className="mt-4 mb-2.5 text-lg font-black text-white tracking-wide border-b border-indigo-500/30 pb-1.5 flex items-center gap-2">
+      {children}
+    </h1>
+  ),
+  h2: ({ children }: any) => (
+    <h2 className="mt-3.5 mb-2 text-base font-extrabold text-cyan-200 tracking-wide">
+      {children}
+    </h2>
+  ),
+  h3: ({ children }: any) => (
+    <h3 className="mt-3.5 mb-2 text-sm font-black text-pink-200 tracking-wide bg-gradient-to-r from-purple-950/80 via-pink-950/50 to-indigo-950/80 border border-purple-400/30 px-3 py-1.5 rounded-xl shadow-[0_0_15px_rgba(217,70,239,0.15)] my-2 block">
+      {children}
+    </h3>
+  ),
+  h4: ({ children }: any) => (
+    <h4 className="mt-2.5 mb-1 text-xs font-extrabold text-indigo-300 uppercase tracking-wider">
+      {children}
+    </h4>
+  ),
+  strong: ({ children }: any) => (
+    <strong className="font-extrabold text-cyan-200 bg-cyan-950/60 border border-cyan-400/30 px-1.5 py-0.5 rounded-md text-[13px] shadow-[0_0_8px_rgba(34,211,238,0.15)] inline-block my-0.5">
+      {children}
+    </strong>
+  ),
+  em: ({ children }: any) => (
+    <em className="italic text-slate-300 font-medium">{children}</em>
+  ),
+  hr: () => <hr className="my-4 border-t border-indigo-500/30" />,
+  blockquote: ({ children }: any) => (
+    <blockquote className="my-3 border-l-4 border-indigo-400 bg-indigo-950/40 px-3.5 py-2 text-indigo-200 rounded-r-xl italic text-[13px] shadow-inner">
+      {children}
+    </blockquote>
+  ),
+  ul: ({ node, children, className, ...props }: any) => {
+    if (className?.includes("contains-task-list")) {
+      return (
+        <ul className="my-2.5 list-none space-y-1 p-0 pl-0" style={{ paddingInlineStart: 0 }}>
+          {children}
+        </ul>
+      );
+    }
+    return (
+      <ul className="my-2.5 space-y-1.5 list-disc list-inside text-slate-200 text-[13.5px] pl-1" {...props}>
+        {children}
+      </ul>
+    );
+  },
+  ol: ({ children, ...props }: any) => (
+    <ol className="my-2.5 space-y-1.5 list-decimal list-inside text-slate-200 text-[13.5px] pl-1 font-medium" {...props}>
+      {children}
+    </ol>
+  ),
   li: ({ node, children, ...props }: any) => {
     const childArray = Array.isArray(children) ? children : [children];
     const first = childArray[0];
@@ -155,17 +241,7 @@ const markdownComponents: Record<string, React.ComponentType<any>> = {
         </li>
       );
     }
-    return <li {...props}>{children}</li>;
-  },
-  ul: ({ node, children, className, ...props }: any) => {
-    if (className?.includes("contains-task-list")) {
-      return (
-        <ul className="my-2.5 list-none space-y-0 p-0 pl-0" style={{ paddingInlineStart: 0 }}>
-          {children}
-        </ul>
-      );
-    }
-    return <ul className={className} {...props}>{children}</ul>;
+    return <li className="my-1 leading-relaxed text-slate-200" {...props}>{children}</li>;
   },
   // ── Code block: dark glass card + language badge + copy button ──
   code: ({ node, inline, className, children, ...props }: any) => {
@@ -1055,8 +1131,10 @@ export function WorkspaceChat({
                       onSwitchModelClick={() => setSelectedModel("auto")}
                     />
                   ) : (
-                    <div className="prose prose-invert prose-sm max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-                      <ReactMarkdown components={markdownComponents}>{text || (m.role === "assistant" && status === "streaming" ? "Working on it…" : "")}</ReactMarkdown>
+                    <div className="prose prose-invert prose-sm max-w-none leading-relaxed [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+                      <ReactMarkdown components={markdownComponents}>
+                        {formatAssistantMarkdown(text || (m.role === "assistant" && status === "streaming" ? "Working on it…" : ""))}
+                      </ReactMarkdown>
                     </div>
                   )}
 
