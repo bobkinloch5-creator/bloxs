@@ -279,6 +279,7 @@ export const setUserRole = createServerFn({ method: "POST" })
     const { isOwner, supabaseAdmin } = await requireAdmin(ctx);
     if ((data.role === "admin" || data.role === "owner") && !isOwner) throw new Error("Only the owner can grant admin/owner roles");
     if (data.role === "user") throw new Error("Cannot toggle the base user role");
+    if (data.grant && data.role === "owner") throw new Error("The Owner role cannot be assigned to other accounts.");
     if (!data.grant && data.role === "owner" && data.userId === ctx.userId) throw new Error("The owner cannot remove their own owner access");
 
     if (data.grant) {

@@ -520,16 +520,19 @@ function UserRow({ user, isOwner, busy, onGift, onBan, onRole }: any) {
       <td className="px-3 py-2">
         <div className="flex flex-wrap justify-end gap-1">
           <div className="flex items-center overflow-hidden rounded-md border border-indigo-500/20">
-            <input value={giftAmt} onChange={(e) => setGiftAmt(e.target.value.replace(/[^\d-]/g, ""))} className="w-14 bg-transparent px-2 py-1 text-xs" />
-            <button disabled={busy} onClick={() => { const n = parseInt(giftAmt, 10); if (Number.isFinite(n) && n !== 0) onGift(n); }}
-              className="flex items-center gap-1 bg-indigo-500/20 px-2 py-1 text-xs font-bold text-indigo-200">
-              <Gift className="h-3 w-3" /> Gift
+            <input value={giftAmt} onChange={(e) => setGiftAmt(e.target.value.replace(/[^\d]/g, ""))} placeholder="100" className="w-14 bg-transparent px-2 py-1 text-xs focus:outline-none" />
+            <button disabled={busy} onClick={() => { const n = Math.abs(parseInt(giftAmt, 10) || 0); if (n > 0) onGift(n); }}
+              className="flex items-center gap-1 bg-emerald-500/20 hover:bg-emerald-500/30 px-2 py-1 text-xs font-bold text-emerald-200">
+              +Add
+            </button>
+            <button disabled={busy} onClick={() => { const n = Math.abs(parseInt(giftAmt, 10) || 0); if (n > 0) onGift(-n); }}
+              className="flex items-center gap-1 bg-amber-500/20 hover:bg-amber-500/30 px-2 py-1 text-xs font-bold text-amber-200 border-l border-indigo-500/20">
+              -Remove
             </button>
           </div>
           <RoleToggle label="Mod" icon={Star} active={hasRole("moderator")} onClick={() => onRole("moderator", !hasRole("moderator"))} busy={busy} color="#34d399" />
           <RoleToggle label="Donator" icon={Heart} active={hasRole("donator")} onClick={() => onRole("donator", !hasRole("donator"))} busy={busy} color="#f472b6" />
           {isOwner && <RoleToggle label="Admin" icon={ShieldAlert} active={hasRole("admin")} onClick={() => onRole("admin", !hasRole("admin"))} busy={busy} color="#818cf8" />}
-          {isOwner && <RoleToggle label="Owner" icon={Crown} active={hasRole("owner")} onClick={() => onRole("owner", !hasRole("owner"))} busy={busy} color="#fbbf24" />}
           {user.banned ? (
             <button disabled={busy} onClick={() => onBan(false)} className="inline-flex items-center gap-1 rounded-md bg-emerald-500/20 px-2 py-1 text-xs font-bold text-emerald-300">
               <ShieldOff className="h-3 w-3" /> Unban
