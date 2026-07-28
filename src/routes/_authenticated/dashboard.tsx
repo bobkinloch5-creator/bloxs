@@ -100,8 +100,8 @@ function Dashboard() {
   const sessFn = useServerFn(getPluginSession);
 
   const { data: projects = [], isLoading } = useQuery({ queryKey: ["projects"], queryFn: () => listFn() });
-  const { data: serverProfile } = useQuery({ queryKey: ["profile"], queryFn: () => profFn(), refetchInterval: 30_000 });
-  const { data: pluginSession } = useQuery({ queryKey: ["pluginSession"], queryFn: () => sessFn(), refetchInterval: 15_000 });
+  const { data: serverProfile } = useQuery({ queryKey: ["profile"], queryFn: () => profFn(), refetchInterval: 60_000, refetchOnWindowFocus: false });
+  const { data: pluginSession } = useQuery({ queryKey: ["pluginSession"], queryFn: () => sessFn(), refetchInterval: 45_000, refetchOnWindowFocus: false });
 
   // Client-side fallback: if server profile is null, read directly from Supabase
   const { data: clientProfile } = useQuery({
@@ -118,7 +118,8 @@ function Dashboard() {
         .maybeSingle();
       return data;
     },
-    refetchInterval: 15_000,
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: false,
   });
 
   const profile = serverProfile ?? clientProfile;

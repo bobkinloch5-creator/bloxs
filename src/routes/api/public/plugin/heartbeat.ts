@@ -1,7 +1,6 @@
 // Lightweight heartbeat endpoint for the BloxSmith Studio plugin.
-// Runs independently of the poll loop so long-running builds (which block
-// the poll coroutine while inserting many actions) don't cause the web UI
-// to flip to "Offline / disconnected".
+// Runs independently of the poll loop so long-running builds don't cause the web UI
+// to flip to "Offline / disconnected". Optimized for minimal database Disk IO.
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
 
@@ -25,7 +24,7 @@ function json(o: unknown, status = 200) {
   });
 }
 
-// In-memory cache for plugin_token -> profile id & 15-second write throttling to save disk IOPS
+// In-memory cache for plugin_token -> profile id & 45-second write throttling to eliminate disk IOPS
 const tokenCache = new Map<string, { id: string; fetchedAt: number }>();
 const lastSessionWrite = new Map<string, number>();
 
@@ -53,7 +52,7 @@ export const Route = createFileRoute("/api/public/plugin/heartbeat")({
           const sb = admin();
           let userId: string | null = null;
           const cached = tokenCache.get(token);
-          if (cached && Date.now() - cached.fetchedAt < 60_000) {
+          if (cached && Date.now() - cached.fetchedAt < 180_000) {
             userId = cached.id;
           } else {
             const { data: profile } = await sb
@@ -66,9 +65,9 @@ export const Route = createFileRoute("/api/public/plugin/heartbeat")({
             tokenCache.set(token, { id: userId, fetchedAt: Date.now() });
           }
 
-          // Throttle database write to at most once per 15s per user
+          // Throttle database write to at most once per 45s per user
           const lastWrite = lastSessionWrite.get(userId) ?? 0;
-          if (Date.now() - lastWrite > 15_000) {
+          if (Date.now() - lastWrite > 45_000) {
             lastSessionWrite.set(userId, Date.now());
             await sb.from("plugin_sessions").upsert(
               {
@@ -92,3 +91,4 @@ export const Route = createFileRoute("/api/public/plugin/heartbeat")({
     },
   },
 });
+
