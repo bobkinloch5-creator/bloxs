@@ -4,9 +4,33 @@ import { checkChangelogCoverage, warnIfIncomplete } from "@/lib/changelog-covera
 import bloxsmithLogo from "@/assets/bloxsmith-logo.png.asset.json";
 
 
-const CHANGELOG_VERSION = "2026-07-26-completion-sound-discord-ux";
+const CHANGELOG_VERSION = "2026-07-28-top-supporter-procedural-maintenance";
 
 const CHANGELOG_ITEMS = [
+  {
+    title: "👑 Automated Top Supporter Role & Profile Badging",
+    date: "Jul 28",
+    icon: Sparkles,
+    body: "PayPal top-ups and donation claim approvals now instantly grant the 'donator' role and set 'has_topup: true' in account settings. Added dynamic 'Top Supporter' badges with Zap & Crown icons across the profile menu, navigation bar, and settings page.",
+  },
+  {
+    title: "🛠️ Natural Language 'Build From Scratch' Auto-Detection",
+    date: "Jul 28",
+    icon: CheckCircle2,
+    body: "BloxSmith now detects phrases like 'from scratch', 'build from scratch', 'procedural map', and 'no toolbox' directly inside prompt text, automatically activating procedural custom-code mode for map generation without requiring a manual toggle switch.",
+  },
+  {
+    title: "🚧 Maintenance Mode Pre-Registration & Sign-Up Gate",
+    date: "Jul 28",
+    icon: ShieldCheck,
+    body: "Updated the site-wide maintenance gate to strictly enforce pre-registration/sign-ups for new users while maintaining seamless administrative access bypasses for site owners.",
+  },
+  {
+    title: "📋 Studio Setup Guide for HTTP & Open Cloud Permissions",
+    date: "Jul 28",
+    icon: ScrollText,
+    body: "Expanded Roblox Studio setup guidance with step-by-step instructions on enabling HTTP Requests, Allow API Services, and Open Cloud API Keys in Game Settings so plugin automation flows work without permission blocks.",
+  },
   {
     title: "🔊 AI & Build Completion Sound Chime + Toggleable Preference",
     date: "Jul 26",
