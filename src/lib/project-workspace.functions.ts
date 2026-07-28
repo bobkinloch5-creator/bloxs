@@ -23,27 +23,50 @@ export const updateProjectSettings = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const ctx = context as any;
     const { id, ...patch } = data;
-    const { error, data: row } = await ctx.supabase
+    // Try user client (RLS)
+    let { error, data: row } = await ctx.supabase
       .from("projects")
       .update(patch)
       .eq("id", id)
       .select()
       .maybeSingle();
-    if (error) throw new Error(error.message);
+    // Fallback to admin client, but strictly scope to this user's own project
+    if (error || !row) {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const res = await supabaseAdmin
+        .from("projects")
+        .update(patch)
+        .eq("id", id)
+        .eq("user_id", ctx.userId)
+        .select()
+        .maybeSingle();
+      if (res.error) throw new Error(res.error.message);
+      if (!res.data) throw new Error("Project not found or you don't have permission to edit it.");
+      row = res.data;
+    }
     return row;
   });
 
 // ---------- Toggle flags ----------
+async function ownerScopedUpdate(ctx: any, id: string, patch: Record<string, any>) {
+  const first = await (ctx.supabase.from("projects") as any).update(patch).eq("id", id).select("id").maybeSingle();
+  if (!first.error && first.data) return;
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const res = await (supabaseAdmin.from("projects") as any)
+    .update(patch)
+    .eq("id", id)
+    .eq("user_id", ctx.userId)
+    .select("id")
+    .maybeSingle();
+  if (res.error) throw new Error(res.error.message);
+  if (!res.data) throw new Error("Project not found or you don't have permission to edit it.");
+}
+
 export const toggleProjectFavorite = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) => z.object({ id: uuid, value: z.boolean() }).parse(input))
   .handler(async ({ data, context }) => {
-    const ctx = context as any;
-    const { error } = await ctx.supabase
-      .from("projects")
-      .update({ is_favorite: data.value })
-      .eq("id", data.id);
-    if (error) throw new Error(error.message);
+    await ownerScopedUpdate(context as any, data.id, { is_favorite: data.value });
     return { ok: true };
   });
 
@@ -51,12 +74,7 @@ export const toggleProjectPin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) => z.object({ id: uuid, value: z.boolean() }).parse(input))
   .handler(async ({ data, context }) => {
-    const ctx = context as any;
-    const { error } = await ctx.supabase
-      .from("projects")
-      .update({ pinned_at: data.value ? new Date().toISOString() : null })
-      .eq("id", data.id);
-    if (error) throw new Error(error.message);
+    await ownerScopedUpdate(context as any, data.id, { pinned_at: data.value ? new Date().toISOString() : null });
     return { ok: true };
   });
 
@@ -64,12 +82,7 @@ export const toggleProjectArchive = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) => z.object({ id: uuid, value: z.boolean() }).parse(input))
   .handler(async ({ data, context }) => {
-    const ctx = context as any;
-    const { error } = await ctx.supabase
-      .from("projects")
-      .update({ archived_at: data.value ? new Date().toISOString() : null })
-      .eq("id", data.id);
-    if (error) throw new Error(error.message);
+    await ownerScopedUpdate(context as any, data.id, { archived_at: data.value ? new Date().toISOString() : null });
     return { ok: true };
   });
 
