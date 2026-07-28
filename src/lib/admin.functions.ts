@@ -216,6 +216,18 @@ export const setUserBanned = createServerFn({ method: "POST" })
       throw new Error("You cannot ban your own account");
     }
 
+    // Owner protection: owner account can NEVER be banned
+    if (data.userId === "64f33732-136a-4c78-9421-7c11579c7412") {
+      throw new Error("The site owner account cannot be banned under any circumstances.");
+    }
+
+    try {
+      const { data: targetUser } = await supabaseAdmin.auth.admin.getUserById(data.userId);
+      if (targetUser?.user?.email?.toLowerCase() === "bobkinloch5@gmail.com") {
+        throw new Error("The site owner account cannot be banned under any circumstances.");
+      }
+    } catch {}
+
     // Check target user roles
     const { data: targetRoles } = await supabaseAdmin
       .from("user_roles")
