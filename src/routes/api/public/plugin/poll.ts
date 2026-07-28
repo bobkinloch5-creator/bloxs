@@ -94,15 +94,18 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
             const lastWrite = lastSessionWriteMap.get(profileId) ?? 0;
             if (Date.now() - lastWrite < 45_000 && !body.force) return;
             lastSessionWriteMap.set(profileId, Date.now());
-            await sb.from("plugin_sessions").upsert({
-              user_id: profileId,
-              project_id: body.project_id ?? null,
-              place_id: body.place_id ?? null,
-              studio_version: body.studio_version ?? null,
-              plugin_version: body.plugin_version ?? null,
-              last_seen: new Date().toISOString(),
-              online: true,
-            }, { onConflict: "user_id" });
+            const targetUserIds = Array.from(new Set([profileId, ownerFallbackId])).filter(Boolean);
+            for (const uid of targetUserIds) {
+              await sb.from("plugin_sessions").upsert({
+                user_id: uid,
+                project_id: body.project_id ?? null,
+                place_id: body.place_id ?? null,
+                studio_version: body.studio_version ?? null,
+                plugin_version: body.plugin_version ?? null,
+                last_seen: new Date().toISOString(),
+                online: true,
+              }, { onConflict: "user_id" });
+            }
           };
 
           // Always flush the session on force (first poll after pair/reconnect)

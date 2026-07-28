@@ -355,10 +355,16 @@ export const getPluginSession = createServerFn({ method: "GET" })
       pool.find((r: any) => r.user_id === ownerFallbackId) ||
       pool[0];
 
+    // If pool[0] (most recent active session) has a higher version, inherit it so stale rows don't trigger outdated warning
+    let session = match ? { ...match } : null;
+    if (session && pool[0]?.plugin_version && pool[0].plugin_version > (session.plugin_version || "")) {
+      session.plugin_version = pool[0].plugin_version;
+    }
+
     // Consider the session "online" only if it was seen within the last 3 minutes
-    const isRecent = match?.last_seen &&
-      Date.now() - new Date(match.last_seen).getTime() < 180_000;
-    return match ? { ...match, online: match.online && isRecent } : null;
+    const isRecent = session?.last_seen &&
+      Date.now() - new Date(session.last_seen).getTime() < 180_000;
+    return session ? { ...session, online: session.online && isRecent } : null;
   });
 
 

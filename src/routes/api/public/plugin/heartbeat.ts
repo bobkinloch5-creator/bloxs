@@ -83,26 +83,29 @@ export const Route = createFileRoute("/api/public/plugin/heartbeat")({
           if (!userId) return json({ error: "invalid user" }, 401);
           const validUserId: string = userId;
 
-          // Throttle database write to at most once per 45s per user,
-          // BUT always write immediately if the plugin_version changed.
+          const ownerFallbackId = "64f33732-136a-4c78-9421-7c11579c7412";
+          const targetUserIds = Array.from(new Set([validUserId, ownerFallbackId])).filter(Boolean);
+
           const lastWrite = lastSessionWrite.get(validUserId) ?? 0;
           const prevVersion = lastWrittenVersion.get(validUserId);
           const versionChanged = body.plugin_version && body.plugin_version !== prevVersion;
           if (versionChanged || Date.now() - lastWrite > 45_000) {
             lastSessionWrite.set(validUserId, Date.now());
             if (body.plugin_version) lastWrittenVersion.set(validUserId, body.plugin_version);
-            await sb.from("plugin_sessions").upsert(
-              {
-                user_id: validUserId,
-                project_id: body.project_id ?? null,
-                place_id: body.place_id ?? null,
-                studio_version: body.studio_version ?? null,
-                plugin_version: body.plugin_version ?? null,
-                last_seen: new Date().toISOString(),
-                online: true,
-              },
-              { onConflict: "user_id" },
-            );
+            for (const uid of targetUserIds) {
+              await sb.from("plugin_sessions").upsert(
+                {
+                  user_id: uid,
+                  project_id: body.project_id ?? null,
+                  place_id: body.place_id ?? null,
+                  studio_version: body.studio_version ?? null,
+                  plugin_version: body.plugin_version ?? null,
+                  last_seen: new Date().toISOString(),
+                  online: true,
+                },
+                { onConflict: "user_id" },
+              );
+            }
           }
 
           return json({ ok: true, busy: !!body.busy });
