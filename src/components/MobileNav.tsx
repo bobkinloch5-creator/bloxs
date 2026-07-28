@@ -3,7 +3,7 @@ import bloxsmithMascot from "@/assets/bloxsmith-mascot.png.asset.json";
 import { useEffect, useState } from "react";
 import { useLang } from "@/lib/i18n";
 import {
-  Users, Plug, Folder, Wand2, Gift, Hammer,
+  Users, Plug, Folder, Wand2, Gift, Hammer, Gamepad2,
   History as HistoryIcon, BookOpen, Settings as SettingsIcon, Crown, Box, LayoutDashboard,
   Menu, X, Home as HomeIcon, CreditCard, Heart, Globe, Zap,
 } from "lucide-react";
@@ -12,6 +12,7 @@ type Item = { label: string; to: string; icon: any };
 
 const CORE: Item[] = [
   { label: "Home",           to: "/dashboard",     icon: HomeIcon },
+  { label: "Showcase",       to: "/showcase",      icon: Gamepad2 },
   { label: "Pricing & Top-Ups", to: "/pricing",    icon: Zap },
   { label: "Front Page",     to: "/",              icon: Globe },
   { label: "Projects",       to: "/projects",      icon: Folder },

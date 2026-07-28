@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   ChevronDown, Crown, Infinity as InfinityIcon, User, Settings, Folder,
-  Zap, Timer, ExternalLink, Languages, Check, LogOut, Home,
+  Zap, Timer, ExternalLink, Languages, Check, LogOut, Home, Gamepad2,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useLang, LANGUAGES } from "@/lib/i18n";
@@ -217,6 +217,7 @@ export function ProfileMenu({ compact = false }: { compact?: boolean }) {
           {t("profile.account")}
         </DropdownMenuLabel>
         <MenuLink to="/" icon={Home} label="Landing page" />
+        <MenuLink to="/showcase" icon={Gamepad2} label="Community Showcase" />
         <MenuLink to="/settings" icon={User} label={t("profile.viewProfile")} />
         <MenuLink to="/pricing" icon={Zap} label="Pricing & Top-Ups" />
         <MenuLink to="/settings" icon={Settings} label={t("profile.accountSettings")} />

@@ -31,6 +31,7 @@ import { ExportGameModal } from "@/components/ExportGameModal";
 import { ProjectFilesPanel } from "@/components/ProjectFilesPanel";
 import { WebsiteGuideModal } from "@/components/WebsiteGuideModal";
 import { CollabModal } from "@/components/CollabModal";
+import { PublishGameModal } from "@/components/PublishGameModal";
 import { useLang } from "@/lib/i18n";
 
 import { Reveal, GlowCard, CountUp } from "@/components/Reveal";
@@ -62,6 +63,7 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
 type NavItem = { key: string; label: string; icon: typeof Box; to: string; exact?: boolean };
 const NAV: NavItem[] = [
   { key: "home",     label: "Home",          icon: HomeIcon,        to: "/dashboard", exact: true },
+  { key: "showcase", label: "Showcase",      icon: Gamepad2,        to: "/showcase" },
   { key: "pricing",  label: "Pricing & Top-Ups", icon: Zap,          to: "/pricing" },
   { key: "frontpage",label: "Front Page",    icon: Globe,           to: "/" },
   { key: "projects", label: "Projects",      icon: Folder,          to: "/projects" },
@@ -147,6 +149,7 @@ function Dashboard() {
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [guideModalOpen, setGuideModalOpen] = useState(false);
   const [collabModalOpen, setCollabModalOpen] = useState(false);
+  const [publishModalOpen, setPublishModalOpen] = useState(false);
   // If localStorage's active id no longer exists, clear it once projects load.
   // Also auto-select the most recent project when none is active so clicking
   // Build doesn't force the user through the "Create a project" modal every
@@ -292,6 +295,15 @@ function Dashboard() {
                 <ExternalLink className="h-3.5 w-3.5 text-indigo-300" /> {t("Studio Plugin")}
               </Link>
               <ChangelogNotifications buttonClassName="vapor-ghost-btn hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold shrink-0" iconClassName="h-3.5 w-3.5 text-indigo-300" />
+              <button
+                type="button"
+                onClick={() => setPublishModalOpen(true)}
+                className="vapor-ghost-btn inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-emerald-300 hover:text-white border border-emerald-500/30 bg-emerald-500/10 rounded-xl shrink-0"
+                title="Publish game to Community Showcase & get +10 credits"
+              >
+                <Upload className="h-3.5 w-3.5 text-emerald-400" /> {t("Publish Game")}
+                <span className="hidden sm:inline rounded-full bg-emerald-500/20 px-1.5 py-0.5 text-[9px] font-black text-emerald-200">+10 Credits</span>
+              </button>
               <button
                 type="button"
                 onClick={() => setGuideModalOpen(true)}
@@ -641,6 +653,11 @@ function Dashboard() {
           ownerId={activeProject.user_id}
         />
       )}
+      <PublishGameModal
+        isOpen={publishModalOpen}
+        onClose={() => setPublishModalOpen(false)}
+        onSuccess={() => qc.invalidateQueries({ queryKey: ["profile"] })}
+      />
       </div>
     </div>
   );
