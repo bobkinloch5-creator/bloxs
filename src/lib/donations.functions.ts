@@ -134,7 +134,7 @@ export const decideDonationClaim = createServerFn({ method: "POST" })
       // 3. Grant credits to profile balance
       const { data: prof } = await supabaseAdmin
         .from("profiles")
-        .select("credits, max_credits")
+        .select("credits, max_credits, settings, plan")
         .eq("id", claim.user_id)
         .maybeSingle();
 
@@ -143,10 +143,20 @@ export const decideDonationClaim = createServerFn({ method: "POST" })
         const currentMax = Number(prof.max_credits ?? 50);
         const newCredits = currentCredits + grantAmount;
         const newMax = Math.max(currentMax, newCredits);
+        const existingSettings = (prof.settings && typeof prof.settings === "object" ? prof.settings : {}) as Record<string, unknown>;
+
+        const updatePayload: Record<string, unknown> = {
+          credits: newCredits,
+          max_credits: newMax,
+          settings: { ...existingSettings, has_topup: true },
+        };
+        if ((prof as any).plan !== "Owner") {
+          updatePayload.plan = "Top Supporter";
+        }
 
         await supabaseAdmin
           .from("profiles")
-          .update({ credits: newCredits, max_credits: newMax })
+          .update(updatePayload as never)
           .eq("id", claim.user_id);
       }
     }

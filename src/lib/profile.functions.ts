@@ -105,6 +105,14 @@ export const getMyProfile = createServerFn({ method: "GET" })
         }
       }
 
+      const { data: rolesData } = await supabaseAdmin
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", targetUserId);
+
+      const userRoles = (rolesData ?? []).map((r: any) => r.role);
+      const isDonator = userRoles.includes("donator") || userRoles.includes("supporter") || userRoles.includes("top_supporter") || ((data as any)?.settings as any)?.has_topup === true || (data as any)?.plan === "Top Supporter";
+
       const result: any = {
         bio: "",
         roblox_username: "",
@@ -117,7 +125,10 @@ export const getMyProfile = createServerFn({ method: "GET" })
         username: isOwner ? "King" : ((data as any)?.username || "King"),
         ...(data || {}),
         id: targetUserId,
-        plan: isOwner ? "Owner" : ((data as any)?.plan || "Free"),
+        is_donator: isOwner ? true : isDonator,
+        is_supporter: isOwner ? true : isDonator,
+        roles: isOwner ? ["owner", "admin", "donator"] : userRoles,
+        plan: isOwner ? "Owner" : (isDonator ? "Top Supporter" : ((data as any)?.plan || "Free")),
         is_admin: isOwner ? true : !!(data as any)?.is_admin,
         credits: isOwner ? 99999 : ((data as any)?.credits ?? 50),
         max_credits: isOwner ? 99999 : ((data as any)?.max_credits ?? 50),

@@ -23,6 +23,7 @@ import {
   Boxes,
   Camera,
   CheckCircle2,
+  Crown,
   Globe2,
   KeyRound,
   Loader2,
@@ -36,6 +37,7 @@ import {
   Users,
   Wand2,
   X as XIcon,
+  Zap,
 } from "lucide-react";
 
 import { LANGUAGES, useLang, type LangCode } from "@/lib/i18n";
@@ -200,7 +202,9 @@ function SettingsPage() {
   const displayName = form.display_name.trim() || (profile as any)?.username || "BloxSmith Creator";
   const initial = displayName.trim().slice(0, 1).toUpperCase() || "B";
   const profileAny = (profile ?? {}) as any;
-  const plan = profileAny.plan ?? "Free";
+  const rawPlan = profileAny.plan ?? "Free";
+  const isDonator = !!(profileAny.is_donator || profileAny.is_supporter || rawPlan === "Top Supporter" || (profileAny.settings as any)?.has_topup);
+  const plan = profileAny.is_admin || rawPlan === "Owner" ? "Owner" : (isDonator ? "Top Supporter" : rawPlan);
   const isUnlimited = !!profileAny.is_admin || plan === "Owner" || plan === "Unlimited";
   const credits = Number(profileAny.credits ?? 0);
   const maxCredits = Number(profileAny.max_credits ?? 0);
@@ -235,13 +239,26 @@ function SettingsPage() {
           <section className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.045] shadow-2xl shadow-black/20 backdrop-blur">
             <div className="h-24 bg-[radial-gradient(circle_at_20%_0%,rgba(99,102,241,.55),transparent_35%),radial-gradient(circle_at_80%_30%,rgba(34,211,238,.35),transparent_35%),linear-gradient(135deg,rgba(76,29,149,.8),rgba(2,6,23,.9))]" />
             <div className="-mt-10 px-5 pb-5">
-              <div className="flex items-end justify-between gap-3">
+              <div className="flex flex-wrap items-end justify-between gap-3">
                 <div className="grid h-20 w-20 place-items-center overflow-hidden rounded-3xl border border-white/15 bg-violet-500 text-3xl font-black text-white shadow-xl">
                   {profileAny.avatar_url ? <img src={profileAny.avatar_url} alt="" className="h-full w-full object-cover" /> : initial}
                 </div>
-                <span className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-emerald-300/25 bg-emerald-400/10 px-3 py-1 text-xs font-bold text-emerald-100">
-                  <BadgeCheck className="h-3.5 w-3.5" /> {plan}
-                </span>
+                <div className="flex flex-col items-end gap-1 mb-1">
+                  <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold ${
+                    plan === "Owner"
+                      ? "border-amber-400/40 bg-amber-400/10 text-amber-200"
+                      : isDonator
+                      ? "border-amber-400/40 bg-amber-400/15 text-amber-300 shadow-sm"
+                      : "border-emerald-300/25 bg-emerald-400/10 text-emerald-100"
+                  }`}>
+                    {plan === "Owner" ? <Crown className="h-3.5 w-3.5 text-amber-300" /> : <BadgeCheck className="h-3.5 w-3.5" />} {plan}
+                  </span>
+                  {isDonator && plan !== "Owner" && (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-cyan-400/40 bg-cyan-400/15 px-2.5 py-0.5 text-[10px] font-black text-cyan-200">
+                      <Zap className="h-2.5 w-2.5 fill-cyan-300 text-cyan-300" /> TOP SUPPORTER
+                    </span>
+                  )}
+                </div>
               </div>
               <h2 className="mt-4 truncate text-2xl font-black text-white">{displayName}</h2>
               <p className="mt-1 text-sm text-muted-foreground">{form.roblox_username ? `@${form.roblox_username}` : "Roblox username not connected yet"}</p>

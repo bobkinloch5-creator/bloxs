@@ -115,6 +115,7 @@ export function ProfileMenu({ compact = false }: { compact?: boolean }) {
 
 
 
+  const isDonator = !!((profile as any)?.is_donator || (profile as any)?.is_supporter || (profile as any)?.plan === "Top Supporter");
   const name = profile?.display_name || profile?.username || "Builder";
   const plan = (profile as any)?.plan || "Builder";
   const isAdmin = !!(profile as any)?.is_admin;
@@ -143,9 +144,10 @@ export function ProfileMenu({ compact = false }: { compact?: boolean }) {
               <span className="flex items-center gap-1 text-[12px] font-bold text-white">
                 <span className="max-w-[110px] truncate">{name}</span>
                 {isAdmin && <Crown className="h-3 w-3 text-amber-300" />}
+                {!isAdmin && isDonator && <Zap className="h-3 w-3 text-amber-300 fill-amber-300/40" title="Top Supporter" />}
               </span>
               <span className="block text-[10px] uppercase tracking-[0.18em] text-cyan-300/80" style={{ fontFamily: "Space Mono, monospace" }}>
-                {isAdmin ? "Owner" : plan}
+                {isAdmin ? "Owner" : (isDonator ? "Top Supporter" : plan)}
               </span>
             </span>
           )}
@@ -168,9 +170,14 @@ export function ProfileMenu({ compact = false }: { compact?: boolean }) {
             <div className="flex items-center gap-1 text-sm font-bold">
               <span className="truncate">{name}</span>
               {isAdmin && <Crown className="h-3.5 w-3.5 shrink-0 text-amber-300" />}
+              {!isAdmin && isDonator && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-400/20 px-1.5 py-0.5 text-[9px] font-black text-amber-300 border border-amber-400/40">
+                  <Zap className="h-2.5 w-2.5 fill-amber-300" /> SUPPORTER
+                </span>
+              )}
             </div>
             <div className="truncate text-[10px] uppercase tracking-[0.2em] text-cyan-300/80" style={{ fontFamily: "Space Mono, monospace" }}>
-              {isAdmin ? "Owner Plan" : `${plan} Plan`}
+              {isAdmin ? "Owner Plan" : (isDonator ? "Top Supporter Plan" : `${plan} Plan`)}
             </div>
           </div>
         </div>

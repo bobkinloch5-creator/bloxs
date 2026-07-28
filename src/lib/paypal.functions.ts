@@ -71,15 +71,36 @@ export const addCreditsFromPayPal = createServerFn({ method: "POST" })
 
     const currentCredits = Number(profile.credits ?? 0);
     const newCredits = currentCredits + pack.credits;
+    const existingSettings = (profile.settings && typeof profile.settings === "object" ? profile.settings : {}) as Record<string, unknown>;
+
+    const updatePayload: Record<string, unknown> = {
+      credits: newCredits,
+      settings: { ...existingSettings, has_topup: true },
+    };
+    if ((profile as any).plan !== "Owner") {
+      updatePayload.plan = "Top Supporter";
+    }
 
     const { data: updated, error: updateErr } = await supabaseAdmin
       .from("profiles")
-      .update({ credits: newCredits } as never)
+      .update(updatePayload as never)
       .eq("id", ctx.userId)
       .select("credits, max_credits")
       .single();
 
     if (updateErr) throw new Error("Failed to update credit balance.");
+
+    // Grant Top Supporter / Donator role in user_roles
+    try {
+      await supabaseAdmin
+        .from("user_roles")
+        .upsert(
+          { user_id: ctx.userId, role: "donator" } as never,
+          { onConflict: "user_id,role" }
+        );
+    } catch (e) {
+      console.warn("Failed to grant donator role in user_roles:", e);
+    }
 
     // Log transaction
     try {
