@@ -160,6 +160,26 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
             if (userRes.error) return { error: userRes.error.message };
             if ((userRes.data ?? []).length > 0) return userRes.data ?? [];
 
+            // 2b. Project-based fallback: the JWT userId (used when inserting actions)
+            //     may differ from the plugin-token-resolved profileId. Fetch pending
+            //     actions for any project owned by this profile so they're always found.
+            const { data: ownedProjects } = await sb
+              .from("projects")
+              .select("id")
+              .eq("user_id", profileId)
+              .limit(50);
+            const ownedProjectIds = (ownedProjects ?? []).map((p: { id: string }) => p.id).filter(Boolean);
+            if (ownedProjectIds.length > 0) {
+              const projRes = await sb
+                .from("plugin_actions")
+                .select(actionSelect)
+                .eq("status", "pending")
+                .in("project_id", ownedProjectIds)
+                .order("created_at", { ascending: true })
+                .limit(100);
+              if (!projRes.error && (projRes.data ?? []).length > 0) return projRes.data ?? [];
+            }
+
             // 3. Global safety fallback: fetch any recent pending actions created in last 30 min
             const thirtyMinAgo = new Date(Date.now() - 30 * 60_000).toISOString();
             const fallbackRes = await sb
