@@ -32,6 +32,7 @@ import { ProjectFilesPanel } from "@/components/ProjectFilesPanel";
 import { WebsiteGuideModal } from "@/components/WebsiteGuideModal";
 import { CollabModal } from "@/components/CollabModal";
 import { PublishGameModal } from "@/components/PublishGameModal";
+import { ExecutionLogPanel } from "@/components/ExecutionLogPanel";
 import { useLang } from "@/lib/i18n";
 
 import { Reveal, GlowCard, CountUp } from "@/components/Reveal";
@@ -601,12 +602,18 @@ function Dashboard() {
 
                 {/* Right Sidebar Column: Roblox Project Files Explorer & Exporter */}
                 <div className="space-y-6 lg:col-span-5 xl:col-span-4">
-                  <div className="sticky top-6">
+                  <div className="sticky top-6 space-y-6">
                     {activeProjectId ? (
-                      <ProjectFilesPanel
-                        projectId={activeProjectId}
-                        projectName={activeProject?.name ?? "Roblox Project"}
-                      />
+                      <>
+                        <ExecutionLogPanel
+                          projectId={activeProjectId}
+                          projectName={activeProject?.name ?? "Roblox Project"}
+                        />
+                        <ProjectFilesPanel
+                          projectId={activeProjectId}
+                          projectName={activeProject?.name ?? "Roblox Project"}
+                        />
+                      </>
                     ) : (
                       <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 bg-slate-900/60 p-6 text-center shadow-xl backdrop-blur-xl">
                         <FolderTree className="h-10 w-10 text-slate-600 mb-3" />
