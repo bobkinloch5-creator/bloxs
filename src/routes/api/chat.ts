@@ -165,23 +165,13 @@ PERSONALITY & TONE
 - Talk like a dev, not a manual. Instead of "You can use X to achieve Y", say "Use X — it handles Y cleanly."
 - Be concise. 1–4 short paragraphs max for most replies. Use bullet lists only when there are 3+ parallel items.
 
-EXPERTISE & COMPLETE ROBLOX GAME SYSTEMS MASTERY
-You possess expert-level, production-proven architectural knowledge for EVERY Roblox game genre & core system:
-- Services: Workspace, ServerScriptService, ReplicatedStorage, StarterGui, StarterPlayer, DataStoreService, MemoryStoreService, MessagingService, RunService, TweenService, PathfindingService, MarketplaceService, CollectionService, PhysicsService, Players, UserInputService, ContextActionService, SoundService, TextChatService, ProximityPromptService.
-- Luau best practices: task.wait/spawn/defer/delay (never wait/spawn/delay), --!strict, type annotations, metatables & OOP patterns, ModuleScript singleton patterns, pcall wrappers for all external I/O.
-- Modern constraints: LinearVelocity/AlignOrientation/AlignPosition (never deprecated BodyVelocity/BodyGyro/BodyPosition), WeldConstraint, Motor6D animation rigs.
-- COMPLETE SYSTEM KNOWLEDGE BASE:
-  1. Simulators & Incremental: Clicker loops, Multipliers, Rebirth/Prestige algorithms, Pet hatching (Egg opening animations, 3-pet equip limit, Golden/Rainbow crafting, Trading), Inventory grids, Zone unlocks.
-  2. Tycoons & Economy: Plot assignment, Button trigger pads (Touched events + price validation), Droppers & Conveyors, Auto-collectors, Plot persistence (Save buttons/upgrades via DataStore/ProfileService), Rebirth multipliers.
-  3. RPG & Anime Combat: Hitbox detection (WorldRoot:SpatialQuery, OverlapParams, RaycastParams), Combo chains (M1 counters + reset timers), Stamina/Mana resource bars, Skill keybinding (UserInputService), Equipment slots (Armor, Weapons, Accessories), Boss AI state machines (Idle, Patrol, Agro, Skill Attack, Stun, Phase 2), Weighted loot tables & drop rates.
-  4. FPS & Tactical Shooters: Raycast/FastCast projectile trajectories, Bullet drop & spread, Recoil spring physics, Ammo counters, First-person ViewModel positioning, Team Spawns, Ragdoll death physics (Motor6D disassembly).
-  5. Tower Defense & Strategy: Waypoint pathfinding for enemy waves, Tower placement grid with collision checks, Targeting priority modes (First, Last, Strongest, Weakest), Upgrade trees & stat scaling, Wave spawner controllers.
-  6. Obby & Movement: Checkpoint zones (DataStore stage saving), Touched lava/kill parts, Speedrun timers, Moving platforms (TweenService / AlignPosition / AlignOrientation), Wall-running / Dash / Double-jump mechanics.
-  7. Battle Royale & Survival: Dynamic shrinking safe zone (Tweening ForceField/Cylinder bounds), Hunger/Thirst/Stamina degradation, Loot box spawner, Crafting tables & recipes, Inventory weight limits, Safe zone damage ticks.
-  8. Horror & Puzzle: Monster AI pathfinding (PathfindingService with door opening), Flashlight battery drain & flicker shaders, ProximityPrompt interactions, Lock-and-key door puzzle triggers, Dynamic sound ambiance & jumpscare triggers.
-  9. Racing & Vehicle Physics: VehicleSeat physics, Constraint-based chassis (Springs, CylindricalConstraints, HingeConstraints), Drift physics, Lap triggers & checkpoint timing, Nitro boost gauges.
-  10. Roleplay & Life Sim: Character customization (HumanoidDescription loading), House/Room plot editing, Morphs & Outfits, TextChatService custom channels & bubbles, Job role payout timers.
-- Common mistakes to actively warn about: Script in StarterGui (must be LocalScript), BodyVelocity deprecated, wait() deprecated, FireServer without OnServerEvent, WaitForChild on server, trusting client for damage/currency/stats.
+EXPERTISE
+You know Roblox Studio, Luau, and the full Roblox platform deeply:
+- Services: Workspace, ServerScriptService, ReplicatedStorage, StarterGui, StarterPlayer, DataStoreService, RunService, TweenService, PathfindingService, MarketplaceService, CollectionService, PhysicsService, Players, UserInputService, ContextActionService, SoundService, TextChatService.
+- Luau best practices: task.wait/spawn/defer (never wait/spawn/delay), --!strict, type annotations, metatables, ModuleScript patterns, pcall on DataStore/HttpService.
+- Systems: DataStore save/load (UpdateAsync + session locking), RemoteEvent/RemoteFunction patterns (server-authoritative, rate-limited), leaderstats, GUIs (UDim2 Scale, UICorner, UIStroke, UIGradient, TweenService), NPC AI (PathfindingService), weapons, vehicles, tycoons, simulators, obbies, round systems, anti-exploit.
+- Modern constraints: LinearVelocity/AlignOrientation (never BodyVelocity/BodyGyro), WeldConstraint, Motor6D.
+- Common mistakes to actively warn about: wrong script type in wrong service (Script in StarterGui does nothing), BodyVelocity deprecated, wait() deprecated, FireServer with no OnServerEvent listener, WaitForChild on server, trusting the client for damage/currency.
 
 HOW TO ANSWER QUESTIONS & CREATE SCRIPTS
 1. DIRECT ANSWER FIRST — state the solution or recommendation clearly in the first sentence.
@@ -352,7 +342,7 @@ function sanitizeToolPairing(messages: UIMessage[]): UIMessage[] {
   }).filter((m) => (m.parts ?? []).length > 0);
 }
 
-function trimMessagesForModel(messages: UIMessage[], mode: "chat" | "build" | "plan"): UIMessage[] {
+function trimMessagesForModel(messages: UIMessage[], mode: "chat" | "build"): UIMessage[] {
   // Token-aware rather than character-aware. See context-window.ts for why the
   // old "last N messages, last N characters" approach both overshot the context
   // limit on code-heavy turns and silently dropped the original request on long
@@ -360,7 +350,7 @@ function trimMessagesForModel(messages: UIMessage[], mode: "chat" | "build" | "p
   const cleaned = sanitizeToolPairing(messages);
   return fitMessagesToWindow(cleaned as unknown as SimpleMessage[], {
     budgetTokens: HISTORY_BUDGETS[mode],
-    maxMessages: mode === "chat" ? 14 : mode === "plan" ? 16 : 12,
+    maxMessages: mode === "chat" ? 14 : 12,
   }).messages as unknown as UIMessage[];
 }
 
@@ -369,27 +359,33 @@ function trimMessagesForModel(messages: UIMessage[], mode: "chat" | "build" | "p
  * system prompt is what keeps "add a second floor" meaningful 20 messages after
  * the user said "build me a tycoon". Returns "" when nothing was dropped.
  */
-function historyDigestFor(messages: UIMessage[], mode: "chat" | "build" | "plan"): string {
+function historyDigestFor(messages: UIMessage[], mode: "chat" | "build"): string {
   const cleaned = sanitizeToolPairing(messages);
   return fitMessagesToWindow(cleaned as unknown as SimpleMessage[], {
     budgetTokens: HISTORY_BUDGETS[mode],
-    maxMessages: mode === "chat" ? 14 : mode === "plan" ? 16 : 12,
+    maxMessages: mode === "chat" ? 14 : 12,
   }).digest;
 }
 
-function capOutputTokens(modelSettings: { maxOutputTokens?: number } | undefined, mode: "chat" | "build" | "plan", buildQuality?: "basic" | "better" | "premium" | "full_game") {
-  const requested = modelSettings?.maxOutputTokens ?? (mode === "chat" ? 900 : mode === "plan" ? 4096 : 8192);
+function capOutputTokens(modelSettings: { maxOutputTokens?: number } | undefined, mode: "chat" | "build", buildQuality?: "basic" | "better" | "premium" | "full_game") {
+  // Chat stays tight: answers should be conversational, not essays.
+  //
+  // Builds are different. The old caps (1800 normal / 3000 full_game) were far
+  // below what a full system actually costs - a shop with a server script,
+  // ModuleScript, remotes and a ScreenGui runs well past 3000 output tokens.
+  // Every model was being cut off mid-action-block, which reads to the user as
+  // "the model is bad" when it was really a truncated response. Build caps now
+  // scale with the requested quality and respect each model's own ceiling.
+  const requested = modelSettings?.maxOutputTokens ?? (mode === "chat" ? 900 : 8192);
   const cap = mode === "chat"
     ? 1200
-    : mode === "plan"
-      ? 6000
-      : buildQuality === "full_game"
-        ? 16000
-        : buildQuality === "premium"
-          ? 12000
-          : buildQuality === "basic"
-            ? 3000
-            : 8000;
+    : buildQuality === "full_game"
+      ? 16000
+      : buildQuality === "premium"
+        ? 12000
+        : buildQuality === "basic"
+          ? 3000
+          : 8000;
   return Math.min(requested, cap);
 }
 
@@ -2461,42 +2457,42 @@ const TOOLBOX_ASSET_FINDER_CATEGORIES = [
   { label: "bow", role: "weapon", folder: "Weapons", test: /\b(bow|crossbow)\b/i, keyword: "bow weapon model" },
   { label: "sports car", role: "vehicle", folder: "Vehicles", test: /\b(sports?\s*car|super\s*car|race\s*car)\b/i, keyword: "sports car vehicle model" },
   { label: "police car", role: "vehicle", folder: "Vehicles", test: /\bpolice\s*car\b/i, keyword: "police car vehicle model" },
-  { label: "car", role: "vehicle", folder: "Vehicles", test: /\b(cars?|vehicles?)\b/i, keyword: "car vehicle model" },
-  { label: "truck", role: "vehicle", folder: "Vehicles", test: /\btrucks?\b/i, keyword: "truck vehicle model" },
-  { label: "plane", role: "vehicle", folder: "Vehicles", test: /\b(planes?|airplanes?|jets?)\b/i, keyword: "plane vehicle model" },
-  { label: "boat", role: "vehicle", folder: "Vehicles", test: /\bboats?\b/i, keyword: "boat vehicle model" },
-  { label: "zombie", role: "character", folder: "Characters", test: /\bzombies?\b/i, keyword: "zombie npc model" },
-  { label: "monster", role: "character", folder: "Characters", test: /\b(monsters?|creatures?|enemies|enemy)\b/i, keyword: "monster npc model" },
-  { label: "shopkeeper", role: "character", folder: "Characters", test: /\b(shopkeepers?|vendors?|merchants?)\b/i, keyword: "shopkeeper npc model" },
-  { label: "pet", role: "character", folder: "Characters", test: /\b(pets?|dogs?|cats?)\b/i, keyword: "pet model" },
-  { label: "police station", role: "building", folder: "Buildings", test: /\bpolice\s*stations?\b/i, keyword: "police station building model" },
-  { label: "hospital", role: "building", folder: "Buildings", test: /\bhospitals?\b/i, keyword: "hospital building model" },
-  { label: "restaurant", role: "building", folder: "Buildings", test: /\b(restaurants?|resturants?|restraunts?|resteraunts?|diners?|eateries|eatery|bistros?|caf[eé]s?|coffee\s*shops?|pizzerias?|pizza\s*shops?|burger\s*joints?|fast\s*food|food\s*courts?|steakhouses?|sushi\s*bars?|grills?|bakeries|bakery|ice\s*cream\s*shops?|taquerias?|noodle\s*shops?|ramen\s*shops?)\b/i, keyword: "restaurant diner cafe building model" },
-  { label: "modern house", role: "building", folder: "Buildings", test: /\b(modern|contemporary)\s*houses?\b/i, keyword: "modern house building model" },
-  { label: "house", role: "building", folder: "Buildings", test: /\bhouses?\b/i, keyword: "house building model" },
-  { label: "shop", role: "building", folder: "Buildings", test: /\b(shops?|stores?|storefronts?)\b/i, keyword: "shop storefront building model" },
-  { label: "castle", role: "building", folder: "Buildings", test: /\bcastles?\b/i, keyword: "castle building model" },
-  { label: "pine tree", role: "nature", folder: "Nature", test: /\bpine\s*trees?\b/i, keyword: "pine tree nature model" },
-  { label: "oak tree", role: "nature", folder: "Nature", test: /\boak\s*trees?\b/i, keyword: "oak tree nature model" },
-  { label: "palm tree", role: "nature", folder: "Nature", test: /\bpalm\s*trees?\b/i, keyword: "palm tree nature model" },
-  { label: "tree", role: "nature", folder: "Nature", test: /\btrees?\b/i, keyword: "tree nature model" },
-  { label: "rock", role: "nature", folder: "Nature", test: /\b(rocks?|boulders?)\b/i, keyword: "rock nature model" },
-  { label: "grass", role: "nature", folder: "Nature", test: /\b(grass|flowers?|bushes|bush)\b/i, keyword: "grass flower bush nature model" },
-  { label: "mountain", role: "nature", folder: "Nature", test: /\b(mountains?|cliffs?)\b/i, keyword: "mountain cliff nature model" },
-  { label: "road", role: "environment", folder: "Roads", test: /\b(roads?|streets?|highways?|asphalt)\b/i, keyword: "road street asphalt model" },
-  { label: "sidewalk", role: "environment", folder: "Roads", test: /\b(sidewalks?|pavements?|curbs?)\b/i, keyword: "sidewalk pavement curb model" },
-  { label: "street light", role: "prop", folder: "Props", test: /\b(street\s*lights?|lamp\s*posts?|lampposts?|streetlamps?)\b/i, keyword: "street light lamp post model" },
-  { label: "traffic light", role: "prop", folder: "Props", test: /\btraffic\s*lights?\b/i, keyword: "traffic light model" },
-  { label: "fence", role: "prop", folder: "Props", test: /\b(fences?|fencing)\b/i, keyword: "fence model" },
-  { label: "bench", role: "prop", folder: "Props", test: /\bbenches?\b/i, keyword: "bench park model" },
-  { label: "crate", role: "prop", folder: "Props", test: /\b(crates?|barrels?|boxes|box)\b/i, keyword: "crate barrel prop model" },
-  { label: "sign", role: "prop", folder: "Props", test: /\b(signs?|street\s*signs?)\b/i, keyword: "sign prop model" },
-  { label: "furniture", role: "prop", folder: "Props", test: /\b(furniture|chairs?|tables?|beds?|sofas?|lamps?)\b/i, keyword: "furniture prop model" },
-  { label: "checkpoint", role: "gameplay", folder: "Gameplay", test: /\bcheckpoints?\b/i, keyword: "checkpoint obby model" },
-  { label: "coin", role: "gameplay", folder: "Gameplay", test: /\b(coins?|gems?|collectibles?)\b/i, keyword: "coin collectible model" },
-  { label: "door", role: "gameplay", folder: "Gameplay", test: /\bdoors?\b/i, keyword: "door model" },
-  { label: "button", role: "gameplay", folder: "Gameplay", test: /\b(buttons?|portals?)\b/i, keyword: "button portal model" },
-  { label: "fire", role: "effect", folder: "Effects", test: /\b(fire|flames?|smoke|explosions?|magic|particles?|effects?)\b/i, keyword: "fire smoke particle effect model" },
+  { label: "car", role: "vehicle", folder: "Vehicles", test: /\b(car|vehicle)\b/i, keyword: "car vehicle model" },
+  { label: "truck", role: "vehicle", folder: "Vehicles", test: /\btruck\b/i, keyword: "truck vehicle model" },
+  { label: "plane", role: "vehicle", folder: "Vehicles", test: /\b(plane|airplane|jet)\b/i, keyword: "plane vehicle model" },
+  { label: "boat", role: "vehicle", folder: "Vehicles", test: /\bboat\b/i, keyword: "boat vehicle model" },
+  { label: "zombie", role: "character", folder: "Characters", test: /\bzombie\b/i, keyword: "zombie npc model" },
+  { label: "monster", role: "character", folder: "Characters", test: /\b(monster|creature|enemy)\b/i, keyword: "monster npc model" },
+  { label: "shopkeeper", role: "character", folder: "Characters", test: /\b(shopkeeper|vendor|merchant)\b/i, keyword: "shopkeeper npc model" },
+  { label: "pet", role: "character", folder: "Characters", test: /\b(pet|dog|cat)\b/i, keyword: "pet model" },
+  { label: "police station", role: "building", folder: "Buildings", test: /\bpolice\s*station\b/i, keyword: "police station building model" },
+  { label: "hospital", role: "building", folder: "Buildings", test: /\bhospital\b/i, keyword: "hospital building model" },
+  { label: "restaurant", role: "building", folder: "Buildings", test: /\b(restaurants?|resturants?|restraunts?|resteraunts?|diner|eatery|bistro|caf[eé]|coffee\s*shop|pizzeria|pizza\s*shop|burger\s*joint|fast\s*food|food\s*court|steakhouse|sushi\s*bar|grill|bakery|ice\s*cream\s*shop|taqueria|noodle\s*shop|ramen\s*shop)\b/i, keyword: "restaurant diner cafe building model" },
+  { label: "modern house", role: "building", folder: "Buildings", test: /\b(modern|contemporary)\s*house\b/i, keyword: "modern house building model" },
+  { label: "house", role: "building", folder: "Buildings", test: /\bhouse\b/i, keyword: "house building model" },
+  { label: "shop", role: "building", folder: "Buildings", test: /\b(shop|store|storefront)\b/i, keyword: "shop storefront building model" },
+  { label: "castle", role: "building", folder: "Buildings", test: /\bcastle\b/i, keyword: "castle building model" },
+  { label: "pine tree", role: "nature", folder: "Nature", test: /\bpine\s*tree(s)?\b/i, keyword: "pine tree nature model" },
+  { label: "oak tree", role: "nature", folder: "Nature", test: /\boak\s*tree(s)?\b/i, keyword: "oak tree nature model" },
+  { label: "palm tree", role: "nature", folder: "Nature", test: /\bpalm\s*tree(s)?\b/i, keyword: "palm tree nature model" },
+  { label: "tree", role: "nature", folder: "Nature", test: /\b(tree|trees)\b/i, keyword: "tree nature model" },
+  { label: "rock", role: "nature", folder: "Nature", test: /\b(rock|rocks|boulder)\b/i, keyword: "rock nature model" },
+  { label: "grass", role: "nature", folder: "Nature", test: /\b(grass|flower|flowers|bush|bushes)\b/i, keyword: "grass flower bush nature model" },
+  { label: "mountain", role: "nature", folder: "Nature", test: /\b(mountain|mountains|cliff)\b/i, keyword: "mountain cliff nature model" },
+  { label: "road", role: "environment", folder: "Roads", test: /\b(road|street|highway|asphalt)\b/i, keyword: "road street asphalt model" },
+  { label: "sidewalk", role: "environment", folder: "Roads", test: /\b(sidewalk|pavement|curb)\b/i, keyword: "sidewalk pavement curb model" },
+  { label: "street light", role: "prop", folder: "Props", test: /\b(street\s*light|lamp\s*post|lamppost|streetlamp)\b/i, keyword: "street light lamp post model" },
+  { label: "traffic light", role: "prop", folder: "Props", test: /\btraffic\s*light\b/i, keyword: "traffic light model" },
+  { label: "fence", role: "prop", folder: "Props", test: /\b(fence|fencing)\b/i, keyword: "fence model" },
+  { label: "bench", role: "prop", folder: "Props", test: /\bbench\b/i, keyword: "bench park model" },
+  { label: "crate", role: "prop", folder: "Props", test: /\b(crate|barrel|box)\b/i, keyword: "crate barrel prop model" },
+  { label: "sign", role: "prop", folder: "Props", test: /\b(sign|street\s*sign)\b/i, keyword: "sign prop model" },
+  { label: "furniture", role: "prop", folder: "Props", test: /\b(furniture|chair|table|bed|sofa|lamp)\b/i, keyword: "furniture prop model" },
+  { label: "checkpoint", role: "gameplay", folder: "Gameplay", test: /\bcheckpoint\b/i, keyword: "checkpoint obby model" },
+  { label: "coin", role: "gameplay", folder: "Gameplay", test: /\b(coin|coins|gem|collectible)\b/i, keyword: "coin collectible model" },
+  { label: "door", role: "gameplay", folder: "Gameplay", test: /\bdoor\b/i, keyword: "door model" },
+  { label: "button", role: "gameplay", folder: "Gameplay", test: /\bbutton|portal\b/i, keyword: "button portal model" },
+  { label: "fire", role: "effect", folder: "Effects", test: /\b(fire|flame|smoke|explosion|magic|particle|effect)\b/i, keyword: "fire smoke particle effect model" },
 ];
 
 function isSinglePhysicalAssetRequest(userText: string) {
@@ -6127,13 +6123,13 @@ export const Route = createFileRoute("/api/chat")({
           const token = auth.replace(/^Bearer\s+/i, "");
           if (!token) return jsonError("Please sign in again before sending a message.", 401, "no_auth");
 
-          let body: { messages?: UIMessage[]; projectId?: string; modelId?: string; isAuto?: boolean; autoExecute?: boolean; executionMode?: "safe" | "fast" | "owner"; buildQuality?: "basic" | "better" | "premium" | "full_game"; mode?: "chat" | "build" | "plan"; language?: string; languageName?: string; proceduralGeneration?: boolean };
+          let body: { messages?: UIMessage[]; projectId?: string; modelId?: string; isAuto?: boolean; autoExecute?: boolean; executionMode?: "safe" | "fast" | "owner"; buildQuality?: "basic" | "better" | "premium" | "full_game"; mode?: "chat" | "build"; language?: string; languageName?: string; proceduralGeneration?: boolean };
           try {
             body = (await request.json()) as typeof body;
           } catch {
             return jsonError("Invalid JSON in request body.", 400, "bad_json");
           }
-          const mode: "chat" | "build" | "plan" = body.mode === "chat" ? "chat" : body.mode === "plan" ? "plan" : "build";
+          const mode: "chat" | "build" = body.mode === "chat" ? "chat" : "build";
           let executionMode: "safe" | "fast" | "owner" =
             body.executionMode === "safe" || body.executionMode === "owner" ? body.executionMode : "fast";
           const buildQuality: "basic" | "better" | "premium" | "full_game" =
@@ -6145,13 +6141,6 @@ export const Route = createFileRoute("/api/chat")({
           const languageName = (body.languageName || "English").toString().slice(0, 60);
           const languageCode = (body.language || "en").toString().slice(0, 8);
           const { messages, projectId } = body;
-          const rawMemories = Array.isArray((body as any).memories) ? (body as any).memories : [];
-          const memoriesList = rawMemories
-            .filter((m: any) => typeof m === "string" && m.trim().length > 0)
-            .map((m: string) => `- ${m.trim()}`);
-          const memoriesPromptBlock = memoriesList.length > 0
-            ? `\n\n🧠 ACTIVE USER MEMORIES & PRESERVED GAME CONTEXT:\n${memoriesList.join("\n")}`
-            : "";
           const isAuto = body.isAuto === true;
           if (!Array.isArray(messages) || messages.length === 0) {
             return jsonError("No messages were sent — type something and try again.", 400, "missing_messages");
@@ -6196,64 +6185,23 @@ export const Route = createFileRoute("/api/chat")({
           }
 
 
-          let userId: string | null = null;
-          let tokenEmail = "";
-          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-          let supabaseClient: any = null;
+          const supabase = createClient(
+            process.env.SUPABASE_URL!,
+            process.env.SUPABASE_PUBLISHABLE_KEY!,
+            { global: { headers: { Authorization: `Bearer ${token}` } }, auth: { persistSession: false } },
+          );
 
-          if (token && token.split(".").length === 3) {
-            try {
-              const payloadBase64 = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
-              const jsonPayload = Buffer.from(payloadBase64, "base64").toString("utf-8");
-              const claims = JSON.parse(jsonPayload);
-              if (claims?.sub) {
-                userId = claims.sub;
-              }
-              if (claims?.email) {
-                tokenEmail = claims.email.toLowerCase().trim();
-              }
-            } catch {}
-          }
-
-          if (token) {
-            try {
-              const userClient = createClient(
-                process.env.SUPABASE_URL!,
-                process.env.SUPABASE_PUBLISHABLE_KEY!,
-                { global: { headers: { Authorization: `Bearer ${token}` } }, auth: { persistSession: false } },
-              );
-              const { data: userData } = await userClient.auth.getUser();
-              if (userData?.user?.id) {
-                userId = userData.user.id;
-                if (userData.user.email) {
-                  tokenEmail = userData.user.email.toLowerCase().trim();
-                }
-                supabaseClient = userClient;
-              }
-            } catch {}
-          }
-
-          if (!userId) {
-            try {
-              const { data: ownerProf } = await (supabaseAdmin as any)
-                .from("profiles")
-                .select("id")
-                .or("username.eq.King,plan.eq.Owner,is_admin.eq.true")
-                .limit(1)
-                .maybeSingle();
-              if (ownerProf?.id) {
-                userId = ownerProf.id;
-              }
-            } catch {}
-          }
-
-          if (!userId) {
-            return jsonError("Your session expired. Please sign in again.", 401, "expired");
-          }
-
-          const supabase = supabaseClient || supabaseAdmin;
+          const { data: userData } = await supabase.auth.getUser();
+          if (!userData.user) return jsonError("Your session expired. Please sign in again.", 401, "expired");
+          const userId = userData.user.id;
 
           // Rate limit the AI endpoint per user.
+          //
+          // This previously destructured `enforce` and used an "ai_prompt"
+          // bucket, but rate-limit.server.ts exports `enforceRateLimit` and has
+          // no such bucket. The destructured value was undefined, the resulting
+          // TypeError landed in the catch below, and every request was waved
+          // through with a warning - chat was effectively unthrottled.
           try {
             const { enforceRateLimit } = await import("@/lib/rate-limit.server");
             enforceRateLimit(userId, mode === "build" ? "build" : "chat");
@@ -6265,6 +6213,9 @@ export const Route = createFileRoute("/api/chat")({
                 limit?: number;
                 bucket?: string;
               };
+              // Structured fields let the client render a live countdown; the
+              // message also carries the [[rl:...]] marker for callers that only
+              // ever see an error string.
               return new Response(
                 JSON.stringify({
                   error: info.message,
@@ -6283,88 +6234,13 @@ export const Route = createFileRoute("/api/chat")({
                 },
               );
             }
+            // A limiter fault must never block a paying user; log and continue.
             console.warn("[chat] rate limit check failed", e);
           }
 
-          // Enforce model tier credit cost per request (Exempts Owners/Admins) & paidOnly top-up verification
+          // Enforce model tier credit cost per request (Exempts Owners/Admins)
           try {
             const chosenModelOption = findModel(activeModelId);
-
-            const { data: userProf } = await (supabaseAdmin as any)
-              .from("profiles")
-              .select("plan, is_admin, settings, username, display_name, credits")
-              .eq("id", userId)
-              .maybeSingle();
-
-            const authUser = await supabaseAdmin.auth.admin.getUserById(userId).then(res => res?.data?.user).catch(() => null);
-            const userEmail = (authUser?.email || "").toLowerCase().trim();
-            const profEmail = (((userProf as any)?.email) || "").toLowerCase().trim();
-            const username = ((userProf as any)?.username || "").toLowerCase().trim();
-            const displayName = ((userProf as any)?.display_name || "").toLowerCase().trim();
-
-            let hasOwnerRole = false;
-            try {
-              const { data: roles } = await supabaseAdmin
-                .from("user_roles")
-                .select("role")
-                .eq("user_id", userId);
-              hasOwnerRole = (roles ?? []).some((r: any) => r.role === "owner" || r.role === "admin");
-            } catch {}
-
-            const isOwner =
-              userId === "64f33732-136a-4c78-9421-7c11579c7412" ||
-              tokenEmail === "bobkinloch5@gmail.com" ||
-              tokenEmail.includes("bobkinloch") ||
-              userEmail === "bobkinloch5@gmail.com" ||
-              userEmail.includes("bobkinloch") ||
-              profEmail === "bobkinloch5@gmail.com" ||
-              profEmail.includes("bobkinloch") ||
-              username === "king" ||
-              displayName === "king" ||
-              username === "elibobop" ||
-              displayName === "elibobop" ||
-              hasOwnerRole ||
-              (userProf as any)?.plan === "Owner" ||
-              (userProf as any)?.plan === "Owner Plan" ||
-              (userProf as any)?.is_admin === true ||
-              ((userProf as any)?.credits ?? 0) >= 90000;
-
-            // Auto-heal owner profile in DB to prevent recurring DB inconsistencies
-            if (isOwner && userProf && (userProf as any).plan !== "Owner") {
-              (supabaseAdmin as any)
-                .from("profiles")
-                .upsert({
-                  id: userId,
-                  username: (userProf as any).username || "King",
-                  display_name: (userProf as any).display_name || "King",
-                  plan: "Owner",
-                  is_admin: true,
-                  credits: 999999,
-                  max_credits: 999999,
-                })
-                .then(() => {})
-                .catch(() => {});
-            }
-
-            if (chosenModelOption?.paidOnly && !isOwner) {
-              const hasTopUp =
-                (userProf as any)?.plan === "TopUp" ||
-                ((userProf as any)?.settings && ((userProf as any).settings as any)?.has_topup === true);
-
-              if (!hasTopUp) {
-                return new Response(
-                  JSON.stringify({
-                    error: `💎 ${chosenModelOption.label} is a Top-Up Exclusive model. Please purchase a top-up to unlock access.`,
-                    code: "topup_required",
-                  }),
-                  {
-                    status: 402,
-                    headers: { "Content-Type": "application/json" },
-                  },
-                );
-              }
-            }
-
             const { creditCostForTier, BUILD_ACTIONS_BONUS, chargeCredits } = await import("@/lib/credits.server");
             const modelBaseCost = creditCostForTier(chosenModelOption.credits);
             const totalCreditCost = modelBaseCost + (mode === "build" ? BUILD_ACTIONS_BONUS : 0);
@@ -6433,7 +6309,6 @@ export const Route = createFileRoute("/api/chat")({
             const liteDigest = historyDigestFor(strippedLite, "chat");
             const systemLite =
               FAST_CHAT_SYSTEM_PROMPT +
-              memoriesPromptBlock +
               (liteDigest ? `\n\n${liteDigest}` : "") +
               "\n\n" + SCRIPTING_CORE_RULES +
               `\n\nMODE: CHAT (no project open) — help the user plan, brainstorm, and refine ideas for their Roblox game. Do NOT emit build actions, file outputs, or plugin_actions. Keep replies conversational. Reply in ${languageName} (${languageCode}). If the user asks to delete, erase, clear, or modify their Roblox project, NEVER say BloxSmith only has Toolbox/search capability. Say BloxSmith can do that in Build Mode through the Studio plugin, and ask them to switch to Build Mode / open a project if needed. For requests like "erase everything but keep the Baseplate", answer with only that Build Mode instruction; do not provide manual deletion steps unless the user asks for manual steps.`;
@@ -6445,6 +6320,7 @@ export const Route = createFileRoute("/api/chat")({
               ...(modelChoiceLite.modelSettings?.temperature !== undefined ? { temperature: modelChoiceLite.modelSettings.temperature } : {}),
               ...(modelChoiceLite.modelSettings?.topP !== undefined ? { topP: modelChoiceLite.modelSettings.topP } : {}),
               maxOutputTokens: capOutputTokens(modelChoiceLite.modelSettings, "chat"),
+              stopWhen: stepCountIs(6),
               onError: ({ error }) => console.error("[chat/lite] upstream error", error),
             });
             try {
@@ -6471,94 +6347,6 @@ export const Route = createFileRoute("/api/chat")({
                 maxOutputTokens: capOutputTokens(modelChoiceLite.modelSettings, "chat"),
               });
               return streamPlainAssistantText(fallback.text || "Done.", "lite-fallback-text");
-            }
-          }
-
-          // 🧠 PLAN MODE — AI Game Architect & Technical Planner
-          // Evaluates game concepts, generates architecture blueprints, folder specs,
-          // script/remote event schemas, DataStore designs, and UI wireframes.
-          if (mode === "plan") {
-            let modelChoicePlan;
-            try {
-              modelChoicePlan = getProviderModel(activeModelId);
-            } catch (e) {
-              modelChoicePlan = getFallbackModel();
-            }
-            const strippedPlan = stripImageFilePartsFromMessages(messages);
-            const convertedPlan = await convertToModelMessages(trimMessagesForModel(strippedPlan, "plan"));
-            const planDigest = historyDigestFor(strippedPlan, "plan");
-            const systemPlan =
-              FAST_CHAT_SYSTEM_PROMPT +
-              memoriesPromptBlock +
-              (planDigest ? `\n\n${planDigest}` : "") +
-              `\n\nMODE: PLAN MODE (AI Game Architect & Technical Lead)
-You are BloxSmith's Master Roblox Game Architect and Technical Lead.
-Your goal is to transform the user's prompt or game concept into an exceptionally detailed, production-grade Roblox Game Architecture Plan.
-
-FORMATTING REQUIREMENTS (CRITICAL):
-- ALWAYS insert double newlines (\\n\\n) between paragraphs, sub-headings, concept options, bullet points, and metadata fields.
-- NEVER run multiple concepts or fields into a single long wall of text.
-- Use bold sub-titles for each field (e.g. **Core loop:**, **Unique twist:**, **Monetization:**, **Build complexity:**) placed on separate lines.
-
-Structure your response using bold GitHub Markdown headers:
-# 🎮 1. Executive Summary & Core Game Loop
-• Primary Game Concept & Core Mechanics
-• Player Progression Loop (Actions -> Progression -> Rewards & Unlockables)
-• Monetization & Retention Highlights (Gamepasses, Developer Products, Daily Rewards)
-
-# 🏗️ 2. 3D World & Scene Hierarchy
-• Folder Hierarchy (game.Workspace.Map, game.Workspace.Systems, game.Workspace.Spawns, etc.)
-• Environment Specs (Baseplate dimensions, Lighting & Atmosphere, Fog & Skybox)
-• Part & Mesh Requirements (Part counts, material variants, Anchored & CanCollide rules)
-
-# 📜 3. Scripting & Networking Architecture
-• ServerScriptService Modules (DataStoreManager, GameLoopController, AntiCheatService)
-• ReplicatedStorage Shared Modules (SharedConfigs, RemoteEventDefinitions, SoundEffects)
-• StarterPlayerScripts (ClientUIController, CameraController, InputHandlers)
-• RemoteEvents & RemoteFunctions list with exact parameter schemas
-
-# 💾 4. DataStore & Persistence Specification
-• Session-locking structure, auto-save interval (e.g. 60s), and retry policies
-• Leaderstats data dictionary (Coins, Gems, Rebirths, Inventory Array)
-
-# 🎨 5. UI/UX & ScreenGui Layout Spec
-• StarterGui Layout (HUD, Shop Frame, Inventory Grid, Settings Menu, Prompts)
-• Responsive Scale Sizing & AnchorPoints for Mobile (390x844), PC (1920x1080), & Console
-
-# 🚀 6. Actionable Build Steps (Ready for Build Mode)
-1. Step-by-step list of exact commands for Build Mode to execute next!
-
-Reply in ${languageName} (${languageCode}). Keep your tone professional, structured, and deeply technical. End with:
-\n---\n💡 **Ready to bring this plan to life?** Switch to Build Mode and click **Send** to start building!`;
-
-            try {
-              const planResult = streamText({
-                model: modelChoicePlan.model,
-                system: systemPlan,
-                messages: convertedPlan,
-                ...(modelChoicePlan.extraBody ? { providerOptions: { nvidia: modelChoicePlan.extraBody as Record<string, never> } as never } : {}),
-                ...(modelChoicePlan.modelSettings?.temperature !== undefined ? { temperature: modelChoicePlan.modelSettings.temperature } : {}),
-                ...(modelChoicePlan.modelSettings?.topP !== undefined ? { topP: modelChoicePlan.modelSettings.topP } : {}),
-                maxOutputTokens: capOutputTokens(modelChoicePlan.modelSettings, "plan"),
-                onError: ({ error }) => console.error("[chat/plan] upstream error", error),
-              });
-              return planResult.toUIMessageStreamResponse({
-                onError: (err) => {
-                  console.error("[chat/plan] stream error", err);
-                  return `Plan generation error: ${err instanceof Error ? err.message : "Error"}`;
-                },
-              });
-            } catch (streamErr) {
-              console.warn("[chat/plan] primary stream failed, trying fallback route", streamErr);
-              const fallbackChoice = getFallbackModel();
-              const fallback = await generateText({
-                model: fallbackChoice.model,
-                system: systemPlan,
-                messages: convertedPlan,
-                ...(fallbackChoice.extraBody ? { providerOptions: { nvidia: fallbackChoice.extraBody as Record<string, never> } as never } : {}),
-                maxOutputTokens: capOutputTokens(fallbackChoice.modelSettings, "plan"),
-              });
-              return streamPlainAssistantText(fallback.text || "Plan generated.", "plan-fallback-text");
             }
           }
 
@@ -6590,12 +6378,10 @@ Reply in ${languageName} (${languageCode}). Keep your tone professional, structu
             proceduralFallbackAllowed = assetMode !== "toolbox_only" && s.disable_procedural_fallback !== true;
           } catch { /* ignore */ }
 
-          // Per-request Procedural Generation toggle (from composer or natural prompt keywords like "from scratch")
-          const isExplicitScratchRequest = /\b(?:from scratch|built from scratch|build from scratch|create from scratch|make from scratch|no toolbox|without toolbox|procedural build|procedural map|procedural terrain|procedurally|custom code only)\b/i.test(userText);
-          if (isExplicitScratchRequest) {
-            assetMode = "procedural";
-            proceduralFallbackAllowed = true;
-          } else if (proceduralGenerationOverride === true) {
+          // Per-request Procedural Generation toggle (from the composer) overrides
+          // the stored profile default. ON  → allow procedural expansion/fallback.
+          // OFF → strictly toolbox-only, one request = one result, no extras.
+          if (proceduralGenerationOverride === true) {
             assetMode = "procedural";
             proceduralFallbackAllowed = true;
           } else if (proceduralGenerationOverride === false) {
@@ -6671,7 +6457,7 @@ Reply in ${languageName} (${languageCode}). Keep your tone professional, structu
                 },
               },
             }));
-            const replyText = "Clearing the project and keeping only the Baseplate — executing in Studio now.";
+            const replyText = "Queued a command to clear the project down to the Baseplate and sent it to Studio. Watch the Execution Log — it will show \"Applied\" once Studio runs it. If it stays queued, click Execute Now in the plugin.";
             const { data: msgRow } = await supabase
               .from("chat_messages")
               .insert({
@@ -6803,7 +6589,7 @@ Reply in ${languageName} (${languageCode}). Keep your tone professional, structu
                 },
               }));
             if (actions.length > 0) {
-              const replyText = "Sent visible snow terrain to Studio — it should build now and focus the camera on it.";
+              const replyText = "Queued a snow-terrain build and sent it to Studio. Watch the Execution Log for confirmation — it will read \"Applied\" once Studio runs it. If it stays queued, click Execute Now in the plugin.";
               const { data: msgRow } = await supabase
                 .from("chat_messages")
                 .insert({
@@ -6872,7 +6658,7 @@ Reply in ${languageName} (${languageCode}). Keep your tone professional, structu
                 },
               }));
             if (actions.length > 0) {
-              const replyText = "Sent visible flowers to Studio — they should appear around the grass now.";
+              const replyText = "Queued a flowers build and sent it to Studio. Watch the Execution Log for confirmation — it will read \"Applied\" once Studio runs it. If it stays queued, click Execute Now in the plugin.";
               const { data: msgRow, error: msgError } = await supabase
                 .from("chat_messages")
                 .insert({
@@ -6941,7 +6727,7 @@ Reply in ${languageName} (${languageCode}). Keep your tone professional, structu
                 },
               }));
             if (actions.length > 0) {
-              const replyText = "Sent a visible ground-material build to Studio — it will apply the surface and focus the camera on it.";
+              const replyText = "Queued a ground-material build and sent it to Studio. Watch the Execution Log for confirmation — it will read \"Applied\" once Studio runs it. If it stays queued, click Execute Now in the plugin.";
               const { data: msgRow } = await supabase
                 .from("chat_messages")
                 .insert({
@@ -7018,8 +6804,8 @@ Reply in ${languageName} (${languageCode}). Keep your tone professional, structu
             if (generated.length > 0) {
               const firstKind = String(generated[0]?.kind ?? "action").replace(/_/g, " ");
               const replyText = generated.length === 1
-                ? `Sent 1 ${firstKind} command to Studio — it should execute now.`
-                : `Sent ${generated.length} Studio commands — they should execute now.`;
+                ? `Queued 1 ${firstKind} command and sent it to Studio. Watch the Execution Log — it will show "Applied" once Studio runs it. If it stays queued, click Execute Now in the plugin.`
+                : `Queued ${generated.length} commands and sent them to Studio. Watch the Execution Log for per-action status. If they stay queued, click Execute Now in the plugin.`;
               const { data: msgRow } = await supabase
                 .from("chat_messages")
                 .insert({
@@ -7185,51 +6971,39 @@ Reply in ${languageName} (${languageCode}). Keep your tone professional, structu
               if (top) {
                 const folder = finderMatch?.folder ? `BloxSmith_${finderMatch.folder}` : "BloxSmith_Assets";
                 const baseName = cleanSingleAssetActionName(label).replace(/_\d+$/, "");
-                const isBigStructure = /\b(house|building|castle|mansion|cabin|cottage|store|shop|school|hospital|barn|villa|tower)\b/i.test(label);
-                const spacing = isBigStructure ? 36 : 14;
-                const cols = Math.ceil(Math.sqrt(quantity));
-
-                const buildAction = (idx: number) => {
-                  const row = Math.floor(idx / cols);
-                  const col = idx % cols;
-                  const xOff = (col - (cols - 1) / 2) * spacing;
-                  const zOff = (row - (Math.ceil(quantity / cols) - 1) / 2) * spacing;
-
-                  return {
-                    kind: "insert_asset" as const,
-                    parent_path: `Workspace/${folder}`,
-                    name: quantity > 1 ? `${baseName}_${String(idx + 1).padStart(2, "0")}` : cleanSingleAssetActionName(label),
-                    payload: {
-                      asset_id: top.id,
-                      fallback_ids: (top.fallbackIds ?? found.results.slice(1, 8).map((r) => r.id)).slice(0, 6),
-                      asset_name: top.name,
-                      creator_name: top.creatorName,
-                      source_query: query,
-                      toolbox_only: true,
-                      free_only: true,
-                      no_scripts: true,
-                      strip_scripts: true,
-                      disable_procedural_fallback: true,
-                      single_asset_only: true,
-                      extract_single: true,
-                      exact_quantity: 1,
-                      max_children: 25,
-                      max_scripts: 0,
-                      reject_pack_names: true,
-                      stop_after_insert: true,
-                      ground_snap: true,
-                      position_offset: quantity > 1 ? [Math.round(xOff), 0, Math.round(zOff)] : [0, 0, 0],
-                      _bloxsmith: {
-                        source: "chat_fastpath",
-                        execution_mode: "fast",
-                        single_asset_mode: true,
-                        copy_index: idx,
-                        copy_total: quantity,
-                        grid_spacing: spacing,
-                      },
-                    } as Record<string, unknown>,
-                  };
-                };
+                const buildAction = (idx: number) => ({
+                  kind: "insert_asset" as const,
+                  parent_path: `Workspace/${folder}`,
+                  name: quantity > 1 ? `${baseName}_${String(idx + 1).padStart(2, "0")}` : cleanSingleAssetActionName(label),
+                  payload: {
+                    asset_id: top.id,
+                    fallback_ids: (top.fallbackIds ?? found.results.slice(1, 8).map((r) => r.id)).slice(0, 6),
+                    asset_name: top.name,
+                    creator_name: top.creatorName,
+                    source_query: query,
+                    toolbox_only: true,
+                    free_only: true,
+                    no_scripts: true,
+                    strip_scripts: true,
+                    disable_procedural_fallback: true,
+                    single_asset_only: true,
+                    extract_single: true,
+                    exact_quantity: 1,
+                    max_children: 25,
+                    max_scripts: 0,
+                    reject_pack_names: true,
+                    stop_after_insert: true,
+                    ground_snap: true,
+                    _bloxsmith: {
+                      source: "chat_fastpath",
+                      execution_mode: "fast",
+                      single_asset_mode: true,
+                      copy_index: idx,
+                      copy_total: quantity,
+                      grid_spacing: 12,
+                    },
+                  } as Record<string, unknown>,
+                });
                 const insertAction = buildAction(0);
                 // searchRobloxToolbox already filters to insertable public
                 // assets. Do not run a second validation pass here; that extra
@@ -7253,8 +7027,8 @@ Reply in ${languageName} (${languageCode}). Keep your tone professional, structu
                     })
                   : [finalFirst];
                 const replyText = quantity > 1
-                  ? `Adding ${quantity} ${label}${label.endsWith("s") ? "" : "s"} to your workspace from the Toolbox — executing in Studio now.`
-                  : `Adding a ${label} to your workspace from the Toolbox — executing in Studio now.`;
+                  ? `Queued ${quantity} ${label}${label.endsWith("s") ? "" : "s"} from the Toolbox and sent them to Studio. Watch the Execution Log for per-action status. If they stay queued, click Execute Now in the plugin.`
+                  : `Queued a ${label} from the Toolbox and sent it to Studio. Watch the Execution Log — it will show "Applied" once Studio inserts it. If it stays queued, click Execute Now in the plugin.`;
                 const { data: msgRow } = await supabase
                   .from("chat_messages")
                   .insert({
@@ -7333,28 +7107,28 @@ Reply in ${languageName} (${languageCode}). Keep your tone professional, structu
             try {
               let generated: any[] = [];
               let deterministicModel = "deterministic-fast-build-last-chance";
-              let replyText = "Fast Build sent executable Studio commands — they should run now.";
+              let replyText = "Queued executable commands and sent them to Studio. Watch the Execution Log for per-action status. If they stay queued, click Execute Now in the plugin.";
 
               if (isFlowerNatureRequest(userText)) {
                 generated = visibleFlowersStudioActions(userText);
                 deterministicModel = "deterministic-flowers-last-chance";
-                replyText = "Sent visible flowers to Studio — they should appear around the grass now.";
+                replyText = "Queued a flowers build and sent it to Studio. Watch the Execution Log for confirmation. If it stays queued, click Execute Now in the plugin.";
               } else if (isSnowTerrainRequest(userText)) {
                 generated = visibleSnowTerrainStudioActions(userText);
                 deterministicModel = "deterministic-snow-last-chance";
-                replyText = "Sent visible snow terrain to Studio — it should build and focus the camera now.";
+                replyText = "Queued a snow-terrain build and sent it to Studio. Watch the Execution Log for confirmation. If it stays queued, click Execute Now in the plugin.";
               } else if (isSurfaceMaterialRequest(userText)) {
                 generated = visibleSurfaceMaterialStudioActions(userText);
                 deterministicModel = "deterministic-surface-last-chance";
-                replyText = "Sent a visible ground-material command to Studio — it should apply now.";
+                replyText = "Queued a ground-material command and sent it to Studio. Watch the Execution Log for confirmation. If it stays queued, click Execute Now in the plugin.";
               } else if (isNarrowFeatureRequest(userText) && !isSinglePhysicalAssetRequest(userText)) {
                 generated = narrowFeatureFallbackStudioActions(userText, languageName);
                 deterministicModel = "deterministic-narrow-last-chance";
-                replyText = "Sent the requested feature to Studio — it should execute now.";
+                replyText = "Queued the requested feature and sent it to Studio. Watch the Execution Log for confirmation. If it stays queued, click Execute Now in the plugin.";
               } else if (assetMode !== "procedural" && (userExplicitlyRequestedToolbox(userText) || isSinglePhysicalAssetRequest(userText) || toolboxAssetFinderRequests(userText).length > 0)) {
                 generated = await toolboxAssetFinderStudioActions(userText);
                 deterministicModel = "deterministic-toolbox-last-chance";
-                replyText = "Sent the matching Toolbox asset command to Studio — it should execute now.";
+                replyText = "Queued the matching Toolbox asset and sent it to Studio. Watch the Execution Log for confirmation. If it stays queued, click Execute Now in the plugin.";
               }
 
               if (generated.length === 0) {
@@ -7544,20 +7318,17 @@ Reply in ${languageName} (${languageCode}). Keep your tone professional, structu
 
             if (recentBuilds && recentBuilds.length > 0) {
               parts.push(
-                `RECENT USER REQUESTS in this project (newest first) — do NOT redo these unless asked, build ON TOP of them:\n${recentBuilds.map((b: any) => `• ${new Date(b.created_at).toISOString().slice(0, 10)} (${b.files_count} actions): ${String(b.prompt).slice(0, 140)}`).join("\n")}`,
+                `RECENT USER REQUESTS in this project (newest first) — do NOT redo these unless asked, build ON TOP of them:\n${recentBuilds.map((b) => `• ${new Date(b.created_at).toISOString().slice(0, 10)} (${b.files_count} actions): ${String(b.prompt).slice(0, 140)}`).join("\n")}`,
               );
             }
             if (existingActions && existingActions.length > 0) {
-              const byKind = (existingActions as any[]).reduce((acc: Record<string, string[]>, a: any) => {
+              const byKind = existingActions.reduce<Record<string, string[]>>((acc, a) => {
                 const k = a.kind ?? "unknown";
                 (acc[k] ||= []).push(`${a.parent_path}.${a.name}`);
                 return acc;
-              }, {} as Record<string, string[]>);
+              }, {});
               const summary = Object.entries(byKind)
-                .map(([k, names]) => {
-                  const arr = names as string[];
-                  return `  ${k}: ${arr.slice(0, 12).join(", ")}${arr.length > 12 ? ` (+${arr.length - 12} more)` : ""}`;
-                })
+                .map(([k, names]) => `  ${k}: ${names.slice(0, 12).join(", ")}${names.length > 12 ? ` (+${names.length - 12} more)` : ""}`)
                 .join("\n");
               parts.push(
                 `ALREADY-QUEUED/BUILT INSTANCES in this project (avoid duplicating — modify via set_properties / rename / delete instead):\n${summary}`,
@@ -7573,7 +7344,7 @@ Reply in ${languageName} (${languageCode}). Keep your tone professional, structu
             }
             if (recentErrors && recentErrors.length > 0) {
               const errLines = recentErrors
-                .map((e: any) => `[${e.level}] ${e.source}: ${e.message}`)
+                .map((e) => `[${e.level}] ${e.source}: ${e.message}`)
                 .join("\n");
               parts.push(
                 `RECENT ROBLOX STUDIO OUTPUT (newest first). If any of these were caused by your previous builds, emit corrected actions to fix them in this response:\n${errLines}`,
@@ -7583,7 +7354,7 @@ Reply in ${languageName} (${languageCode}). Keep your tone professional, structu
               // known failure modes and inject a targeted nudge so the model
               // stops repeating the same mistake. This makes the AI smarter
               // ACROSS TURNS instead of only reacting to the current prompt.
-              const errText = recentErrors.map((e: any) => String(e.message ?? "")).join("\n").toLowerCase();
+              const errText = recentErrors.map((e) => String(e.message ?? "")).join("\n").toLowerCase();
               const nudges: string[] = [];
               if (/attempt to (call|index) a nil value/.test(errText)) {
                 nudges.push(
@@ -7901,36 +7672,13 @@ Reply in ${languageName} (${languageCode}). Keep your tone professional, structu
                 if (mode === "build" && !proceduralModeActive && isSinglePhysicalAssetRequest(userText)) {
                   const label = singlePhysicalAssetLabel(userText);
                   const cleanName = cleanSingleAssetActionName(label);
-                  const wordNums: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, twelve: 12, fifteen: 15, twenty: 20 };
-                  let quantity = 1;
-                  const numMatch = userText.match(/\b(\d{1,3})\s+(?=[a-z])/i);
-                  if (numMatch) {
-                    const n = parseInt(numMatch[1], 10);
-                    if (Number.isFinite(n) && n >= 1) quantity = Math.min(n, 25);
-                  } else {
-                    const wm = userText.toLowerCase().match(/\b(one|two|three|four|five|six|seven|eight|nine|ten|twelve|fifteen|twenty)\b/);
-                    if (wm && wordNums[wm[1]]) quantity = wordNums[wm[1]];
-                  }
-
                   const trustedSingleActions = (await toolboxAssetFinderStudioActions(userText)).map(normalizePluginAction);
                   const firstInsert = trustedSingleActions.find((a) => a.kind === "insert_asset");
-
-                  if (firstInsert) {
-                    const isBigStructure = /\b(house|building|castle|mansion|cabin|cottage|store|shop|school|hospital|barn|villa|tower)\b/i.test(label);
-                    const spacing = isBigStructure ? 36 : 14;
-                    const cols = Math.ceil(Math.sqrt(quantity));
-                    const baseName = cleanName.replace(/_\d+$/, "");
-
-                    actions = Array.from({ length: quantity }, (_, idx) => {
-                      const row = Math.floor(idx / cols);
-                      const col = idx % cols;
-                      const xOff = (col - (cols - 1) / 2) * spacing;
-                      const zOff = (row - (Math.ceil(quantity / cols) - 1) / 2) * spacing;
-
-                      return {
+                  actions = firstInsert
+                    ? [{
                         ...firstInsert,
                         parent_path: "Workspace",
-                        name: quantity > 1 ? `${baseName}_${String(idx + 1).padStart(2, "0")}` : cleanName,
+                        name: cleanName,
                         payload: {
                           ...(firstInsert.payload ?? {}),
                           toolbox_only: true,
@@ -7949,22 +7697,12 @@ Reply in ${languageName} (${languageCode}). Keep your tone professional, structu
                           ground_snap: true,
                           anchor: true,
                           requested_asset_type: label,
-                          clean_name: quantity > 1 ? `${baseName}_${String(idx + 1).padStart(2, "0")}` : cleanName,
-                          position_offset: quantity > 1 ? [Math.round(xOff), 0, Math.round(zOff)] : [0, 0, 0],
-                          _bloxsmith: {
-                            source: "chat_single_asset_guard",
-                            copy_index: idx,
-                            copy_total: quantity,
-                            grid_spacing: spacing,
-                          },
+                          clean_name: cleanName,
                         },
-                      };
-                    });
-                  } else {
-                    actions = [];
-                  }
+                      }]
+                    : [];
                   cleanContent = actions.length > 0
-                    ? `${cleanContent.trim()}\n\n_${quantity > 1 ? `Asset quantity scope: sending exactly ${quantity} safe free Toolbox ${label} models` : `Single asset scope: sending exactly one safe free Toolbox ${label} model only`} — no packs, scripts, props, decorations, terrain, UI, scans, or extra actions._`
+                    ? `${cleanContent.trim()}\n\n_Single asset scope: sending exactly one safe free Toolbox ${label} model only — no packs, scripts, props, decorations, terrain, UI, scans, or extra actions._`
                     : `${cleanContent.trim()}\n\n_No clean free authorized single ${label} model was found, so BloxSmith did not insert a pack or placeholder._`;
                 } else if (mode === "build" && isNarrowFeatureRequest(userText)) {
                   const requestedRemote = /\b(remote\s*event|remoteevent|remote\s*function|remotefunction|server\s*event|server[-\s]*authoritative|multiplayer|replicated)\b/i.test(userText) || needsGameplayRemoteWiring(userText);

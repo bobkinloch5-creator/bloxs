@@ -1,5 +1,5 @@
 // Plugin GET: returns pending actions for the authenticated plugin (via plugin_token).
-// Optimized for low Disk IOPS and high scale.
+// Also updates plugin_sessions heartbeat.
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
 import { normalizePluginAction } from "@/lib/plugin-actions";
@@ -12,7 +12,6 @@ function admin() {
 
 type PluginActionRow = {
   id: string;
-  user_id?: string | null;
   project_id: string;
   message_id?: string | null;
   kind: string;
@@ -24,21 +23,6 @@ type PluginActionRow = {
   sent_at?: string | null;
 };
 
-// In-memory caching & throttling to reduce Supabase Disk IOPS by 95%+
-type CachedProfile = {
-  id: string;
-  credits: number;
-  max_credits: number;
-  plan: string;
-  is_admin: boolean;
-  credits_reset_at: string | null;
-  fetchedAt: number;
-};
-const tokenProfileCache = new Map<string, CachedProfile>();
-const lastSessionWriteMap = new Map<string, number>();
-const lastWrittenPluginVersion = new Map<string, string>();
-const connectedProjectsCache = new Set<string>();
-
 export const Route = createFileRoute("/api/public/plugin/poll")({
   server: {
     handlers: {
@@ -46,190 +30,136 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
       POST: async ({ request }) => {
         try {
           const body = (await request.json().catch(() => ({}))) as {
-            token?: string;
-            place_id?: string;
-            studio_version?: string;
-            plugin_version?: string;
-            project_id?: string | null;
-            force?: boolean;
+            token?: string; place_id?: string; studio_version?: string; plugin_version?: string; project_id?: string | null; force?: boolean;
           };
           const headerToken =
-            request.headers
-              .get("authorization")
-              ?.replace(/^Bearer\s+/i, "")
-              .trim() ||
+            request.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim() ||
             request.headers.get("x-bloxsmith-token")?.trim() ||
             "";
           const token = (body.token && body.token.trim()) || headerToken;
           if (!token) return json({ error: "missing token" }, 401);
 
           const sb = admin();
-          let profile: CachedProfile | null = null;
-          // When force=true (first poll after pair, Execute Now), always re-resolve
-          // the token from DB so a freshly-paired token never gets stale cached data.
-          if (body.force) tokenProfileCache.delete(token);
-          const cached = tokenProfileCache.get(token);
-          if (cached && Date.now() - cached.fetchedAt < 180_000) {
-            profile = cached;
-          } else {
-            const { data } = await sb
-              .from("profiles")
-              .select("id, credits, max_credits, plan, is_admin, credits_reset_at")
-              .eq("plugin_token", token)
-              .maybeSingle();
-
-            let foundData = data;
-            if (!foundData) {
-              const { data: pairCode } = await sb
-                .from("plugin_pair_codes")
-                .select("user_id")
-                .eq("plugin_token", token)
-                .maybeSingle();
-              if (pairCode?.user_id) {
-                const { data: profById } = await sb
-                  .from("profiles")
-                  .select("id, credits, max_credits, plan, is_admin, credits_reset_at")
-                  .eq("id", pairCode.user_id)
-                  .maybeSingle();
-                foundData = profById ?? {
-                  id: pairCode.user_id,
-                  credits: 99999,
-                  max_credits: 99999,
-                  plan: "Owner",
-                  is_admin: true,
-                  credits_reset_at: null,
-                };
-              }
-            }
-
-            if (!foundData?.id) {
-              return json({ error: "invalid token; reconnect the Studio plugin" }, 401);
-            }
-            const activeId = foundData.id;
-            profile = {
-              id: activeId,
-              credits: (foundData as any)?.credits ?? 99999,
-              max_credits: (foundData as any)?.max_credits ?? 99999,
-              plan: (foundData as any)?.plan ?? "Owner",
-              is_admin: true,
-              credits_reset_at: (foundData as any)?.credits_reset_at ?? null,
-              fetchedAt: Date.now(),
-            };
-            tokenProfileCache.set(token, profile);
-          }
-
+          const { data: profile } = await sb.from("profiles")
+            .select("id, credits, max_credits, plan, is_admin, credits_reset_at")
+            .eq("plugin_token", token)
+            .maybeSingle();
+          if (!profile) return json({ error: "invalid token" }, 401);
           const profileId: string = profile.id;
-          // Session UPSERT write to database
+
           const touchSession = async () => {
-            const lastWrite = lastSessionWriteMap.get(profileId) ?? 0;
-            const versionChanged =
-              lastWrittenPluginVersion.get(profileId) !== (body.plugin_version ?? "");
-            // Write periodically, on an explicit reconnect, or when Studio
-            // actually switches plugin versions. Sending the version with every
-            // 500ms poll must not cause a competing session write each time.
-            if (Date.now() - lastWrite < 10_000 && !body.force && !versionChanged) return;
-            lastSessionWriteMap.set(profileId, Date.now());
-            lastWrittenPluginVersion.set(profileId, body.plugin_version ?? "");
-            await sb.from("plugin_sessions").upsert(
-              {
-                user_id: profileId,
-                project_id: body.project_id ?? null,
-                place_id: body.place_id ?? null,
-                studio_version: body.studio_version ?? null,
-                plugin_version: body.plugin_version ?? null,
-                last_seen: new Date().toISOString(),
-                online: true,
-              },
-              { onConflict: "user_id" },
-            );
+            await sb.from("plugin_sessions").upsert({
+              user_id: profile.id,
+              project_id: body.project_id ?? null,
+              place_id: body.place_id ?? null,
+              studio_version: body.studio_version ?? null,
+              plugin_version: body.plugin_version ?? null,
+              last_seen: new Date().toISOString(),
+              online: true,
+            }, { onConflict: "user_id" });
           };
 
-          await touchSession();
+          // Only force/manual polls touch the session here. The plugin has a
+          // separate lightweight heartbeat, so idle long-polls no longer write
+          // to the database every few seconds for every open Studio window.
+          if (body.force === true) await touchSession();
 
-          const actionSelect =
-            "id, user_id, project_id, message_id, kind, parent_path, name, payload, position, created_at, sent_at";
-
-          // Only ever deliver actions belonging to the account that approved
-          // this token. A cross-account fallback made the UI look connected
-          // while the actual project's actions were never delivered.
-          const relevantIds = [profileId];
-
-          const { data: ownedProjects } = await sb
-            .from("projects")
-            .select("id")
-            .in("user_id", relevantIds)
-            .limit(100);
-          const ownedProjectIds = (ownedProjects ?? [])
-            .map((p: { id: string }) => p.id)
-            .filter(Boolean);
+          // Pull the newest queued build for this account, not the project id
+          // saved inside older installed plugins. That saved id can be stale
+          // after the user opens a different project on the web app, which made
+          // Studio poll the wrong queue and appear to ignore new prompts.
+          const actionSelect = "id, project_id, message_id, kind, parent_path, name, payload, position, created_at, sent_at";
 
           async function fetchPending(): Promise<PluginActionRow[] | { error: string }> {
-            // 0. Recovery: reset any "sent" actions stuck > 45s back to "pending"
-            //    so they are re-delivered to Studio. This handles the cases where
-            //    the browser inserted rows under a different auth user, a previous
-            //    plugin session claimed rows then crashed before reporting complete,
-            //    or a stale project/session mapping left rows stranded as "sent".
-            const stuckCutoff = new Date(Date.now() - 45_000).toISOString();
-            await sb
-              .from("plugin_actions")
-              .update({ status: "pending" })
-              .eq("status", "sent")
-              .in("user_id", relevantIds)
-              .lt("sent_at", stuckCutoff);
-            if (ownedProjectIds.length > 0) {
-              await sb
-                .from("plugin_actions")
-                .update({ status: "pending" })
-                .eq("status", "sent")
-                .in("project_id", ownedProjectIds)
-                .lt("sent_at", stuckCutoff);
-            }
-            // 1. Primary path: filter directly by project_id if specified by caller
-            if (body.project_id) {
-              const res = await sb
-                .from("plugin_actions")
-                .select(actionSelect)
-                .eq("status", "pending")
-                .eq("project_id", body.project_id)
-                .order("created_at", { ascending: true })
-                .limit(100);
-              if (res.error) return { error: res.error.message };
-              if ((res.data ?? []).length > 0) return res.data ?? [];
-            }
-
-            // 2. Direct user_id scan: fetch all pending actions for this user.
-            const userRes = await sb
-              .from("plugin_actions")
-              .select(actionSelect)
+            const latest = await sb.from("plugin_actions")
+              .select("project_id, message_id, created_at")
+              .eq("user_id", profileId)
               .eq("status", "pending")
-              .in("user_id", relevantIds)
-              .order("created_at", { ascending: true })
-              .limit(100);
-            if (userRes.error) return { error: userRes.error.message };
-            if ((userRes.data ?? []).length > 0) return userRes.data ?? [];
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            if (latest.error) return { error: latest.error.message };
+            if (!latest.data) return [];
 
-            // 2b. Project-based fallback: the JWT userId (used when inserting actions)
-            //     may differ from the plugin-token-resolved profileId. Fetch pending
-            //     actions for any project owned by this profile so they're always found.
-            if (ownedProjectIds.length > 0) {
-              const projRes = await sb
-                .from("plugin_actions")
-                .select(actionSelect)
-                .eq("status", "pending")
-                .in("project_id", ownedProjectIds)
-                .order("created_at", { ascending: true })
-                .limit(100);
-              if (!projRes.error && (projRes.data ?? []).length > 0) return projRes.data ?? [];
+            // Execute the newest generated build first. Older pending rows from
+            // previous attempts must not sit ahead of the current prompt and
+            // make the website look stuck on "queued".
+            let pendingQuery = sb.from("plugin_actions")
+              .select(actionSelect)
+              .eq("user_id", profileId)
+              .eq("status", "pending")
+              .order("created_at", { ascending: true })
+              .order("position", { ascending: true })
+              .limit(100);
+            pendingQuery = latest.data.message_id
+              ? pendingQuery.eq("message_id", latest.data.message_id)
+              : pendingQuery.eq("project_id", latest.data.project_id);
+            const pending = await pendingQuery;
+            if (pending.error) return { error: pending.error.message };
+            return pending.data ?? [];
+          }
+
+          // Self-heal orphaned deliveries: if an earlier poll marked actions
+          // "sent" but the plugin never reported them done/failed (dropped
+          // response, Studio closed, token re-paired mid-build), they would sit
+          // at "sent" forever and passive polling below refuses to replay them —
+          // so the plugin shows "0 pending" and nothing builds while the website
+          // already said "sent to Studio". Re-arm rows stuck past a grace window
+          // back to "pending" so the very next fetch delivers them again. The
+          // 25s window is comfortably longer than a normal execute+report cycle,
+          // so genuinely in-flight actions are not duplicated.
+          async function rearmStaleSent(): Promise<void> {
+            const staleCutoff = new Date(Date.now() - 25_000).toISOString();
+            const { error } = await sb.from("plugin_actions")
+              .update({ status: "pending", sent_at: null })
+              .eq("user_id", profileId)
+              .eq("status", "sent")
+              .is("completed_at", null)
+              .lt("sent_at", staleCutoff);
+            if (error) {
+              console.warn("[plugin/poll] rearmStaleSent failed", { userId: profileId, error: error.message });
             }
-            return [];
           }
 
           let actions: PluginActionRow[] = [];
-          const first = await fetchPending();
+          let first = await fetchPending();
           if (!Array.isArray(first)) return json({ error: first.error }, 500);
+          // Nothing fresh pending — try recovering any stuck "sent" work before
+          // giving up, so a lost delivery does not strand the user's build.
+          if (first.length === 0) {
+            await rearmStaleSent();
+            first = await fetchPending();
+            if (!Array.isArray(first)) return json({ error: first.error }, 500);
+          }
           actions = first;
 
+          // Long-poll briefly if nothing is pending. Keep this short so one
+          // Studio window cannot sit on an 8s request while the user expects a
+          // one-action build to execute immediately.
+          if (actions.length === 0 && body.force !== true) {
+            const deadline = Date.now() + 2_500;
+            while (Date.now() < deadline) {
+              await new Promise((r) => setTimeout(r, 75));
+              const next = await fetchPending();
+              if (!Array.isArray(next)) return json({ error: next.error }, 500);
+              if (next.length > 0) { actions = next; break; }
+            }
+          }
+
+          // Do not auto-replay old `sent` rows from normal polling. A previous
+          // Studio window can hang on a heavy asset, and replaying that stale
+          // batch on reconnect blocks brand-new one-action builds. The website's
+          // explicit "Execute now" path can re-arm the newest in-flight message
+          // when the user asks, but passive polling only pulls fresh pending work.
+
           if (actions.length > 0) {
+            const before = actions.map((a) => ({
+              id: a.id,
+              kind: a.kind,
+              parent_path: a.parent_path,
+              name: a.name,
+              payload: a.payload,
+            }));
             actions = actions.map((a) => {
               try {
                 const normalized = normalizePluginAction(a);
@@ -240,29 +170,45 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
                   name: normalized.name,
                   payload: normalized.payload,
                 };
-              } catch {
+              } catch (e) {
+                console.warn("[plugin/poll] action normalize failed; sending original", { actionId: a.id, error: e instanceof Error ? e.message : String(e) });
                 return a;
               }
             });
+            await Promise.all(actions.map(async (a) => {
+              const old = before.find((row) => row.id === a.id);
+              const changed = old?.kind !== a.kind || old?.parent_path !== a.parent_path || old?.name !== a.name || JSON.stringify(old?.payload ?? null) !== JSON.stringify(a.payload ?? null);
+              if (!changed) return;
+              await sb.from("plugin_actions").update({ kind: a.kind, parent_path: a.parent_path, name: a.name, payload: a.payload }).eq("id", a.id);
+            }));
+          }
 
-            await touchSession();
+          if (actions && actions.length > 0) {
+            if (body.force !== true) await touchSession();
             const ids = actions.map((a) => a.id);
-            await sb
-              .from("plugin_actions")
+            await sb.from("plugin_actions")
               .update({ status: "sent", sent_at: new Date().toISOString() })
               .in("id", ids);
-
-            // Throttle projects UPDATE plugin_connected write to DB
             const projectIds = [...new Set(actions.map((a) => a.project_id))];
-            const unflaggedProjects = projectIds.filter((pid) => !connectedProjectsCache.has(pid));
-            if (unflaggedProjects.length > 0) {
-              await Promise.all(
-                unflaggedProjects.map((pid) => {
-                  connectedProjectsCache.add(pid);
-                  return sb.from("projects").update({ plugin_connected: true }).eq("id", pid);
-                }),
-              );
-            }
+            await Promise.all(projectIds.map((pid) => sb.from("projects").update({ plugin_connected: true }).eq("id", pid)));
+            console.info("[plugin/poll] actions sent to Studio", {
+              userId: profile.id,
+              requestedProjectId: body.project_id ?? null,
+              actionCount: actions.length,
+              projectIds,
+              messageIds: [...new Set(actions.map((a) => a.message_id).filter(Boolean))],
+              placeId: body.place_id ?? null,
+              studioVersion: body.studio_version ?? null,
+              pluginVersion: body.plugin_version ?? null,
+              mode: "pending_only",
+            });
+          } else {
+            console.info("[plugin/poll] heartbeat no actions", {
+              userId: profile.id,
+              requestedProjectId: body.project_id ?? null,
+              placeId: body.place_id ?? null,
+              pluginVersion: body.plugin_version ?? null,
+            });
           }
 
           return json({
@@ -291,7 +237,6 @@ function cors() {
 }
 function json(o: unknown, status = 200) {
   return new Response(JSON.stringify(o), {
-    status,
-    headers: { "content-type": "application/json", ...cors() },
+    status, headers: { "content-type": "application/json", ...cors() },
   });
 }
