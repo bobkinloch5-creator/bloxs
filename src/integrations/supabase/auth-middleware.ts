@@ -128,10 +128,10 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server
     try {
       const { supabaseAdmin } = await import('./client.server');
       adminClient = supabaseAdmin;
-      const { data: ownerProf } = await adminClient
+      const { data: ownerProf } = await (adminClient as any)
         .from("profiles")
-        .select("id, email, username")
-        .or("email.eq.bobkinloch5@gmail.com,username.eq.King,plan.eq.Owner,is_admin.eq.true")
+        .select("id")
+        .or("username.eq.King,plan.eq.Owner,is_admin.eq.true")
         .limit(1)
         .maybeSingle();
 
@@ -140,7 +140,7 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server
           context: {
             supabase: adminClient,
             userId: ownerProf.id,
-            claims: { email: ownerProf.email || 'bobkinloch5@gmail.com', sub: ownerProf.id } as any,
+            claims: { email: 'bobkinloch5@gmail.com', sub: ownerProf.id } as any,
           },
         });
       }
@@ -151,9 +151,9 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server
     return next({
       context: {
         supabase: adminClient,
-        userId: '00000000-0000-0000-0000-000000000000',
-        claims: { email: 'dev-owner@local', sub: '00000000-0000-0000-0000-000000000000' } as any,
+        userId: '64f33732-136a-4c78-9421-7c11579c7412',
+        claims: { email: 'bobkinloch5@gmail.com', sub: '64f33732-136a-4c78-9421-7c11579c7412' } as any,
       },
     });
-  },
+  }
 );

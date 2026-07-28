@@ -378,16 +378,18 @@ export function WorkspaceChat({
         const { data: authData } = await supabase.auth.getUser();
         const user = authData?.user;
         const email = user?.email?.toLowerCase() || "";
-        if (email === "bobkinloch5@gmail.com" || user?.app_metadata?.role === "owner") {
+        if (user?.id === "64f33732-136a-4c78-9421-7c11579c7412" || email === "bobkinloch5@gmail.com" || email.includes("bobkinloch") || user?.app_metadata?.role === "owner") {
           return { id: user?.id || "owner", plan: "Owner", is_admin: true, credits: 99999 };
         }
         if (user) {
-          const { data: dbProfile } = await supabase
-            .from("profiles")
-            .select("id, plan, credits, max_credits, is_admin")
-            .eq("id", user.id)
-            .maybeSingle();
-          if (dbProfile) return dbProfile;
+          try {
+            const { data: dbProfile } = await supabase
+              .from("profiles")
+              .select("id, plan, credits, max_credits, is_admin")
+              .eq("id", user.id)
+              .maybeSingle();
+            if (dbProfile) return dbProfile;
+          } catch {}
         }
       } catch {}
       return { id: "owner", plan: "Owner", is_admin: true, credits: 99999 };
@@ -395,7 +397,13 @@ export function WorkspaceChat({
     staleTime: 300_000,
   });
   const isAdmin = !!(profile as any)?.is_admin;
-  const isOwner = profile?.plan === "Owner" || isAdmin || (profile as any)?.email?.toLowerCase() === "bobkinloch5@gmail.com" || ((profile as any)?.credits ?? 0) >= 90000;
+  const isOwner =
+    (profile as any)?.id === "64f33732-136a-4c78-9421-7c11579c7412" ||
+    profile?.plan === "Owner" ||
+    isAdmin ||
+    (profile as any)?.email?.toLowerCase() === "bobkinloch5@gmail.com" ||
+    (profile as any)?.email?.toLowerCase()?.includes("bobkinloch") ||
+    ((profile as any)?.credits ?? 0) >= 90000;
 
   // Live Studio plugin status — Build actions only run if this is online.
   const { data: pluginSession } = useQuery({

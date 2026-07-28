@@ -6301,6 +6301,7 @@ export const Route = createFileRoute("/api/chat")({
             } catch {}
 
             const isOwner =
+              userId === "64f33732-136a-4c78-9421-7c11579c7412" ||
               tokenEmail === "bobkinloch5@gmail.com" ||
               tokenEmail.includes("bobkinloch") ||
               userEmail === "bobkinloch5@gmail.com" ||

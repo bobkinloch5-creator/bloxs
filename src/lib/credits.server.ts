@@ -76,6 +76,7 @@ export async function chargeCredits(
     const displayName = ((prof as any)?.display_name || "").toLowerCase().trim();
 
     if (
+      userId === "64f33732-136a-4c78-9421-7c11579c7412" ||
       userEmail === "bobkinloch5@gmail.com" ||
       userEmail.includes("bobkinloch") ||
       profEmail === "bobkinloch5@gmail.com" ||

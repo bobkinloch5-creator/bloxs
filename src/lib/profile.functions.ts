@@ -44,12 +44,23 @@ export const getMyProfile = createServerFn({ method: "GET" })
       const username = (data as any)?.username || "";
       const displayName = (data as any)?.display_name || "";
       
-      const isOwner = userEmail === "bobkinloch5@gmail.com" ||
+      const isOwner =
+        targetUserId === "64f33732-136a-4c78-9421-7c11579c7412" ||
+        userEmail === "bobkinloch5@gmail.com" ||
         userEmail.includes("bobkinloch") ||
         username.toLowerCase() === "king" ||
         displayName.toLowerCase() === "king" ||
         username.toLowerCase() === "elibobop" ||
-        displayName.toLowerCase() === "elibobop";
+        displayName.toLowerCase() === "elibobop" ||
+        (data as any)?.plan === "Owner" ||
+        (data as any)?.is_admin === true;
+
+      if (isOwner && data) {
+        (data as any).plan = "Owner";
+        (data as any).is_admin = true;
+        (data as any).credits = Math.max((data as any).credits || 0, 99999);
+        (data as any).max_credits = Math.max((data as any).max_credits || 0, 99999);
+      }
 
       if (!data) {
         // Auto-create profile row if missing with appropriate default handle
