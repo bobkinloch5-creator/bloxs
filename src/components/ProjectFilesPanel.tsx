@@ -101,7 +101,7 @@ export function ProjectFilesPanel({ projectId, projectName }: Props) {
       return res as ProjectFile[];
     },
     enabled: Boolean(projectId),
-    refetchInterval: 10000, // auto-refresh files every 10s while active
+    refetchInterval: 30000, // auto-refresh files every 30s while active
   });
 
   // Whenever a file is selected for viewing, sync edited code buffer

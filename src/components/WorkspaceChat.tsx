@@ -434,7 +434,11 @@ export function WorkspaceChat({
     queryKey: ["build-execution-status", activeProjectId],
     queryFn: () => activeProjectId ? execStatusFn({ data: { projectId: activeProjectId } }) : Promise.resolve(null),
     enabled: !!activeProjectId && mode === "build",
-    refetchInterval: 750,
+    refetchInterval: (query) => {
+      const state = query.state.data?.state;
+      if (state === "queued" || state === "sent") return 3000;
+      return 15_000;
+    },
   });
 
   const prevExecStateRef = useRef<string | null>(null);
