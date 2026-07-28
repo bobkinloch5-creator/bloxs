@@ -34,7 +34,7 @@ export function LivePlaytestCard() {
   const latestQ = useQuery<any>({
     queryKey: ["live-playtest-latest"],
     queryFn: () => latestFn({ data: { limit: 1 } }),
-    refetchInterval: 5000,
+    refetchInterval: 15000,
   });
 
   const runId: string | null =
@@ -44,7 +44,7 @@ export function LivePlaytestCard() {
     queryKey: ["live-playtest-timeline", runId],
     enabled: !!runId,
     queryFn: () => timelineFn({ data: { run_id: runId! } }),
-    refetchInterval: 3000,
+    refetchInterval: 15000,
   });
 
   const stopMut = useMutation({

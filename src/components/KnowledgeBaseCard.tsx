@@ -79,7 +79,7 @@ export function KnowledgeBaseCard() {
       return p;
     },
     enabled: running,
-    refetchInterval: 3000,
+    refetchInterval: 15000,
     refetchIntervalInBackground: false,
     staleTime: 0,
   });
