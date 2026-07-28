@@ -19,9 +19,13 @@ local CollectionService     = game:GetService("CollectionService")
 local Selection             = game:GetService("Selection")
 local RunService            = game:GetService("RunService")
 
+local function isPlaytestClient()
+    return RunService:IsClient() and not RunService:IsEdit()
+end
+
 local API_BASE       = "https://bloxsmith.pro"
 local POLL_INTERVAL  = 0.5
-local PLUGIN_VERSION = "2.1.31"
+local PLUGIN_VERSION = "2.1.32"
 
 ------------------------------------------------------------------- token helpers
 local TOKEN_KEY = "token"
@@ -1825,7 +1829,7 @@ local function studioVersion()
 end
 
 local function post(path, body, opts)
-    if RunService:IsClient() then
+    if isPlaytestClient() then
         return nil, "HTTP requests cannot be executed on Client datamodel during playtest", 0
     end
     opts = opts or {}
@@ -1848,7 +1852,7 @@ local function post(path, body, opts)
     end)
     local dt = math.floor((os.clock() - t0) * 1000)
     if not ok then
-        if not RunService:IsClient() then
+        if not isPlaytestClient() then
             log(("-- POST %s failed after %dms -- %s"):format(path, dt, tostring(res)), "error")
         end
         return nil, tostring(res), 0
@@ -1934,7 +1938,7 @@ local function statusForAction(action)
 end
 
 local function pollOnce(force)
-    if RunService:IsClient() then return 0 end
+    if isPlaytestClient() then return 0 end
     local token = validToken()
     if not token then
         connected = false
@@ -2605,7 +2609,7 @@ end)
 
 ------------------------------------------------------------------- boot
 task.spawn(function()
-    if RunService:IsClient() then return end
+    if isPlaytestClient() then return end
     if validToken() then
         connected = true
         connectBtn.Text = "Disconnect"; connectBtn.BackgroundColor3 = Color3.fromRGB(220,90,90)
@@ -2619,7 +2623,7 @@ task.spawn(function()
 end)
 
 task.spawn(function()
-    if RunService:IsClient() then return end
+    if isPlaytestClient() then return end
     while true do
         task.wait(POLL_INTERVAL)
         if connected then
@@ -2639,7 +2643,7 @@ end)
 -- Independent heartbeat: keeps the web UI's "online" indicator green even
 -- while the main poll coroutine is blocked executing a long build.
 task.spawn(function()
-    if RunService:IsClient() then return end
+    if isPlaytestClient() then return end
     while true do
         task.wait(10)
         local token = validToken()

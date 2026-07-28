@@ -8,6 +8,12 @@ const CHANGELOG_VERSION = "2026-07-28-owner-privilege-auth-fix";
 
 const CHANGELOG_ITEMS = [
   {
+    title: "⚡ Studio plugin v2.1.32 — Team Create connection fix",
+    date: "Jul 28",
+    icon: Sparkles,
+    body: "Plugin v2.1.32 — updated client guard to check both RunService:IsClient() and not RunService:IsEdit(), allowing HTTP pairing and connecting to work perfectly inside Team Create live editing sessions. Download BloxSmithPlugin.lua (v2.1.32) from /plugin.",
+  },
+  {
     title: "⚡ Studio plugin v2.1.31 — fixed Playtest Client HTTP error spam",
     date: "Jul 28",
     icon: Sparkles,
