@@ -391,32 +391,11 @@ export function MaintenanceGate({ children }: { children: ReactNode }) {
                 <div className="flex items-center justify-between border-b border-white/10 pb-3 mb-3.5">
                   <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-indigo-300">
                     <UserPlus className="h-4 w-4 text-indigo-400" />
-                    {authMode === "signup" ? "Sign Up During Maintenance" : "Sign In to Account"}
+                    Sign Up During Maintenance
                   </div>
-                  <div className="flex items-center gap-1 rounded-lg bg-slate-900/90 p-1 border border-white/10">
-                    <button
-                      type="button"
-                      onClick={() => { setAuthMode("signup"); setAuthError(null); setAuthSuccessMsg(null); }}
-                      className={`rounded-md px-2.5 py-1 text-[11px] font-extrabold transition ${
-                        authMode === "signup"
-                          ? "bg-indigo-500 text-white shadow-[0_0_12px_rgba(99,102,241,0.5)]"
-                          : "text-slate-400 hover:text-slate-200"
-                      }`}
-                    >
-                      Sign Up
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setAuthMode("signin"); setAuthError(null); setAuthSuccessMsg(null); }}
-                      className={`rounded-md px-2.5 py-1 text-[11px] font-extrabold transition ${
-                        authMode === "signin"
-                          ? "bg-indigo-500 text-white shadow-[0_0_12px_rgba(99,102,241,0.5)]"
-                          : "text-slate-400 hover:text-slate-200"
-                      }`}
-                    >
-                      Sign In
-                    </button>
-                  </div>
+                  <span className="rounded-md bg-indigo-500/20 border border-indigo-400/30 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-indigo-200">
+                    Pre-Register
+                  </span>
                 </div>
 
                 {/* OAuth Quick Buttons */}
@@ -500,13 +479,9 @@ export function MaintenanceGate({ children }: { children: ReactNode }) {
                   >
                     {authBusy ? (
                       <Loader2 className="h-4 w-4 animate-spin text-white" />
-                    ) : authMode === "signup" ? (
-                      <>
-                        <UserPlus className="h-4 w-4" /> Create Account
-                      </>
                     ) : (
                       <>
-                        <LogIn className="h-4 w-4" /> Sign In
+                        <UserPlus className="h-4 w-4" /> Create Account
                       </>
                     )}
                   </button>
