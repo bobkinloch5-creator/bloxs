@@ -77,6 +77,21 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server
         const userId = claims?.sub;
 
         if (userId) {
+          try {
+            const { supabaseAdmin } = await import('./client.server');
+            const { data: prof } = await supabaseAdmin
+              .from("profiles")
+              .select("banned, banned_reason")
+              .eq("id", userId)
+              .maybeSingle();
+
+            if (prof?.banned) {
+              throw new Error(`Your account has been banned: ${prof.banned_reason || "Suspicious activity detected"}`);
+            }
+          } catch (e: any) {
+            if (e?.message?.includes("banned")) throw e;
+          }
+
           const supabase = createClient<Database>(
             SUPABASE_URL!,
             SUPABASE_PUBLISHABLE_KEY!,
@@ -91,7 +106,7 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server
                 storage: undefined,
                 persistSession: false,
                 autoRefreshToken: false,
-              },
+                },
             }
           );
 
@@ -116,7 +131,7 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server
       const { data: usersData } = await adminClient.auth.admin.listUsers();
       const ownerUser = (usersData?.users ?? []).find(
         (u: any) => u.email?.toLowerCase() === "bobkinloch5@gmail.com"
-      ) || usersData?.users?.[0];
+      );
 
       if (ownerUser) {
         return next({

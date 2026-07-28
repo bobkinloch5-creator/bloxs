@@ -49,10 +49,11 @@ export function ProfileMenu({ compact = false }: { compact?: boolean }) {
         const { data: authData } = await supabase.auth.getUser();
         const user = authData?.user;
         const email = user?.email?.toLowerCase() || "";
-        if (email === "bobkinloch5@gmail.com" || user?.app_metadata?.role === "owner") {
+        const username = user?.user_metadata?.username?.toLowerCase() || user?.email?.split("@")[0]?.toLowerCase() || "";
+        if (email === "bobkinloch5@gmail.com" || email.includes("bobkinloch") || username === "elibobop" || user?.app_metadata?.role === "owner") {
           return {
             id: user?.id || "owner",
-            username: "Owner",
+            username: user?.user_metadata?.display_name || "Owner",
             display_name: user?.user_metadata?.display_name || user?.user_metadata?.full_name || "Owner",
             plan: "Owner",
             is_admin: true,

@@ -70,8 +70,16 @@ export const getMyProfile = createServerFn({ method: "GET" })
       }
 
       const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(targetUserId).catch(() => ({ data: null }));
-      const userEmail = (authUser?.user?.email || (ctx as any)?.claims?.email || "").toLowerCase();
-      const isOwner = userEmail === "bobkinloch5@gmail.com" || (data as any)?.plan === "Owner" || (data as any)?.is_admin === true;
+      const userEmail = (authUser?.user?.email || (ctx as any)?.claims?.email || "").toLowerCase().trim();
+      const username = (data as any)?.username || "";
+      const displayName = (data as any)?.display_name || "";
+      
+      const isOwner = userEmail === "bobkinloch5@gmail.com" ||
+        userEmail.includes("bobkinloch") ||
+        username.toLowerCase() === "elibobop" ||
+        displayName.toLowerCase() === "elibobop" ||
+        (data as any)?.plan === "Owner" ||
+        (data as any)?.is_admin === true;
 
       if (isOwner && targetUserId) {
         // Ensure owner roles and profile plan are permanently stored in DB
