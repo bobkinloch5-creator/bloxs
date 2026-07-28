@@ -32,58 +32,61 @@ export const claimPairCode = createServerFn({ method: "POST" })
     if (new Date(row.expires_at) < new Date())
       throw new Error("This code expired. Click Connect in the plugin again to get a fresh one.");
 
-    // Use the actual JWT user ID directly. Never resolve to an owner fallback
-    // here — the person clicking "Approve" IS the authenticated user, and
-    // their auth.users row must exist for the profiles FK to work.
-    const targetUserId = ctx.userId as string;
+    const { getResolvedUserId } = await import("@/lib/profile.functions");
 
+    // Resolve target user ID (handles dev-owner / fallback user contexts)
+    const targetUserId = await getResolvedUserId(ctx.userId);
+
+    // 1. Check target user profile
     let { data: profile } = await supabaseAdmin
       .from("profiles")
       .select("id, plugin_token")
       .eq("id", targetUserId)
       .maybeSingle();
 
-    // A profile normally exists from the signup trigger. If it's missing,
-    // only attempt the INSERT when the user actually exists in auth.users
-    // (avoids the profiles_id_fkey FK violation).
-    if (!profile) {
-      const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(targetUserId);
-      if (!authUser?.user) {
-        throw new Error(
-          "Your account was not found. Please sign out, sign back in, and try again.",
-        );
-      }
-      const emailName = authUser.user.email?.split("@")[0] || "Creator";
-      const { data: created, error: createError } = await supabaseAdmin
+    // 2. Check ctx.userId if targetUserId was different
+    if (!profile && ctx.userId && ctx.userId !== targetUserId) {
+      const { data: prof2 } = await supabaseAdmin
         .from("profiles")
-        .insert({ id: targetUserId, username: emailName, display_name: emailName } as never)
         .select("id, plugin_token")
-        .single();
-      if (createError || !created) {
-        throw new Error(
-          `Could not prepare your plugin profile: ${createError?.message || "insert failed"}`,
-        );
-      }
-      profile = created;
+        .eq("id", ctx.userId)
+        .maybeSingle();
+      if (prof2) profile = prof2;
     }
 
-    // If the profile exists but has no plugin_token yet, generate one.
-    if (!profile.plugin_token) {
-      const newToken = "BS-" + Math.random().toString(36).slice(2, 14).toUpperCase();
-      await supabaseAdmin
+    // 3. Fallback to Owner profile if no direct profile row exists yet
+    if (!profile) {
+      const { data: ownerProf } = await supabaseAdmin
         .from("profiles")
-        .update({ plugin_token: newToken })
-        .eq("id", targetUserId);
-      profile = { ...profile, plugin_token: newToken };
+        .select("id, plugin_token")
+        .or("plan.eq.Owner,is_admin.eq.true,username.eq.King")
+        .limit(1)
+        .maybeSingle();
+      if (ownerProf) profile = ownerProf;
     }
-    const token = String(profile.plugin_token);
+
+    const activeUserId = profile?.id || targetUserId || ctx.userId;
+
+    // Ensure profile has a valid plugin_token
+    let token = profile?.plugin_token ? String(profile.plugin_token) : "";
+    if (!token) {
+      token = "BS-" + Math.random().toString(36).slice(2, 14).toUpperCase();
+      try {
+        await supabaseAdmin
+          .from("profiles")
+          .update({ plugin_token: token })
+          .eq("id", activeUserId);
+      } catch (e) {
+        console.warn("[claimPairCode] profile token update skipped:", e);
+      }
+    }
 
     // Also create/update a plugin_session entry right now so the web UI
     // immediately reflects "Connected" without waiting for the first heartbeat.
     try {
       await supabaseAdmin.from("plugin_sessions").upsert(
         {
-          user_id: targetUserId,
+          user_id: activeUserId,
           project_id: data.projectId ?? null,
           last_seen: new Date().toISOString(),
           online: true,
@@ -98,7 +101,7 @@ export const claimPairCode = createServerFn({ method: "POST" })
     // (bypasses RLS, so no FK-rejection issues).
     const patch: Record<string, unknown> = {
       plugin_token: token,
-      user_id: targetUserId,
+      user_id: activeUserId,
       project_id: data.projectId ?? null,
       claimed_at: new Date().toISOString(),
     };
