@@ -214,19 +214,7 @@ export function WebsiteGuideModal({ open, onClose }: WebsiteGuideModalProps) {
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="rounded-2xl border border-amber-500/40 bg-gradient-to-b from-amber-500/10 to-transparent p-4 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="rounded-lg bg-amber-500/20 border border-amber-400/40 px-2 py-0.5 text-[10px] font-black uppercase text-amber-300">
-                      👑 OWNER ROLE
-                    </span>
-                    <Crown className="h-4 w-4 text-amber-400" />
-                  </div>
-                  <h4 className="text-xs font-bold text-white">Unlimited Platform Access</h4>
-                  <p className="text-[11px] text-slate-300 leading-relaxed">
-                    The Owner account (<code className="text-amber-200">bobkinloch5@gmail.com</code>) bypasses all top-up requirements and credit limits site-wide with unlocked access to all 28+ AI models.
-                  </p>
-                </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
                 <div className="rounded-2xl border border-cyan-500/40 bg-gradient-to-b from-cyan-500/10 to-transparent p-4 space-y-2">
                   <div className="flex items-center justify-between">
