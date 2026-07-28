@@ -50,7 +50,7 @@ function PluginPage() {
   const { data: session } = useQuery({
     queryKey: ["plugin-session"],
     queryFn: () => sessionFn(),
-    refetchInterval: 5000,
+    refetchInterval: 15_000,
   });
 
   const online = !!session?.online && !!session?.last_seen

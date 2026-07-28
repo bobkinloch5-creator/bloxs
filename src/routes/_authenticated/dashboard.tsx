@@ -101,7 +101,7 @@ function Dashboard() {
 
   const { data: projects = [], isLoading } = useQuery({ queryKey: ["projects"], queryFn: () => listFn() });
   const { data: serverProfile } = useQuery({ queryKey: ["profile"], queryFn: () => profFn(), refetchInterval: 30_000 });
-  const { data: pluginSession } = useQuery({ queryKey: ["pluginSession"], queryFn: () => sessFn(), refetchInterval: 6000 });
+  const { data: pluginSession } = useQuery({ queryKey: ["pluginSession"], queryFn: () => sessFn(), refetchInterval: 15_000 });
 
   // Client-side fallback: if server profile is null, read directly from Supabase
   const { data: clientProfile } = useQuery({

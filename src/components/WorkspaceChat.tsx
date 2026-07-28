@@ -321,7 +321,7 @@ export function WorkspaceChat({
   const { data: pluginSession } = useQuery({
     queryKey: ["pluginSession"],
     queryFn: () => sessFn(),
-    refetchInterval: 6000,
+    refetchInterval: 15_000,
   });
   const pluginOnline = !!(
     pluginSession?.online &&

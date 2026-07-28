@@ -25,6 +25,10 @@ function json(o: unknown, status = 200) {
   });
 }
 
+// In-memory cache for plugin_token -> profile id & 15-second write throttling to save disk IOPS
+const tokenCache = new Map<string, { id: string; fetchedAt: number }>();
+const lastSessionWrite = new Map<string, number>();
+
 export const Route = createFileRoute("/api/public/plugin/heartbeat")({
   server: {
     handlers: {
@@ -47,25 +51,38 @@ export const Route = createFileRoute("/api/public/plugin/heartbeat")({
           if (!token) return json({ error: "missing token" }, 401);
 
           const sb = admin();
-          const { data: profile } = await sb
-            .from("profiles")
-            .select("id")
-            .eq("plugin_token", token)
-            .maybeSingle();
-          if (!profile) return json({ error: "invalid token" }, 401);
+          let userId: string | null = null;
+          const cached = tokenCache.get(token);
+          if (cached && Date.now() - cached.fetchedAt < 60_000) {
+            userId = cached.id;
+          } else {
+            const { data: profile } = await sb
+              .from("profiles")
+              .select("id")
+              .eq("plugin_token", token)
+              .maybeSingle();
+            if (!profile) return json({ error: "invalid token" }, 401);
+            userId = profile.id;
+            tokenCache.set(token, { id: userId, fetchedAt: Date.now() });
+          }
 
-          await sb.from("plugin_sessions").upsert(
-            {
-              user_id: profile.id,
-              project_id: body.project_id ?? null,
-              place_id: body.place_id ?? null,
-              studio_version: body.studio_version ?? null,
-              plugin_version: body.plugin_version ?? null,
-              last_seen: new Date().toISOString(),
-              online: true,
-            },
-            { onConflict: "user_id" },
-          );
+          // Throttle database write to at most once per 15s per user
+          const lastWrite = lastSessionWrite.get(userId) ?? 0;
+          if (Date.now() - lastWrite > 15_000) {
+            lastSessionWrite.set(userId, Date.now());
+            await sb.from("plugin_sessions").upsert(
+              {
+                user_id: userId,
+                project_id: body.project_id ?? null,
+                place_id: body.place_id ?? null,
+                studio_version: body.studio_version ?? null,
+                plugin_version: body.plugin_version ?? null,
+                last_seen: new Date().toISOString(),
+                online: true,
+              },
+              { onConflict: "user_id" },
+            );
+          }
 
           return json({ ok: true, busy: !!body.busy });
         } catch (e) {

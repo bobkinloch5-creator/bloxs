@@ -23,6 +23,10 @@ type PluginActionRow = {
   sent_at?: string | null;
 };
 
+// Shared in-memory token cache to prevent repeated profile queries during high-frequency plugin polling
+type CachedProfile = { id: string; credits: number; max_credits: number; plan: string; is_admin: boolean; credits_reset_at: string | null; fetchedAt: number };
+const tokenProfileCache = new Map<string, CachedProfile>();
+
 export const Route = createFileRoute("/api/public/plugin/poll")({
   server: {
     handlers: {
@@ -40,16 +44,33 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
           if (!token) return json({ error: "missing token" }, 401);
 
           const sb = admin();
-          const { data: profile } = await sb.from("profiles")
-            .select("id, credits, max_credits, plan, is_admin, credits_reset_at")
-            .eq("plugin_token", token)
-            .maybeSingle();
-          if (!profile) return json({ error: "invalid token" }, 401);
+          let profile: CachedProfile | null = null;
+          const cached = tokenProfileCache.get(token);
+          if (cached && Date.now() - cached.fetchedAt < 60_000) {
+            profile = cached;
+          } else {
+            const { data } = await sb.from("profiles")
+              .select("id, credits, max_credits, plan, is_admin, credits_reset_at")
+              .eq("plugin_token", token)
+              .maybeSingle();
+            if (!data) return json({ error: "invalid token" }, 401);
+            profile = {
+              id: data.id,
+              credits: data.credits ?? 0,
+              max_credits: data.max_credits ?? 0,
+              plan: data.plan ?? "Free",
+              is_admin: !!data.is_admin,
+              credits_reset_at: data.credits_reset_at ?? null,
+              fetchedAt: Date.now(),
+            };
+            tokenProfileCache.set(token, profile);
+          }
+
           const profileId: string = profile.id;
 
           const touchSession = async () => {
             await sb.from("plugin_sessions").upsert({
-              user_id: profile.id,
+              user_id: profile!.id,
               project_id: body.project_id ?? null,
               place_id: body.place_id ?? null,
               studio_version: body.studio_version ?? null,
@@ -59,15 +80,8 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
             }, { onConflict: "user_id" });
           };
 
-          // Only force/manual polls touch the session here. The plugin has a
-          // separate lightweight heartbeat, so idle long-polls no longer write
-          // to the database every few seconds for every open Studio window.
           if (body.force === true) await touchSession();
 
-          // Pull the newest queued build for this account, not the project id
-          // saved inside older installed plugins. That saved id can be stale
-          // after the user opens a different project on the web app, which made
-          // Studio poll the wrong queue and appear to ignore new prompts.
           const actionSelect = "id, project_id, message_id, kind, parent_path, name, payload, position, created_at, sent_at";
 
           async function fetchPending(): Promise<PluginActionRow[] | { error: string }> {
@@ -81,9 +95,6 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
             if (latest.error) return { error: latest.error.message };
             if (!latest.data) return [];
 
-            // Execute the newest generated build first. Older pending rows from
-            // previous attempts must not sit ahead of the current prompt and
-            // make the website look stuck on "queued".
             let pendingQuery = sb.from("plugin_actions")
               .select(actionSelect)
               .eq("user_id", profileId)
@@ -104,16 +115,13 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
           if (!Array.isArray(first)) return json({ error: first.error }, 500);
           actions = first;
 
-          // Long-poll briefly if nothing is pending. Keep this short so one
-          // Studio window cannot sit on an 8s request while the user expects a
-          // one-action build to execute immediately.
+          // If no actions are pending, do a single quiet delay before re-checking once.
+          // This eliminates 95%+ of empty database polling spin cycles.
           if (actions.length === 0 && body.force !== true) {
-            const deadline = Date.now() + 2_500;
-            while (Date.now() < deadline) {
-              await new Promise((r) => setTimeout(r, 75));
-              const next = await fetchPending();
-              if (!Array.isArray(next)) return json({ error: next.error }, 500);
-              if (next.length > 0) { actions = next; break; }
+            await new Promise((r) => setTimeout(r, 1200));
+            const next = await fetchPending();
+            if (Array.isArray(next) && next.length > 0) {
+              actions = next;
             }
           }
 
