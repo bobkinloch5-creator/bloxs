@@ -8,6 +8,12 @@ const CHANGELOG_VERSION = "2026-07-28-owner-privilege-auth-fix";
 
 const CHANGELOG_ITEMS = [
   {
+    title: "⚡ Studio plugin v2.1.31 — fixed Playtest Client HTTP error spam",
+    date: "Jul 28",
+    icon: Sparkles,
+    body: "Plugin v2.1.31 — added RunService:IsClient() guards to disable HTTP polling coroutines on the Client datamodel during Playtest, eliminating 'Http requests can only be executed by game server' error output. Download BloxSmithPlugin.lua (v2.1.31) from /plugin.",
+  },
+  {
     title: "⚡ Studio plugin v2.1.30 — fixed log spamming & background scan loop",
     date: "Jul 28",
     icon: Sparkles,
