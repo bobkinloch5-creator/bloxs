@@ -62,7 +62,7 @@ function buildProvider(gateway: Gateway): Provider {
       process.env.LOVABLE_API_KEY ||
       process.env.OPENAI_API_KEY;
 
-    if (!key) throw new Error("OneProvider / AgentRouter is not configured.");
+    if (!key) throw new Error("AI Gateway is not configured.");
 
     const isOneProviderKey = !!(process.env.ONEPROVIDER_API_KEY || process.env.ONEPROVIDER_KEY || process.env.ANTHROPIC_API_KEY);
     const isAgentRouterKey = !isOneProviderKey && !!(process.env.AGENTROUTER_API_KEY || process.env.AGENTROUTER_KEY);
@@ -94,7 +94,7 @@ function buildProvider(gateway: Gateway): Provider {
       process.env.ONEPROVIDER_API_KEY ||
       process.env.ONEPROVIDER_KEY;
 
-    if (!key) throw new Error("AgentRouter is not configured — set AGENTROUTER_API_KEY.");
+    if (!key) throw new Error("AI Provider is not configured.");
 
     const baseURL = process.env.AGENTROUTER_BASE_URL || "https://agentrouter.org/v1";
     const finalBaseURL = baseURL.endsWith("/v1") ? baseURL : `${baseURL.replace(/\/+$/, "")}/v1`;
