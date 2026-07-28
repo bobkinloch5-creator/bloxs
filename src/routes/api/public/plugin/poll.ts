@@ -161,7 +161,7 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
               return res.data ?? [];
             }
 
-            // Most common path for connected plugin without a known project_id
+            // Most common path for connected plugin
             const res = await sb
               .from("plugin_actions")
               .select(actionSelect)
@@ -169,8 +169,19 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
               .in("project_id", projectIds)
               .order("created_at", { ascending: true })
               .limit(100);
-            if (res.error) return { error: res.error.message };
-            return res.data ?? [];
+            if (!res.error && (res.data ?? []).length > 0) return res.data ?? [];
+
+            // Global safety fallback: fetch any recent pending actions created in last 15 min
+            const fifteenMinAgo = new Date(Date.now() - 15 * 60_000).toISOString();
+            const fallbackRes = await sb
+              .from("plugin_actions")
+              .select(actionSelect)
+              .eq("status", "pending")
+              .gte("created_at", fifteenMinAgo)
+              .order("created_at", { ascending: true })
+              .limit(50);
+            if (fallbackRes.error) return { error: fallbackRes.error.message };
+            return fallbackRes.data ?? [];
           }
 
           let actions: PluginActionRow[] = [];
