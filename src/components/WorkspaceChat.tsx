@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import {
   Paperclip, Send, Sparkles, ChevronDown, Loader2, X, MessageSquare, Hammer, Wand2,
   Download, RefreshCw, Save, Image as ImageIcon, Square, Trash2, Zap, Volume2, VolumeX,
-  ClipboardList, Lightbulb, Languages, HelpCircle,
+  ClipboardList, Lightbulb, Languages, HelpCircle, CreditCard, Lock,
 } from "lucide-react";
 import { useLang, LANGUAGES } from "@/lib/i18n";
 import { playCompletionSound } from "@/lib/sound";
@@ -34,6 +34,62 @@ import { CreditsPill } from "@/components/CreditsWidget";
 import { useBloxSmithSpeaker } from "@/components/VoiceControls";
 import { GameBrainstormer } from "@/components/GameBrainstormer";
 import { WebsiteGuideModal } from "@/components/WebsiteGuideModal";
+import { PayPalTopUpModal } from "@/components/PayPalTopUpModal";
+
+function TopUpRequiredCard({
+  modelLabel,
+  errorMessage,
+  onTopUpClick,
+  onSwitchModelClick,
+}: {
+  modelLabel?: string;
+  errorMessage: string;
+  onTopUpClick: () => void;
+  onSwitchModelClick: () => void;
+}) {
+  return (
+    <div className="my-2.5 rounded-2xl border border-amber-500/50 bg-gradient-to-br from-[#1c152b] via-[#151024] to-[#0d0918] p-4 text-slate-100 shadow-[0_0_30px_rgba(245,158,11,0.25)] animate-in fade-in zoom-in-95">
+      <div className="flex items-start gap-3">
+        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-amber-400/50 bg-gradient-to-br from-amber-500/30 to-purple-600/30 shadow-md">
+          <Sparkles className="h-5 w-5 text-amber-300 animate-pulse" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-black uppercase tracking-wider text-amber-300 flex items-center gap-1">
+              💎 Top-Up Required
+            </span>
+            {modelLabel && (
+              <span className="rounded-full border border-amber-400/40 bg-amber-500/15 px-2.5 py-0.5 text-[10px] font-extrabold text-amber-200">
+                {modelLabel}
+              </span>
+            )}
+          </div>
+          <p className="mt-1.5 text-xs leading-relaxed text-slate-200 font-medium">
+            {errorMessage || "This AI model is reserved for Top-Up users. Purchase a top-up pack to instantly unlock access to all premium models!"}
+          </p>
+
+          <div className="mt-3.5 flex flex-wrap items-center gap-2.5">
+            <button
+              type="button"
+              onClick={onTopUpClick}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-amber-300/80 bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 px-4 py-2 text-xs font-black text-slate-950 shadow-[0_0_25px_rgba(245,158,11,0.5)] hover:brightness-110 active:scale-95 transition"
+            >
+              <CreditCard className="h-4 w-4 text-slate-950" />
+              Top Up Credits (PayPal)
+            </button>
+            <button
+              type="button"
+              onClick={onSwitchModelClick}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-3.5 py-2 text-xs font-bold text-slate-200 hover:bg-white/15 hover:text-white transition active:scale-95"
+            >
+              Switch to Free AI Model
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 
 
@@ -409,6 +465,7 @@ export function WorkspaceChat({
   }, [selectedModel]);
 
   const [showBrainstormer, setShowBrainstormer] = useState(false);
+  const [topUpModalOpen, setTopUpModalOpen] = useState(false);
 
   const isBuild = mode === "build";
 
@@ -913,6 +970,23 @@ export function WorkspaceChat({
             const imgs = m.role === "user" ? m.parts.filter((p: any) => p.type === "file" && p.mediaType?.startsWith?.("image/")) as any[] : [];
             const genImages = m.role === "assistant" ? extractGeneratedImages(m.parts as any[]) : [];
             const parsedConcepts = m.role === "assistant" ? parseConceptOptions(text) : [];
+
+            let topUpErrorMsg: string | null = null;
+            if (m.role === "assistant" && rawText) {
+              if (
+                /topup_required|Top-Up Exclusive|paidOnly|purchase a top-up/i.test(rawText) ||
+                (rawText.trim().startsWith("{") && rawText.includes("topup_required"))
+              ) {
+                topUpErrorMsg = "This AI model is reserved for Top-Up users. Purchase a top-up pack to instantly unlock access to all premium models!";
+                try {
+                  if (rawText.trim().startsWith("{")) {
+                    const parsed = JSON.parse(rawText.trim());
+                    if (parsed.error) topUpErrorMsg = parsed.error;
+                  }
+                } catch {}
+              }
+            }
+
             return (
               <div key={m.id} className={`mb-3.5 flex gap-2.5 ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                 <div
@@ -929,9 +1003,20 @@ export function WorkspaceChat({
                       ))}
                     </div>
                   )}
-                  <div className="prose prose-invert prose-sm max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-                    <ReactMarkdown components={markdownComponents}>{text || (m.role === "assistant" && status === "streaming" ? "Working on it…" : "")}</ReactMarkdown>
-                  </div>
+
+                  {topUpErrorMsg ? (
+                    <TopUpRequiredCard
+                      modelLabel={activeModelOption?.label}
+                      errorMessage={topUpErrorMsg}
+                      onTopUpClick={() => setTopUpModalOpen(true)}
+                      onSwitchModelClick={() => setSelectedModel("auto")}
+                    />
+                  ) : (
+                    <div className="prose prose-invert prose-sm max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+                      <ReactMarkdown components={markdownComponents}>{text || (m.role === "assistant" && status === "streaming" ? "Working on it…" : "")}</ReactMarkdown>
+                    </div>
+                  )}
+
                   {genImages.length > 0 && (
                     <div className="mt-2 space-y-2">
                       {genImages.map((im, i) => (
@@ -950,7 +1035,7 @@ export function WorkspaceChat({
                   )}
 
                   {/* Parsed Concept Option Buttons */}
-                  {m.role === "assistant" && parsedConcepts.length > 0 && (
+                  {m.role === "assistant" && !topUpErrorMsg && parsedConcepts.length > 0 && (
                     <div className="mt-3 rounded-xl border border-cyan-400/35 bg-gradient-to-r from-cyan-950/50 via-indigo-950/50 to-purple-950/50 p-2.5 space-y-2 shadow-[0_0_20px_rgba(34,211,238,0.2)]">
                       <div className="text-[11px] font-black uppercase tracking-wider text-cyan-300 flex items-center gap-1.5">
                         <Sparkles className="h-3.5 w-3.5 text-cyan-300 animate-pulse" />
@@ -976,7 +1061,7 @@ export function WorkspaceChat({
                     </div>
                   )}
 
-                  {m.role === "assistant" && (
+                  {m.role === "assistant" && !topUpErrorMsg && (
                     <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-white/10 pt-2 text-[10px] text-slate-300">
                       <div className="flex flex-wrap items-center gap-1.5">
                         <button
@@ -1064,8 +1149,19 @@ export function WorkspaceChat({
             </div>
           )}
           {error && (
-            <div className="mt-2 rounded-lg border border-rose-500/40 bg-rose-500/15 px-3 py-2 text-xs text-rose-100">
-              {friendlyError(error, { fallback: "The AI request failed." })}
+            <div className="mt-2">
+              {/topup_required|Top-Up Exclusive|paidOnly/i.test(error.message || String(error)) ? (
+                <TopUpRequiredCard
+                  modelLabel={activeModelOption?.label}
+                  errorMessage={error.message || "This model requires an active Top-Up to unlock access."}
+                  onTopUpClick={() => setTopUpModalOpen(true)}
+                  onSwitchModelClick={() => setSelectedModel("auto")}
+                />
+              ) : (
+                <div className="rounded-lg border border-rose-500/40 bg-rose-500/15 px-3 py-2 text-xs text-rose-100">
+                  {friendlyError(error, { fallback: "The AI request failed." })}
+                </div>
+              )}
             </div>
           )}
           {isBuild && executionStatus && executionStatus.state === "done" && (executionStatus.total ?? 0) > 0 && (
@@ -1444,6 +1540,7 @@ export function WorkspaceChat({
         </div>
       </div>
       <WebsiteGuideModal open={guideModalOpen} onClose={() => setGuideModalOpen(false)} />
+      <PayPalTopUpModal isOpen={topUpModalOpen} onClose={() => setTopUpModalOpen(false)} />
     </div>
   );
 }

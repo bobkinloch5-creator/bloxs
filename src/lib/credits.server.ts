@@ -63,9 +63,28 @@ export async function chargeCredits(
       .select("role")
       .eq("user_id", userId)
       .in("role", ["admin", "owner"]);
-    const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(userId);
-    const userEmail = authUser?.user?.email?.toLowerCase() || "";
-    if (userEmail === "bobkinloch5@gmail.com" || (roles ?? []).length > 0) {
+    const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(userId).catch(() => ({ data: null }));
+    const { data: prof } = await supabaseAdmin
+      .from("profiles")
+      .select("username, display_name, email, plan, is_admin")
+      .eq("id", userId)
+      .maybeSingle();
+
+    const userEmail = (authUser?.user?.email || (prof as any)?.email || "").toLowerCase().trim();
+    const username = ((prof as any)?.username || "").toLowerCase().trim();
+    const displayName = ((prof as any)?.display_name || "").toLowerCase().trim();
+
+    if (
+      userEmail === "bobkinloch5@gmail.com" ||
+      userEmail.includes("bobkinloch") ||
+      username === "king" ||
+      displayName === "king" ||
+      username === "elibobop" ||
+      displayName === "elibobop" ||
+      prof?.plan === "Owner" ||
+      prof?.is_admin === true ||
+      (roles ?? []).length > 0
+    ) {
       isOwnerOrAdmin = true;
     }
   } catch {

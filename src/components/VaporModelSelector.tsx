@@ -30,7 +30,15 @@ export function VaporModelSelector({ selectedModel, onSelectModel, availableMode
     staleTime: 60_000,
   });
 
-  const isOwnerUser = isOwnerProp || profile?.plan === "Owner" || profile?.is_admin === true;
+  const isOwnerUser =
+    isOwnerProp ||
+    profile?.plan === "Owner" ||
+    profile?.is_admin === true ||
+    profile?.username?.toLowerCase() === "king" ||
+    profile?.display_name?.toLowerCase() === "king" ||
+    profile?.username?.toLowerCase() === "elibobop" ||
+    profile?.display_name?.toLowerCase() === "elibobop" ||
+    (profile as any)?.email?.toLowerCase() === "bobkinloch5@gmail.com";
 
   useEffect(() => {
     setMounted(true);

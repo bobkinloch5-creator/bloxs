@@ -6280,23 +6280,41 @@ export const Route = createFileRoute("/api/chat")({
           try {
             const chosenModelOption = findModel(activeModelId);
 
+            const { data: userProf } = await supabaseAdmin
+              .from("profiles")
+              .select("plan, is_admin, settings, username, display_name, email")
+              .eq("id", userId)
+              .maybeSingle();
+
+            const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(userId).catch(() => ({ data: null }));
+            const userEmail = (authUser?.user?.email || (userProf as any)?.email || "").toLowerCase().trim();
+            const username = ((userProf as any)?.username || "").toLowerCase().trim();
+            const displayName = ((userProf as any)?.display_name || "").toLowerCase().trim();
+
+            let hasOwnerRole = false;
+            try {
+              const { data: roles } = await supabaseAdmin
+                .from("user_roles")
+                .select("role")
+                .eq("user_id", userId);
+              hasOwnerRole = (roles ?? []).some((r: any) => r.role === "owner" || r.role === "admin");
+            } catch {}
+
+            const isOwner =
+              userEmail === "bobkinloch5@gmail.com" ||
+              userEmail.includes("bobkinloch") ||
+              username === "king" ||
+              displayName === "king" ||
+              username === "elibobop" ||
+              displayName === "elibobop" ||
+              hasOwnerRole ||
+              userProf?.plan === "Owner" ||
+              userProf?.is_admin === true;
+
             if (chosenModelOption?.paidOnly) {
-              const { data: userProf } = await supabaseAdmin
-                .from("profiles")
-                .select("plan, is_admin, settings")
-                .eq("id", userId)
-                .maybeSingle();
-
-              const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(userId);
-              const userEmail = authUser?.user?.email?.toLowerCase() || "";
-
-              const isOwner =
-                userEmail === "bobkinloch5@gmail.com" ||
-                userProf?.plan === "Owner" ||
-                userProf?.is_admin === true;
-
               const hasTopUp =
                 isOwner ||
+                userProf?.plan === "Owner" ||
                 userProf?.plan === "TopUp" ||
                 (userProf?.settings && (userProf.settings as any)?.has_topup === true);
 
