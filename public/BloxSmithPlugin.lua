@@ -25,7 +25,7 @@ end
 
 local API_BASE       = "https://bloxsmith.pro"
 local POLL_INTERVAL  = 0.5
-local PLUGIN_VERSION = "2.1.32"
+local PLUGIN_VERSION = "2.1.33"
 
 ------------------------------------------------------------------- token helpers
 local TOKEN_KEY = "token"
@@ -1083,6 +1083,10 @@ Exec.screengui = function(a, p)
     g.ResetOnSpawn = (a.payload and a.payload.reset_on_spawn) ~= false
     g.Parent = p; applyProps(g, a.payload and a.payload.properties); return g
 end
+-- `gui` is accepted by the website as a friendly shorthand for ScreenGui.
+-- Keep the alias in the plugin too; otherwise a valid website action reaches
+-- Studio and fails with "Unknown action kind: gui".
+Exec.gui = Exec.screengui
 local function makeGuiObject(className, a, p)
     local payload = a.payload or {}
     local obj = Instance.new(className); obj.Name = a.name
@@ -1133,6 +1137,18 @@ end
 
 Exec.model = function(a, p)
     local m = Instance.new("Model"); m.Name = a.name; m.Parent = p; return m
+end
+
+-- Terrain is a singleton owned by Workspace.  We never create a second
+-- Terrain instance; an action either clears it explicitly or applies the
+-- requested writable properties to the existing object.
+Exec.terrain = function(a, _)
+    local payload = a.payload or {}
+    local terrain = Workspace:FindFirstChildOfClass("Terrain")
+    if not terrain then error("Workspace Terrain service is unavailable") end
+    if payload.clear == true then terrain:Clear() end
+    applyProps(terrain, payload.properties)
+    return { path = fullPath(terrain), class = terrain.ClassName, name = terrain.Name, cleared = payload.clear == true }
 end
 
 Exec.tool = function(a, p)
@@ -1194,6 +1210,19 @@ Exec.autofix_project = function(_, _)
     local result = autoFixProject()
     log(("Auto-fix complete -- %d moved, %d fixed."):format(result.moved_count or 0, result.fixed_count or 0), "success")
     return result
+end
+
+-- `setting` is deliberately limited to a concrete Instance path.  This
+-- avoids pretending that arbitrary Studio/Game Settings can be changed by a
+-- plugin while still making normal instance-property actions executable.
+Exec.setting = function(a, _)
+    local payload = a.payload or {}
+    local target = findByPath(payload.target_path or a.parent_path)
+    if not target then
+        return { skipped = true, reason = "target_not_found", target_path = payload.target_path or a.parent_path }
+    end
+    applyProps(target, payload.properties or payload.settings)
+    return target
 end
 
 local blockedAssetIds = {}
@@ -1673,6 +1702,10 @@ end
     end
     return result
 end
+
+-- Older planners may emit `run`; it has the same safe, validated execution
+-- path as run_lua rather than being silently rejected.
+Exec.run = Exec.run_lua
 
 local function describeAction(a)
     local payload = a.payload or {}
@@ -2363,6 +2396,55 @@ Exec.scan_project = function(_, _)
     if err then error("scan upload failed: " .. tostring(err)) end
     log(("Workspace scan uploaded -- %d instance(s), %d issue(s)."):format(scan.sampled or 0, #(scan.awareness and scan.awareness.issues or {})), "success")
     return { scanned = scan.sampled, issues = scan.awareness and scan.awareness.issues or {}, uploaded = data and data.ok == true }
+end
+
+-- A milestone stores the same bounded, script-aware tree used by project
+-- scanning. It is intentionally captured by the Studio plugin (not the
+-- browser), so it reflects the place that actually received the build.
+Exec.snapshot = function(a, _)
+    local token = validToken()
+    if not token then error("snapshot requires connected plugin token") end
+    if not a.project_id or tostring(a.project_id) == "" then
+        error("snapshot requires project_id")
+    end
+    local snapshot = buildScan()
+    local counts = { parts = 0, scripts = 0, gui = 0 }
+    for _, inst in ipairs(game:GetDescendants()) do
+        if inst:IsA("BasePart") then counts.parts += 1
+        elseif inst:IsA("LuaSourceContainer") then counts.scripts += 1
+        elseif inst:IsA("LayerCollector") then counts.gui += 1 end
+    end
+    local payload = a.payload or {}
+    local data, err = post("/api/public/plugin/snapshot/upload", {
+        token = token,
+        project_id = a.project_id,
+        place_id = tostring(game.PlaceId or 0),
+        label = tostring(payload.label or a.name or "Milestone"),
+        summary = tostring(payload.summary or "Studio milestone captured by BloxSmith"),
+        kind = payload.kind or "manual",
+        snapshot = snapshot,
+        counts = counts,
+    }, { verbose = false })
+    if err then error("snapshot upload failed: " .. tostring(err)) end
+    return { snapshot_id = data and data.id, created_at = data and data.created_at, counts = counts }
+end
+
+-- Playtest is non-blocking: it schedules the existing diagnostics loop and
+-- lets the action itself complete immediately, avoiding a stalled queue.
+Exec.playtest = function(_, _)
+    if type(_G.__BS_RunPlaytestManual) ~= "function" then
+        error("playtest diagnostics are not ready; reload the BloxSmith plugin")
+    end
+    task.spawn(_G.__BS_RunPlaytestManual)
+    return { started = true }
+end
+
+-- Restoring a complete place snapshot is intentionally not automatic. A
+-- snapshot can contain a user's scripts and assets, so destructive restore
+-- requires an interactive confirmation rather than an AI queue command.
+Exec.restore_snapshot = function(a, _)
+    local payload = a.payload or {}
+    error("restore_snapshot requires interactive confirmation in Studio (milestone " .. tostring(payload.milestone_id or "unknown") .. ")")
 end
 
 local scanBusy = false
