@@ -79,13 +79,7 @@ export function checkChangelogCoverage(changelogDates: string[]): CoverageReport
 
 /** Fire-once console warning for any missing dates. */
 let warned = false;
-export function warnIfIncomplete(report: CoverageReport) {
-  if (warned || report.missingDates.length === 0) return;
-  warned = true;
-  // eslint-disable-next-line no-console
-  console.warn(
-    `[changelog] ${report.missingDates.length} migration date(s) have no changelog entry:`,
-    report.missingDates,
-    report.orphanMigrations.map((m) => m.file),
-  );
+export function warnIfIncomplete(_report: CoverageReport) {
+  // Silent - coverage warning logs disabled per user request
+  return;
 }
