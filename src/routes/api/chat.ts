@@ -6427,7 +6427,6 @@ export const Route = createFileRoute("/api/chat")({
               ...(modelChoiceLite.modelSettings?.temperature !== undefined ? { temperature: modelChoiceLite.modelSettings.temperature } : {}),
               ...(modelChoiceLite.modelSettings?.topP !== undefined ? { topP: modelChoiceLite.modelSettings.topP } : {}),
               maxOutputTokens: capOutputTokens(modelChoiceLite.modelSettings, "chat"),
-              stopWhen: stepCountIs(6),
               onError: ({ error }) => console.error("[chat/lite] upstream error", error),
             });
             try {
@@ -6465,7 +6464,7 @@ export const Route = createFileRoute("/api/chat")({
             try {
               modelChoicePlan = getProviderModel(activeModelId);
             } catch (e) {
-              return jsonError(e instanceof Error ? e.message : "Model unavailable", 500, "provider_init_failed");
+              modelChoicePlan = getFallbackModel();
             }
             const strippedPlan = stripImageFilePartsFromMessages(messages);
             const convertedPlan = await convertToModelMessages(trimMessagesForModel(strippedPlan, "plan"));
@@ -6513,26 +6512,8 @@ Structure your response using bold GitHub Markdown headers:
 Reply in ${languageName} (${languageCode}). Keep your tone professional, structured, and deeply technical. End with:
 \n---\n💡 **Ready to bring this plan to life?** Switch to Build Mode and click **Send** to start building!`;
 
-            const planResult = streamText({
-              model: modelChoicePlan.model,
-              system: systemPlan,
-              messages: convertedPlan,
-              ...(modelChoicePlan.extraBody ? { providerOptions: { nvidia: modelChoicePlan.extraBody as Record<string, never> } as never } : {}),
-              ...(modelChoicePlan.modelSettings?.temperature !== undefined ? { temperature: modelChoicePlan.modelSettings.temperature } : {}),
-              ...(modelChoicePlan.modelSettings?.topP !== undefined ? { topP: modelChoicePlan.modelSettings.topP } : {}),
-              maxOutputTokens: capOutputTokens(modelChoicePlan.modelSettings, "plan"),
-              stopWhen: stepCountIs(6),
-              onError: ({ error }) => console.error("[chat/plan] upstream error", error),
-            });
             try {
-              return planResult.toUIMessageStreamResponse({
-                onError: (err) => {
-                  console.error("[chat/plan] stream error", err);
-                  return `Plan generation error: ${err instanceof Error ? err.message : "Error"}`;
-                },
-              });
-            } catch (streamErr) {
-              const fallback = await generateText({
+              const planResult = streamText({
                 model: modelChoicePlan.model,
                 system: systemPlan,
                 messages: convertedPlan,
@@ -6540,6 +6521,23 @@ Reply in ${languageName} (${languageCode}). Keep your tone professional, structu
                 ...(modelChoicePlan.modelSettings?.temperature !== undefined ? { temperature: modelChoicePlan.modelSettings.temperature } : {}),
                 ...(modelChoicePlan.modelSettings?.topP !== undefined ? { topP: modelChoicePlan.modelSettings.topP } : {}),
                 maxOutputTokens: capOutputTokens(modelChoicePlan.modelSettings, "plan"),
+                onError: ({ error }) => console.error("[chat/plan] upstream error", error),
+              });
+              return planResult.toUIMessageStreamResponse({
+                onError: (err) => {
+                  console.error("[chat/plan] stream error", err);
+                  return `Plan generation error: ${err instanceof Error ? err.message : "Error"}`;
+                },
+              });
+            } catch (streamErr) {
+              console.warn("[chat/plan] primary stream failed, trying fallback route", streamErr);
+              const fallbackChoice = getFallbackModel();
+              const fallback = await generateText({
+                model: fallbackChoice.model,
+                system: systemPlan,
+                messages: convertedPlan,
+                ...(fallbackChoice.extraBody ? { providerOptions: { nvidia: fallbackChoice.extraBody as Record<string, never> } as never } : {}),
+                maxOutputTokens: capOutputTokens(fallbackChoice.modelSettings, "plan"),
               });
               return streamPlainAssistantText(fallback.text || "Plan generated.", "plan-fallback-text");
             }
