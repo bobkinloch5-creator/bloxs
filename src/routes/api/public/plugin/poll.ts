@@ -88,6 +88,7 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
           }
 
           const profileId: string = profile.id;
+          const ownerFallbackId = "64f33732-136a-4c78-9421-7c11579c7412";
 
           // Throttle session UPSERT writes to database — max once per 45s per user
           const touchSession = async () => {
@@ -122,7 +123,6 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
           const actionSelect = "id, project_id, message_id, kind, parent_path, name, payload, position, created_at, sent_at";
 
           // Build the list of user IDs we care about (resolved + caller + owner fallback)
-          const ownerFallbackId = "64f33732-136a-4c78-9421-7c11579c7412";
           const relevantIds = Array.from(new Set(
             [profileId, ownerFallbackId].filter(Boolean)
           )) as string[];
