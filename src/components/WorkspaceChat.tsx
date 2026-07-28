@@ -485,7 +485,7 @@ export function WorkspaceChat({
   const { data: pluginSession } = useQuery({
     queryKey: ["pluginSession"],
     queryFn: () => sessFn(),
-    refetchInterval: 15_000,
+    refetchInterval: 3_000,
   });
   const pluginOnline = !!(
     pluginSession?.online &&
@@ -921,14 +921,7 @@ export function WorkspaceChat({
     // synchronous mode flip in the same click cycle is honored on this send.
     let effectiveMode: Mode = overrideMode ?? liveModeRef.current;
 
-    // If Build mode is selected but Studio plugin isn't online, auto-fallback
-    // to Chat mode so the AI generates the complete scripts directly in chat.
-    if (effectiveMode === "build" && !pluginOnline) {
-      effectiveMode = "chat";
-      liveModeRef.current = "chat";
-      setMode("chat");
-      toast.info("Studio plugin is offline — generating complete scripts directly in chat.");
-    }
+    // Build mode always queues build actions to plugin_actions for Studio execution.
 
     let pid = activeProjectId;
     if (!pid) {
