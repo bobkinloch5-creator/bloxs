@@ -47,6 +47,9 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
 
           const sb = admin();
           let profile: CachedProfile | null = null;
+          // When force=true (first poll after pair, Execute Now), always re-resolve
+          // the token from DB so a freshly-paired token never gets stale cached data.
+          if (body.force) tokenProfileCache.delete(token);
           const cached = tokenProfileCache.get(token);
           if (cached && Date.now() - cached.fetchedAt < 180_000) {
             profile = cached;
@@ -106,22 +109,68 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
 
           const actionSelect = "id, project_id, message_id, kind, parent_path, name, payload, position, created_at, sent_at";
 
+          // Build the list of user IDs we care about (resolved + caller + owner fallback)
+          const ownerFallbackId = "64f33732-136a-4c78-9421-7c11579c7412";
+          const relevantIds = Array.from(new Set(
+            [profileId, ownerFallbackId].filter(Boolean)
+          )) as string[];
+
+          // Look up all project IDs belonging to any of these users so we can
+          // fetch pending actions even when the plugin doesn't send project_id.
+          async function getRelevantProjectIds(): Promise<string[]> {
+            const { data: projs } = await sb
+              .from("projects")
+              .select("id")
+              .in("user_id", relevantIds)
+              .limit(200);
+            const fromProjects = (projs ?? []).map((p: any) => p.id as string);
+            // Also include project_id the plugin is currently working in (if sent)
+            if (body.project_id) {
+              fromProjects.push(body.project_id);
+            }
+            return Array.from(new Set(fromProjects));
+          }
+
           async function fetchPending(): Promise<PluginActionRow[] | { error: string }> {
-            let query = sb.from("plugin_actions")
+            // Primary path: filter directly by project_id (most reliable)
+            if (body.project_id) {
+              const res = await sb
+                .from("plugin_actions")
+                .select(actionSelect)
+                .eq("status", "pending")
+                .eq("project_id", body.project_id)
+                .order("created_at", { ascending: true })
+                .limit(100);
+              if (res.error) return { error: res.error.message };
+              if ((res.data ?? []).length > 0) return res.data ?? [];
+              // If no actions in the specific project, fall through to broader scan
+            }
+
+            // Broader scan: find all pending actions across all projects the user owns
+            const projectIds = await getRelevantProjectIds();
+            if (projectIds.length === 0) {
+              // Last resort: return all pending for user_id directly
+              const res = await sb
+                .from("plugin_actions")
+                .select(actionSelect)
+                .eq("status", "pending")
+                .in("user_id", relevantIds)
+                .order("created_at", { ascending: true })
+                .limit(100);
+              if (res.error) return { error: res.error.message };
+              return res.data ?? [];
+            }
+
+            // Most common path for connected plugin without a known project_id
+            const res = await sb
+              .from("plugin_actions")
               .select(actionSelect)
               .eq("status", "pending")
+              .in("project_id", projectIds)
               .order("created_at", { ascending: true })
               .limit(100);
-
-            if (body.project_id) {
-              query = query.or(`project_id.eq.${body.project_id},user_id.eq.${profileId},user_id.eq.64f33732-136a-4c78-9421-7c11579c7412`);
-            } else {
-              query = query.or(`user_id.eq.${profileId},user_id.eq.64f33732-136a-4c78-9421-7c11579c7412`);
-            }
-            
-            const pending = await query;
-            if (pending.error) return { error: pending.error.message };
-            return pending.data ?? [];
+            if (res.error) return { error: res.error.message };
+            return res.data ?? [];
           }
 
           let actions: PluginActionRow[] = [];

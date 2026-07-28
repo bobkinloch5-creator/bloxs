@@ -220,6 +220,20 @@ function EmptyRow({ label = "Nothing here yet." }) {
   return <div className="rounded-xl border border-dashed border-indigo-500/20 p-6 text-center text-xs text-slate-400">{label}</div>;
 }
 
+function memberDuration(createdAt: string): string {
+  const ms = Date.now() - new Date(createdAt).getTime();
+  if (ms < 0) return "new";
+  const days = Math.floor(ms / 86_400_000);
+  if (days < 1) return "today";
+  if (days < 7) return `${days}d`;
+  if (days < 30) return `${Math.floor(days / 7)}w`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months}mo`;
+  const years = Math.floor(months / 12);
+  const remMonths = months % 12;
+  return remMonths > 0 ? `${years}yr ${remMonths}mo` : `${years}yr`;
+}
+
 // -----------------------------------------------------------------------------
 // Dashboard tab
 // -----------------------------------------------------------------------------
@@ -499,7 +513,10 @@ function UserRow({ user, isOwner, busy, onGift, onBan, onRole }: any) {
         {hasRole("moderator") && badge("mod", "#34d399")}
         {hasRole("donator") && badge("donator", "#f472b6")}
       </div></td>
-      <td className="px-3 py-2 text-xs text-slate-400">{new Date(user.created_at).toLocaleDateString()}</td>
+      <td className="px-3 py-2 text-xs text-slate-400">
+        <div className="font-mono">{new Date(user.created_at).toLocaleDateString()}</div>
+        <div className="text-[10px] text-slate-500">{memberDuration(user.created_at)}</div>
+      </td>
       <td className="px-3 py-2">
         <div className="flex flex-wrap justify-end gap-1">
           <div className="flex items-center overflow-hidden rounded-md border border-indigo-500/20">
