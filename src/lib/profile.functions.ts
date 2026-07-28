@@ -4,7 +4,7 @@ import { z } from "zod";
 
 const PROFILE_COLS = "id, username, display_name, avatar_url, bio, roblox_username, roblox_user_id, roblox_display_name, roblox_avatar_url, roblox_headshot_url, roblox_verified_at, roblox_created_at, roblox_last_synced_at, roblox_public, roblox_experiences, plan, credits, max_credits, language, is_private, settings, created_at, updated_at, is_admin, credits_reset_at" as const;
 
-async function getResolvedUserId(ctxUserId: string): Promise<string> {
+export async function getResolvedUserId(ctxUserId: string): Promise<string> {
   if (ctxUserId && ctxUserId !== "dev-owner" && ctxUserId !== "owner" && ctxUserId !== "00000000-0000-0000-0000-000000000000") {
     return ctxUserId;
   }
