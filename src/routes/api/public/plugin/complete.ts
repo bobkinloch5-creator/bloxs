@@ -46,7 +46,8 @@ export const Route = createFileRoute("/api/public/plugin/complete")({
             return new Response(JSON.stringify({ error: "missing token" }), { status: 400, headers: { "content-type": "application/json", ...CORS } });
           }
           const sb = admin();
-          const { data: profile } = await sb.from("profiles").select("id").eq("plugin_token", body.token).maybeSingle();
+          const { resolvePluginToken } = await import("@/lib/resolve-plugin-token");
+          const profile = await resolvePluginToken(body.token);
           if (!profile) return new Response(JSON.stringify({ error: "invalid token" }), { status: 401, headers: { "content-type": "application/json", ...CORS } });
 
           const items = Array.isArray(body.results) && body.results.length > 0

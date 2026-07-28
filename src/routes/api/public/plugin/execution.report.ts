@@ -66,11 +66,8 @@ export const Route = createFileRoute("/api/public/plugin/execution/report")({
           if (!token) return json({ error: "missing token" }, 401);
 
           const sb = admin();
-          const { data: profile } = await sb
-            .from("profiles")
-            .select("id")
-            .eq("plugin_token", token)
-            .maybeSingle();
+          const { resolvePluginToken } = await import("@/lib/resolve-plugin-token");
+          const profile = await resolvePluginToken(token);
           if (!profile) return json({ error: "invalid token" }, 401);
 
           const stepsClamped = clampJson(body.steps, 500) as Array<{

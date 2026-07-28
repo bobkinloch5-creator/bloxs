@@ -48,11 +48,8 @@ export const Route = createFileRoute("/api/public/plugin/playtest/upload")({
           if (!body.run_id || !body.image_b64) return json({ error: "missing run_id or image" }, 400);
 
           const sb = admin();
-          const { data: profile } = await sb
-            .from("profiles")
-            .select("id")
-            .eq("plugin_token", token)
-            .maybeSingle();
+          const { resolvePluginToken } = await import("@/lib/resolve-plugin-token");
+          const profile = await resolvePluginToken(token);
           if (!profile) return json({ error: "invalid token" }, 401);
 
           const phase = (body.phase || "frame").replace(/[^a-z0-9_-]/gi, "").slice(0, 32) || "frame";

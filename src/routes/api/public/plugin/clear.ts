@@ -30,8 +30,8 @@ export const Route = createFileRoute("/api/public/plugin/clear")({
           const body = (await request.json()) as { token?: string; project_id?: string | null };
           if (!body.token) return json({ error: "missing token" }, 401);
           const sb = admin();
-          const { data: profile } = await sb
-            .from("profiles").select("id").eq("plugin_token", body.token).maybeSingle();
+          const { resolvePluginToken } = await import("@/lib/resolve-plugin-token");
+          const profile = await resolvePluginToken(body.token);
           if (!profile) return json({ error: "invalid token" }, 401);
 
           let q = sb.from("plugin_actions")
