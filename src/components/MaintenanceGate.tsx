@@ -185,8 +185,16 @@ export function MaintenanceGate({ children }: { children: ReactNode }) {
                 </button>
               </div>
               {passError && (
-                <div className="mt-2 flex items-center gap-1.5 text-xs text-rose-400 font-semibold">
-                  <AlertCircle className="h-3.5 w-3.5" /> {passError}
+                <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-rose-500/60 bg-rose-950/70 p-3 text-xs font-bold text-rose-200 shadow-xl backdrop-blur-md animate-pulse">
+                  <AlertCircle className="h-5 w-5 text-rose-400 shrink-0 mt-0.5" />
+                  <div>
+                    <div className="font-extrabold uppercase tracking-wider text-rose-400 flex items-center gap-1">
+                      ⚠️ SECURITY WARNING: UNAUTHORIZED ACCESS DETECTED
+                    </div>
+                    <div className="mt-1 text-rose-200/90 font-medium">
+                      {passError} This unauthorized attempt has been logged and reported to the site Owner (King).
+                    </div>
+                  </div>
                 </div>
               )}
               {unlockedSuccess && (

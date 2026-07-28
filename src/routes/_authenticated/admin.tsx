@@ -67,6 +67,30 @@ function AdminPage() {
     );
   }
 
+  if (error) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-[#0a0a1a] p-4 text-slate-200">
+        <div className="max-w-md text-center rounded-2xl border-2 border-red-500/60 bg-red-950/50 p-8 shadow-2xl backdrop-blur-xl">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-500/20 text-red-400 ring-8 ring-red-500/10">
+            <AlertOctagon className="h-10 w-10 text-red-500" />
+          </div>
+          <h2 className="mt-4 text-2xl font-black tracking-wide text-red-200">
+            ⚠️ SECURITY WARNING: ACCESS DENIED
+          </h2>
+          <p className="mt-2 text-sm text-red-300/90 font-medium">
+            Unauthorized access attempt detected. You do not have owner/admin permission to view this control panel.
+          </p>
+          <div className="mt-4 rounded-xl bg-black/80 p-3 text-xs font-mono text-red-400 border border-red-800/60">
+            LOGGED: Security violation recorded & reported to Owner (King).
+          </div>
+          <Link to="/dashboard" className="mt-6 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-rose-700 px-6 py-3 text-sm font-bold text-white hover:scale-105 transition-all shadow-lg">
+            Return to Safety
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   const overviewData = data || {
     profile: { id: "owner", username: "Owner", display_name: "Owner", plan: "Owner", is_admin: true },
     email: "bobkinloch5@gmail.com",

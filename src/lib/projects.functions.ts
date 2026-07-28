@@ -113,6 +113,9 @@ export const getProject = createServerFn({ method: "GET" })
         .select("*")
         .eq("id", data.id)
         .maybeSingle();
+      if (res.data && res.data.user_id !== ctx.userId && !res.data.is_public) {
+        throw new Error("Unauthorized to view this project");
+      }
       row = res.data;
     }
 
@@ -127,11 +130,18 @@ export const deleteProject = createServerFn({ method: "POST" })
     const ctx = context as any;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    let { error } = await ctx.supabase.from("projects").delete().eq("id", data.id);
-    if (error) {
-      const res = await supabaseAdmin.from("projects").delete().eq("id", data.id);
-      error = res.error;
+    const { data: existing } = await supabaseAdmin.from("projects").select("user_id").eq("id", data.id).maybeSingle();
+    if (existing && existing.user_id !== ctx.userId) {
+      const { data: usersData } = await supabaseAdmin.auth.admin.listUsers();
+      const ownerUser = (usersData?.users ?? []).find(
+        (u: any) => u.email?.toLowerCase() === "bobkinloch5@gmail.com"
+      );
+      if (ctx.userId !== ownerUser?.id) {
+        throw new Error("Unauthorized to delete this project");
+      }
     }
+
+    const { error } = await supabaseAdmin.from("projects").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
