@@ -68,7 +68,7 @@ export const Route = createFileRoute("/api/public/plugin/error")({
           const uniqueErrors = errors.filter((e) => !recentMsgSet.has(e.message.slice(0, 4000)));
           if (uniqueErrors.length === 0) return json({ ok: true, inserted: 0, deduplicated: true });
 
-          const rows = uniqueErrors.map((e) => ({
+          let rows = uniqueErrors.map((e) => ({
             user_id: profile.id,
             project_id: body.project_id ?? null,
             action_id: e.action_id ?? null,
@@ -77,8 +77,19 @@ export const Route = createFileRoute("/api/public/plugin/error")({
             message: e.message.slice(0, 4000),
             stack: e.stack ? e.stack.slice(0, 4000) : null,
           }));
-          const { error } = await sb.from("studio_errors").insert(rows);
-          if (error) return json({ error: error.message }, 500);
+
+          let { error } = await sb.from("studio_errors").insert(rows);
+          if (error) {
+            console.warn("[error.ts] First insert attempt failed:", error.message);
+            // Fallback: try inserting without project_id in case project_id FK failed
+            const fallbackRows = rows.map((r) => ({ ...r, project_id: null }));
+            const retry = await sb.from("studio_errors").insert(fallbackRows);
+            if (retry.error) {
+              console.error("[error.ts] Studio error insert fallback failed:", retry.error.message);
+              // Still return 200 ok to prevent plugin from retrying indefinitely on bad logs
+              return json({ ok: false, warning: retry.error.message });
+            }
+          }
 
 
           // ── SELF-HEALING LOOP ──

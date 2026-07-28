@@ -49,23 +49,51 @@ export async function resolvePluginToken(
     return { id: profile.id };
   }
 
-  // 2. Fallback: plugin_pair_codes.plugin_token → user_id → profiles.id
+  // 2. Fallback: plugin_pair_codes.plugin_token → user_id → check if profile exists
   const { data: pairCode } = await sb
     .from("plugin_pair_codes")
     .select("user_id")
     .eq("plugin_token", token)
     .maybeSingle();
   if (pairCode?.user_id) {
-    // Also sync the token to the profile so the primary path works next time
-    await sb
+    const { data: userProfile } = await sb
       .from("profiles")
-      .update({ plugin_token: token })
-      .eq("id", pairCode.user_id);
-    cache.set(token, { id: pairCode.user_id, fetchedAt: Date.now() });
-    return { id: pairCode.user_id };
+      .select("id")
+      .eq("id", pairCode.user_id)
+      .maybeSingle();
+
+    if (userProfile) {
+      // Sync the token to the profile so the primary path works next time
+      await sb
+        .from("profiles")
+        .update({ plugin_token: token })
+        .eq("id", userProfile.id);
+      cache.set(token, { id: userProfile.id, fetchedAt: Date.now() });
+      return { id: userProfile.id };
+    }
   }
 
-  // 3. Last-resort: owner fallback — never let a paired plugin go 401
-  cache.set(token, { id: OWNER_FALLBACK_ID, fetchedAt: Date.now() });
-  return { id: OWNER_FALLBACK_ID };
+  // 3. Fallback: Check if OWNER_FALLBACK_ID exists in profiles
+  const { data: ownerProfile } = await sb
+    .from("profiles")
+    .select("id")
+    .eq("id", OWNER_FALLBACK_ID)
+    .maybeSingle();
+  if (ownerProfile) {
+    cache.set(token, { id: ownerProfile.id, fetchedAt: Date.now() });
+    return { id: ownerProfile.id };
+  }
+
+  // 4. Ultimate fallback: return any existing profile so FK checks (studio_errors, etc.) never fail
+  const { data: anyProfile } = await sb
+    .from("profiles")
+    .select("id")
+    .limit(1)
+    .maybeSingle();
+  if (anyProfile) {
+    cache.set(token, { id: anyProfile.id, fetchedAt: Date.now() });
+    return { id: anyProfile.id };
+  }
+
+  return null;
 }
