@@ -56,6 +56,15 @@ export const getMyProfile = createServerFn({ method: "GET" })
         display_name: "Owner",
         plan: "Owner",
         is_admin: true,
+        credits: 99999,
+        max_credits: 99999,
+        bio: "",
+        roblox_username: "",
+        is_private: false,
+        avatar_url: null as string | null,
+        credits_reset_at: new Date().toISOString(),
+        settings: {} as Record<string, unknown>,
+        language: "en",
       };
     }
   });
