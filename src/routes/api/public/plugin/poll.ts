@@ -105,7 +105,16 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
             }, { onConflict: "user_id" });
           };
 
-          if (body.force === true) await touchSession();
+          // Always flush the session on force (first poll after pair/reconnect)
+          // OR when the plugin version changed — so the website version warning
+          // clears the instant the new plugin connects.
+          const cachedVersion = (profile as unknown as Record<string, unknown>)._pluginVersion as string | undefined;
+          const versionChanged = body.plugin_version && body.plugin_version !== cachedVersion;
+          if (versionChanged && profile) {
+            (profile as unknown as Record<string, unknown>)._pluginVersion = body.plugin_version;
+            lastSessionWriteMap.delete(profileId); // force a write on next touchSession
+          }
+          if (body.force === true || versionChanged) await touchSession();
 
           const actionSelect = "id, project_id, message_id, kind, parent_path, name, payload, position, created_at, sent_at";
 
