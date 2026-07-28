@@ -210,12 +210,6 @@ export function MaintenanceGate({ children }: { children: ReactNode }) {
             >
               <Key className="h-3.5 w-3.5 text-amber-300" /> Owner Passcode Access
             </button>
-            <a
-              href="/auth"
-              className="vapor-ghost-btn inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-300"
-            >
-              <ShieldCheck className="h-3.5 w-3.5 text-indigo-300" /> Staff Sign In
-            </a>
           </div>
 
         </div>
