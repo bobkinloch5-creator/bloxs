@@ -64,10 +64,7 @@ export async function resolvePluginToken(
     if (userProfile) {
       if (userProfile.banned) return null;
       // Sync the token to the profile so the primary path works next time
-      await sb
-        .from("profiles")
-        .update({ plugin_token: token })
-        .eq("id", userProfile.id);
+      await sb.from("profiles").update({ plugin_token: token }).eq("id", userProfile.id);
       cache.set(token, { id: userProfile.id, fetchedAt: Date.now() });
       return { id: userProfile.id };
     }

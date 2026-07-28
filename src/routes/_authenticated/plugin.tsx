@@ -3,16 +3,33 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getMyProfile } from "@/lib/profile.functions";
 import { getPluginSession } from "@/lib/chat.functions";
-import { Download, Plug, CheckCircle2, CircleSlash, Clock, Server, Shield, Globe } from "lucide-react";
+import {
+  Download,
+  Plug,
+  CheckCircle2,
+  CircleSlash,
+  Clock,
+  Server,
+  Shield,
+  Globe,
+} from "lucide-react";
 import { PLUGIN_VERSION } from "@/lib/plugin-version";
 
 export const Route = createFileRoute("/_authenticated/plugin")({
   head: () => ({
     meta: [
       { title: "Roblox Studio Plugin — BloxSmith" },
-      { name: "description", content: "Install and pair the BloxSmith Roblox Studio plugin — one-click connect to send AI-generated scripts, maps, and UI straight into Studio." },
+      {
+        name: "description",
+        content:
+          "Install and pair the BloxSmith Roblox Studio plugin — one-click connect to send AI-generated scripts, maps, and UI straight into Studio.",
+      },
       { property: "og:title", content: "BloxSmith Roblox Studio Plugin" },
-      { property: "og:description", content: "Pair Roblox Studio with BloxSmith in one click and push AI builds straight into your place." },
+      {
+        property: "og:description",
+        content:
+          "Pair Roblox Studio with BloxSmith in one click and push AI builds straight into your place.",
+      },
       { name: "robots", content: "noindex, nofollow" },
     ],
   }),
@@ -29,10 +46,11 @@ function timeAgo(iso?: string | null) {
 }
 
 function compareVersions(current?: string | null, required?: string | null) {
-  const parse = (value?: string | null) => String(value ?? "")
-    .split(".")
-    .map((part) => Number.parseInt(part.replace(/\D+/g, ""), 10))
-    .map((n) => (Number.isFinite(n) ? n : 0));
+  const parse = (value?: string | null) =>
+    String(value ?? "")
+      .split(".")
+      .map((part) => Number.parseInt(part.replace(/\D+/g, ""), 10))
+      .map((n) => (Number.isFinite(n) ? n : 0));
   const a = parse(current);
   const b = parse(required);
   const len = Math.max(a.length, b.length, 3);
@@ -54,8 +72,10 @@ function PluginPage() {
     refetchOnWindowFocus: true,
   });
 
-  const online = !!session?.online && !!session?.last_seen
-    && (Date.now() - new Date(session.last_seen).getTime()) < 90_000;
+  const online =
+    !!session?.online &&
+    !!session?.last_seen &&
+    Date.now() - new Date(session.last_seen).getTime() < 90_000;
   const MIN_REQUIRED_VERSION = PLUGIN_VERSION;
   const outdated = online && compareVersions(session?.plugin_version, MIN_REQUIRED_VERSION) < 0;
 
@@ -89,23 +109,32 @@ function PluginPage() {
             )}
           </div>
           <div className="text-xs text-muted-foreground flex items-center gap-3">
-            <span className="inline-flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> Last seen {timeAgo(session?.last_seen)}</span>
+            <span className="inline-flex items-center gap-1">
+              <Clock className="h-3.5 w-3.5" /> Last seen {timeAgo(session?.last_seen)}
+            </span>
             {session?.studio_version && (
-              <span className="inline-flex items-center gap-1"><Server className="h-3.5 w-3.5" /> Studio {session.studio_version}</span>
+              <span className="inline-flex items-center gap-1">
+                <Server className="h-3.5 w-3.5" /> Studio {session.studio_version}
+              </span>
             )}
           </div>
         </div>
         {session?.place_id && (
-          <p className="mt-2 text-xs text-muted-foreground">Linked place: <span className="font-mono text-foreground">{session.place_id}</span></p>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Linked place: <span className="font-mono text-foreground">{session.place_id}</span>
+          </p>
         )}
         {outdated && (
           <p className="mt-3 rounded-lg border border-amber-400/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
-            Your open Studio plugin is v{session?.plugin_version}; download v{PLUGIN_VERSION} below, replace the old file, then reload plugins so actions do not get stuck behind slow Roblox asset inserts.
+            Your open Studio plugin is v{session?.plugin_version}; download v{PLUGIN_VERSION} below,
+            replace the old file, then reload plugins so actions do not get stuck behind slow Roblox
+            asset inserts.
           </p>
         )}
         {!online && (
           <p className="mt-3 text-sm text-muted-foreground">
-            Open the BloxSmith plugin in Roblox Studio and click <b>Connect</b>. A one-click approval link will bring you back here.
+            Open the BloxSmith plugin in Roblox Studio and click <b>Connect</b>. A one-click
+            approval link will bring you back here.
           </p>
         )}
       </div>
@@ -114,9 +143,13 @@ function PluginPage() {
       <div className="glass mt-4 rounded-2xl p-6">
         <div className="flex items-center justify-between gap-3">
           <h2 className="font-display text-lg font-semibold">1. Download the plugin</h2>
-          <span className="rounded-md bg-white/[0.06] px-2 py-0.5 text-[11px] font-bold text-white/80">v{PLUGIN_VERSION}</span>
+          <span className="rounded-md bg-white/[0.06] px-2 py-0.5 text-[11px] font-bold text-white/80">
+            v{PLUGIN_VERSION}
+          </span>
         </div>
-        <p className="mt-1 text-sm text-muted-foreground">A single Luau file that runs inside Roblox Studio.</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          A single Luau file that runs inside Roblox Studio.
+        </p>
         <div className="mt-4 flex flex-wrap gap-2">
           <a
             href="/BloxSmithPlugin.lua"
@@ -141,14 +174,28 @@ function PluginPage() {
         <h2 className="font-display text-lg font-semibold">2. Install in Studio</h2>
         <ol className="mt-3 space-y-2 text-sm text-muted-foreground list-decimal pl-5">
           <li>Open Roblox Studio.</li>
-          <li><span className="font-mono text-foreground">Plugins</span> tab → <span className="font-mono text-foreground">Plugins Folder</span>.</li>
-          <li>Drop <span className="font-mono text-foreground">BloxSmithPlugin.lua</span> in. Default paths:
+          <li>
+            <span className="font-mono text-foreground">Plugins</span> tab →{" "}
+            <span className="font-mono text-foreground">Plugins Folder</span>.
+          </li>
+          <li>
+            Drop <span className="font-mono text-foreground">BloxSmithPlugin.lua</span> in. Default
+            paths:
             <ul className="mt-1 ml-4 list-disc space-y-0.5">
-              <li><span className="font-mono">Windows:</span> <span className="font-mono text-foreground">%LOCALAPPDATA%\Roblox\Plugins</span></li>
-              <li><span className="font-mono">macOS:</span> <span className="font-mono text-foreground">~/Documents/Roblox/Plugins</span></li>
+              <li>
+                <span className="font-mono">Windows:</span>{" "}
+                <span className="font-mono text-foreground">%LOCALAPPDATA%\Roblox\Plugins</span>
+              </li>
+              <li>
+                <span className="font-mono">macOS:</span>{" "}
+                <span className="font-mono text-foreground">~/Documents/Roblox/Plugins</span>
+              </li>
             </ul>
           </li>
-          <li><span className="font-mono text-foreground">Plugins → Reload Plugins</span> (or restart Studio).</li>
+          <li>
+            <span className="font-mono text-foreground">Plugins → Reload Plugins</span> (or restart
+            Studio).
+          </li>
         </ol>
       </div>
 
@@ -156,14 +203,16 @@ function PluginPage() {
       <div className="glass mt-4 rounded-2xl border border-cyan-500/30 bg-cyan-950/20 p-6 space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="font-display text-lg font-semibold text-white flex items-center gap-2">
-            <Shield className="h-5 w-5 text-cyan-400" /> Required Roblox Experience & Security Settings
+            <Shield className="h-5 w-5 text-cyan-400" /> Required Roblox Experience & Security
+            Settings
           </h2>
           <span className="rounded-md bg-cyan-500/20 border border-cyan-400/40 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-cyan-300">
             Mandatory Setup
           </span>
         </div>
         <p className="text-sm text-muted-foreground">
-          Roblox Studio restricts plugin network access by default. Ensure these two settings are turned on in your place:
+          Roblox Studio restricts plugin network access by default. Ensure these two settings are
+          turned on in your place:
         </p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
           <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 space-y-1.5">
@@ -171,7 +220,9 @@ function PluginPage() {
               <Globe className="h-4 w-4 text-cyan-400" /> 1. Allow HTTP Requests
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Open <b>Home</b> or <b>Plugins</b> tab &rarr; <b>Game Settings</b> &rarr; <b>Security</b> &rarr; toggle on <code className="text-emerald-300 font-mono">Allow HTTP Requests</code>.
+              Open <b>Home</b> or <b>Plugins</b> tab &rarr; <b>Game Settings</b> &rarr;{" "}
+              <b>Security</b> &rarr; toggle on{" "}
+              <code className="text-emerald-300 font-mono">Allow HTTP Requests</code>.
             </p>
           </div>
           <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 space-y-1.5">
@@ -179,14 +230,17 @@ function PluginPage() {
               <Shield className="h-4 w-4 text-amber-400" /> 2. Enable API Services
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              In <b>Game Settings &rarr; Security</b> &rarr; toggle on <code className="text-amber-200 font-mono">Enable Studio Access to API Services</code> for DataStore and Cloud APIs.
+              In <b>Game Settings &rarr; Security</b> &rarr; toggle on{" "}
+              <code className="text-amber-200 font-mono">Enable Studio Access to API Services</code>{" "}
+              for DataStore and Cloud APIs.
             </p>
           </div>
         </div>
         <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200 flex items-center gap-2.5">
           <Shield className="h-4 w-4 shrink-0 text-amber-400" />
           <span>
-            <b>Security Prompt:</b> When Studio asks <i>"Allow BloxSmithPlugin to perform HTTP Requests?"</i>, click <b>Allow</b>.
+            <b>Security Prompt:</b> When Studio asks{" "}
+            <i>"Allow BloxSmithPlugin to perform HTTP Requests?"</i>, click <b>Allow</b>.
           </span>
         </div>
       </div>
@@ -195,18 +249,34 @@ function PluginPage() {
       <div className="glass mt-4 rounded-2xl p-6">
         <h2 className="font-display text-lg font-semibold">3. One-click connect</h2>
         <ol className="mt-3 space-y-2 text-sm text-muted-foreground list-decimal pl-5">
-          <li>Click the <span className="font-mono text-foreground">BloxSmith</span> button in the Plugins tab.</li>
-          <li>First time only: tick <span className="font-mono text-foreground">Allow HTTP Requests</span>.</li>
-          <li>Click <span className="font-mono text-foreground">Connect</span>. The plugin opens an approval link here on BloxSmith.</li>
-          <li>Click <b>Approve & connect</b> on the website. Status flips to <span className="text-emerald-400">Connected</span> in both places.</li>
+          <li>
+            Click the <span className="font-mono text-foreground">BloxSmith</span> button in the
+            Plugins tab.
+          </li>
+          <li>
+            First time only: tick{" "}
+            <span className="font-mono text-foreground">Allow HTTP Requests</span>.
+          </li>
+          <li>
+            Click <span className="font-mono text-foreground">Connect</span>. The plugin opens an
+            approval link here on BloxSmith.
+          </li>
+          <li>
+            Click <b>Approve & connect</b> on the website. Status flips to{" "}
+            <span className="text-emerald-400">Connected</span> in both places.
+          </li>
         </ol>
-        <p className="mt-3 text-xs text-muted-foreground">No tokens to copy. The plugin and the website agree automatically while you're signed in.</p>
+        <p className="mt-3 text-xs text-muted-foreground">
+          No tokens to copy. The plugin and the website agree automatically while you're signed in.
+        </p>
       </div>
 
       {/* What it does */}
       <div className="glass mt-4 rounded-2xl p-6">
         <h2 className="font-display text-lg font-semibold">What the plugin does</h2>
-        <p className="mt-1 text-sm text-muted-foreground">It's the execution bridge — the AI plans, the plugin builds.</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          It's the execution bridge — the AI plans, the plugin builds.
+        </p>
         <ul className="mt-3 grid gap-2 sm:grid-cols-2 text-sm text-muted-foreground list-disc pl-5">
           <li>Folders, Scripts, LocalScripts, ModuleScripts</li>
           <li>ScreenGuis, Frames, Buttons, Labels, Images</li>
@@ -223,19 +293,50 @@ function PluginPage() {
       <div className="glass mt-4 rounded-2xl p-6">
         <h2 className="font-display text-lg font-semibold">Plugin controls</h2>
         <ul className="mt-3 grid gap-2 sm:grid-cols-2 text-sm text-muted-foreground list-disc pl-5">
-          <li><b className="text-foreground">Connect</b> — opens one-click approval link</li>
-          <li><b className="text-foreground">Reconnect</b> — re-uses saved token</li>
-          <li><b className="text-foreground">Sync / Execute Now</b> — pulls and runs actions immediately</li>
-          <li><b className="text-foreground">Clear Stuck</b> — drops stuck actions safely</li>
-          <li><b className="text-foreground">View Errors</b> — recent failures inline</li>
-          <li><b className="text-foreground">Open Website</b> — copies BloxSmith URL</li>
-          <li><b className="text-foreground">Scan Game</b> — uploads a snapshot of your place so the AI sees your tree</li>
-          <li><b className="text-foreground">Send Errors</b> — pushes queued Studio errors to the AI for auto-fix</li>
-          <li><b className="text-foreground">Auto-Send</b> — toggles automatic error uploads</li>
-          <li><b className="text-foreground">Organize</b> — moves scripts/remotes into the correct services</li>
-          <li><b className="text-foreground">Auto-Fix</b> — runs Organize plus quick-fix passes on your place</li>
-          <li><b className="text-foreground">Verbose</b> — log every HTTP request</li>
-          <li><b className="text-foreground">Copy / Clear log</b> — share logs in Discord</li>
+          <li>
+            <b className="text-foreground">Connect</b> — opens one-click approval link
+          </li>
+          <li>
+            <b className="text-foreground">Reconnect</b> — re-uses saved token
+          </li>
+          <li>
+            <b className="text-foreground">Sync / Execute Now</b> — pulls and runs actions
+            immediately
+          </li>
+          <li>
+            <b className="text-foreground">Clear Stuck</b> — drops stuck actions safely
+          </li>
+          <li>
+            <b className="text-foreground">View Errors</b> — recent failures inline
+          </li>
+          <li>
+            <b className="text-foreground">Open Website</b> — copies BloxSmith URL
+          </li>
+          <li>
+            <b className="text-foreground">Scan Game</b> — uploads a snapshot of your place so the
+            AI sees your tree
+          </li>
+          <li>
+            <b className="text-foreground">Send Errors</b> — pushes queued Studio errors to the AI
+            for auto-fix
+          </li>
+          <li>
+            <b className="text-foreground">Auto-Send</b> — toggles automatic error uploads
+          </li>
+          <li>
+            <b className="text-foreground">Organize</b> — moves scripts/remotes into the correct
+            services
+          </li>
+          <li>
+            <b className="text-foreground">Auto-Fix</b> — runs Organize plus quick-fix passes on
+            your place
+          </li>
+          <li>
+            <b className="text-foreground">Verbose</b> — log every HTTP request
+          </li>
+          <li>
+            <b className="text-foreground">Copy / Clear log</b> — share logs in Discord
+          </li>
         </ul>
       </div>
 
@@ -243,12 +344,42 @@ function PluginPage() {
       <div className="glass mt-4 rounded-2xl p-6">
         <h2 className="font-display text-lg font-semibold">Troubleshooting</h2>
         <ul className="mt-3 space-y-2 text-sm text-muted-foreground list-disc pl-5">
-          <li><b className="text-foreground">Button missing in Studio?</b> File must end in <span className="font-mono">.lua</span> and sit directly in the Plugins folder. Then Reload Plugins.</li>
-          <li><b className="text-foreground">"Allow HTTP Requests" prompt?</b> Approve it — the plugin only talks to BloxSmith.</li>
-          <li><b className="text-foreground">Approval link asks me to sign in?</b> Sign in to BloxSmith first, then click Connect again in the plugin.</li>
-          <li><b className="text-foreground">Execution stuck?</b> Click <span className="font-mono">Execute Now</span>, or <span className="font-mono">Clear Stuck</span> and ask the AI to retry.</li>
-          <li><b className="text-foreground">Toolbox asset failed?</b> The asset may be private or removed. Pick another and try again.</li>
-          <li><b className="text-foreground">Still stuck?</b> Tap <span className="font-mono">Verbose</span>, then <span className="font-mono">Copy log</span>, and share in the <a className="text-primary underline" href="https://discord.gg/YJ8xPFNSSX" target="_blank" rel="noreferrer">Discord</a>.</li>
+          <li>
+            <b className="text-foreground">Button missing in Studio?</b> File must end in{" "}
+            <span className="font-mono">.lua</span> and sit directly in the Plugins folder. Then
+            Reload Plugins.
+          </li>
+          <li>
+            <b className="text-foreground">"Allow HTTP Requests" prompt?</b> Approve it — the plugin
+            only talks to BloxSmith.
+          </li>
+          <li>
+            <b className="text-foreground">Approval link asks me to sign in?</b> Sign in to
+            BloxSmith first, then click Connect again in the plugin.
+          </li>
+          <li>
+            <b className="text-foreground">Execution stuck?</b> Click{" "}
+            <span className="font-mono">Execute Now</span>, or{" "}
+            <span className="font-mono">Clear Stuck</span> and ask the AI to retry.
+          </li>
+          <li>
+            <b className="text-foreground">Toolbox asset failed?</b> The asset may be private or
+            removed. Pick another and try again.
+          </li>
+          <li>
+            <b className="text-foreground">Still stuck?</b> Tap{" "}
+            <span className="font-mono">Verbose</span>, then{" "}
+            <span className="font-mono">Copy log</span>, and share in the{" "}
+            <a
+              className="text-primary underline"
+              href="https://discord.gg/YJ8xPFNSSX"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Discord
+            </a>
+            .
+          </li>
         </ul>
       </div>
     </div>

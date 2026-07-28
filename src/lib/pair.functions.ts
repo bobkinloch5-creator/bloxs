@@ -7,10 +7,12 @@ import { z } from "zod";
 export const claimPairCode = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) =>
-    z.object({
-      code: z.string().min(4).max(12),
-      projectId: z.string().uuid().optional(),
-    }).parse(input),
+    z
+      .object({
+        code: z.string().min(4).max(12),
+        projectId: z.string().uuid().optional(),
+      })
+      .parse(input),
   )
   .handler(async ({ data, context }) => {
     const ctx = context as any;
@@ -24,41 +26,43 @@ export const claimPairCode = createServerFn({ method: "POST" })
       .eq("code", code)
       .maybeSingle();
     if (lookupErr) throw new Error(lookupErr.message);
-    if (!row) throw new Error("This code is not valid. Open the BloxSmith plugin in Studio and click Connect again.");
-    if (new Date(row.expires_at) < new Date()) throw new Error("This code expired. Click Connect in the plugin again to get a fresh one.");
+    if (!row)
+      throw new Error(
+        "This code is not valid. Open the BloxSmith plugin in Studio and click Connect again.",
+      );
+    if (new Date(row.expires_at) < new Date())
+      throw new Error("This code expired. Click Connect in the plugin again to get a fresh one.");
 
-    // Resolve the actual user ID — falls back to owner if session is ambiguous
+    // Pair with exactly the signed-in user's profile. Sharing one token with
+    // an owner/fallback profile violates the unique token constraint and can
+    // leave Studio holding a token that no profile owns.
     const targetUserId = await getResolvedUserId(ctx.userId);
-    const ownerFallbackId = "64f33732-136a-4c78-9421-7c11579c7412";
 
-    // Generate a fresh token or reuse an existing one
-    let token: string | null = null;
-    if (targetUserId) {
-      const { data: prof } = await supabaseAdmin
+    let { data: profile } = await supabaseAdmin
+      .from("profiles")
+      .select("id, plugin_token")
+      .eq("id", targetUserId)
+      .maybeSingle();
+
+    // A profile normally exists from the signup trigger. Create the minimal
+    // valid profile if a legacy account is missing one, and fail loudly if
+    // that cannot be done—never approve a code with an unusable random token.
+    if (!profile) {
+      const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(targetUserId);
+      const emailName = authUser?.user?.email?.split("@")[0] || "Creator";
+      const { data: created, error: createError } = await supabaseAdmin
         .from("profiles")
-        .select("plugin_token")
-        .eq("id", targetUserId)
-        .maybeSingle();
-      token = (prof?.plugin_token as string | null) ?? null;
-    }
-    if (!token) {
-      token = "BS-" + Math.random().toString(36).slice(2, 14).toUpperCase();
-    }
-
-    // Write the token to ALL relevant profile rows so heartbeat/poll can resolve it
-    const userIdsToUpdate = Array.from(new Set(
-      [targetUserId, ctx.userId, ownerFallbackId].filter(Boolean)
-    )) as string[];
-
-    for (const uid of userIdsToUpdate) {
-      try {
-        await supabaseAdmin
-          .from("profiles")
-          .upsert({ id: uid, plugin_token: token } as never, { onConflict: "id" });
-      } catch (e) {
-        console.warn("[claimPairCode] Profile token upsert skipped for", uid, e);
+        .insert({ id: targetUserId, username: emailName, display_name: emailName } as never)
+        .select("id, plugin_token")
+        .single();
+      if (createError || !created?.plugin_token) {
+        throw new Error(
+          `Could not prepare your plugin profile: ${createError?.message || "missing plugin token"}`,
+        );
       }
+      profile = created;
     }
+    const token = String(profile.plugin_token);
 
     // Also create/update a plugin_session entry right now so the web UI
     // immediately reflects "Connected" without waiting for the first heartbeat.
@@ -70,7 +74,7 @@ export const claimPairCode = createServerFn({ method: "POST" })
           last_seen: new Date().toISOString(),
           online: true,
         },
-        { onConflict: "user_id" }
+        { onConflict: "user_id" },
       );
     } catch (e) {
       console.warn("[claimPairCode] plugin_sessions upsert skipped:", e);
@@ -90,16 +94,7 @@ export const claimPairCode = createServerFn({ method: "POST" })
       .update(patch as any)
       .eq("code", code);
 
-    if (updErr) {
-      // If user_id write still fails (e.g. orphaned auth), write without it
-      console.warn("[claimPairCode] Pair code update failed, writing without user_id:", updErr.message);
-      const { error: fbErr } = await supabaseAdmin
-        .from("plugin_pair_codes")
-        .update({ plugin_token: token, project_id: data.projectId ?? null, claimed_at: new Date().toISOString() } as any)
-        .eq("code", code);
-      if (fbErr) throw new Error(fbErr.message);
-    }
+    if (updErr) throw new Error(updErr.message);
 
     return { ok: true, token };
   });
-

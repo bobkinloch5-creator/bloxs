@@ -45,7 +45,10 @@ export const Route = createFileRoute("/api/public/plugin/heartbeat")({
             busy?: boolean;
           };
           const headerToken =
-            request.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim() ||
+            request.headers
+              .get("authorization")
+              ?.replace(/^Bearer\s+/i, "")
+              .trim() ||
             request.headers.get("x-bloxsmith-token")?.trim() ||
             "";
           const token = (body.token && body.token.trim()) || headerToken;
@@ -67,7 +70,8 @@ export const Route = createFileRoute("/api/public/plugin/heartbeat")({
           const validUserId: string = userId;
 
           const lastWrite = lastSessionWrite.get(validUserId) ?? 0;
-          const versionChanged = lastWrittenVersion.get(validUserId) !== (body.plugin_version ?? "");
+          const versionChanged =
+            lastWrittenVersion.get(validUserId) !== (body.plugin_version ?? "");
           if (Date.now() - lastWrite > 45_000 || versionChanged) {
             lastSessionWrite.set(validUserId, Date.now());
             lastWrittenVersion.set(validUserId, body.plugin_version ?? "");
