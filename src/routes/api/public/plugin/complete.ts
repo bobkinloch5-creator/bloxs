@@ -70,7 +70,6 @@ export const Route = createFileRoute("/api/public/plugin/complete")({
             const { data: action } = await sb.from("plugin_actions")
               .update({ status, error: it.error ?? null, result: it.result ?? null, completed_at: now })
               .eq("id", it.action_id)
-              .eq("user_id", profile.id)
               .select("project_id, message_id, kind, parent_path, name, payload")
               .maybeSingle();
             if (action?.message_id) affectedMessageIds.add(action.message_id);

@@ -116,6 +116,17 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
           )) as string[];
 
           async function fetchPending(): Promise<PluginActionRow[] | { error: string }> {
+            // 0. Recovery: reset any "sent" actions stuck > 45s back to "pending"
+            //    so they are re-delivered to Studio. This handles the case where
+            //    a prior complete.ts bug (user_id mismatch) left actions stranded.
+            const stuckCutoff = new Date(Date.now() - 45_000).toISOString();
+            await sb
+              .from("plugin_actions")
+              .update({ status: "pending" })
+              .eq("status", "sent")
+              .in("user_id", relevantIds)
+              .lt("sent_at", stuckCutoff);
+
             // 1. Primary path: filter directly by project_id if specified by caller
             if (body.project_id) {
               const res = await sb
