@@ -115,24 +115,8 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
             [profileId, ownerFallbackId].filter(Boolean)
           )) as string[];
 
-          // Look up all project IDs belonging to any of these users so we can
-          // fetch pending actions even when the plugin doesn't send project_id.
-          async function getRelevantProjectIds(): Promise<string[]> {
-            const { data: projs } = await sb
-              .from("projects")
-              .select("id")
-              .in("user_id", relevantIds)
-              .limit(200);
-            const fromProjects = (projs ?? []).map((p: any) => p.id as string);
-            // Also include project_id the plugin is currently working in (if sent)
-            if (body.project_id) {
-              fromProjects.push(body.project_id);
-            }
-            return Array.from(new Set(fromProjects));
-          }
-
           async function fetchPending(): Promise<PluginActionRow[] | { error: string }> {
-            // Primary path: filter directly by project_id (most reliable)
+            // 1. Primary path: filter directly by project_id if specified by caller
             if (body.project_id) {
               const res = await sb
                 .from("plugin_actions")
@@ -143,41 +127,26 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
                 .limit(100);
               if (res.error) return { error: res.error.message };
               if ((res.data ?? []).length > 0) return res.data ?? [];
-              // If no actions in the specific project, fall through to broader scan
             }
 
-            // Broader scan: find all pending actions across all projects the user owns
-            const projectIds = await getRelevantProjectIds();
-            if (projectIds.length === 0) {
-              // Last resort: return all pending for user_id directly
-              const res = await sb
-                .from("plugin_actions")
-                .select(actionSelect)
-                .eq("status", "pending")
-                .in("user_id", relevantIds)
-                .order("created_at", { ascending: true })
-                .limit(100);
-              if (res.error) return { error: res.error.message };
-              return res.data ?? [];
-            }
-
-            // Most common path for connected plugin
-            const res = await sb
+            // 2. Direct user_id scan: fetch all pending actions for the user (or owner fallback)
+            const userRes = await sb
               .from("plugin_actions")
               .select(actionSelect)
               .eq("status", "pending")
-              .in("project_id", projectIds)
+              .in("user_id", relevantIds)
               .order("created_at", { ascending: true })
               .limit(100);
-            if (!res.error && (res.data ?? []).length > 0) return res.data ?? [];
+            if (userRes.error) return { error: userRes.error.message };
+            if ((userRes.data ?? []).length > 0) return userRes.data ?? [];
 
-            // Global safety fallback: fetch any recent pending actions created in last 15 min
-            const fifteenMinAgo = new Date(Date.now() - 15 * 60_000).toISOString();
+            // 3. Global safety fallback: fetch any recent pending actions created in last 30 min
+            const thirtyMinAgo = new Date(Date.now() - 30 * 60_000).toISOString();
             const fallbackRes = await sb
               .from("plugin_actions")
               .select(actionSelect)
               .eq("status", "pending")
-              .gte("created_at", fifteenMinAgo)
+              .gte("created_at", thirtyMinAgo)
               .order("created_at", { ascending: true })
               .limit(50);
             if (fallbackRes.error) return { error: fallbackRes.error.message };
