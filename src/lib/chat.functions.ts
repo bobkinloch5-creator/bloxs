@@ -344,27 +344,23 @@ export const getPluginSession = createServerFn({ method: "GET" })
 
     if (!rows || rows.length === 0) return null;
 
-    // Prioritize active sessions seen in the last 5 minutes so a stale session row doesn't mask the current active plugin
-    const recentRows = rows.filter((r: any) => r.last_seen && (Date.now() - new Date(r.last_seen).getTime() < 300_000));
-    const pool = recentRows.length > 0 ? recentRows : rows;
-
-    // Prefer a session belonging to the resolved user, then owner fallback, then most recent active session
-    const match =
-      pool.find((r: any) => r.user_id === targetUserId) ||
-      pool.find((r: any) => r.user_id === ctx.userId) ||
-      pool.find((r: any) => r.user_id === ownerFallbackId) ||
-      pool[0];
-
-    // If pool[0] (most recent active session) has a higher version, inherit it so stale rows don't trigger outdated warning
-    let session = match ? { ...match } : null;
-    if (session && pool[0]?.plugin_version && pool[0].plugin_version > (session.plugin_version || "")) {
-      session.plugin_version = pool[0].plugin_version;
+    // Filter to active sessions seen within the last 3 minutes (180 seconds)
+    const activeRows = rows.filter((r: any) => r.last_seen && (Date.now() - new Date(r.last_seen).getTime() < 180_000));
+    
+    if (activeRows.length === 0) {
+      // No active plugin session — return most recent historical row marked as offline
+      const last = rows[0];
+      return last ? { ...last, online: false } : null;
     }
 
-    // Consider the session "online" only if it was seen within the last 3 minutes
-    const isRecent = session?.last_seen &&
-      Date.now() - new Date(session.last_seen).getTime() < 180_000;
-    return session ? { ...session, online: session.online && isRecent } : null;
+    // Pick the session matching target user / owner fallback, or fallback to the newest active row
+    const match =
+      activeRows.find((r: any) => r.user_id === targetUserId) ||
+      activeRows.find((r: any) => r.user_id === ctx.userId) ||
+      activeRows.find((r: any) => r.user_id === ownerFallbackId) ||
+      activeRows[0];
+
+    return match ? { ...match, online: true } : null;
   });
 
 
