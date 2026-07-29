@@ -152,14 +152,14 @@ function PluginPage() {
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
           <a
-            href="/BloxSmithPlugin.lua"
+            href={`/BloxSmithPlugin.lua?v=${PLUGIN_VERSION}`}
             download="BloxSmithPlugin.lua"
             className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
           >
             <Download className="h-4 w-4" /> Download BloxSmithPlugin.lua (v{PLUGIN_VERSION})
           </a>
           <a
-            href="/BloxSmithPlugin.lua"
+            href={`/BloxSmithPlugin.lua?v=${PLUGIN_VERSION}`}
             target="_blank"
             rel="noreferrer"
             className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm hover:bg-secondary"
@@ -167,6 +167,11 @@ function PluginPage() {
             View source
           </a>
         </div>
+        <p className="mt-3 text-xs text-muted-foreground">
+          Tip: if Studio keeps warning about an old version after replacing the file, close Studio,
+          delete the old <span className="font-mono">BloxSmithPlugin.lua</span> from the Plugins
+          folder, then drop this fresh copy in and reopen Studio.
+        </p>
       </div>
 
       {/* Install */}

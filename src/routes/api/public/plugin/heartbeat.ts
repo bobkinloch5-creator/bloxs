@@ -4,6 +4,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
 import { resolvePluginToken } from "@/lib/resolve-plugin-token";
+import { PLUGIN_VERSION } from "@/lib/plugin-version";
 
 function admin() {
   return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
@@ -89,7 +90,7 @@ export const Route = createFileRoute("/api/public/plugin/heartbeat")({
             );
           }
 
-          return json({ ok: true, busy: !!body.busy });
+          return json({ ok: true, busy: !!body.busy, required_plugin_version: PLUGIN_VERSION });
         } catch (e) {
           return json({ error: e instanceof Error ? e.message : "error" }, 500);
         }
