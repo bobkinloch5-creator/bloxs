@@ -90,7 +90,7 @@ export const Route = createFileRoute("/api/public/plugin/heartbeat")({
             );
           }
 
-          return json({ ok: true, busy: !!body.busy });
+          return json({ ok: true, busy: !!body.busy, required_plugin_version: PLUGIN_VERSION });
         } catch (e) {
           return json({ error: e instanceof Error ? e.message : "error" }, 500);
         }
