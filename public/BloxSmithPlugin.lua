@@ -2755,13 +2755,26 @@ task.spawn(function()
         local token = validToken()
         if token then
             pcall(function()
-                post("/api/public/plugin/heartbeat", {
+                local resp = post("/api/public/plugin/heartbeat", {
                     token = token,
                     place_id = tostring(game.PlaceId or 0),
                     studio_version = studioVersion(),
                     plugin_version = PLUGIN_VERSION,
                     project_id = pairedProjectId(),
                 }, { verbose = false })
+                if type(resp) == "table" and type(resp.required_plugin_version) == "string" then
+                    local required = resp.required_plugin_version
+                    if required ~= "" and required ~= PLUGIN_VERSION then
+                        -- Flip the version pill in the dock to a bright "UPDATE" state
+                        -- so the developer sees the mismatch inside Studio, not just on the website.
+                        pcall(function()
+                            vPill.Text = "UPDATE " .. required
+                            vPill.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
+                            vPill.TextColor3 = Color3.fromRGB(255, 235, 235)
+                            vPill.Size = UDim2.fromOffset(96, 18)
+                        end)
+                    end
+                end
             end)
         end
     end
