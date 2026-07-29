@@ -7103,7 +7103,16 @@ export const Route = createFileRoute("/api/chat")({
           // browser has already disconnected. For Fast Build, never wait for the
           // model when we can deterministically produce a real command: queue it
           // before streaming starts and return immediately.
-          if (mode === "build" && buildQuality === "basic" && projectId && userText && !imageGenerationRequested) {
+          // Bare one-word / short physical-asset asks ("grass", "add a tree", "spawn a car")
+          // should queue a Toolbox insert deterministically regardless of build quality —
+          // waiting on a large model for a trivial single insert is what "type grass and
+          // nothing happens" looks like to the user.
+          const singleAssetShortcut =
+            mode === "build" &&
+            !imageGenerationRequested &&
+            assetMode !== "procedural" &&
+            (isSinglePhysicalAssetRequest(userText) || userExplicitlyRequestedToolbox(userText));
+          if (mode === "build" && (buildQuality === "basic" || singleAssetShortcut) && projectId && userText && !imageGenerationRequested) {
             try {
               let generated: any[] = [];
               let deterministicModel = "deterministic-fast-build-last-chance";
