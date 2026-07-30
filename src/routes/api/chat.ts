@@ -6308,7 +6308,8 @@ export const Route = createFileRoute("/api/chat")({
 
           if (executionMode === "owner") {
             try {
-              const adminClient = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
+              const { getSanitizedSupabaseUrl, getSanitizedServiceKey } = await import("@/integrations/supabase/client.server");
+              const adminClient = createClient(getSanitizedSupabaseUrl(), getSanitizedServiceKey(), {
                 auth: { persistSession: false },
               });
               const { data: roles } = await adminClient

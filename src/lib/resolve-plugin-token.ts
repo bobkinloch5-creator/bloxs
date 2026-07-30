@@ -9,8 +9,10 @@ const OWNER_FALLBACK_ID = "64f33732-136a-4c78-9421-7c11579c7412";
 const cache = new Map<string, { id: string; fetchedAt: number }>();
 const CACHE_TTL = 180_000; // 3 minutes
 
+import { getSanitizedSupabaseUrl, getSanitizedServiceKey } from "@/integrations/supabase/client.server";
+
 export function adminClient() {
-  return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
+  return createClient(getSanitizedSupabaseUrl(), getSanitizedServiceKey(), {
     auth: { persistSession: false },
   });
 }

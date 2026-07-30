@@ -6,8 +6,10 @@ import { createClient } from "@supabase/supabase-js";
 import { resolvePluginToken } from "@/lib/resolve-plugin-token";
 import { PLUGIN_VERSION } from "@/lib/plugin-version";
 
+import { getSanitizedSupabaseUrl, getSanitizedServiceKey } from "@/integrations/supabase/client.server";
+
 function admin() {
-  return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
+  return createClient(getSanitizedSupabaseUrl(), getSanitizedServiceKey(), {
     auth: { persistSession: false },
   });
 }
