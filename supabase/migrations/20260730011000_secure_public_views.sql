@@ -1,10 +1,11 @@
 -- Secure Public Views Migration
--- Resolves Lovable/Supabase schema warnings for projects, profiles, and knowledge base.
+-- Resolves Lovable/Supabase schema critical issue (security_definer_view lint=0010).
 
--- 1. Ensure profiles_public view exists with safe public fields
+-- 1. Ensure profiles_public view exists with security_invoker = true
 DROP VIEW IF EXISTS public.profiles_public CASCADE;
 
-CREATE VIEW public.profiles_public AS
+CREATE VIEW public.profiles_public 
+WITH (security_invoker = true) AS
 SELECT 
     id,
     username,
@@ -22,10 +23,11 @@ COMMENT ON VIEW public.profiles_public IS
 
 GRANT SELECT ON public.profiles_public TO anon, authenticated;
 
--- 2. Create projects_public view for safe public showcase browsing
+-- 2. Create projects_public view with security_invoker = true
 DROP VIEW IF EXISTS public.projects_public CASCADE;
 
-CREATE VIEW public.projects_public AS
+CREATE VIEW public.projects_public 
+WITH (security_invoker = true) AS
 SELECT 
     id,
     name,
@@ -41,3 +43,17 @@ COMMENT ON VIEW public.projects_public IS
   'Safe public projection of showcase projects. Excludes internal execution states and private tokens.';
 
 GRANT SELECT ON public.projects_public TO anon, authenticated;
+
+-- 3. Enforce SECURITY INVOKER on any other existing views in the public schema
+DO $$
+DECLARE
+    r RECORD;
+BEGIN
+    FOR r IN 
+        SELECT table_name 
+        FROM information_schema.views 
+        WHERE table_schema = 'public'
+    LOOP
+        EXECUTE format('ALTER VIEW public.%I SET (security_invoker = true);', r.table_name);
+    END LOOP;
+END $$;
