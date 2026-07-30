@@ -76,27 +76,34 @@ function AuthPage() {
       } else {
         const { data, error: supaErr } = await supabase.auth.signInWithOAuth({
           provider,
-          options: { redirectTo: targetRedirect },
+          options: {
+            redirectTo: targetRedirect,
+            skipBrowserRedirect: true,
+          },
         });
         if (supaErr) throw supaErr;
         if (data?.url) {
+          try {
+            const res = await fetch(data.url);
+            if (!res.ok) {
+              const body = await res.json().catch(() => ({}));
+              if (body?.msg) {
+                const providerName = provider.charAt(0).toUpperCase() + provider.slice(1);
+                throw new Error(`${providerName} Sign-In is not enabled on your Supabase project (${body.msg}). Please sign in using your Email & Password below, or configure the ${providerName} provider in Supabase Dashboard.`);
+              }
+            }
+          } catch (checkErr: unknown) {
+            if (checkErr instanceof Error && checkErr.message.includes("not enabled")) {
+              throw checkErr;
+            }
+            // Fetch threw due to CORS on third-party OAuth redirect (e.g. Google/Apple), meaning provider is configured
+          }
           window.location.href = data.url;
         }
       }
     } catch (e: unknown) {
       console.warn(`OAuth attempt failed for ${provider}:`, e);
-      try {
-        const { data, error: supaErr } = await supabase.auth.signInWithOAuth({
-          provider,
-          options: { redirectTo: targetRedirect },
-        });
-        if (supaErr) setError(supaErr.message);
-        if (data?.url) {
-          window.location.href = data.url;
-        }
-      } catch (fallbackErr: unknown) {
-        setError(fallbackErr instanceof Error ? fallbackErr.message : `${provider} sign-in failed.`);
-      }
+      setError(e instanceof Error ? e.message : `${provider} sign-in failed.`);
     } finally {
       setBusy(false);
     }
@@ -222,7 +229,21 @@ function AuthPage() {
             placeholder="Password (6+ chars)"
             className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm outline-none focus:border-primary"
           />
-          {error && <p className="text-xs text-destructive bg-destructive/10 p-2.5 rounded-lg border border-destructive/20">{error}</p>}
+          {error && (
+            <div className="text-xs text-destructive bg-destructive/10 p-2.5 rounded-lg border border-destructive/20">
+              <p>{error}</p>
+              {error.includes("Supabase") && (
+                <a
+                  href="https://supabase.com/dashboard/project/ogedshfupxmopvlrqmwd/auth/providers"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-1.5 inline-flex items-center gap-1 font-semibold underline hover:opacity-80"
+                >
+                  Configure in Supabase Dashboard &rarr;
+                </a>
+              )}
+            </div>
+          )}
           {successMessage && <p className="text-xs text-emerald-300 bg-emerald-500/10 p-2.5 rounded-lg border border-emerald-500/20">{successMessage}</p>}
           <button
             type="submit"
