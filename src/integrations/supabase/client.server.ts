@@ -30,8 +30,15 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
 }
 
 function createSupabaseAdminClient() {
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9nZWRzaGZ1cHhtb3B2bHJxbXdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUxNzgyNDksImV4cCI6MjEwMDc1NDI0OX0.WIuGbCTZ2lDQUFhtrRx-O2Bi2hOaIsi4T2BufoHovZ0';
-  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://ogedshfupxmopvlrqmwd.supabase.co';
+  let serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9nZWRzaGZ1cHhtb3B2bHJxbXdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUxNzgyNDksImV4cCI6MjEwMDc1NDI0OX0.WIuGbCTZ2lDQUFhtrRx-O2Bi2hOaIsi4T2BufoHovZ0';
+  if (!serviceKey || serviceKey.includes('sb_publishable_PM-t7lpIIRhgddB8FaXS9A_Bay6O1nz')) {
+    serviceKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9nZWRzaGZ1cHhtb3B2bHJxbXdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUxNzgyNDksImV4cCI6MjEwMDc1NDI0OX0.WIuGbCTZ2lDQUFhtrRx-O2Bi2hOaIsi4T2BufoHovZ0';
+  }
+
+  let supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://ogedshfupxmopvlrqmwd.supabase.co';
+  if (!supabaseUrl || supabaseUrl.includes('ochawirueourilkwkhon')) {
+    supabaseUrl = 'https://ogedshfupxmopvlrqmwd.supabase.co';
+  }
 
   return createClient<Database>(supabaseUrl, serviceKey, {
     global: {
