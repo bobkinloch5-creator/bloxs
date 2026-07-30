@@ -28,17 +28,11 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
 
 
 function createSupabaseClient() {
-  let rawUrl =
+  const SUPABASE_URL =
     (typeof process !== 'undefined' && process.env?.VITE_SUPABASE_URL) ||
     (typeof process !== 'undefined' && process.env?.SUPABASE_URL) ||
     (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_SUPABASE_URL) ||
-    'https://ogedshfupxmopvlrqmwd.supabase.co';
-
-  if (!rawUrl || rawUrl.includes('ochawirueourilkwkhon')) {
-    rawUrl = 'https://ogedshfupxmopvlrqmwd.supabase.co';
-  }
-
-  const SUPABASE_URL = rawUrl;
+    'https://ochawirueourilkwkhon.supabase.co';
 
   const SUPABASE_PUBLISHABLE_KEY =
     (typeof process !== 'undefined' && process.env?.VITE_SUPABASE_PUBLISHABLE_KEY) ||

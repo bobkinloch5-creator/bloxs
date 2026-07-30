@@ -25,15 +25,32 @@ function AuthedLayout() {
       window.location.search.includes("error=")
     );
 
+    // Timeout safety fallback in case PKCE token exchange hangs
+    const safetyTimer = setTimeout(() => {
+      if (!mounted) return;
+      supabase.auth.getSession().then(({ data }) => {
+        if (!mounted) return;
+        if (data?.session) {
+          setIsAuthenticated(true);
+        } else {
+          setIsAuthenticated(false);
+          navigate({ to: "/auth" });
+        }
+        setCheckingAuth(false);
+      });
+    }, 4000);
+
     // getSession reads from localStorage — resolves in <100ms
     supabase.auth.getSession().then(({ data }) => {
       if (!mounted) return;
       if (data?.session) {
         setIsAuthenticated(true);
         setCheckingAuth(false);
+        clearTimeout(safetyTimer);
       } else if (!hasAuthParams) {
         setIsAuthenticated(false);
         setCheckingAuth(false);
+        clearTimeout(safetyTimer);
         navigate({ to: "/auth" });
       }
     });
@@ -44,15 +61,18 @@ function AuthedLayout() {
       if (session) {
         setIsAuthenticated(true);
         setCheckingAuth(false);
+        clearTimeout(safetyTimer);
       } else if (event === "SIGNED_OUT") {
         setIsAuthenticated(false);
         setCheckingAuth(false);
+        clearTimeout(safetyTimer);
         navigate({ to: "/auth" });
       }
     });
 
     return () => {
       mounted = false;
+      clearTimeout(safetyTimer);
       sub?.subscription?.unsubscribe();
     };
   }, [navigate]);
