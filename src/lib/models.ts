@@ -810,6 +810,18 @@ export const FALLBACK_CHAIN: string[] = [
   "nvidia/nemotron-nano-9b-v2",
   "nvidia/llama-3.1-8b",
   "nvidia/llama-3.3-nemotron-super-49b",
+  "nvidia/deepseek-v4-flash",
+  "nvidia/deepseek-v4-pro",
+  "nvidia/ministral-14b",
+  "nvidia/gemma-3-27b",
+  "nvidia/z-ai-glm-5.2",
+  "nvidia/openai-gpt-oss-20b",
+  // Cross-gateway tail: if NVIDIA is down entirely, retries still have somewhere
+  // to land instead of failing the whole request.
+  "oneprovider/claude-sonnet-4-6",
+  "oneprovider/claude-haiku-4-5",
+  "oneprovider/glm-5.2",
+  "oneprovider/kimi-k3",
 ];
 
 
