@@ -12,18 +12,18 @@ export const Route = createFileRoute("/api/public/maintenance")({
             .eq("key", "maintenance")
             .maybeSingle();
           const value: any = data?.value ?? {};
-          const enabled = value.enabled !== false; // Default to true if unset or set true
+          const enabled = value.enabled === true; // Default to false
           const message = typeof value.message === "string" && value.message.trim()
             ? value.message
-            : "We will be back shortly! BloxSmith is currently undergoing scheduled maintenance and performance upgrades. Thank you for your patience!";
+            : "";
           return Response.json({
             enabled,
             message,
           });
         } catch {
           return Response.json({
-            enabled: true,
-            message: "We will be back shortly! BloxSmith is currently undergoing scheduled maintenance and performance upgrades. Thank you for your patience!",
+            enabled: false,
+            message: "",
           });
         }
       },

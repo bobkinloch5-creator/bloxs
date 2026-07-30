@@ -83,22 +83,26 @@ function AuthPage() {
         });
         if (supaErr) throw supaErr;
         if (data?.url) {
+          let targetUrl = data.url;
+          if (targetUrl.includes('ochawirueourilkwkhon')) {
+            targetUrl = targetUrl.replace(/ochawirueourilkwkhon/g, 'ogedshfupxmopvlrqmwd');
+          }
           try {
-            const res = await fetch(data.url);
+            const res = await fetch(targetUrl);
             if (!res.ok) {
               const body = await res.json().catch(() => ({}));
               if (body?.msg) {
                 const providerName = provider.charAt(0).toUpperCase() + provider.slice(1);
-                throw new Error(`${providerName} Sign-In is not enabled on your Supabase project (${body.msg}). Please sign in using your Email & Password below, or configure the ${providerName} provider in Supabase Dashboard.`);
+                throw new Error(`${providerName} Sign-In error: ${body.msg}. Please sign in using Email & Password or check provider settings in Supabase Dashboard.`);
               }
             }
           } catch (checkErr: unknown) {
-            if (checkErr instanceof Error && checkErr.message.includes("not enabled")) {
+            if (checkErr instanceof Error && checkErr.message.includes("Sign-In error")) {
               throw checkErr;
             }
             // Fetch threw due to CORS on third-party OAuth redirect (e.g. Google/Apple), meaning provider is configured
           }
-          window.location.href = data.url;
+          window.location.href = targetUrl;
         }
       }
     } catch (e: unknown) {

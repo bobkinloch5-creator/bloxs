@@ -103,7 +103,7 @@ export function MaintenanceGate({ children }: { children: ReactNode }) {
     async function check() {
       try {
         const res = await fetch("/api/public/maintenance", { cache: "no-store" });
-        const data = res.ok ? await res.json() : { enabled: true, message: "We will be back shortly!" };
+        const data = res.ok ? await res.json() : { enabled: false, message: "" };
         if (cancelled) return;
         setStatus({ enabled: !!data.enabled, message: data.message ?? "" });
 
@@ -121,7 +121,7 @@ export function MaintenanceGate({ children }: { children: ReactNode }) {
           } catch {}
         }
       } catch {
-        if (!cancelled) setStatus({ enabled: true, message: "We will be back shortly!" });
+        if (!cancelled) setStatus({ enabled: false, message: "" });
       } finally {
         if (!cancelled) setChecked(true);
       }
