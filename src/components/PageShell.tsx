@@ -10,7 +10,7 @@ import {
   History as HistoryIcon, BookOpen, Settings as SettingsIcon, Crown, Box, LayoutDashboard, Globe,
 } from "lucide-react";
 
-type Accent = "default" | "chat" | "admin" | "mcp" | "history" | "plugin" | "settings" | "collaborators";
+type Accent = "default" | "chat" | "admin" | "mcp" | "history" | "plugin" | "settings" | "collaborators" | "ideas";
 
 type NavItem = { key: string; label: string; to: string; icon: typeof Folder; accent: Accent };
 
