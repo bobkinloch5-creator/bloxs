@@ -2,7 +2,9 @@
 -- Resolves Lovable/Supabase schema warnings for projects, profiles, and knowledge base.
 
 -- 1. Ensure profiles_public view exists with safe public fields
-CREATE OR REPLACE VIEW public.profiles_public AS
+DROP VIEW IF EXISTS public.profiles_public CASCADE;
+
+CREATE VIEW public.profiles_public AS
 SELECT 
     id,
     username,
@@ -21,7 +23,9 @@ COMMENT ON VIEW public.profiles_public IS
 GRANT SELECT ON public.profiles_public TO anon, authenticated;
 
 -- 2. Create projects_public view for safe public showcase browsing
-CREATE OR REPLACE VIEW public.projects_public AS
+DROP VIEW IF EXISTS public.projects_public CASCADE;
+
+CREATE VIEW public.projects_public AS
 SELECT 
     id,
     name,
