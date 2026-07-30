@@ -418,7 +418,15 @@ export const changeMyPassword = createServerFn({ method: "POST" })
 
     // Verify current password by attempting a sign-in on a fresh client
     const { createClient } = await import("@supabase/supabase-js");
-    const verify = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_PUBLISHABLE_KEY!, {
+    let safeUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "https://ogedshfupxmopvlrqmwd.supabase.co";
+    if (!safeUrl || safeUrl.includes("ochawirueourilkwkhon")) safeUrl = "https://ogedshfupxmopvlrqmwd.supabase.co";
+
+    let safeKey = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9nZWRzaGZ1cHhtb3B2bHJxbXdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUxNzgyNDksImV4cCI6MjEwMDc1NDI0OX0.WIuGbCTZ2lDQUFhtrRx-O2Bi2hOaIsi4T2BufoHovZ0";
+    if (!safeKey || safeKey.includes("sb_publishable_PM-t7lpIIRhgddB8FaXS9A_Bay6O1nz")) {
+      safeKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9nZWRzaGZ1cHhtb3B2bHJxbXdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUxNzgyNDksImV4cCI6MjEwMDc1NDI0OX0.WIuGbCTZ2lDQUFhtrRx-O2Bi2hOaIsi4T2BufoHovZ0";
+    }
+
+    const verify = createClient(safeUrl, safeKey, {
       auth: { persistSession: false, autoRefreshToken: false, storage: undefined as any },
     });
     const { error: signInErr } = await verify.auth.signInWithPassword({ email, password: data.current_password });
@@ -441,7 +449,7 @@ export const sendMyPasswordResetEmail = createServerFn({ method: "POST" })
     const email = userRes?.user?.email;
     if (!email) throw new Error("This account has no email on file.");
     const { createClient } = await import("@supabase/supabase-js");
-    const anon = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_PUBLISHABLE_KEY!, {
+    const anon = createClient(safeUrl, safeKey, {
       auth: { persistSession: false, autoRefreshToken: false, storage: undefined as any },
     });
     const { error } = await anon.auth.resetPasswordForEmail(email, { redirectTo: data.redirect_to });

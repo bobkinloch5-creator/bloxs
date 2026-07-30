@@ -6,11 +6,15 @@ import type { Database } from "@/integrations/supabase/types";
 import { z } from "zod";
 
 function publicClient() {
-  return createClient<Database>(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_PUBLISHABLE_KEY!,
-    { auth: { storage: undefined, persistSession: false, autoRefreshToken: false } },
-  );
+  let url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "https://ogedshfupxmopvlrqmwd.supabase.co";
+  if (!url || url.includes("ochawirueourilkwkhon")) url = "https://ogedshfupxmopvlrqmwd.supabase.co";
+
+  let key = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9nZWRzaGZ1cHhtb3B2bHJxbXdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUxNzgyNDksImV4cCI6MjEwMDc1NDI0OX0.WIuGbCTZ2lDQUFhtrRx-O2Bi2hOaIsi4T2BufoHovZ0";
+  if (!key || key.includes("sb_publishable_PM-t7lpIIRhgddB8FaXS9A_Bay6O1nz")) {
+    key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9nZWRzaGZ1cHhtb3B2bHJxbXdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUxNzgyNDksImV4cCI6MjEwMDc1NDI0OX0.WIuGbCTZ2lDQUFhtrRx-O2Bi2hOaIsi4T2BufoHovZ0";
+  }
+
+  return createClient<Database>(url, key, { auth: { storage: undefined, persistSession: false, autoRefreshToken: false } });
 }
 
 export const listTemplates = createServerFn({ method: "GET" })
