@@ -69,8 +69,11 @@ export function stripRateLimitMarker(message: string) {
 
 /** "1:05" for a minute or more, "42s" below that. */
 export function formatCountdown(msRemaining: number) {
-  const total = Math.max(0, Math.ceil(msRemaining / 1000));
-  if (total < 60) return `${total}s`;
+  const ms = Math.max(0, msRemaining);
+  const total = Math.ceil(ms / 1000);
+  // Switch to m:ss based on the real remaining time, not the rounded second,
+  // so 59.4s reads "60s" instead of jumping to a misleading "1:00".
+  if (ms < 60_000) return `${total}s`;
   const minutes = Math.floor(total / 60);
   const seconds = total % 60;
   return `${minutes}:${String(seconds).padStart(2, "0")}`;

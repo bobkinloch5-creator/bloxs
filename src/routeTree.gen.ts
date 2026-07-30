@@ -39,6 +39,7 @@ import { Route as GuidesSlugRouteImport } from './routes/guides.$slug'
 import { Route as ApiVoiceRouteImport } from './routes/api/voice'
 import { Route as ApiHelpChatRouteImport } from './routes/api/help-chat'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
+import { Route as AuthenticatedVoiceRouteImport } from './routes/_authenticated/voice'
 import { Route as AuthenticatedUiGeneratorRouteImport } from './routes/_authenticated/ui-generator'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedScriptEditorRouteImport } from './routes/_authenticated/script-editor'
@@ -50,9 +51,11 @@ import { Route as AuthenticatedModelsRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedMcpServersRouteImport } from './routes/_authenticated/mcp-servers'
 import { Route as AuthenticatedMcpRouteImport } from './routes/_authenticated/mcp'
 import { Route as AuthenticatedLinkRouteImport } from './routes/_authenticated/link'
+import { Route as AuthenticatedIdeasRouteImport } from './routes/_authenticated/ideas'
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedCollaboratorsRouteImport } from './routes/_authenticated/collaborators'
+import { Route as AuthenticatedChatRouteImport } from './routes/_authenticated/chat'
 import { Route as AuthenticatedBuilderRouteImport } from './routes/_authenticated/builder'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as ApiVisualsGenerateRouteImport } from './routes/api/visuals/generate'
@@ -228,6 +231,11 @@ const ApiChatRoute = ApiChatRouteImport.update({
   path: '/api/chat',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedVoiceRoute = AuthenticatedVoiceRouteImport.update({
+  id: '/voice',
+  path: '/voice',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedUiGeneratorRoute =
   AuthenticatedUiGeneratorRouteImport.update({
     id: '/ui-generator',
@@ -286,6 +294,11 @@ const AuthenticatedLinkRoute = AuthenticatedLinkRouteImport.update({
   path: '/link',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedIdeasRoute = AuthenticatedIdeasRouteImport.update({
+  id: '/ideas',
+  path: '/ideas',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedHistoryRoute = AuthenticatedHistoryRouteImport.update({
   id: '/history',
   path: '/history',
@@ -302,6 +315,11 @@ const AuthenticatedCollaboratorsRoute =
     path: '/collaborators',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedChatRoute = AuthenticatedChatRouteImport.update({
+  id: '/chat',
+  path: '/chat',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedBuilderRoute = AuthenticatedBuilderRouteImport.update({
   id: '/builder',
   path: '/builder',
@@ -464,9 +482,11 @@ export interface FileRoutesByFullPath {
   '/terms': typeof TermsRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/builder': typeof AuthenticatedBuilderRoute
+  '/chat': typeof AuthenticatedChatRoute
   '/collaborators': typeof AuthenticatedCollaboratorsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/history': typeof AuthenticatedHistoryRoute
+  '/ideas': typeof AuthenticatedIdeasRoute
   '/link': typeof AuthenticatedLinkRoute
   '/mcp': typeof AuthenticatedMcpRoute
   '/mcp-servers': typeof AuthenticatedMcpServersRoute
@@ -478,6 +498,7 @@ export interface FileRoutesByFullPath {
   '/script-editor': typeof AuthenticatedScriptEditorRoute
   '/settings': typeof AuthenticatedSettingsRouteWithChildren
   '/ui-generator': typeof AuthenticatedUiGeneratorRoute
+  '/voice': typeof AuthenticatedVoiceRoute
   '/api/chat': typeof ApiChatRoute
   '/api/help-chat': typeof ApiHelpChatRoute
   '/api/voice': typeof ApiVoiceRoute
@@ -534,9 +555,11 @@ export interface FileRoutesByTo {
   '/terms': typeof TermsRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/builder': typeof AuthenticatedBuilderRoute
+  '/chat': typeof AuthenticatedChatRoute
   '/collaborators': typeof AuthenticatedCollaboratorsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/history': typeof AuthenticatedHistoryRoute
+  '/ideas': typeof AuthenticatedIdeasRoute
   '/link': typeof AuthenticatedLinkRoute
   '/mcp': typeof AuthenticatedMcpRoute
   '/mcp-servers': typeof AuthenticatedMcpServersRoute
@@ -548,6 +571,7 @@ export interface FileRoutesByTo {
   '/script-editor': typeof AuthenticatedScriptEditorRoute
   '/settings': typeof AuthenticatedSettingsRouteWithChildren
   '/ui-generator': typeof AuthenticatedUiGeneratorRoute
+  '/voice': typeof AuthenticatedVoiceRoute
   '/api/chat': typeof ApiChatRoute
   '/api/help-chat': typeof ApiHelpChatRoute
   '/api/voice': typeof ApiVoiceRoute
@@ -606,9 +630,11 @@ export interface FileRoutesById {
   '/terms': typeof TermsRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/builder': typeof AuthenticatedBuilderRoute
+  '/_authenticated/chat': typeof AuthenticatedChatRoute
   '/_authenticated/collaborators': typeof AuthenticatedCollaboratorsRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/history': typeof AuthenticatedHistoryRoute
+  '/_authenticated/ideas': typeof AuthenticatedIdeasRoute
   '/_authenticated/link': typeof AuthenticatedLinkRoute
   '/_authenticated/mcp': typeof AuthenticatedMcpRoute
   '/_authenticated/mcp-servers': typeof AuthenticatedMcpServersRoute
@@ -620,6 +646,7 @@ export interface FileRoutesById {
   '/_authenticated/script-editor': typeof AuthenticatedScriptEditorRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRouteWithChildren
   '/_authenticated/ui-generator': typeof AuthenticatedUiGeneratorRoute
+  '/_authenticated/voice': typeof AuthenticatedVoiceRoute
   '/api/chat': typeof ApiChatRoute
   '/api/help-chat': typeof ApiHelpChatRoute
   '/api/voice': typeof ApiVoiceRoute
@@ -678,9 +705,11 @@ export interface FileRouteTypes {
     | '/terms'
     | '/admin'
     | '/builder'
+    | '/chat'
     | '/collaborators'
     | '/dashboard'
     | '/history'
+    | '/ideas'
     | '/link'
     | '/mcp'
     | '/mcp-servers'
@@ -692,6 +721,7 @@ export interface FileRouteTypes {
     | '/script-editor'
     | '/settings'
     | '/ui-generator'
+    | '/voice'
     | '/api/chat'
     | '/api/help-chat'
     | '/api/voice'
@@ -748,9 +778,11 @@ export interface FileRouteTypes {
     | '/terms'
     | '/admin'
     | '/builder'
+    | '/chat'
     | '/collaborators'
     | '/dashboard'
     | '/history'
+    | '/ideas'
     | '/link'
     | '/mcp'
     | '/mcp-servers'
@@ -762,6 +794,7 @@ export interface FileRouteTypes {
     | '/script-editor'
     | '/settings'
     | '/ui-generator'
+    | '/voice'
     | '/api/chat'
     | '/api/help-chat'
     | '/api/voice'
@@ -819,9 +852,11 @@ export interface FileRouteTypes {
     | '/terms'
     | '/_authenticated/admin'
     | '/_authenticated/builder'
+    | '/_authenticated/chat'
     | '/_authenticated/collaborators'
     | '/_authenticated/dashboard'
     | '/_authenticated/history'
+    | '/_authenticated/ideas'
     | '/_authenticated/link'
     | '/_authenticated/mcp'
     | '/_authenticated/mcp-servers'
@@ -833,6 +868,7 @@ export interface FileRouteTypes {
     | '/_authenticated/script-editor'
     | '/_authenticated/settings'
     | '/_authenticated/ui-generator'
+    | '/_authenticated/voice'
     | '/api/chat'
     | '/api/help-chat'
     | '/api/voice'
@@ -1130,6 +1166,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiChatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/voice': {
+      id: '/_authenticated/voice'
+      path: '/voice'
+      fullPath: '/voice'
+      preLoaderRoute: typeof AuthenticatedVoiceRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/ui-generator': {
       id: '/_authenticated/ui-generator'
       path: '/ui-generator'
@@ -1207,6 +1250,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedLinkRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/ideas': {
+      id: '/_authenticated/ideas'
+      path: '/ideas'
+      fullPath: '/ideas'
+      preLoaderRoute: typeof AuthenticatedIdeasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/history': {
       id: '/_authenticated/history'
       path: '/history'
@@ -1226,6 +1276,13 @@ declare module '@tanstack/react-router' {
       path: '/collaborators'
       fullPath: '/collaborators'
       preLoaderRoute: typeof AuthenticatedCollaboratorsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/chat': {
+      id: '/_authenticated/chat'
+      path: '/chat'
+      fullPath: '/chat'
+      preLoaderRoute: typeof AuthenticatedChatRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/builder': {
@@ -1433,9 +1490,11 @@ const AuthenticatedSettingsRouteWithChildren =
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
   AuthenticatedBuilderRoute: typeof AuthenticatedBuilderRoute
+  AuthenticatedChatRoute: typeof AuthenticatedChatRoute
   AuthenticatedCollaboratorsRoute: typeof AuthenticatedCollaboratorsRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedHistoryRoute: typeof AuthenticatedHistoryRoute
+  AuthenticatedIdeasRoute: typeof AuthenticatedIdeasRoute
   AuthenticatedLinkRoute: typeof AuthenticatedLinkRoute
   AuthenticatedMcpRoute: typeof AuthenticatedMcpRoute
   AuthenticatedMcpServersRoute: typeof AuthenticatedMcpServersRoute
@@ -1447,15 +1506,18 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedScriptEditorRoute: typeof AuthenticatedScriptEditorRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRouteWithChildren
   AuthenticatedUiGeneratorRoute: typeof AuthenticatedUiGeneratorRoute
+  AuthenticatedVoiceRoute: typeof AuthenticatedVoiceRoute
   AuthenticatedProjectProjectIdRoute: typeof AuthenticatedProjectProjectIdRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
   AuthenticatedBuilderRoute: AuthenticatedBuilderRoute,
+  AuthenticatedChatRoute: AuthenticatedChatRoute,
   AuthenticatedCollaboratorsRoute: AuthenticatedCollaboratorsRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedHistoryRoute: AuthenticatedHistoryRoute,
+  AuthenticatedIdeasRoute: AuthenticatedIdeasRoute,
   AuthenticatedLinkRoute: AuthenticatedLinkRoute,
   AuthenticatedMcpRoute: AuthenticatedMcpRoute,
   AuthenticatedMcpServersRoute: AuthenticatedMcpServersRoute,
@@ -1467,6 +1529,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedScriptEditorRoute: AuthenticatedScriptEditorRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRouteWithChildren,
   AuthenticatedUiGeneratorRoute: AuthenticatedUiGeneratorRoute,
+  AuthenticatedVoiceRoute: AuthenticatedVoiceRoute,
   AuthenticatedProjectProjectIdRoute: AuthenticatedProjectProjectIdRoute,
 }
 
@@ -1529,3 +1592,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
