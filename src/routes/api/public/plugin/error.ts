@@ -86,8 +86,9 @@ export const Route = createFileRoute("/api/public/plugin/error")({
           let { error } = await sb.from("studio_errors").insert(rows);
           if (error) {
             console.warn("[error.ts] First insert attempt failed:", error.message);
-            // Fallback: try inserting without project_id & with owner ID in case FK failed
-            const fallbackRows = rows.map((r) => ({ ...r, project_id: null, user_id: "64f33732-136a-4c78-9421-7c11579c7412" }));
+            // Retry without project_id in case the stale project id from an
+            // older plugin install broke the foreign key. Keep the real user.
+            const fallbackRows = rows.map((r) => ({ ...r, project_id: null }));
             const retry = await sb.from("studio_errors").insert(fallbackRows);
             if (retry.error) {
               console.error("[error.ts] Studio error insert fallback failed:", retry.error.message);
