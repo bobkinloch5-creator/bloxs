@@ -1,9 +1,10 @@
 // Shared plugin token → profile resolver used by all plugin API endpoints.
-// Always checks profiles.plugin_token first, then falls back to
-// plugin_pair_codes.plugin_token → profiles.id, then to the hardcoded owner.
+// Checks profiles.plugin_token first, then plugin_pair_codes.plugin_token →
+// profiles.id. A token must resolve to the account that approved it: never
+// fall back to another account, or a broken pairing looks "connected" while
+// queued Studio actions are read from the wrong user's queue.
 import { createClient } from "@supabase/supabase-js";
 
-const OWNER_FALLBACK_ID = "64f33732-136a-4c78-9421-7c11579c7412";
 
 // In-memory cache to avoid hammering Supabase on every poll/heartbeat/error
 const cache = new Map<string, { id: string; fetchedAt: number }>();
@@ -19,8 +20,7 @@ export function adminClient() {
 
 /**
  * Resolve a plugin_token string to a profile { id }.
- * Returns null only if the token is completely unrecognisable AND the owner
- * fallback is disabled (which it never is by default).
+ * Returns null when the token is not a current, approved pairing.
  */
 export async function resolvePluginToken(
   token: string,
@@ -79,27 +79,6 @@ export async function resolvePluginToken(
     }
   }
 
-  // 3. Fallback: Check if OWNER_FALLBACK_ID exists in profiles
-  const { data: ownerProfile } = await sb
-    .from("profiles")
-    .select("id")
-    .eq("id", OWNER_FALLBACK_ID)
-    .maybeSingle();
-  if (ownerProfile) {
-    cache.set(token, { id: ownerProfile.id, fetchedAt: Date.now() });
-    return { id: ownerProfile.id };
-  }
-
-  // 4. Ultimate fallback: return any existing profile so FK checks (studio_errors, etc.) never fail
-  const { data: anyProfile } = await sb
-    .from("profiles")
-    .select("id")
-    .limit(1)
-    .maybeSingle();
-  if (anyProfile) {
-    cache.set(token, { id: anyProfile.id, fetchedAt: Date.now() });
-    return { id: anyProfile.id };
-  }
-
   return null;
 }
+

@@ -42,9 +42,18 @@ export const Route = createFileRoute("/api/public/plugin/poll")({
           if (!token) return json({ error: "missing token" }, 401);
 
           const sb = admin();
+          // Resolve through the shared resolver so tokens handed out by the
+          // pairing flow (stored on plugin_pair_codes before they are synced
+          // onto the profile) authenticate here too. Previously this endpoint
+          // only looked at profiles.plugin_token, so a freshly paired plugin
+          // showed "connected" via heartbeat but got 401 on every poll and
+          // never executed a single queued action.
+          const { resolvePluginToken } = await import("@/lib/resolve-plugin-token");
+          const resolved = await resolvePluginToken(token);
+          if (!resolved) return json({ error: "invalid token" }, 401);
           const { data: profile } = await sb.from("profiles")
             .select("id, credits, max_credits, plan, is_admin, credits_reset_at")
-            .eq("plugin_token", token)
+            .eq("id", resolved.id)
             .maybeSingle();
           if (!profile) return json({ error: "invalid token" }, 401);
           const profileId: string = profile.id;
