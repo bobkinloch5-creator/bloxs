@@ -80,27 +80,6 @@ export async function resolvePluginToken(
     }
   }
 
-  // 3. Fallback: Check if OWNER_FALLBACK_ID exists in profiles
-  const { data: ownerProfile } = await sb
-    .from("profiles")
-    .select("id")
-    .eq("id", OWNER_FALLBACK_ID)
-    .maybeSingle();
-  if (ownerProfile) {
-    cache.set(token, { id: ownerProfile.id, fetchedAt: Date.now() });
-    return { id: ownerProfile.id };
-  }
-
-  // 4. Ultimate fallback: return any existing profile so FK checks (studio_errors, etc.) never fail
-  const { data: anyProfile } = await sb
-    .from("profiles")
-    .select("id")
-    .limit(1)
-    .maybeSingle();
-  if (anyProfile) {
-    cache.set(token, { id: anyProfile.id, fetchedAt: Date.now() });
-    return { id: anyProfile.id };
-  }
-
   return null;
 }
+
