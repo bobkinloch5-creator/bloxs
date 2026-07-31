@@ -47,10 +47,11 @@ export const Route = createFileRoute("/api/public/plugin/error")({
 
           const sb = admin();
           const { resolvePluginToken } = await import("@/lib/resolve-plugin-token");
-          let profile = await resolvePluginToken(token);
-          if (!profile) {
-            profile = { id: "64f33732-136a-4c78-9421-7c11579c7412" };
-          }
+          const profile = await resolvePluginToken(token);
+          // Never attribute Studio output to another account — that pollutes
+          // the owner's error feed and triggers self-heal builds on the wrong
+          // project. An unknown token is simply unauthenticated.
+          if (!profile) return json({ error: "invalid token" }, 401);
 
           // Filter out info logs — only ingest actual errors or warnings
           const errors = (body.errors ?? [])
