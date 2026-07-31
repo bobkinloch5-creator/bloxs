@@ -20,8 +20,7 @@ export function adminClient() {
 
 /**
  * Resolve a plugin_token string to a profile { id }.
- * Returns null only if the token is completely unrecognisable AND the owner
- * fallback is disabled (which it never is by default).
+ * Returns null when the token is not a current, approved pairing.
  */
 export async function resolvePluginToken(
   token: string,
