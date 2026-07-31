@@ -6176,7 +6176,9 @@ export const Route = createFileRoute("/api/chat")({
           }
 
           if (!userId) {
-            userId = "64f33732-136a-4c78-9421-7c11579c7412";
+            // Do not silently build into the owner's account: the queued actions
+            // would go to a queue this caller's plugin never polls.
+            return jsonError("You're signed out — sign in again to build.", 401, "unauthenticated");
           }
 
           let body: { messages?: UIMessage[]; projectId?: string; modelId?: string; isAuto?: boolean; autoExecute?: boolean; executionMode?: "safe" | "fast" | "owner"; buildQuality?: "basic" | "better" | "premium" | "full_game"; mode?: "chat" | "build"; language?: string; languageName?: string; proceduralGeneration?: boolean };
