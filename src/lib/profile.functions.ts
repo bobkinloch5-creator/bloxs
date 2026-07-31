@@ -449,7 +449,10 @@ export const sendMyPasswordResetEmail = createServerFn({ method: "POST" })
     const email = userRes?.user?.email;
     if (!email) throw new Error("This account has no email on file.");
     const { createClient } = await import("@supabase/supabase-js");
-    const anon = createClient(safeUrl, safeKey, {
+    const { getSanitizedSupabaseUrl, getSanitizedPublishableKey } = await import(
+      "@/integrations/supabase/client.server"
+    );
+    const anon = createClient(getSanitizedSupabaseUrl(), getSanitizedPublishableKey(), {
       auth: { persistSession: false, autoRefreshToken: false, storage: undefined as any },
     });
     const { error } = await anon.auth.resetPasswordForEmail(email, { redirectTo: data.redirect_to });
