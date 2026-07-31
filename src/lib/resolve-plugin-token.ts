@@ -1,9 +1,10 @@
 // Shared plugin token → profile resolver used by all plugin API endpoints.
-// Always checks profiles.plugin_token first, then falls back to
-// plugin_pair_codes.plugin_token → profiles.id, then to the hardcoded owner.
+// Checks profiles.plugin_token first, then plugin_pair_codes.plugin_token →
+// profiles.id. A token must resolve to the account that approved it: never
+// fall back to another account, or a broken pairing looks "connected" while
+// queued Studio actions are read from the wrong user's queue.
 import { createClient } from "@supabase/supabase-js";
 
-const OWNER_FALLBACK_ID = "64f33732-136a-4c78-9421-7c11579c7412";
 
 // In-memory cache to avoid hammering Supabase on every poll/heartbeat/error
 const cache = new Map<string, { id: string; fetchedAt: number }>();
