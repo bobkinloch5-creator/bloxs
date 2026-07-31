@@ -332,32 +332,32 @@ export const getPluginSession = createServerFn({ method: "GET" })
     const { getResolvedUserId } = await import("@/lib/profile.functions");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const targetUserId = await getResolvedUserId(ctx.userId);
-    const ownerFallbackId = "64f33732-136a-4c78-9421-7c11579c7412";
+    const ids = Array.from(new Set([targetUserId, ctx.userId].filter(Boolean)));
 
-    // Use admin client to bypass RLS — sessions may have been written by
-    // heartbeat/poll using a different user ID than the one in the JWT.
+    // Admin client bypasses RLS, but the query MUST stay scoped to this
+    // account. Showing another user's session made the dock read "Connected"
+    // while none of this user's actions were ever polled.
     const { data: rows } = await supabaseAdmin
       .from("plugin_sessions")
       .select("user_id, last_seen, online, place_id, studio_version, plugin_version, last_scan, last_scan_at")
+      .in("user_id", ids)
       .order("last_seen", { ascending: false })
-      .limit(10);
+      .limit(5);
 
     if (!rows || rows.length === 0) return null;
 
     // Filter to active sessions seen within the last 3 minutes (180 seconds)
     const activeRows = rows.filter((r: any) => r.last_seen && (Date.now() - new Date(r.last_seen).getTime() < 180_000));
-    
+
     if (activeRows.length === 0) {
       // No active plugin session — return most recent historical row marked as offline
       const last = rows[0];
       return last ? { ...last, online: false } : null;
     }
 
-    // Pick the session matching target user / owner fallback, or fallback to the newest active row
     const match =
       activeRows.find((r: any) => r.user_id === targetUserId) ||
       activeRows.find((r: any) => r.user_id === ctx.userId) ||
-      activeRows.find((r: any) => r.user_id === ownerFallbackId) ||
       activeRows[0];
 
     return match ? { ...match, online: true } : null;
